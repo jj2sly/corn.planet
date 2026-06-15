@@ -110,3 +110,23 @@ header p{
 .keter{
     background:#b30000;
 }
+
+.cosmic{
+    background:#6f00ff;
+    color:white;
+}
+
+.earthly{
+    background:#e69500;
+    color:white;
+}
+
+.local{
+    background:#2e8b57;
+    color:white;
+}
+
+.seldom{
+    background:#555;
+    color:white;
+}
