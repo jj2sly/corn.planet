@@ -26,14 +26,22 @@ header p {
 
 /* === SCP STYLE UPGRADES === */
 
-/* 1. Warning styling tweak */
 .warning {
+    background: #ffd400;
+    color: black;
+    text-align: center;
+    padding: 10px;
+    font-weight: bold;
+    margin-bottom: 20px;
+
     letter-spacing: 2px;
     text-transform: uppercase;
 }
-
-/* 2. Entry hover effect */
 .entry {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 1px solid #222;
     transition: 0.2s;
 }
 
@@ -65,14 +73,6 @@ body::before {
     background: #0b0b0b;
     border: 2px solid #ffd400;
     padding: 20px;
-}
-
-/* ENTRY ROWS */
-.entry {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px;
-    border-bottom: 1px solid #222;
 }
 
 .entry a {
