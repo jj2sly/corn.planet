@@ -1,7 +1,7 @@
 body {
     font-family: Arial, sans-serif;
-    background: #0f0f0f;   /* deep black */
-    color: #f5f5f5;
+    background: #000000;   /* pure black */
+    color: #eaeaea;
     max-width: 1000px;
     margin: auto;
     padding: 20px;
@@ -9,24 +9,24 @@ body {
 
 /* HEADER */
 header {
-    border-bottom: 5px solid #f2c200; /* yellow */
+    border-bottom: 5px solid #ffd400; /* yellow accent */
     margin-bottom: 20px;
 }
 
 header h1 {
     margin: 0;
     font-size: 3rem;
-    color: #f2c200;
+    color: #ffd400;
 }
 
 header p {
-    color: #f2c200;
+    color: #ffd400;
     font-weight: bold;
 }
 
-/* WARNING BANNER */
+/* WARNING BAR */
 .warning {
-    background: #f2c200;
+    background: #ffd400;
     color: black;
     text-align: center;
     padding: 10px;
@@ -34,48 +34,47 @@ header p {
     margin-bottom: 20px;
 }
 
-/* MAIN BOX */
+/* MAIN CONTENT BOX */
 .database {
-    background: #1a1a1a;
-    border: 2px solid #f2c200;
+    background: #0b0b0b;
+    border: 2px solid #ffd400;
     padding: 20px;
 }
 
-/* ENTRIES */
+/* ENTRY ROWS */
 .entry {
     display: flex;
     justify-content: space-between;
     padding: 10px;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid #222;
 }
 
 .entry a {
     text-decoration: none;
-    color: #f5f5f5;
+    color: #eaeaea;
     font-weight: bold;
 }
 
 .entry a:hover {
-    color: #f2c200;
+    color: #ffd400;
 }
 
-/* ENTRY BOX */
+/* FILE VIEW */
 .file {
-    border: 2px solid #f2c200;
+    border: 2px solid #ffd400;
     padding: 20px;
-    background: #141414;
+    background: #0a0a0a;
 }
 
 /* HEADINGS */
 h2 {
-    border-bottom: 2px solid #f2c200;
+    border-bottom: 2px solid #ffd400;
     padding-bottom: 5px;
-    color: #f2c200;
+    color: #ffd400;
 }
 
 h3 {
     margin-top: 25px;
-    color: #f5f5f5;
 }
 
 /* CLASS TAGS */
@@ -83,32 +82,33 @@ h3 {
     padding: 4px 10px;
     border-radius: 3px;
     font-size: 0.8rem;
-    color: black;
     font-weight: bold;
+    color: black;
 }
 
-/* POWER LEVELS (your new system) */
+/* POWER LEVELS */
 .cosmic {
-    background: #b38b00;
+    background: #ffd400;
 }
 
 .earthly {
-    background: #f2c200;
+    background: #ffcc00;
 }
 
 .local {
-    background: #ffda44;
+    background: #b38f00;
+    color: black;
 }
 
 .seldom {
-    background: #666;
-    color: white;
+    background: #333;
+    color: #eaeaea;
 }
 
-/* LEGEND BOX */
+/* LEGEND */
 .legend {
-    background: #1a1a1a;
-    border: 2px solid #f2c200;
+    background: #0b0b0b;
+    border: 2px solid #ffd400;
     padding: 15px;
     margin-bottom: 20px;
 }
