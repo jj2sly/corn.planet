@@ -52,7 +52,25 @@
         }
     }
 
-    loadEntry();
+    async function loadEntry() {
+    console.log("ID:", id);
+
+    const docRef = doc(db, "entities", id);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+        document.getElementById("title").textContent = "ENTITY NOT FOUND";
+        return;
+    }
+
+    const data = docSnap.data();
+    console.log("DATA:", data);
+
+    document.getElementById("title").textContent = data.title || "NO TITLE";
+    document.getElementById("classTag").textContent = "CLASSIFICATION: " + (data.classification || "UNKNOWN");
+    document.getElementById("description").textContent = data.description || "NO DESCRIPTION";
+    document.getElementById("content").textContent = data.content || "NO CONTENT";
+}
 </script>
 
 </body>
