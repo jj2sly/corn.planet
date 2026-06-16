@@ -50,7 +50,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
@@ -64,28 +64,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-document.getElementById("submitBtn").addEventListener("click", async () => {
-
-    const docId = document.getElementById("docId").value;
-
-    await setDoc(doc(db, "entities", docId), {
-    title: document.getElementById("title").value,
-    classification: document.getElementById("classification").value,
-    containment: document.getElementById("containment").value,
-    description: document.getElementById("description").value,
-    containmentProcedures: document.getElementById("containmentProcedures").value,
-    addendum: document.getElementById("addendum").value
-});
-
-    import { collection, getDocs } from "firebase/firestore";
-
 async function generateNextCPE() {
     const querySnapshot = await getDocs(collection(db, "entities"));
 
     let max = 0;
 
-    querySnapshot.forEach((doc) => {
-        const id = doc.id; // like "CPE-005"
+    querySnapshot.forEach((docSnap) => {
+        const id = docSnap.id;
 
         const match = id.match(/CPE-(\d+)/);
         if (match) {
@@ -97,15 +82,31 @@ async function generateNextCPE() {
     const next = max + 1;
     return "CPE-" + String(next).padStart(3, "0");
 }
-    window.addEventListener("load", async () => {
-    const nextId = await generateNextCPE();
 
+window.addEventListener("load", async () => {
+    const nextId = await generateNextCPE();
     document.getElementById("docId").value = nextId;
 });
-});
+
+document.getElementById("submitBtn").addEventListener("click", async () => {
+
+    const docId = document.getElementById("docId").value;
+
+    await setDoc(doc(db, "entities", docId), {
+        title: document.getElementById("title").value,
+        classification: document.getElementById("classification").value,
+        containment: document.getElementById("containment").value,
+        description: document.getElementById("description").value,
+        containmentProcedures: document.getElementById("containmentProcedures").value,
+        addendum: document.getElementById("addendum").value
+    });
 
     document.getElementById("status").textContent =
         "Entity successfully created.";
+
+    // OPTIONAL: generate next ID immediately after submit
+    const nextId = await generateNextCPE();
+    document.getElementById("docId").value = nextId;
 });
 </script>
 
