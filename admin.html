@@ -15,7 +15,7 @@
 
     <h2>Create New Entity</h2>
 
-    <input id="docId" placeholder="CPE-005"><br><br>
+    <input id="docId" placeholder="Auto-generating..." disabled>
 
     <input id="title" placeholder="Title"><br><br>
 
@@ -75,6 +75,33 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
     description: document.getElementById("description").value,
     containmentProcedures: document.getElementById("containmentProcedures").value,
     addendum: document.getElementById("addendum").value
+});
+
+    import { collection, getDocs } from "firebase/firestore";
+
+async function generateNextCPE() {
+    const querySnapshot = await getDocs(collection(db, "entities"));
+
+    let max = 0;
+
+    querySnapshot.forEach((doc) => {
+        const id = doc.id; // like "CPE-005"
+
+        const match = id.match(/CPE-(\d+)/);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > max) max = num;
+        }
+    });
+
+    const next = max + 1;
+    return "CPE-" + String(next).padStart(3, "0");
+}
+    window.addEventListener("load", async () => {
+    const nextId = await generateNextCPE();
+
+    document.getElementById("docId").value = nextId;
+});
 });
 
     document.getElementById("status").textContent =
