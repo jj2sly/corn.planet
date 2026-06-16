@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CPE Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+    <h1>CPE ADMIN PANEL</h1>
+    <p>AUTHORIZED PERSONNEL ONLY</p>
+</header>
+
+<div class="file">
+
+    <h2>Create New Entity</h2>
+
+    <input id="docId" placeholder="CPE-005"><br><br>
+
+    <input id="title" placeholder="Title"><br><br>
+
+    <input id="classification" placeholder="Classification"><br><br>
+
+    <input id="containment" placeholder="Containment"><br><br>
+
+    <textarea id="description" placeholder="Description"></textarea><br><br>
+
+    <textarea id="content" placeholder="Full Document"></textarea><br><br>
+
+    <button id="submitBtn">Create Entity</button>
+
+    <p id="status"></p>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "cpo-9af17.firebaseapp.com",
+  projectId: "cpo-9af17",
+  storageBucket: "cpo-9af17.firebasestorage.app",
+  messagingSenderId: "526427336111",
+  appId: "1:526427336111:web:8b71369117416ae937d35a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+document.getElementById("submitBtn").addEventListener("click", async () => {
+
+    const docId = document.getElementById("docId").value;
+
+    await setDoc(doc(db, "entities", docId), {
+        title: document.getElementById("title").value,
+        classification: document.getElementById("classification").value,
+        containment: document.getElementById("containment").value,
+        description: document.getElementById("description").value,
+        content: document.getElementById("content").value
+    });
+
+    document.getElementById("status").textContent =
+        "Entity successfully created.";
+});
+</script>
+
+</body>
+</html>
