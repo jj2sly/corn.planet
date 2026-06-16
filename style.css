@@ -131,6 +131,10 @@ h3 {
     color: #eaeaea;
 }
 
+.neutralized {
+   background: #C27715;
+}
+
 /* LEGEND */
 .legend {
     background: #0b0b0b;
