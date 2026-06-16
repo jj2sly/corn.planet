@@ -19,13 +19,21 @@
     <p id="content"></p>
 </div>
 
+
+    
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-        // 🔴 paste your Firebase config here
-    };
+   
+  const firebaseConfig = {
+  apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
+  authDomain: "cpo-9af17.firebaseapp.com",
+  projectId: "cpo-9af17",
+  storageBucket: "cpo-9af17.firebasestorage.app",
+  messagingSenderId: "526427336111",
+  appId: "1:526427336111:web:8b71369117416ae937d35a"
+};
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
