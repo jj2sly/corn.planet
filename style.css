@@ -138,3 +138,32 @@ h3 {
     padding: 15px;
     margin-bottom: 20px;
 }
+
+select,
+input,
+textarea {
+    width: 100%;
+    padding: 10px;
+    background: #111;
+    color: #eaeaea;
+    border: 2px solid #ffd400;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+textarea {
+    min-height: 150px;
+}
+
+button {
+    background: #ffd400;
+    color: black;
+    border: none;
+    padding: 10px 20px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #ffea66;
+}
