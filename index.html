@@ -46,7 +46,11 @@
   const db = getFirestore(app);
 
   const container = document.querySelector(".database");
-
+    onAuthStateChanged(auth, (user) => {
+    if (!user) {
+        window.location.href = "login.html";
+    }
+});
   async function loadEntries() {
     const querySnapshot = await getDocs(collection(db, "entities"));
 
