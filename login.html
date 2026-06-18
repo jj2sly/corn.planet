@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CPE LOGIN</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+    <h1>CPE ACCESS TERMINAL</h1>
+    <p>AUTHORIZED PERSONNEL ONLY</p>
+</header>
+
+<div class="file">
+
+    <input id="email" placeholder="iajm@cpst.net"><br><br>
+    <input id="password" type="password" placeholder="???"><br><br>
+
+    <button id="loginBtn">ACCESS SYSTEM</button>
+
+    <p id="status"></p>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword } 
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
+  authDomain: "cpo-9af17.firebaseapp.com",
+  projectId: "cpo-9af17",
+  storageBucket: "cpo-9af17.firebasestorage.app",
+  messagingSenderId: "526427336111",
+  appId: "1:526427336111:web:8b71369117416ae937d35a"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+document.getElementById("loginBtn").addEventListener("click", async () => {
+
+    const email = document.getElementById("admin@corn.planet").value;
+    const password = document.getElementById("123456").value;
+
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+
+        document.getElementById("status").textContent =
+            "ACCESS GRANTED... redirecting";
+
+        setTimeout(() => {
+            window.location.href = "admin.html";
+        }, 800);
+
+    } catch (error) {
+        document.getElementById("status").textContent =
+            "ACCESS DENIED";
+    }
+});
+
+</script>
+
+</body>
+</html>
