@@ -27,60 +27,94 @@
 <p id="status"></p>
     
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, updateDoc, deleteDoc} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+    getFirestore,
+    doc,
+    getDoc,
+    updateDoc,
+    deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-   
-  const firebaseConfig = {
-  apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
-  authDomain: "cpo-9af17.firebaseapp.com",
-  projectId: "cpo-9af17",
-  storageBucket: "cpo-9af17.firebasestorage.app",
-  messagingSenderId: "526427336111",
-  appId: "1:526427336111:web:8b71369117416ae937d35a"
+import {
+    getAuth,
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "cpo-9af17.firebaseapp.com",
+    projectId: "cpo-9af17",
+    storageBucket: "cpo-9af17.firebasestorage.app",
+    messagingSenderId: "526427336111",
+    appId: "1:526427336111:web:8b71369117416ae937d35a"
 };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-    // Get ID from URL (example: entry.html?id=CPE-001)
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("id");
+// Get ID from URL
+const params = new URLSearchParams(window.location.search);
+const id = params.get("id");
 
-    let editing = false;
-    async function loadEntry() {
-    console.log("ID:", id);
+let editing = false;
+
+/* =========================
+   AUTH CHECK (ONE ONLY)
+========================= */
+onAuthStateChanged(auth, (user) => {
+
+    if (!user) {
+        document.getElementById("editBtn").style.display = "none";
+        document.getElementById("deleteBtn").style.display = "none";
+
+        document.getElementById("description").readOnly = true;
+        document.getElementById("containmentProcedures").readOnly = true;
+        document.getElementById("addendum").readOnly = true;
+    }
+});
+
+/* =========================
+   LOAD ENTRY
+========================= */
+async function loadEntry() {
 
     const docRef = doc(db, "entities", id);
     const docSnap = await getDoc(docRef);
-        
+
     if (!docSnap.exists()) {
         document.getElementById("title").textContent = "ENTITY NOT FOUND";
         return;
     }
 
     const data = docSnap.data();
+
     document.getElementById("title").textContent =
-    data.title || "UNTITLED ENTITY";
+        data.title || "UNTITLED ENTITY";
 
     document.getElementById("classTag").textContent =
-    "CLASSIFICATION: " + (data.classification || "UNKNOWN");
+        "CLASSIFICATION: " + (data.classification || "UNKNOWN");
 
     document.getElementById("containmentTag").textContent =
-    "CONTAINMENT: " + (data.containment || "UNKNOWN");
-    console.log("DATA:", data);
+        "CONTAINMENT: " + (data.containment || "UNKNOWN");
 
     document.getElementById("description").value =
-    data.description || "";
+        data.description || "";
 
     document.getElementById("containmentProcedures").value =
-    data.containmentProcedures || "";
+        data.containmentProcedures || "";
 
     document.getElementById("addendum").value =
-    data.addendum || "";
+        data.addendum || "";
 }
-    loadEntry();
-    document.getElementById("editBtn").addEventListener("click", async () => {
+
+loadEntry();
+
+/* =========================
+   EDIT / SAVE
+========================= */
+document.getElementById("editBtn").addEventListener("click", async () => {
 
     const description = document.getElementById("description");
     const containment = document.getElementById("containmentProcedures");
@@ -117,7 +151,11 @@
 
     editing = false;
 });
-    document.getElementById("deleteBtn").addEventListener("click", async () => {
+
+/* =========================
+   DELETE
+========================= */
+document.getElementById("deleteBtn").addEventListener("click", async () => {
 
     const confirmed = confirm(
         "TERMINATION PROTOCOL\n\nDelete this CPE permanently?"
