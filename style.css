@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Oswald:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Oswald:wght@400;600;700&display=swap');
 
 body {
-    font-family: 'Special Elite', 'Courier New', monospace;
+    font-family: 'PT Sans', Arial, sans-serif;
     background: #000000;   /* pure black */
     color: #eaeaea;
     max-width: 1000px;
@@ -271,7 +271,7 @@ button:hover {
 }
 
 #gateSubtitle {
-    font-family: 'Special Elite', 'Courier New', monospace;
+    font-family: 'PT Sans', Arial, sans-serif;
     color: #888;
     letter-spacing: 3px;
     margin-top: 10px;
