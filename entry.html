@@ -7,7 +7,8 @@
 <body>
 
 <header>
-    <h1 id="title">LOADING...</h1>
+    <h1 id="number">LOADING...</h1>
+    <h2 id="title"></h2>
     <p id="classTag">CLASSIFICATION: ...</p>
     <p id="containmentTag">CONTAINMENT: ...</p>
 </header>
@@ -23,6 +24,9 @@
 <h2>ADDENDUM</h2>
 <div id="addendumView" class="entryText"></div>
 <textarea id="addendumEdit" class="entryText" style="display:none;"></textarea>
+
+<h2>ACTIVITY LOG</h2>
+<div id="activityLog"></div>
 
 <button id="editBtn">EDIT FILE</button>
 <button id="revealBtn" style="display:none;">REVEAL REDACTIONS</button>
@@ -139,8 +143,10 @@ async function loadEntry() {
     
     console.log("ENTITY DATA:", data);
 
+    document.getElementById("number").textContent = id;
+
     document.getElementById("title").textContent =
-        data.title || "UNTITLED ENTITY";
+    data.title || "UNTITLED ENTITY";
 
     document.getElementById("classTag").textContent =
         "CLASSIFICATION: " + (data.classification || "UNKNOWN");
@@ -165,6 +171,25 @@ async function loadEntry() {
 
     document.getElementById("addendumEdit").value =
         data.addendum || "";
+}
+    const logDiv = document.getElementById("activityLog");
+
+if (data.logs && data.logs.length) {
+
+    logDiv.innerHTML = data.logs
+        .slice()
+        .reverse()
+        .map(log => `
+            <div class="logEntry">
+                <strong>${log.date}</strong><br>
+                ${log.message}
+            </div>
+        `)
+        .join("");
+
+} else {
+
+    logDiv.innerHTML = "No activity recorded.";
 }
 
 /* =========================
