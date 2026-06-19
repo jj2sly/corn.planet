@@ -42,8 +42,8 @@ const auth = getAuth(app);
 
 document.getElementById("loginBtn").addEventListener("click", async () => {
 
-    const email = document.getElementById("admin@corn.planet").value;
-    const password = document.getElementById("123456").value;
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
 
     try {
         await signInWithEmailAndPassword(auth, email, password);
@@ -52,17 +52,16 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
             "ACCESS GRANTED... redirecting";
 
         setTimeout(() => {
-
-            setTimeout(() => {
             window.location.href = "index.html";
-        }, 500);
+        }, 800);
 
     } catch (error) {
+        console.log(error);
+
         document.getElementById("status").textContent =
             "ACCESS DENIED";
     }
 });
-
 </script>
 
 </body>
