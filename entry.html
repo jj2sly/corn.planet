@@ -75,7 +75,8 @@ onAuthStateChanged(auth, (user) => {
         document.getElementById("containmentProcedures").readOnly = true;
         document.getElementById("addendum").readOnly = true;
 
-        window.location.href = "login.html";
+       document.getElementById("status").textContent =
+    "ACCESS LEVEL REQUIRED TO EDIT";
     }
 
 });
