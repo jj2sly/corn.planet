@@ -119,6 +119,26 @@ function applyRedactions(text) {
 }
 
 /* =========================
+   PARAGRAPH FORMATTING
+========================= */
+function formatAsParagraphs(text) {
+    if (typeof text !== "string" || text.trim() === "") return "";
+
+    // Split on blank lines (one or more empty lines between paragraphs).
+    // Falls back to splitting on single newlines if there are no blank lines.
+    let chunks = text.split(/\n\s*\n/);
+    if (chunks.length === 1) {
+        chunks = text.split(/\n/);
+    }
+
+    return chunks
+        .map(chunk => chunk.trim())
+        .filter(chunk => chunk.length > 0)
+        .map(chunk => `<p>${applyRedactions(chunk)}</p>`)
+        .join("");
+}
+
+/* =========================
    LOAD ENTRY
 ========================= */
 async function loadEntry() {
@@ -155,13 +175,13 @@ async function loadEntry() {
         "CONTAINMENT: " + (data.containment || "UNKNOWN");
 
     document.getElementById("descriptionView").innerHTML =
-        applyRedactions(data.description || "");
+        formatAsParagraphs(data.description || "");
 
     document.getElementById("containmentView").innerHTML =
-        applyRedactions(data.containmentProcedures || "");
+        formatAsParagraphs(data.containmentProcedures || "");
 
     document.getElementById("addendumView").innerHTML =
-        applyRedactions(data.addendum || "");
+        formatAsParagraphs(data.addendum || "");
 
     document.getElementById("descriptionEdit").value =
         data.description || "";
@@ -301,13 +321,13 @@ document.getElementById("revealBtn")?.addEventListener("click", () => {
     } else {
 
         document.getElementById("descriptionView").innerHTML =
-            applyRedactions(currentData.description || "");
+            formatAsParagraphs(currentData.description || "");
 
         document.getElementById("containmentView").innerHTML =
-            applyRedactions(currentData.containmentProcedures || "");
+            formatAsParagraphs(currentData.containmentProcedures || "");
 
         document.getElementById("addendumView").innerHTML =
-            applyRedactions(currentData.addendum || "");
+            formatAsParagraphs(currentData.addendum || "");
 
         document.getElementById("revealBtn").textContent =
             "REVEAL REDACTIONS";
