@@ -1,25 +1,59 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Classification System</title>
+    <title>Corn Planet Entity Database</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
-    <h1>CLASSIFICATION SYSTEM</h1>
-    <p>THREAT LEVEL REFERENCE</p>
+    <a href="admin.html">ADMIN PANEL</a>
+    <h1>CORN PLANET ENTITY DATABASE</h1>
+    <p>SECURE • STUDY • DOCUMENT</p>
 </header>
-
-<div class="legend">
-    <h3>CLASSIFICATION</h3>
-    <p><span class="class cosmic">COSMIC</span> — Reality-altering entities</p>
-    <p><span class="class earthly">EARTHLY</span> — Major threats</p>
-    <p><span class="class local">LOCAL</span> — Limited influence</p>
-    <p><span class="class seldom">CONSTRICTED</span> — Controlled anomalies</p>
-    <p><span class="class neutralized">NEUTRALIZED</span> — Deceased/Irrelevant anomalies</p>
+<div class="warning">
+    ACCESS LEVEL 2 REQUIRED
 </div>
-
-<a href="index.html" class="backBtn">⬅ BACK TO HOME</a>
-
+<a href="classification.html" class="backBtn">VIEW CLASSIFICATION SYSTEM</a>
+    <div class="database">
+  <h2>Entity Index</h2>
+  <div id="container"></div>
+</div>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const firebaseConfig = {
+  apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
+  authDomain: "cpo-9af17.firebaseapp.com",
+  projectId: "cpo-9af17",
+  storageBucket: "cpo-9af17.firebasestorage.app",
+  messagingSenderId: "526427336111",
+  appId: "1:526427336111:web:8b71369117416ae937d35a"
+};
+    const container = document.getElementById("container");
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  async function loadEntries() {
+  const querySnapshot = await getDocs(collection(db, "entities"));
+  console.log("ENTRIES FOUND:", querySnapshot.size);
+  if (!querySnapshot.size) {
+    container.innerHTML = "<p>No entities found in database.</p>";
+    return;
+  }
+  querySnapshot.forEach((docSnap) => {
+    const data = docSnap.data();
+    const div = document.createElement("div");
+    div.className = "entry";
+    const title = data.title || "UNTITLED ENTITY";
+    const classification = (data.classification || "UNKNOWN").toString();
+    const safeClass = classification.toLowerCase();
+    div.innerHTML = `
+      <a href="entry.html?id=${docSnap.id}">${title}</a>
+      <span class="class ${safeClass}">${classification}</span>
+    `;
+    container.appendChild(div);
+  });
+}
+  loadEntries();
+</script>
 </body>
 </html>
