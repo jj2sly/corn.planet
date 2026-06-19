@@ -59,18 +59,19 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// Get ID from URL
 const params = new URLSearchParams(window.location.search);
 const id = params.get("id");
 
 let isEditMode = false;
 
 /* =========================
-   AUTH CHECK
+   AUTH
 ========================= */
 onAuthStateChanged(auth, (user) => {
     const editBtn = document.getElementById("editBtn");
     const deleteBtn = document.getElementById("deleteBtn");
+
+    if (!editBtn || !deleteBtn) return;
 
     if (user) {
         editBtn.style.display = "inline-block";
@@ -79,24 +80,57 @@ onAuthStateChanged(auth, (user) => {
         editBtn.style.display = "none";
         deleteBtn.style.display = "none";
 
-        document.getElementById("status").textContent =
-            "ACCESS LEVEL REQUIRED TO EDIT";
+        const status = document.getElementById("status");
+        if (status) {
+            status.textContent = "ACCESS LEVEL REQUIRED TO EDIT";
+        }
     }
 });
+
+/* =========================
+   REDACTIONS
+========================= */
+function applyRedactions(text) {
+    if (typeof text !== "string") return "";
+
+    return text
+        .replace(
+            /\/r!!(.*?)\/r!!/g,
+            `<span class="redacted-cosmic">████ COSMIC ERASED ████</span>`
+        )
+        .replace(
+            /\/r!(.*?)\/r!/g,
+            `<span class="redacted-heavy">██ CLASSIFIED ██</span>`
+        )
+        .replace(
+            /\/r(.*?)\/r/g,
+            `<span class="redacted-normal">███ REDACTED ███</span>`
+        );
+}
 
 /* =========================
    LOAD ENTRY
 ========================= */
 async function loadEntry() {
+
+    if (!id) {
+        document.getElementById("title").textContent =
+            "NO ENTITY ID PROVIDED";
+        return;
+    }
+
     const docRef = doc(db, "entities", id);
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
-        document.getElementById("title").textContent = "ENTITY NOT FOUND";
+        document.getElementById("title").textContent =
+            "ENTITY NOT FOUND";
         return;
     }
 
     const data = docSnap.data();
+
+    console.log("ENTITY DATA:", data);
 
     document.getElementById("title").textContent =
         data.title || "UNTITLED ENTITY";
@@ -107,8 +141,8 @@ async function loadEntry() {
     document.getElementById("containmentTag").textContent =
         "CONTAINMENT: " + (data.containment || "UNKNOWN");
 
-   document.getElementById("descriptionView").innerHTML =
-    data.description || "NO DATA LOADED";
+    document.getElementById("descriptionView").innerHTML =
+        applyRedactions(data.description || "");
 
     document.getElementById("containmentView").innerHTML =
         applyRedactions(data.containmentProcedures || "");
@@ -127,22 +161,31 @@ async function loadEntry() {
 }
 
 /* =========================
-   MODE TOGGLE
+   EDIT MODE
 ========================= */
 function toggleMode() {
     isEditMode = !isEditMode;
 
-    const viewIds = ["descriptionView", "containmentView", "addendumView"];
-    const editIds = ["descriptionEdit", "containmentEdit", "addendumEdit"];
+    const viewIds = [
+        "descriptionView",
+        "containmentView",
+        "addendumView"
+    ];
+
+    const editIds = [
+        "descriptionEdit",
+        "containmentEdit",
+        "addendumEdit"
+    ];
 
     viewIds.forEach(id => {
-        document.getElementById(id).style.display =
-            isEditMode ? "none" : "block";
+        const el = document.getElementById(id);
+        if (el) el.style.display = isEditMode ? "none" : "block";
     });
 
     editIds.forEach(id => {
-        document.getElementById(id).style.display =
-            isEditMode ? "block" : "none";
+        const el = document.getElementById(id);
+        if (el) el.style.display = isEditMode ? "block" : "none";
     });
 
     document.getElementById("editBtn").textContent =
@@ -150,9 +193,9 @@ function toggleMode() {
 }
 
 /* =========================
-   EDIT / SAVE BUTTON
+   EDIT BUTTON
 ========================= */
-document.getElementById("editBtn").addEventListener("click", async () => {
+document.getElementById("editBtn")?.addEventListener("click", async () => {
 
     if (!isEditMode) {
         toggleMode();
@@ -160,9 +203,14 @@ document.getElementById("editBtn").addEventListener("click", async () => {
     }
 
     await updateDoc(doc(db, "entities", id), {
-        description: document.getElementById("descriptionEdit").value,
-        containmentProcedures: document.getElementById("containmentEdit").value,
-        addendum: document.getElementById("addendumEdit").value
+        description:
+            document.getElementById("descriptionEdit").value,
+
+        containmentProcedures:
+            document.getElementById("containmentEdit").value,
+
+        addendum:
+            document.getElementById("addendumEdit").value
     });
 
     document.getElementById("status").textContent =
@@ -174,7 +222,7 @@ document.getElementById("editBtn").addEventListener("click", async () => {
 /* =========================
    DELETE BUTTON
 ========================= */
-document.getElementById("deleteBtn").addEventListener("click", async () => {
+document.getElementById("deleteBtn")?.addEventListener("click", async () => {
 
     const confirmed = confirm(
         "TERMINATION PROTOCOL\n\nDelete this CPE permanently?"
@@ -184,118 +232,13 @@ document.getElementById("deleteBtn").addEventListener("click", async () => {
 
     await deleteDoc(doc(db, "entities", id));
 
-    document.getElementById("status").textContent =
-        "Entity deleted.";
+    window.location.href = "index.html";
 });
 
 /* =========================
-   REDACTIONS
-========================= */
-function applyRedactions(text) {
-    text = text.replace(/\/r!!(.*?)\/r!!/g,
-        `<span class="redacted-cosmic">████ COSMIC ERASED ████</span>`
-    );
-
-    text = text.replace(/\/r!(.*?)\/r!/g,
-        `<span class="redacted-heavy">██ CLASSIFIED ██</span>`
-    );
-
-    text = text.replace(/\/r(.*?)\/r/g,
-        `<span class="redacted-normal">███ REDACTED ███</span>`
-    );
-
-    return text;
-}
-
-/* =========================
-   INIT
+   START
 ========================= */
 loadEntry();
-
-    let isEditMode = false;
-
-document.getElementById("modeBtn").addEventListener("click", () => {
-
-    isEditMode = !isEditMode;
-
-    const view = ["descriptionView","containmentView","addendumView"];
-    const edit = ["descriptionEdit","containmentEdit","addendumEdit"];
-
-    view.forEach(id => {
-        document.getElementById(id).style.display =
-            isEditMode ? "none" : "block";
-    });
-
-    edit.forEach(id => {
-        document.getElementById(id).style.display =
-            isEditMode ? "block" : "none";
-    });
-
-    document.getElementById("modeBtn").textContent =
-        isEditMode ? "SWITCH TO VIEW MODE" : "SWITCH TO EDIT MODE";
-});
-/* =========================
-   EDIT / SAVE
-========================= */
-document.getElementById("editBtn").addEventListener("click", async () => {
-    <button id="modeBtn">SWITCH TO EDIT MODE</button>
-    const description = document.getElementById("description");
-    const containment = document.getElementById("containmentProcedures");
-    const addendum = document.getElementById("addendum");
-
-    if (!editing) {
-
-        description.readOnly = false;
-        containment.readOnly = false;
-        addendum.readOnly = false;
-
-        document.getElementById("editBtn").textContent =
-            "SAVE CHANGES";
-
-        editing = true;
-        return;
-    }
-
-   document.getElementById("editBtn").addEventListener("click", async () => {
-
-    await updateDoc(doc(db, "entities", id), {
-        description: document.getElementById("descriptionEdit").value,
-        containmentProcedures: document.getElementById("containmentEdit").value,
-        addendum: document.getElementById("addendumEdit").value
-    });
-
-    document.getElementById("status").textContent =
-        "Changes saved successfully.";
-});
-});
-
-    description.readOnly = true;
-    containment.readOnly = true;
-    addendum.readOnly = true;
-
-    document.getElementById("editBtn").textContent =
-        "EDIT FILE";
-
-    document.getElementById("status").textContent =
-        "Changes saved successfully.";
-
-    editing = false;
-});
-
-/* =========================
-   DELETE
-========================= */
-document.getElementById("deleteBtn").addEventListener("click", async () => {
-
-    const confirmed = confirm(
-        "TERMINATION PROTOCOL\n\nDelete this CPE permanently?"
-    );
-
-    if (!confirmed) return;
-
-    await deleteDoc(doc(db, "entities", id));
-
-});
 </script>
 
 </body>
