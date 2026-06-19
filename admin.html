@@ -65,6 +65,8 @@
 
     <input id="newClassName" placeholder="Classification name (e.g. ANOMALOUS)">
     <br><br>
+    <input id="newClassDescription" placeholder="Short description (e.g. Reality-altering entities)">
+    <br><br>
     <label for="newClassColor" style="color:#ffd400; font-weight:bold;">Color:</label>
     <input type="color" id="newClassColor" value="#ffd400">
     <br><br>
@@ -223,12 +225,14 @@ async function loadClassifications() {
         const data = docSnap.data();
         const name = data.name || docSnap.id;
         const color = data.color || "#ffd400";
+        const description = data.description || "";
 
         // Row in management list
         const row = document.createElement("div");
         row.className = "entry";
         row.innerHTML = `
             <span class="class" style="background:${color}; color:#000;">${name}</span>
+            <input type="text" value="${description}" data-id="${docSnap.id}" class="classDescInput" placeholder="Description" style="flex:1; min-width:150px;">
             <input type="color" value="${color}" data-id="${docSnap.id}" class="classColorInput">
             <button data-id="${docSnap.id}" class="saveClassBtn">SAVE</button>
             <button data-id="${docSnap.id}" class="deleteClassBtn">DELETE</button>
@@ -247,14 +251,17 @@ async function loadClassifications() {
         btn.addEventListener("click", async () => {
             const id = btn.getAttribute("data-id");
             const colorInput = document.querySelector(`.classColorInput[data-id="${id}"]`);
+            const descInput = document.querySelector(`.classDescInput[data-id="${id}"]`);
             const newColor = colorInput.value;
+            const newDesc = descInput.value;
 
             await updateDoc(doc(db, "classifications", id), {
-                color: newColor
+                color: newColor,
+                description: newDesc
             });
 
             document.getElementById("classStatus").textContent =
-                `Updated color for ${id}.`;
+                `Updated ${id}.`;
 
             loadClassifications();
         });
@@ -280,9 +287,11 @@ async function loadClassifications() {
 
 document.getElementById("addClassBtn").addEventListener("click", async () => {
     const nameInput = document.getElementById("newClassName");
+    const descInput = document.getElementById("newClassDescription");
     const colorInput = document.getElementById("newClassColor");
 
     const name = nameInput.value.trim().toUpperCase();
+    const description = descInput.value.trim();
     const color = colorInput.value;
 
     if (!name) {
@@ -295,6 +304,7 @@ document.getElementById("addClassBtn").addEventListener("click", async () => {
 
     await setDoc(doc(db, "classifications", docId), {
         name: name,
+        description: description,
         color: color
     });
 
@@ -302,6 +312,7 @@ document.getElementById("addClassBtn").addEventListener("click", async () => {
         `Classification "${name}" added.`;
 
     nameInput.value = "";
+    descInput.value = "";
     colorInput.value = "#ffd400";
 
     loadClassifications();
