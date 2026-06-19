@@ -59,28 +59,48 @@ const params = new URLSearchParams(window.location.search);
 const id = params.get("id");
 
 let editing = false;
+document.getElementById("editBtn").style.display = "none";
+document.getElementById("deleteBtn").style.display = "none";
 
 /* =========================
    AUTH CHECK (ONE ONLY)
 ========================= */
 onAuthStateChanged(auth, (user) => {
 
-    if (!user) {
+    const editBtn = document.getElementById("editBtn");
+    const deleteBtn = document.getElementById("deleteBtn");
+
+    const description = document.getElementById("description");
+    const containment = document.getElementById("containmentProcedures");
+    const addendum = document.getElementById("addendum");
+
+    if (user) {
+
+        editBtn.style.display = "inline-block";
+        deleteBtn.style.display = "inline-block";
+
+        description.readOnly = true;
+        containment.readOnly = true;
+        addendum.readOnly = true;
+
+        document.getElementById("status").textContent = "";
+
+    } else {
+
         sessionStorage.setItem("redirectAfterLogin", window.location.href);
 
-        document.getElementById("editBtn").style.display = "none";
-        document.getElementById("deleteBtn").style.display = "none";
+        editBtn.style.display = "none";
+        deleteBtn.style.display = "none";
 
-        document.getElementById("description").readOnly = true;
-        document.getElementById("containmentProcedures").readOnly = true;
-        document.getElementById("addendum").readOnly = true;
+        description.readOnly = true;
+        containment.readOnly = true;
+        addendum.readOnly = true;
 
-       document.getElementById("status").textContent =
-    "ACCESS LEVEL REQUIRED TO EDIT";
+        document.getElementById("status").textContent =
+            "ACCESS LEVEL REQUIRED TO EDIT";
     }
 
 });
-
 /* =========================
    LOAD ENTRY
 ========================= */
