@@ -3,11 +3,11 @@
 <head>
     <title>Corn Planet Entity Database</title>
     <link rel="stylesheet" href="style.css">
-    <a href="admin.html">ADMIN PANEL</a>
 </head>
 <body>
 
 <header>
+    <a href="admin.html">ADMIN PANEL</a>
     <h1>CORN PLANET ENTITY DATABASE</h1>
     <p>SECURE • STUDY • DOCUMENT</p>
 </header>
@@ -25,7 +25,7 @@
     <p><span class="class neutralized">NEUTRALIZED</span> — Deceased/Irrelevant anomalies</p>
 </div>
 
-<div class="database">
+    <div class="database" id="container">
     <h2>Entity Index</h2>
 </div>
 
@@ -42,6 +42,7 @@
   appId: "1:526427336111:web:8b71369117416ae937d35a"
 };
 
+    const container = document.getElementById("container");
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
