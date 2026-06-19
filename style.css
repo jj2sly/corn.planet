@@ -171,3 +171,19 @@ button {
 button:hover {
     background: #ffea66;
 }
+
+.backBtn {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 10px 15px;
+    background: black;
+    color: #ffd400;
+    border: 2px solid #ffd400;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.backBtn:hover {
+    background: #ffd400;
+    color: black;
+}
