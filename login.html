@@ -47,6 +47,7 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
 
     try {
         await signInWithEmailAndPassword(auth, email, password);
+            console.log("LOGIN SUCCESS");
 
         document.getElementById("status").textContent =
             "ACCESS GRANTED... redirecting";
@@ -56,10 +57,11 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
         }, 800);
 
     } catch (error) {
-        console.log(error);
+    console.error("LOGIN ERROR:", error);
 
-        document.getElementById("status").textContent =
-            "ACCESS DENIED";
+    document.getElementById("status").textContent =
+        error.code;
+}
     }
 });
 </script>
