@@ -6,26 +6,21 @@ body {
     margin: auto;
     padding: 20px;
 }
-
 /* HEADER */
 header {
     border-bottom: 5px solid #ffd400; /* yellow accent */
     margin-bottom: 20px;
 }
-
 header h1 {
     margin: 0;
     font-size: 3rem;
     color: #ffd400;
 }
-
 header p {
     color: #ffd400;
     font-weight: bold;
 }
-
 /* === SCP STYLE UPGRADES === */
-
 .warning {
     background: #ffd400;
     color: black;
@@ -33,7 +28,6 @@ header p {
     padding: 10px;
     font-weight: bold;
     margin-bottom: 20px;
-
     letter-spacing: 2px;
     text-transform: uppercase;
 }
@@ -44,12 +38,10 @@ header p {
     border-bottom: 1px solid #222;
     transition: 0.2s;
 }
-
 .entry:hover {
     background: #111;
     padding-left: 15px;
 }
-
 /* 3. Scanline overlay effect */
 body::before {
     content: "";
@@ -67,42 +59,35 @@ body::before {
     );
     pointer-events: none;
 }
-
 /* MAIN CONTENT BOX */
 .database {
     background: #0b0b0b;
     border: 2px solid #ffd400;
     padding: 20px;
 }
-
 .entry a {
     text-decoration: none;
     color: #eaeaea;
     font-weight: bold;
 }
-
 .entry a:hover {
     color: #ffd400;
 }
-
 /* FILE VIEW */
 .file {
     border: 2px solid #ffd400;
     padding: 20px;
     background: #0a0a0a;
 }
-
 /* HEADINGS */
 h2 {
     border-bottom: 2px solid #ffd400;
     padding-bottom: 5px;
     color: #ffd400;
 }
-
 h3 {
     margin-top: 25px;
 }
-
 /* CLASS TAGS */
 .class {
     padding: 4px 10px;
@@ -111,30 +96,24 @@ h3 {
     font-weight: bold;
     color: black;
 }
-
 /* POWER LEVELS */
 .cosmic {
     background: #9820C5;
 }
-
 .earthly {
     background: #4CBB17;
 }
-
 .local {
     background: #b38f00;
     color: black;
 }
-
 .seldom {
     background: #333;
     color: #eaeaea;
 }
-
 .neutralized {
    background: #277;
 }
-
 /* LEGEND */
 .legend {
     background: #0b0b0b;
@@ -142,7 +121,6 @@ h3 {
     padding: 15px;
     margin-bottom: 20px;
 }
-
 select,
 input,
 textarea {
@@ -154,11 +132,9 @@ textarea {
     margin-bottom: 10px;
     box-sizing: border-box;
 }
-
 textarea {
     min-height: 150px;
 }
-
 button {
     background: #ffd400;
     color: black;
@@ -167,11 +143,9 @@ button {
     font-weight: bold;
     cursor: pointer;
 }
-
 button:hover {
     background: #ffea66;
 }
-
 .backBtn {
     display: inline-block;
     margin-top: 10px;
@@ -182,30 +156,64 @@ button:hover {
     text-decoration: none;
     font-weight: bold;
 }
-
 .backBtn:hover {
     background: #ffd400;
     color: black;
 }
-
 .redacted-normal {
-    background: #111;
-    color: #111;
+    background: #eaeaea;
+    color: #eaeaea;
     padding: 0 4px;
     border-radius: 2px;
+    user-select: none;
 }
-
 .redacted-heavy {
-    background: #222;
-    color: #222;
+    background: #444;
+    color: #444;
     padding: 0 4px;
     border: 1px solid #444;
+    user-select: none;
 }
-
 .redacted-cosmic {
-    background: black;
-    color: black;
+    background: #9820C5;
+    color: #9820C5;
     padding: 0 4px;
     text-shadow: 0 0 8px purple;
     font-weight: bold;
+    user-select: none;
+}
+
+/* =========================================
+   ADDED: entry body text + log styling
+   (these elements had no rules before, so
+   they were falling back to browser defaults)
+========================================= */
+
+.entryText {
+    text-align: justify;
+    line-height: 1.6;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+#descriptionView,
+#containmentView,
+#addendumView {
+    text-align: justify;
+    line-height: 1.6;
+}
+
+#activityLog {
+    margin-top: 10px;
+}
+
+.logEntry {
+    border-left: 3px solid #ffd400;
+    background: #0b0b0b;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+}
+
+.logEntry strong {
+    color: #ffd400;
 }
