@@ -43,19 +43,27 @@
 </div>
 
 <script>
-document.getElementById("enterBtn").addEventListener("click", () => {
-    const overlay = document.getElementById("gateOverlay");
-    const main = document.getElementById("mainContent");
+const overlay = document.getElementById("gateOverlay");
+const main = document.getElementById("mainContent");
 
-    overlay.classList.add("gate-exit");
-
+// If already entered this session, skip the gate entirely
+if (sessionStorage.getItem("cpstEntered") === "true") {
+    overlay.style.display = "none";
     main.style.display = "block";
-    main.classList.add("content-enter");
+} else {
+    document.getElementById("enterBtn").addEventListener("click", () => {
+        sessionStorage.setItem("cpstEntered", "true");
 
-    setTimeout(() => {
-        overlay.style.display = "none";
-    }, 700);
-});
+        overlay.classList.add("gate-exit");
+
+        main.style.display = "block";
+        main.classList.add("content-enter");
+
+        setTimeout(() => {
+            overlay.style.display = "none";
+        }, 700);
+    });
+}
 </script>
 
 </body>
