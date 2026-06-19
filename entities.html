@@ -18,7 +18,6 @@
   <h2>Entity Index</h2>
   <div id="container"></div>
 </div>
-    <a href="index.html" class="backBtn">⬅ RETURN</a>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -33,7 +32,20 @@
     const container = document.getElementById("container");
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+
+  async function loadClassificationColors() {
+      const colorMap = {};
+      const querySnapshot = await getDocs(collection(db, "classifications"));
+      querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const name = (data.name || docSnap.id).toUpperCase();
+          colorMap[name] = data.color || "#ffd400";
+      });
+      return colorMap;
+  }
+
   async function loadEntries() {
+  const colorMap = await loadClassificationColors();
   const querySnapshot = await getDocs(collection(db, "entities"));
   console.log("ENTRIES FOUND:", querySnapshot.size);
   if (!querySnapshot.size) {
@@ -46,10 +58,11 @@
     div.className = "entry";
     const title = data.title || "UNTITLED ENTITY";
     const classification = (data.classification || "UNKNOWN").toString();
-    const safeClass = classification.toLowerCase();
+    const upperClass = classification.toUpperCase();
+    const color = colorMap[upperClass] || "#888";
     div.innerHTML = `
       <a href="entry.html?id=${docSnap.id}">${title}</a>
-      <span class="class ${safeClass}">${classification}</span>
+      <span class="class" style="background:${color}; color:#000;">${classification}</span>
     `;
     container.appendChild(div);
   });
