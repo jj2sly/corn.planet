@@ -52,12 +52,10 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
             "ACCESS GRANTED... redirecting";
 
         setTimeout(() => {
-            const redirect = sessionStorage.getItem("redirectAfterLogin") || "index.html";
 
-            sessionStorage.removeItem("redirectAfterLogin");
-
-            window.location.href = redirect;
-        }, 800);
+            setTimeout(() => {
+            window.location.href = "index.html";
+        }, 500);
 
     } catch (error) {
         document.getElementById("status").textContent =
