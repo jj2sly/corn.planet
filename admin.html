@@ -49,10 +49,66 @@
 
 </div>
 
+<div class="file">
+
+    <h2>Manage Classifications</h2>
+
+    <div id="classificationList"></div>
+
+    <h3>Add New Classification</h3>
+
+    <input id="newClassName" placeholder="Classification name (e.g. ANOMALOUS)">
+    <br><br>
+    <label for="newClassColor" style="color:#ffd400; font-weight:bold;">Color:</label>
+    <input type="color" id="newClassColor" value="#ffd400">
+    <br><br>
+    <button id="addClassBtn">Add Classification</button>
+
+    <p id="classStatus"></p>
+
+</div>
+
+<div class="file">
+
+    <h2>Create New Artifact</h2>
+
+    <input id="artDocId" placeholder="Auto-generating..." disabled>
+
+    <input id="artTitle" placeholder="Artifact Title"><br><br>
+
+    <select id="artClassification">
+        <!-- populated dynamically from classifications collection -->
+    </select>
+    <br><br>
+
+    <textarea id="artProperties" placeholder="Properties / Object Class"></textarea>
+
+    <textarea id="artDescription" placeholder="Description"></textarea>
+
+    <textarea id="artContainmentProcedures" placeholder="Containment / Handling Procedures"></textarea>
+
+    <textarea id="artAddendum" placeholder="Addendum"></textarea>
+
+    <button id="artSubmitBtn">Create Artifact</button>
+
+    <p id="artStatus"></p>
+
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+    getFirestore,
+    doc,
+    setDoc,
+    updateDoc,
+    deleteDoc,
+    getDoc,
+    collection,
+    getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
   authDomain: "cpo-9af17.firebaseapp.com",
@@ -67,10 +123,12 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 onAuthStateChanged(auth, (user) => {
-
     if (!user) { window.location.href = "login.html"; }
-
 });
+
+/* =========================
+   ENTITY CREATION
+========================= */
 
 async function generateNextCPE() {
     const querySnapshot = await getDocs(collection(db, "entities"));
@@ -79,7 +137,6 @@ async function generateNextCPE() {
 
     querySnapshot.forEach((docSnap) => {
         const id = docSnap.id;
-
         const match = id.match(/CPE-(\d+)/);
         if (match) {
             const num = parseInt(match[1], 10);
@@ -100,58 +157,217 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
 
     const docId = document.getElementById("docId").value;
 
-    const ref = doc(db, "entities", id);
-const snap = await getDoc(ref);
+    const newData = {
+        title: document.getElementById("title").value,
+        classification: document.getElementById("classification").value,
+        containment: document.getElementById("containment").value,
+        description: document.getElementById("description").value,
+        containmentProcedures: document.getElementById("containmentProcedures").value,
+        addendum: document.getElementById("addendum").value,
+        logs: [
+            {
+                date: new Date().toLocaleString(),
+                message: "Entity file created."
+            }
+        ]
+    };
 
-const oldData = snap.data();
-
-const newData = {
-    description: document.getElementById("descriptionEdit").value,
-    containmentProcedures: document.getElementById("containmentEdit").value,
-    addendum: document.getElementById("addendumEdit").value
-};
-
-let logs = oldData.logs || [];
-
-function addLog(message) {
-    logs.push({
-        date: new Date().toLocaleString(),
-        message
-    });
-}
-
-// Compare fields and generate smart logs
-
-if (oldData.description !== newData.description) {
-    addLog("Description modified.");
-}
-
-if (oldData.containmentProcedures !== newData.containmentProcedures) {
-    addLog("Containment procedures updated.");
-}
-
-if (oldData.addendum !== newData.addendum) {
-    addLog("Addendum modified.");
-}
-
-// fallback if nothing changed
-if (logs.length === (oldData.logs?.length || 0)) {
-    addLog("No structural changes detected.");
-}
-
-await updateDoc(ref, {
-    ...newData,
-    logs: logs
-});
+    await setDoc(doc(db, "entities", docId), newData);
 
     document.getElementById("status").textContent =
         "Entity successfully created.";
-    window.location.href = "index.html";
 
-    // OPTIONAL: generate next ID immediately after submit
+    // Clear the form
+    document.getElementById("title").value = "";
+    document.getElementById("description").value = "";
+    document.getElementById("containmentProcedures").value = "";
+    document.getElementById("addendum").value = "";
+
+    // Generate the next ID immediately after submit
     const nextId = await generateNextCPE();
     document.getElementById("docId").value = nextId;
 });
+
+/* =========================
+   CLASSIFICATION MANAGEMENT
+========================= */
+
+function classNameToDocId(name) {
+    return name.trim().toUpperCase().replace(/\s+/g, "_");
+}
+
+async function loadClassifications() {
+    const listDiv = document.getElementById("classificationList");
+    const artClassSelect = document.getElementById("artClassification");
+
+    listDiv.innerHTML = "Loading...";
+
+    const querySnapshot = await getDocs(collection(db, "classifications"));
+
+    if (querySnapshot.empty) {
+        listDiv.innerHTML = "<p>No classifications yet. Add one below.</p>";
+        artClassSelect.innerHTML = "";
+        return;
+    }
+
+    listDiv.innerHTML = "";
+    artClassSelect.innerHTML = "";
+
+    querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const name = data.name || docSnap.id;
+        const color = data.color || "#ffd400";
+
+        // Row in management list
+        const row = document.createElement("div");
+        row.className = "entry";
+        row.innerHTML = `
+            <span class="class" style="background:${color}; color:#000;">${name}</span>
+            <input type="color" value="${color}" data-id="${docSnap.id}" class="classColorInput">
+            <button data-id="${docSnap.id}" class="saveClassBtn">SAVE</button>
+            <button data-id="${docSnap.id}" class="deleteClassBtn">DELETE</button>
+        `;
+        listDiv.appendChild(row);
+
+        // Option in artifact classification dropdown
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        artClassSelect.appendChild(opt);
+    });
+
+    // Wire up save buttons
+    document.querySelectorAll(".saveClassBtn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-id");
+            const colorInput = document.querySelector(`.classColorInput[data-id="${id}"]`);
+            const newColor = colorInput.value;
+
+            await updateDoc(doc(db, "classifications", id), {
+                color: newColor
+            });
+
+            document.getElementById("classStatus").textContent =
+                `Updated color for ${id}.`;
+
+            loadClassifications();
+        });
+    });
+
+    // Wire up delete buttons
+    document.querySelectorAll(".deleteClassBtn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-id");
+
+            const confirmed = confirm(`Delete classification "${id}"? This cannot be undone.`);
+            if (!confirmed) return;
+
+            await deleteDoc(doc(db, "classifications", id));
+
+            document.getElementById("classStatus").textContent =
+                `Deleted ${id}.`;
+
+            loadClassifications();
+        });
+    });
+}
+
+document.getElementById("addClassBtn").addEventListener("click", async () => {
+    const nameInput = document.getElementById("newClassName");
+    const colorInput = document.getElementById("newClassColor");
+
+    const name = nameInput.value.trim().toUpperCase();
+    const color = colorInput.value;
+
+    if (!name) {
+        document.getElementById("classStatus").textContent =
+            "Please enter a classification name.";
+        return;
+    }
+
+    const docId = classNameToDocId(name);
+
+    await setDoc(doc(db, "classifications", docId), {
+        name: name,
+        color: color
+    });
+
+    document.getElementById("classStatus").textContent =
+        `Classification "${name}" added.`;
+
+    nameInput.value = "";
+    colorInput.value = "#ffd400";
+
+    loadClassifications();
+});
+
+/* =========================
+   ARTIFACT CREATION
+========================= */
+
+async function generateNextART() {
+    const querySnapshot = await getDocs(collection(db, "artifacts"));
+
+    let max = 0;
+
+    querySnapshot.forEach((docSnap) => {
+        const id = docSnap.id;
+        const match = id.match(/ART-(\d+)/);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > max) max = num;
+        }
+    });
+
+    const next = max + 1;
+    return "ART-" + String(next).padStart(3, "0");
+}
+
+async function refreshArtDocId() {
+    const nextId = await generateNextART();
+    document.getElementById("artDocId").value = nextId;
+}
+
+document.getElementById("artSubmitBtn").addEventListener("click", async () => {
+
+    const docId = document.getElementById("artDocId").value;
+
+    const newData = {
+        title: document.getElementById("artTitle").value,
+        classification: document.getElementById("artClassification").value,
+        properties: document.getElementById("artProperties").value,
+        description: document.getElementById("artDescription").value,
+        containmentProcedures: document.getElementById("artContainmentProcedures").value,
+        addendum: document.getElementById("artAddendum").value,
+        logs: [
+            {
+                date: new Date().toLocaleString(),
+                message: "Artifact file created."
+            }
+        ]
+    };
+
+    await setDoc(doc(db, "artifacts", docId), newData);
+
+    document.getElementById("artStatus").textContent =
+        "Artifact successfully created.";
+
+    document.getElementById("artTitle").value = "";
+    document.getElementById("artProperties").value = "";
+    document.getElementById("artDescription").value = "";
+    document.getElementById("artContainmentProcedures").value = "";
+    document.getElementById("artAddendum").value = "";
+
+    refreshArtDocId();
+});
+
+/* =========================
+   START
+========================= */
+
+loadClassifications();
+refreshArtDocId();
+
 </script>
 
 </body>
