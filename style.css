@@ -1,5 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Oswald:wght@400;600;700&display=swap');
+
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Special Elite', 'Courier New', monospace;
     background: #000000;   /* pure black */
     color: #eaeaea;
     max-width: 1000px;
@@ -15,10 +17,13 @@ header h1 {
     margin: 0;
     font-size: 3rem;
     color: #ffd400;
+    font-family: 'Oswald', Arial, sans-serif;
+    letter-spacing: 1px;
 }
 header p {
     color: #ffd400;
     font-weight: bold;
+    font-family: 'Oswald', Arial, sans-serif;
 }
 /* === SCP STYLE UPGRADES === */
 .warning {
@@ -84,9 +89,12 @@ h2 {
     border-bottom: 2px solid #ffd400;
     padding-bottom: 5px;
     color: #ffd400;
+    font-family: 'Oswald', Arial, sans-serif;
+    letter-spacing: 0.5px;
 }
 h3 {
     margin-top: 25px;
+    font-family: 'Oswald', Arial, sans-serif;
 }
 /* CLASS TAGS */
 .class {
@@ -142,6 +150,8 @@ button {
     padding: 10px 20px;
     font-weight: bold;
     cursor: pointer;
+    font-family: 'Oswald', Arial, sans-serif;
+    letter-spacing: 0.5px;
 }
 button:hover {
     background: #ffea66;
