@@ -101,13 +101,20 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
     const docId = document.getElementById("docId").value;
 
     await setDoc(doc(db, "entities", docId), {
-        title: document.getElementById("title").value,
-        classification: document.getElementById("classification").value,
-        containment: document.getElementById("containment").value,
-        description: document.getElementById("description").value,
-        containmentProcedures: document.getElementById("containmentProcedures").value,
-        addendum: document.getElementById("addendum").value
-    });
+    title: document.getElementById("title").value,
+    classification: document.getElementById("classification").value,
+    containment: document.getElementById("containment").value,
+    description: document.getElementById("description").value,
+    containmentProcedures: document.getElementById("containmentProcedures").value,
+    addendum: document.getElementById("addendum").value,
+
+    logs: [
+        {
+            date: new Date().toLocaleString(),
+            message: "Entity file created."
+        }
+    ]
+});
 
     document.getElementById("status").textContent =
         "Entity successfully created.";
