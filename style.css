@@ -371,3 +371,57 @@ button:hover {
     width: 100%;
     max-width: 500px;
 }
+
+/* =========================================
+   ADMIN PANEL: STACKED PANELS + CLASSIFICATION MANAGEMENT
+========================================= */
+
+.file {
+    margin-bottom: 30px;
+}
+
+#classificationList .entry {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+#classificationList .entry .class {
+    min-width: 100px;
+    text-align: center;
+}
+
+#classificationList input[type="color"] {
+    width: 50px;
+    height: 36px;
+    padding: 2px;
+    border: 2px solid #ffd400;
+    background: #111;
+    cursor: pointer;
+}
+
+.saveClassBtn,
+.deleteClassBtn {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+}
+
+.deleteClassBtn {
+    background: #444;
+    color: #eaeaea;
+}
+
+.deleteClassBtn:hover {
+    background: #b33;
+    color: white;
+}
+
+input[type="color"] {
+    width: 60px;
+    height: 40px;
+    padding: 2px;
+    border: 2px solid #ffd400;
+    background: #111;
+    cursor: pointer;
+}
