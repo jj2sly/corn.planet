@@ -12,14 +12,55 @@
 
 <div class="legend">
     <h3>CLASSIFICATION</h3>
-    <p><span class="class cosmic">COSMIC</span> — Reality-altering entities</p>
-    <p><span class="class earthly">EARTHLY</span> — Major threats</p>
-    <p><span class="class local">LOCAL</span> — Limited influence</p>
-    <p><span class="class seldom">CONSTRICTED</span> — Controlled anomalies</p>
-    <p><span class="class neutralized">NEUTRALIZED</span> — Deceased/Irrelevant anomalies</p>
+    <div id="classList">Loading...</div>
 </div>
 
 <a href="index.html" class="backBtn">⬅ BACK TO HOME</a>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
+    authDomain: "cpo-9af17.firebaseapp.com",
+    projectId: "cpo-9af17",
+    storageBucket: "cpo-9af17.firebasestorage.app",
+    messagingSenderId: "526427336111",
+    appId: "1:526427336111:web:8b71369117416ae937d35a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+async function loadClassifications() {
+    const listDiv = document.getElementById("classList");
+    const querySnapshot = await getDocs(collection(db, "classifications"));
+
+    if (querySnapshot.empty) {
+        listDiv.innerHTML = "<p>No classifications have been defined yet.</p>";
+        return;
+    }
+
+    listDiv.innerHTML = "";
+
+    querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const name = data.name || docSnap.id;
+        const color = data.color || "#ffd400";
+        const description = data.description || "";
+
+        const p = document.createElement("p");
+        p.innerHTML = `
+            <span class="class" style="background:${color}; color:#000;">${name}</span>
+            ${description ? " — " + description : ""}
+        `;
+        listDiv.appendChild(p);
+    });
+}
+
+loadClassifications();
+</script>
 
 </body>
 </html>
