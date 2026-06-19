@@ -174,26 +174,28 @@ async function loadEntry() {
 
 const logDiv = document.getElementById("activityLog");
 
-if (logDiv) {
+const logDiv = document.getElementById("activityLog");
 
-    if (data.logs && data.logs.length) {
-
-        logDiv.innerHTML = data.logs
-            .slice()
-            .reverse()
-            .map(log => `
-                <div class="logEntry">
-                    <strong>${log.date}</strong><br>
-                    ${log.message}
-                </div>
-            `)
-            .join("");
-
-    } else {
-
-        logDiv.innerHTML = "No activity recorded.";
-    }
+if (!logDiv) {
+    console.warn("activityLog element missing in HTML");
+    return;
 }
+
+const logs = data.logs || [];
+
+if (logs.length === 0) {
+    logDiv.innerHTML = "No activity recorded.";
+} else {
+    logDiv.innerHTML = logs
+        .slice()
+        .reverse()
+        .map(log => `
+            <div class="logEntry">
+                <strong>${log.date || "Unknown date"}</strong><br>
+                ${log.message || "No message"}
+            </div>
+        `)
+        .join("");
 }
 
 /* =========================
