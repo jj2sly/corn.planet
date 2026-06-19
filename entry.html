@@ -13,13 +13,16 @@
 </header>
 
     <h2>DESCRIPTION</h2>
-<textarea id="description" readonly></textarea>
+<div id="descriptionView" class="entryText"></div>
+<textarea id="descriptionEdit" class="entryText" style="display:none;"></textarea>
     
 <h2>CONTAINMENT PROCEDURES</h2>
-<textarea id="containmentProcedures" readonly></textarea>
+<div id="containmentView" class="entryText"></div>
+<textarea id="containmentEdit" class="entryText" style="display:none;"></textarea>
 
 <h2>ADDENDUM</h2>
-<textarea id="addendum" readonly></textarea>
+<div id="addendumView" class="entryText"></div>
+<textarea id="addendumEdit" class="entryText" style="display:none;"></textarea>
 
 <button id="editBtn">EDIT FILE</button>
 <button id="deleteBtn">DELETE FILE</button>
@@ -43,9 +46,6 @@ import {
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-import { setPersistence, browserLocalPersistence } 
-from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    
 const firebaseConfig = {
     apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
     authDomain: "cpo-9af17.firebaseapp.com",
@@ -63,55 +63,31 @@ const auth = getAuth(app);
 const params = new URLSearchParams(window.location.search);
 const id = params.get("id");
 
-let editing = false;
-document.getElementById("editBtn").style.display = "none";
-document.getElementById("deleteBtn").style.display = "none";
+let isEditMode = false;
 
 /* =========================
-   AUTH CHECK (ONE ONLY)
+   AUTH CHECK
 ========================= */
 onAuthStateChanged(auth, (user) => {
-    console.log("AUTH STATE:", user);
-
     const editBtn = document.getElementById("editBtn");
     const deleteBtn = document.getElementById("deleteBtn");
 
-    const description = document.getElementById("description");
-    const containment = document.getElementById("containmentProcedures");
-    const addendum = document.getElementById("addendum");
-
     if (user) {
-
         editBtn.style.display = "inline-block";
         deleteBtn.style.display = "inline-block";
-
-        description.readOnly = true;
-        containment.readOnly = true;
-        addendum.readOnly = true;
-
-        document.getElementById("status").textContent = "";
-
     } else {
-
-        sessionStorage.setItem("redirectAfterLogin", window.location.href);
-
         editBtn.style.display = "none";
         deleteBtn.style.display = "none";
-
-        description.readOnly = true;
-        containment.readOnly = true;
-        addendum.readOnly = true;
 
         document.getElementById("status").textContent =
             "ACCESS LEVEL REQUIRED TO EDIT";
     }
-
 });
+
 /* =========================
    LOAD ENTRY
 ========================= */
 async function loadEntry() {
-
     const docRef = doc(db, "entities", id);
     const docSnap = await getDoc(docRef);
 
@@ -131,23 +107,138 @@ async function loadEntry() {
     document.getElementById("containmentTag").textContent =
         "CONTAINMENT: " + (data.containment || "UNKNOWN");
 
-    document.getElementById("description").value =
+    document.getElementById("descriptionView").innerHTML =
+        applyRedactions(data.description || "");
+
+    document.getElementById("containmentView").innerHTML =
+        applyRedactions(data.containmentProcedures || "");
+
+    document.getElementById("addendumView").innerHTML =
+        applyRedactions(data.addendum || "");
+
+    document.getElementById("descriptionEdit").value =
         data.description || "";
 
-    document.getElementById("containmentProcedures").value =
+    document.getElementById("containmentEdit").value =
         data.containmentProcedures || "";
 
-    document.getElementById("addendum").value =
+    document.getElementById("addendumEdit").value =
         data.addendum || "";
 }
 
+/* =========================
+   MODE TOGGLE
+========================= */
+function toggleMode() {
+    isEditMode = !isEditMode;
+
+    const viewIds = ["descriptionView", "containmentView", "addendumView"];
+    const editIds = ["descriptionEdit", "containmentEdit", "addendumEdit"];
+
+    viewIds.forEach(id => {
+        document.getElementById(id).style.display =
+            isEditMode ? "none" : "block";
+    });
+
+    editIds.forEach(id => {
+        document.getElementById(id).style.display =
+            isEditMode ? "block" : "none";
+    });
+
+    document.getElementById("editBtn").textContent =
+        isEditMode ? "SAVE CHANGES" : "EDIT FILE";
+}
+
+/* =========================
+   EDIT / SAVE BUTTON
+========================= */
+document.getElementById("editBtn").addEventListener("click", async () => {
+
+    if (!isEditMode) {
+        toggleMode();
+        return;
+    }
+
+    await updateDoc(doc(db, "entities", id), {
+        description: document.getElementById("descriptionEdit").value,
+        containmentProcedures: document.getElementById("containmentEdit").value,
+        addendum: document.getElementById("addendumEdit").value
+    });
+
+    document.getElementById("status").textContent =
+        "Changes saved successfully.";
+
+    toggleMode();
+});
+
+/* =========================
+   DELETE BUTTON
+========================= */
+document.getElementById("deleteBtn").addEventListener("click", async () => {
+
+    const confirmed = confirm(
+        "TERMINATION PROTOCOL\n\nDelete this CPE permanently?"
+    );
+
+    if (!confirmed) return;
+
+    await deleteDoc(doc(db, "entities", id));
+
+    document.getElementById("status").textContent =
+        "Entity deleted.";
+});
+
+/* =========================
+   REDACTIONS
+========================= */
+function applyRedactions(text) {
+    text = text.replace(/\/r!!(.*?)\/r!!/g,
+        `<span class="redacted-cosmic">████ COSMIC ERASED ████</span>`
+    );
+
+    text = text.replace(/\/r!(.*?)\/r!/g,
+        `<span class="redacted-heavy">██ CLASSIFIED ██</span>`
+    );
+
+    text = text.replace(/\/r(.*?)\/r/g,
+        `<span class="redacted-normal">███ REDACTED ███</span>`
+    );
+
+    return text;
+}
+
+/* =========================
+   INIT
+========================= */
 loadEntry();
 
+    let isEditMode = false;
+
+document.getElementById("modeBtn").addEventListener("click", () => {
+
+    isEditMode = !isEditMode;
+
+    const view = ["descriptionView","containmentView","addendumView"];
+    const edit = ["descriptionEdit","containmentEdit","addendumEdit"];
+
+    view.forEach(id => {
+        document.getElementById(id).style.display =
+            isEditMode ? "none" : "block";
+    });
+
+    edit.forEach(id => {
+        document.getElementById(id).style.display =
+            isEditMode ? "block" : "none";
+    });
+
+    document.getElementById("modeBtn").textContent =
+        isEditMode ? "SWITCH TO VIEW MODE" : "SWITCH TO EDIT MODE";
+});
 /* =========================
    EDIT / SAVE
 ========================= */
 document.getElementById("editBtn").addEventListener("click", async () => {
-
+    <button id="modeBtn">SWITCH TO EDIT MODE</button>
     const description = document.getElementById("description");
     const containment = document.getElementById("containmentProcedures");
     const addendum = document.getElementById("addendum");
@@ -165,11 +256,18 @@ document.getElementById("editBtn").addEventListener("click", async () => {
         return;
     }
 
+   document.getElementById("editBtn").addEventListener("click", async () => {
+
     await updateDoc(doc(db, "entities", id), {
-        description: description.value,
-        containmentProcedures: containment.value,
-        addendum: addendum.value
+        description: document.getElementById("descriptionEdit").value,
+        containmentProcedures: document.getElementById("containmentEdit").value,
+        addendum: document.getElementById("addendumEdit").value
     });
+
+    document.getElementById("status").textContent =
+        "Changes saved successfully.";
+});
+});
 
     description.readOnly = true;
     containment.readOnly = true;
