@@ -16,6 +16,10 @@
 <a href="index.html" class="backBtn">⬅ BACK TO HOME</a>
 <br><br>
 
+<p id="authChecking" class="loadingText">VERIFYING ACCESS CREDENTIALS...</p>
+
+<div id="adminContent" style="display:none;">
+
 <div class="tabBar">
     <button class="tabBtn active" data-tab="entityPanel">CREATE ENTITY</button>
     <button class="tabBtn" data-tab="classPanel">CLASSIFICATIONS</button>
@@ -118,6 +122,8 @@
 
 </div>
 
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
@@ -146,7 +152,25 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 onAuthStateChanged(auth, (user) => {
-    if (!user) { window.location.href = "login.html"; }
+    if (!user) {
+        // Use replace() so this page doesn't remain in browser history
+        // to be reached again via the back button.
+        window.location.replace("login.html");
+        return;
+    }
+
+    // Only reveal the admin content once a logged-in user is confirmed
+    document.getElementById("authChecking").style.display = "none";
+    document.getElementById("adminContent").style.display = "block";
+});
+
+// If this page is ever restored from the browser's back/forward cache
+// (bfcache) instead of being freshly loaded, force a real reload so the
+// auth check above runs again rather than showing a stale cached view.
+window.addEventListener("pageshow", (event) => {
+    if (event.persisted) {
+        window.location.reload();
+    }
 });
 
 /* =========================
