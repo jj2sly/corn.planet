@@ -10,7 +10,7 @@
 
 <header>
     <h1>CPE ADMIN PANEL</h1>
-    <p>AUTHORIZED PERSONNEL ONLY</p>
+    <p id="roleSubtitle">AUTHORIZED PERSONNEL ONLY</p>
 </header>
 
 <a href="index.html" class="backBtn">⬅ BACK TO HOME</a>
@@ -18,155 +18,182 @@
 
 <p id="authChecking" class="loadingText">VERIFYING ACCESS CREDENTIALS...</p>
 
+<div id="accessDenied" style="display:none;" class="warning">
+    ACCESS LEVEL INSUFFICIENT FOR THIS TERMINAL
+</div>
+
 <div id="adminContent" style="display:none;">
 
-<div class="tabBar">
-    <button class="tabBtn active" data-tab="entityPanel">CREATE ENTITY</button>
-    <button class="tabBtn" data-tab="classPanel">CLASSIFICATIONS</button>
-    <button class="tabBtn" data-tab="artifactPanel">CREATE ARTIFACT</button>
+<!-- ============ MAIN SECTION TABS ============ -->
+<div class="tabBar" id="mainTabBar">
+    <button class="tabBtn active" data-section="recordsSection">RECORDS DIVISION</button>
+    <button class="tabBtn" data-section="superAdminSection" id="superAdminTabBtn" style="display:none;">SUPER ADMIN PANEL</button>
 </div>
 
-<div class="file" id="entityPanel">
+<!-- ============ RECORDS DIVISION ============ -->
+<div id="recordsSection">
 
-    <h2>Create New Entity</h2>
+    <div class="tabBar" id="recordsTabBar">
+        <button class="tabBtn active" data-tab="entityPanel">CREATE ENTITY</button>
+        <button class="tabBtn" data-tab="classPanel" id="classTabBtn">CLASSIFICATIONS</button>
+        <button class="tabBtn" data-tab="artifactPanel">CREATE ARTIFACT</button>
+    </div>
 
-    <input id="docId" placeholder="Auto-generating..." disabled>
+    <div class="file" id="entityPanel">
 
-    <input id="title" placeholder="Title"><br><br>
+        <h2>Create New Entity</h2>
 
-    <select id="classification">
-    <option value="COSMIC">COSMIC</option>
-    <option value="EARTHLY">EARTHLY</option>
-    <option value="LOCAL">LOCAL</option>
-    <option value="CONSTRICTED">CONSTRICTED</option>
-    <option value="NEUTRALIZED">NEUTRALIZED</option>
-</select>
-<br><br>
+        <input id="docId" placeholder="Auto-generating..." disabled>
 
-    <select id="containment">
-    <option value="MINIMAL">MINIMAL</option>
-    <option value="STANDARD">STANDARD</option>
-    <option value="ENHANCED">ENHANCED</option>
-    <option value="MAXIMUM">MAXIMUM</option>
-    <option value="TERMINATION">TERMINATION</option>
-</select>
-<br><br>
+        <input id="title" placeholder="Title"><br><br>
 
-    <textarea id="description" placeholder="Description"></textarea>
+        <select id="classification">
+            <option value="COSMIC">COSMIC</option>
+            <option value="EARTHLY">EARTHLY</option>
+            <option value="LOCAL">LOCAL</option>
+            <option value="CONSTRICTED">CONSTRICTED</option>
+            <option value="NEUTRALIZED">NEUTRALIZED</option>
+        </select>
+        <br><br>
 
-    <textarea id="containmentProcedures" placeholder="Containment Procedures"></textarea>
+        <select id="containment">
+            <option value="MINIMAL">MINIMAL</option>
+            <option value="STANDARD">STANDARD</option>
+            <option value="ENHANCED">ENHANCED</option>
+            <option value="MAXIMUM">MAXIMUM</option>
+            <option value="TERMINATION">TERMINATION</option>
+        </select>
+        <br><br>
 
-    <textarea id="addendum" placeholder="Addendum"></textarea>
+        <textarea id="description" placeholder="Description"></textarea>
+        <textarea id="containmentProcedures" placeholder="Containment Procedures"></textarea>
+        <textarea id="addendum" placeholder="Addendum"></textarea>
 
-    <br><br>
-    <label for="imageUpload" style="color:#ffd400; font-weight:bold;">Image (optional):</label><br><br>
-    <input type="file" id="imageUpload" accept="image/*">
-    <br><br>
+        <br><br>
+        <label for="imageUpload" style="color:#ffd400; font-weight:bold;">Image (optional):</label><br><br>
+        <input type="file" id="imageUpload" accept="image/*">
+        <br><br>
 
-    <button id="submitBtn">Create Entity</button>
+        <button id="submitBtn">Create Entity</button>
 
-    <p id="status"></p>
+        <p id="status"></p>
+
+    </div>
+
+    <div class="file" id="classPanel">
+
+        <h2>Manage Classifications</h2>
+
+        <div id="classificationList"></div>
+
+        <h3>Add New Classification</h3>
+
+        <input id="newClassName" placeholder="Classification name (e.g. ANOMALOUS)">
+        <br><br>
+        <input id="newClassDescription" placeholder="Short description (e.g. Reality-altering entities)">
+        <br><br>
+        <label for="newClassColor" style="color:#ffd400; font-weight:bold;">Color:</label>
+        <input type="color" id="newClassColor" value="#ffd400">
+        <br><br>
+        <button id="addClassBtn">Add Classification</button>
+
+        <p id="classStatus"></p>
+
+    </div>
+
+    <div class="file" id="artifactPanel">
+
+        <h2>Create New Artifact</h2>
+
+        <input id="artDocId" placeholder="Auto-generating..." disabled>
+
+        <input id="artTitle" placeholder="Artifact Title"><br><br>
+
+        <select id="artClassification">
+            <!-- populated dynamically from classifications collection -->
+        </select>
+        <br><br>
+
+        <textarea id="artProperties" placeholder="Properties / Object Class"></textarea>
+        <textarea id="artDescription" placeholder="Description"></textarea>
+        <textarea id="artContainmentProcedures" placeholder="Containment / Handling Procedures"></textarea>
+        <textarea id="artAddendum" placeholder="Addendum"></textarea>
+
+        <br><br>
+        <label for="artImageUpload" style="color:#ffd400; font-weight:bold;">Image (optional):</label><br><br>
+        <input type="file" id="artImageUpload" accept="image/*">
+        <br><br>
+
+        <button id="artSubmitBtn">Create Artifact</button>
+
+        <p id="artStatus"></p>
+
+    </div>
 
 </div>
 
-<div class="file" id="classPanel">
+<!-- ============ SUPER ADMIN PANEL (CPI EXEC ONLY) ============ -->
+<div id="superAdminSection" style="display:none;">
 
-    <h2>Manage Classifications</h2>
-
-    <div id="classificationList"></div>
-
-    <h3>Add New Classification</h3>
-
-    <input id="newClassName" placeholder="Classification name (e.g. ANOMALOUS)">
-    <br><br>
-    <input id="newClassDescription" placeholder="Short description (e.g. Reality-altering entities)">
-    <br><br>
-    <label for="newClassColor" style="color:#ffd400; font-weight:bold;">Color:</label>
-    <input type="color" id="newClassColor" value="#ffd400">
-    <br><br>
-    <button id="addClassBtn">Add Classification</button>
-
-    <p id="classStatus"></p>
-
-</div>
-
-<div class="file" id="artifactPanel">
-
-    <h2>Create New Artifact</h2>
-
-    <input id="artDocId" placeholder="Auto-generating..." disabled>
-
-    <input id="artTitle" placeholder="Artifact Title"><br><br>
-
-    <select id="artClassification">
-        <!-- populated dynamically from classifications collection -->
-    </select>
-    <br><br>
-
-    <textarea id="artProperties" placeholder="Properties / Object Class"></textarea>
-
-    <textarea id="artDescription" placeholder="Description"></textarea>
-
-    <textarea id="artContainmentProcedures" placeholder="Containment / Handling Procedures"></textarea>
-
-    <textarea id="artAddendum" placeholder="Addendum"></textarea>
-
-    <br><br>
-    <label for="artImageUpload" style="color:#ffd400; font-weight:bold;">Image (optional):</label><br><br>
-    <input type="file" id="artImageUpload" accept="image/*">
-    <br><br>
-
-    <button id="artSubmitBtn">Create Artifact</button>
-
-    <p id="artStatus"></p>
+    <div class="file">
+        <h2>Personnel & Role Management</h2>
+        <p style="color:#888;">Assign clearance levels to registered accounts. New signups land as Viewer until promoted here.</p>
+        <div id="userList"><p class="loadingText">LOADING PERSONNEL RECORDS...</p></div>
+    </div>
 
 </div>
 
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-    getFirestore,
     doc,
     setDoc,
     updateDoc,
     deleteDoc,
-    getDoc,
     collection,
     getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { db, auth, ROLES, ROLE_LIST, can, getUserRole, ensureUserDoc } from "./roles.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
-  authDomain: "cpo-9af17.firebaseapp.com",
-  projectId: "cpo-9af17",
-  storageBucket: "cpo-9af17.firebasestorage.app",
-  messagingSenderId: "526427336111",
-  appId: "1:526427336111:web:8b71369117416ae937d35a"
-};
+let currentRole = ROLES.VIEWER.id;
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
     if (!user) {
-        // Use replace() so this page doesn't remain in browser history
-        // to be reached again via the back button.
         window.location.replace("login.html");
         return;
     }
 
-    // Only reveal the admin content once a logged-in user is confirmed
+    await ensureUserDoc(user);
+    currentRole = await getUserRole(user.uid);
+
     document.getElementById("authChecking").style.display = "none";
+
+    // CPI Employee and below cannot see the admin panel at all.
+    if (!can.accessRecordsDivision(currentRole) && !can.accessSuperAdminPanel(currentRole)) {
+        document.getElementById("accessDenied").style.display = "block";
+        return;
+    }
+
+    const roleInfo = ROLE_LIST.find(r => r.id === currentRole);
+    document.getElementById("roleSubtitle").textContent =
+        "CLEARANCE: " + (roleInfo ? roleInfo.label.toUpperCase() : "UNKNOWN");
+
     document.getElementById("adminContent").style.display = "block";
+
+    // Classifications management requires Strike Team Overseer or above.
+    if (!can.manageClassifications(currentRole)) {
+        document.getElementById("classTabBtn").style.display = "none";
+    }
+
+    // Super Admin Panel tab only for CPI Exec.
+    if (can.accessSuperAdminPanel(currentRole)) {
+        document.getElementById("superAdminTabBtn").style.display = "inline-block";
+        loadUserList();
+    }
 });
 
-// If this page is ever restored from the browser's back/forward cache
-// (bfcache) instead of being freshly loaded, force a real reload so the
-// auth check above runs again rather than showing a stale cached view.
 window.addEventListener("pageshow", (event) => {
     if (event.persisted) {
         window.location.reload();
@@ -182,20 +209,14 @@ const CLOUDINARY_UPLOAD_PRESET = "cornplanetcloud";
 
 async function uploadImageToCloudinary(file) {
     const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-
     const formData = new FormData();
     formData.append("file", file);
     formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
-    const response = await fetch(url, {
-        method: "POST",
-        body: formData
-    });
-
+    const response = await fetch(url, { method: "POST", body: formData });
     if (!response.ok) {
         throw new Error("Image upload failed. Check your Cloudinary preset settings.");
     }
-
     const data = await response.json();
     return data.secure_url;
 }
@@ -206,32 +227,29 @@ async function uploadImageToCloudinary(file) {
 
 async function generateNextCPE() {
     const querySnapshot = await getDocs(collection(db, "entities"));
-
     let max = 0;
-
     querySnapshot.forEach((docSnap) => {
-        const id = docSnap.id;
-        const match = id.match(/CPE-(\d+)/);
+        const match = docSnap.id.match(/CPE-(\d+)/);
         if (match) {
             const num = parseInt(match[1], 10);
             if (num > max) max = num;
         }
     });
-
-    const next = max + 1;
-    return "CPE-" + String(next).padStart(3, "0");
+    return "CPE-" + String(max + 1).padStart(3, "0");
 }
 
 window.addEventListener("load", async () => {
-    const nextId = await generateNextCPE();
-    document.getElementById("docId").value = nextId;
+    document.getElementById("docId").value = await generateNextCPE();
 });
 
 document.getElementById("submitBtn").addEventListener("click", async () => {
+    if (!can.editCreateContent(currentRole)) {
+        document.getElementById("status").textContent = "Insufficient clearance.";
+        return;
+    }
 
     const docId = document.getElementById("docId").value;
     const imageFile = document.getElementById("imageUpload").files[0];
-
     let imageURL = "";
 
     if (imageFile) {
@@ -240,8 +258,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
             imageURL = await uploadImageToCloudinary(imageFile);
         } catch (err) {
             console.error(err);
-            document.getElementById("status").textContent =
-                "Image upload failed. Entity not created.";
+            document.getElementById("status").textContent = "Image upload failed. Entity not created.";
             return;
         }
     }
@@ -254,29 +271,20 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         containmentProcedures: document.getElementById("containmentProcedures").value,
         addendum: document.getElementById("addendum").value,
         imageURL: imageURL,
-        logs: [
-            {
-                date: new Date().toLocaleString(),
-                message: "Entity file created."
-            }
-        ]
+        logs: [{ date: new Date().toLocaleString(), message: "Entity file created." }]
     };
 
     await setDoc(doc(db, "entities", docId), newData);
 
-    document.getElementById("status").textContent =
-        "Entity successfully created.";
+    document.getElementById("status").textContent = "Entity successfully created.";
 
-    // Clear the form
     document.getElementById("title").value = "";
     document.getElementById("description").value = "";
     document.getElementById("containmentProcedures").value = "";
     document.getElementById("addendum").value = "";
     document.getElementById("imageUpload").value = "";
 
-    // Generate the next ID immediately after submit
-    const nextId = await generateNextCPE();
-    document.getElementById("docId").value = nextId;
+    document.getElementById("docId").value = await generateNextCPE();
 });
 
 /* =========================
@@ -301,7 +309,6 @@ async function loadClassifications() {
         return;
     }
 
-    // Collect into an array so we can sort by order
     let items = [];
     let rawIndex = 0;
     querySnapshot.forEach((docSnap) => {
@@ -317,36 +324,25 @@ async function loadClassifications() {
         rawIndex++;
     });
 
-    // Items with no order yet fall back to their original load position,
-    // so they at least have a stable (if arbitrary) starting order
     items.sort((a, b) => {
         const orderA = a.order !== null ? a.order : 1000 + a.fallbackIndex;
         const orderB = b.order !== null ? b.order : 1000 + b.fallbackIndex;
         return orderA - orderB;
     });
 
-    // Normalize to clean sequential integers (0, 1, 2...) so future
-    // up/down swaps always have distinct values to work with. Only
-    // write to Firestore for items whose order actually needs fixing.
     const normalizeWrites = [];
     items.forEach((item, index) => {
         if (item.order !== index) {
-            normalizeWrites.push(
-                updateDoc(doc(db, "classifications", item.id), { order: index })
-            );
+            normalizeWrites.push(updateDoc(doc(db, "classifications", item.id), { order: index }));
         }
         item.order = index;
     });
-
-    if (normalizeWrites.length > 0) {
-        await Promise.all(normalizeWrites);
-    }
+    if (normalizeWrites.length > 0) await Promise.all(normalizeWrites);
 
     listDiv.innerHTML = "";
     artClassSelect.innerHTML = "";
 
     items.forEach((item, index) => {
-        // Row in management list
         const row = document.createElement("div");
         row.className = "entry";
         row.innerHTML = `
@@ -362,52 +358,37 @@ async function loadClassifications() {
         `;
         listDiv.appendChild(row);
 
-        // Option in artifact classification dropdown
         const opt = document.createElement("option");
         opt.value = item.name;
         opt.textContent = item.name;
         artClassSelect.appendChild(opt);
     });
 
-    // Wire up save buttons
     document.querySelectorAll(".saveClassBtn").forEach((btn) => {
         btn.addEventListener("click", async () => {
             const id = btn.getAttribute("data-id");
             const colorInput = document.querySelector(`.classColorInput[data-id="${id}"]`);
             const descInput = document.querySelector(`.classDescInput[data-id="${id}"]`);
-            const newColor = colorInput.value;
-            const newDesc = descInput.value;
-
             await updateDoc(doc(db, "classifications", id), {
-                color: newColor,
-                description: newDesc
+                color: colorInput.value,
+                description: descInput.value
             });
-
-            document.getElementById("classStatus").textContent =
-                `Updated ${id}.`;
-
+            document.getElementById("classStatus").textContent = `Updated ${id}.`;
             loadClassifications();
         });
     });
 
-    // Wire up delete buttons
     document.querySelectorAll(".deleteClassBtn").forEach((btn) => {
         btn.addEventListener("click", async () => {
             const id = btn.getAttribute("data-id");
-
             const confirmed = confirm(`Delete classification "${id}"? This cannot be undone.`);
             if (!confirmed) return;
-
             await deleteDoc(doc(db, "classifications", id));
-
-            document.getElementById("classStatus").textContent =
-                `Deleted ${id}.`;
-
+            document.getElementById("classStatus").textContent = `Deleted ${id}.`;
             loadClassifications();
         });
     });
 
-    // Wire up reorder buttons
     document.querySelectorAll(".moveUpBtn").forEach((btn) => {
         btn.addEventListener("click", async () => {
             const index = parseInt(btn.getAttribute("data-index"), 10);
@@ -426,17 +407,17 @@ async function loadClassifications() {
 }
 
 async function swapOrder(itemA, itemB) {
-    // Normalize order values (in case of ties/defaults) then swap them
-    const orderA = itemA.order;
-    const orderB = itemB.order;
-
-    await updateDoc(doc(db, "classifications", itemA.id), { order: orderB });
-    await updateDoc(doc(db, "classifications", itemB.id), { order: orderA });
-
+    await updateDoc(doc(db, "classifications", itemA.id), { order: itemB.order });
+    await updateDoc(doc(db, "classifications", itemB.id), { order: itemA.order });
     loadClassifications();
 }
 
 document.getElementById("addClassBtn").addEventListener("click", async () => {
+    if (!can.manageClassifications(currentRole)) {
+        document.getElementById("classStatus").textContent = "Insufficient clearance.";
+        return;
+    }
+
     const nameInput = document.getElementById("newClassName");
     const descInput = document.getElementById("newClassDescription");
     const colorInput = document.getElementById("newClassColor");
@@ -446,14 +427,12 @@ document.getElementById("addClassBtn").addEventListener("click", async () => {
     const color = colorInput.value;
 
     if (!name) {
-        document.getElementById("classStatus").textContent =
-            "Please enter a classification name.";
+        document.getElementById("classStatus").textContent = "Please enter a classification name.";
         return;
     }
 
     const docId = classNameToDocId(name);
 
-    // Figure out the next order number (append to the end of the list)
     const existing = await getDocs(collection(db, "classifications"));
     let maxOrder = -1;
     existing.forEach((docSnap) => {
@@ -469,8 +448,7 @@ document.getElementById("addClassBtn").addEventListener("click", async () => {
         order: maxOrder + 1
     });
 
-    document.getElementById("classStatus").textContent =
-        `Classification "${name}" added.`;
+    document.getElementById("classStatus").textContent = `Classification "${name}" added.`;
 
     nameInput.value = "";
     descInput.value = "";
@@ -485,32 +463,29 @@ document.getElementById("addClassBtn").addEventListener("click", async () => {
 
 async function generateNextART() {
     const querySnapshot = await getDocs(collection(db, "artifacts"));
-
     let max = 0;
-
     querySnapshot.forEach((docSnap) => {
-        const id = docSnap.id;
-        const match = id.match(/ART-(\d+)/);
+        const match = docSnap.id.match(/ART-(\d+)/);
         if (match) {
             const num = parseInt(match[1], 10);
             if (num > max) max = num;
         }
     });
-
-    const next = max + 1;
-    return "ART-" + String(next).padStart(3, "0");
+    return "ART-" + String(max + 1).padStart(3, "0");
 }
 
 async function refreshArtDocId() {
-    const nextId = await generateNextART();
-    document.getElementById("artDocId").value = nextId;
+    document.getElementById("artDocId").value = await generateNextART();
 }
 
 document.getElementById("artSubmitBtn").addEventListener("click", async () => {
+    if (!can.editCreateContent(currentRole)) {
+        document.getElementById("artStatus").textContent = "Insufficient clearance.";
+        return;
+    }
 
     const docId = document.getElementById("artDocId").value;
     const imageFile = document.getElementById("artImageUpload").files[0];
-
     let imageURL = "";
 
     if (imageFile) {
@@ -519,8 +494,7 @@ document.getElementById("artSubmitBtn").addEventListener("click", async () => {
             imageURL = await uploadImageToCloudinary(imageFile);
         } catch (err) {
             console.error(err);
-            document.getElementById("artStatus").textContent =
-                "Image upload failed. Artifact not created.";
+            document.getElementById("artStatus").textContent = "Image upload failed. Artifact not created.";
             return;
         }
     }
@@ -533,18 +507,12 @@ document.getElementById("artSubmitBtn").addEventListener("click", async () => {
         containmentProcedures: document.getElementById("artContainmentProcedures").value,
         addendum: document.getElementById("artAddendum").value,
         imageURL: imageURL,
-        logs: [
-            {
-                date: new Date().toLocaleString(),
-                message: "Artifact file created."
-            }
-        ]
+        logs: [{ date: new Date().toLocaleString(), message: "Artifact file created." }]
     };
 
     await setDoc(doc(db, "artifacts", docId), newData);
 
-    document.getElementById("artStatus").textContent =
-        "Artifact successfully created.";
+    document.getElementById("artStatus").textContent = "Artifact successfully created.";
 
     document.getElementById("artTitle").value = "";
     document.getElementById("artProperties").value = "";
@@ -557,21 +525,94 @@ document.getElementById("artSubmitBtn").addEventListener("click", async () => {
 });
 
 /* =========================
+   SUPER ADMIN: ROLE MANAGEMENT
+========================= */
+
+async function loadUserList() {
+    const listDiv = document.getElementById("userList");
+    listDiv.innerHTML = "Loading...";
+
+    const querySnapshot = await getDocs(collection(db, "users"));
+
+    if (querySnapshot.empty) {
+        listDiv.innerHTML = "<p>No registered personnel yet.</p>";
+        return;
+    }
+
+    let items = [];
+    querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        items.push({
+            uid: docSnap.id,
+            email: data.email || "(no email on file)",
+            role: data.role || ROLES.VIEWER.id
+        });
+    });
+
+    items.sort((a, b) => a.email.localeCompare(b.email));
+
+    listDiv.innerHTML = "";
+
+    items.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "entry";
+        row.style.flexWrap = "wrap";
+        row.style.gap = "10px";
+
+        const roleOptions = ROLE_LIST.map(r =>
+            `<option value="${r.id}" ${r.id === item.role ? "selected" : ""}>${r.label}</option>`
+        ).join("");
+
+        row.innerHTML = `
+            <span style="flex:1; min-width:200px; font-weight:bold;">${item.email}</span>
+            <select class="userRoleSelect" data-uid="${item.uid}" style="width:auto; min-width:220px;">
+                ${roleOptions}
+            </select>
+            <button class="saveRoleBtn" data-uid="${item.uid}">SAVE</button>
+        `;
+        listDiv.appendChild(row);
+    });
+
+    document.querySelectorAll(".saveRoleBtn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const uid = btn.getAttribute("data-uid");
+            const select = document.querySelector(`.userRoleSelect[data-uid="${uid}"]`);
+            const newRole = select.value;
+
+            await updateDoc(doc(db, "users", uid), { role: newRole });
+
+            btn.textContent = "SAVED";
+            setTimeout(() => { btn.textContent = "SAVE"; }, 1500);
+        });
+    });
+}
+
+/* =========================
    TAB SWITCHING
 ========================= */
 
-document.querySelectorAll(".tabBtn").forEach((btn) => {
+document.querySelectorAll("#mainTabBar .tabBtn").forEach((btn) => {
     btn.addEventListener("click", () => {
-        document.querySelectorAll(".tabBtn").forEach((b) => b.classList.remove("active"));
-        document.querySelectorAll(".file").forEach((panel) => panel.style.display = "none");
+        document.querySelectorAll("#mainTabBar .tabBtn").forEach((b) => b.classList.remove("active"));
+        document.getElementById("recordsSection").style.display = "none";
+        document.getElementById("superAdminSection").style.display = "none";
+
+        btn.classList.add("active");
+        document.getElementById(btn.getAttribute("data-section")).style.display = "block";
+    });
+});
+
+document.querySelectorAll("#recordsTabBar .tabBtn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll("#recordsTabBar .tabBtn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll("#recordsSection .file").forEach((panel) => panel.style.display = "none");
 
         btn.classList.add("active");
         document.getElementById(btn.getAttribute("data-tab")).style.display = "block";
     });
 });
 
-// Show only the first panel by default, hide the rest
-document.querySelectorAll(".file").forEach((panel, index) => {
+document.querySelectorAll("#recordsSection .file").forEach((panel, index) => {
     panel.style.display = index === 0 ? "block" : "none";
 });
 

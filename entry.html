@@ -46,41 +46,23 @@
 <h2>ACTIVITY LOG</h2>
 <div id="activityLog"><p class="loadingText">LOADING LOG...</p></div>
 
-<button id="editBtn">EDIT FILE</button>
+<button id="editBtn" style="display:none;">EDIT FILE</button>
 <button id="revealBtn" style="display:none;">REVEAL REDACTIONS</button>
-<button id="deleteBtn">DELETE FILE</button>
+<button id="deleteBtn" style="display:none;">DELETE FILE</button>
 
 <a href="entities.html" class="backBtn">⬅ BACK TO DATABASE</a>
 
 <p id="status"></p>
     
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-    getFirestore,
     doc,
     getDoc,
     updateDoc,
     deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-import {
-    getAuth,
-    onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-const firebaseConfig = {
-    apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
-    authDomain: "cpo-9af17.firebaseapp.com",
-    projectId: "cpo-9af17",
-    storageBucket: "cpo-9af17.firebasestorage.app",
-    messagingSenderId: "526427336111",
-    appId: "1:526427336111:web:8b71369117416ae937d35a"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { db, auth, can, getUserRole, ensureUserDoc } from "./roles.js";
 
 /* =========================
    CLOUDINARY IMAGE UPLOAD
@@ -113,31 +95,42 @@ const params = new URLSearchParams(window.location.search);
 const id = params.get("id");
 
 let isEditMode = false;
+let currentRole = null;
 
 /* =========================
-   AUTH
+   AUTH + ROLE-GATED BUTTONS
 ========================= */
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
     const editBtn = document.getElementById("editBtn");
     const deleteBtn = document.getElementById("deleteBtn");
-
-    if (!editBtn || !deleteBtn) return;
-
-    if (user) {
-    editBtn.style.display = "inline-block";
-    deleteBtn.style.display = "inline-block";
-
     const revealBtn = document.getElementById("revealBtn");
-    if (revealBtn) {
-        revealBtn.style.display = "inline-block";
-    }
-} else {
+
+    if (!user) {
+        currentRole = null;
         editBtn.style.display = "none";
         deleteBtn.style.display = "none";
+        revealBtn.style.display = "none";
+        return;
+    }
 
+    await ensureUserDoc(user);
+    currentRole = await getUserRole(user.uid);
+
+    // Edit/Delete require CPI Correspondent or above.
+    if (can.editCreateContent(currentRole)) {
+        editBtn.style.display = "inline-block";
+        deleteBtn.style.display = "inline-block";
+    }
+
+    // Reveal Redactions requires CPI Employee (Trusted) or above.
+    if (can.revealRedactions(currentRole)) {
+        revealBtn.style.display = "inline-block";
+    }
+
+    if (!can.editCreateContent(currentRole)) {
         const status = document.getElementById("status");
         if (status) {
-            status.textContent = "ACCESS LEVEL REQUIRED TO EDIT";
+            status.textContent = "VIEW-ONLY ACCESS — INSUFFICIENT CLEARANCE TO EDIT";
         }
     }
 });
@@ -169,8 +162,6 @@ function applyRedactions(text) {
 function formatAsParagraphs(text) {
     if (typeof text !== "string" || text.trim() === "") return "";
 
-    // Split on blank lines (one or more empty lines between paragraphs).
-    // Falls back to splitting on single newlines if there are no blank lines.
     let chunks = text.split(/\n\s*\n/);
     if (chunks.length === 1) {
         chunks = text.split(/\n/);
@@ -205,8 +196,6 @@ async function loadEntry() {
 
     const data = docSnap.data();
     currentData = data;
-    
-    console.log("ENTITY DATA:", data);
 
     document.getElementById("number").textContent = id;
 
@@ -256,7 +245,6 @@ async function loadEntry() {
 const logDiv = document.getElementById("activityLog");
 
 if (!logDiv) {
-    console.warn("activityLog element missing in HTML");
     return;
 }
 
@@ -306,7 +294,6 @@ function toggleMode() {
         if (el) el.style.display = isEditMode ? "block" : "none";
     });
 
-    // Header fields: title, classification, containment status
     document.getElementById("title").style.display =
         isEditMode ? "none" : "block";
     document.getElementById("titleEdit").style.display =
@@ -334,6 +321,11 @@ function toggleMode() {
 ========================= */
 document.getElementById("editBtn")?.addEventListener("click", async () => {
 
+    if (!can.editCreateContent(currentRole)) {
+        document.getElementById("status").textContent = "Insufficient clearance to edit.";
+        return;
+    }
+
     if (!isEditMode) {
         toggleMode();
         return;
@@ -346,7 +338,6 @@ document.getElementById("editBtn")?.addEventListener("click", async () => {
     const newContainmentProcedures = document.getElementById("containmentEdit").value;
     const newAddendum = document.getElementById("addendumEdit").value;
 
-    // Handle optional new image upload
     let newImageURL = (currentData && currentData.imageURL) || "";
     const imageFile = document.getElementById("imageEdit").files[0];
     if (imageFile) {
@@ -361,7 +352,6 @@ document.getElementById("editBtn")?.addEventListener("click", async () => {
         }
     }
 
-    // Build activity log entries based on what actually changed
     let logs = (currentData && currentData.logs) || [];
 
     function addLog(message) {
@@ -372,30 +362,15 @@ document.getElementById("editBtn")?.addEventListener("click", async () => {
     }
 
     if (currentData) {
-        if ((currentData.title || "") !== newTitle) {
-            addLog("Title changed.");
-        }
-        if ((currentData.classification || "") !== newClassification) {
-            addLog(`Classification changed to ${newClassification}.`);
-        }
-        if ((currentData.containment || "") !== newContainmentStatus) {
-            addLog("Containment status updated.");
-        }
-        if ((currentData.description || "") !== newDescription) {
-            addLog("Description modified.");
-        }
-        if ((currentData.containmentProcedures || "") !== newContainmentProcedures) {
-            addLog("Containment procedures updated.");
-        }
-        if ((currentData.addendum || "") !== newAddendum) {
-            addLog("Addendum modified.");
-        }
-        if ((currentData.imageURL || "") !== newImageURL) {
-            addLog("Image updated.");
-        }
+        if ((currentData.title || "") !== newTitle) addLog("Title changed.");
+        if ((currentData.classification || "") !== newClassification) addLog(`Classification changed to ${newClassification}.`);
+        if ((currentData.containment || "") !== newContainmentStatus) addLog("Containment status updated.");
+        if ((currentData.description || "") !== newDescription) addLog("Description modified.");
+        if ((currentData.containmentProcedures || "") !== newContainmentProcedures) addLog("Containment procedures updated.");
+        if ((currentData.addendum || "") !== newAddendum) addLog("Addendum modified.");
+        if ((currentData.imageURL || "") !== newImageURL) addLog("Image updated.");
     }
 
-    // Fallback if nothing actually changed
     const priorLogCount = (currentData && currentData.logs) ? currentData.logs.length : 0;
     if (logs.length === priorLogCount) {
         addLog("File reviewed, no changes made.");
@@ -412,7 +387,6 @@ document.getElementById("editBtn")?.addEventListener("click", async () => {
         logs: logs
     });
 
-    // Keep local state in sync
     currentData = {
         ...currentData,
         title: newTitle,
@@ -425,7 +399,6 @@ document.getElementById("editBtn")?.addEventListener("click", async () => {
         logs: logs
     };
 
-    // Refresh the displayed image
     const imageView = document.getElementById("imageView");
     if (newImageURL) {
         imageView.innerHTML = `<img src="${newImageURL}" class="entityImage" alt="Entity image">`;
@@ -434,16 +407,10 @@ document.getElementById("editBtn")?.addEventListener("click", async () => {
     }
     document.getElementById("imageEdit").value = "";
 
-    document.getElementById("title").textContent =
-        newTitle || "UNTITLED ENTITY";
+    document.getElementById("title").textContent = newTitle || "UNTITLED ENTITY";
+    document.getElementById("classTag").textContent = "CLASSIFICATION: " + newClassification;
+    document.getElementById("containmentTag").textContent = "CONTAINMENT: " + newContainmentStatus;
 
-    document.getElementById("classTag").textContent =
-        "CLASSIFICATION: " + newClassification;
-
-    document.getElementById("containmentTag").textContent =
-        "CONTAINMENT: " + newContainmentStatus;
-
-    // Re-render the activity log immediately
     const logDiv = document.getElementById("activityLog");
     if (logDiv) {
         logDiv.innerHTML = logs
@@ -458,8 +425,7 @@ document.getElementById("editBtn")?.addEventListener("click", async () => {
             .join("");
     }
 
-    document.getElementById("status").textContent =
-        "Changes saved successfully.";
+    document.getElementById("status").textContent = "Changes saved successfully.";
 
     toggleMode();
 });
@@ -468,6 +434,11 @@ document.getElementById("editBtn")?.addEventListener("click", async () => {
    DELETE BUTTON
 ========================= */
 document.getElementById("deleteBtn")?.addEventListener("click", async () => {
+
+    if (!can.editCreateContent(currentRole)) {
+        document.getElementById("status").textContent = "Insufficient clearance to delete.";
+        return;
+    }
 
     const confirmed = confirm(
         "TERMINATION PROTOCOL\n\nDelete this CPE permanently?"
@@ -488,6 +459,7 @@ let currentData = null;
 
 document.getElementById("revealBtn")?.addEventListener("click", () => {
 
+    if (!can.revealRedactions(currentRole)) return;
     if (!currentData) return;
 
     redactionsRevealed = !redactionsRevealed;

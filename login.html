@@ -16,24 +16,16 @@
     <input id="password" type="password" placeholder="???"><br><br>
     <button id="loginBtn">ACCESS SYSTEM</button>
     <p id="status"></p>
+    <a href="signup.html" class="backBtn">REQUEST ACCESS / REGISTER</a>
 </div>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword } 
-from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { setPersistence, browserLocalPersistence } 
-from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";   
-    
-const firebaseConfig = {
-  apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
-  authDomain: "cpo-9af17.firebaseapp.com",
-  projectId: "cpo-9af17",
-  storageBucket: "cpo-9af17.firebasestorage.app",
-  messagingSenderId: "526427336111",
-  appId: "1:526427336111:web:8b71369117416ae937d35a"
-};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+import {
+    signInWithEmailAndPassword,
+    setPersistence,
+    browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { auth, ensureUserDoc } from "./roles.js";
+
 document.getElementById("loginBtn").addEventListener("click", async () => {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
@@ -41,6 +33,11 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
         await setPersistence(auth, browserLocalPersistence);
         const result = await signInWithEmailAndPassword(auth, email, password);
         console.log("LOGIN SUCCESS USER:", result.user);
+
+        // Make sure a role doc exists even for accounts created before
+        // the role system existed (defaults to VIEWER if missing).
+        await ensureUserDoc(result.user);
+
         document.getElementById("status").textContent =
             "ACCESS GRANTED... redirecting";
         setTimeout(() => {

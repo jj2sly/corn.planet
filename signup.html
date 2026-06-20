@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CPE SIGNUP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <h1>CPI PERSONNEL REGISTRATION</h1>
+    <p>NEW ACCOUNTS START AS VIEWER &mdash; ACCESS MUST BE GRANTED BY A CPI EXEC</p>
+</header>
+<div class="file">
+    <input id="email" placeholder="you@corn.planet"><br><br>
+    <input id="password" type="password" placeholder="Choose a password (6+ characters)"><br><br>
+    <input id="confirmPassword" type="password" placeholder="Confirm password"><br><br>
+    <button id="signupBtn">REGISTER</button>
+    <p id="status"></p>
+    <a href="login.html" class="backBtn">ALREADY HAVE ACCESS? LOG IN</a>
+</div>
+
+<script type="module">
+import {
+    createUserWithEmailAndPassword,
+    setPersistence,
+    browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { auth, ensureUserDoc } from "./roles.js";
+
+document.getElementById("signupBtn").addEventListener("click", async () => {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const confirmPassword = document.getElementById("confirmPassword").value;
+    const status = document.getElementById("status");
+
+    if (!email || !password) {
+        status.textContent = "Email and password are required.";
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        status.textContent = "Passwords do not match.";
+        return;
+    }
+
+    if (password.length < 6) {
+        status.textContent = "Password must be at least 6 characters.";
+        return;
+    }
+
+    status.textContent = "Creating account...";
+
+    try {
+        await setPersistence(auth, browserLocalPersistence);
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+
+        // Every new signup lands as VIEWER until a CPI Exec promotes them.
+        await ensureUserDoc(result.user);
+
+        status.textContent = "Account created. Redirecting...";
+        setTimeout(() => {
+            window.location.href = "index.html";
+        }, 600);
+    } catch (error) {
+        console.error(error);
+        status.textContent = error.code || "Registration failed.";
+    }
+});
+</script>
+
+<script src="cornfall.js"></script>
+<script src="transitions.js"></script>
+</body>
+</html>
