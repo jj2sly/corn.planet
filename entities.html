@@ -18,7 +18,18 @@
 <a href="index.html" class="backBtn">⬅ BACK TO HOME</a>
     <div class="database">
   <h2>Entity Index</h2>
-  <div id="container"></div>
+
+  <label for="sortSelect" style="color:#ffd400; font-weight:bold; margin-right:8px;">Sort by:</label>
+  <select id="sortSelect">
+      <option value="id">ID Number</option>
+      <option value="titleAsc">Title (A–Z)</option>
+      <option value="titleDesc">Title (Z–A)</option>
+      <option value="classification">Classification</option>
+  </select>
+
+  <br><br>
+
+  <div id="container"><p class="loadingText">DECRYPTING DATABASE...</p></div>
 </div>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -54,23 +65,54 @@
   const colorMap = await loadClassificationColors();
   const querySnapshot = await getDocs(collection(db, "entities"));
   console.log("ENTRIES FOUND:", querySnapshot.size);
+
   if (!querySnapshot.size) {
     container.innerHTML = "<p>No entities found in database.</p>";
     return;
   }
+
+  let items = [];
   querySnapshot.forEach((docSnap) => {
-    const data = docSnap.data();
-    const div = document.createElement("div");
-    div.className = "entry";
-    const title = data.title || "UNTITLED ENTITY";
-    const classification = (data.classification || "UNKNOWN").toString();
-    const upperClass = classification.toUpperCase();
-    const color = colorMap[upperClass] || "#888";
-    div.innerHTML = `
-      <a href="entry.html?id=${docSnap.id}">${title}</a>
-      <span class="class" style="background:${color}; color:#000;">${classification}</span>
-    `;
-    container.appendChild(div);
+      const data = docSnap.data();
+      items.push({
+          id: docSnap.id,
+          title: data.title || "UNTITLED ENTITY",
+          classification: (data.classification || "UNKNOWN").toString()
+      });
+  });
+
+  function render(sortMode) {
+      let sorted = items.slice();
+
+      if (sortMode === "titleAsc") {
+          sorted.sort((a, b) => a.title.localeCompare(b.title));
+      } else if (sortMode === "titleDesc") {
+          sorted.sort((a, b) => b.title.localeCompare(a.title));
+      } else if (sortMode === "classification") {
+          sorted.sort((a, b) => a.classification.localeCompare(b.classification));
+      } else {
+          // Default: ID number
+          sorted.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+      }
+
+      container.innerHTML = "";
+      sorted.forEach((item) => {
+          const div = document.createElement("div");
+          div.className = "entry";
+          const upperClass = item.classification.toUpperCase();
+          const color = colorMap[upperClass] || "#888";
+          div.innerHTML = `
+            <a href="entry.html?id=${item.id}">${item.title}</a>
+            <span class="class" style="background:${color}; color:#000;">${item.classification}</span>
+          `;
+          container.appendChild(div);
+      });
+  }
+
+  render("id");
+
+  document.getElementById("sortSelect").addEventListener("change", (e) => {
+      render(e.target.value);
   });
 }
   loadEntries();
