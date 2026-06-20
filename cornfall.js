@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // Ambient falling corn background effect.
 // Spawns drifting corn particles that fall from the top of the screen,
 // purely decorative and non-interactive.
@@ -39,3 +40,6 @@
         setTimeout(spawnCorn, i * 400);
     }
 })();
+=======
+
+>>>>>>> 9fdaf30952a32394b46611afeafad8845abdd298
