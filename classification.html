@@ -35,28 +35,34 @@ const db = getFirestore(app);
 
 async function loadClassifications() {
     const listDiv = document.getElementById("classList");
-    const querySnapshot = await getDocs(collection(db, "classifications"));
 
-    if (querySnapshot.empty) {
-        listDiv.innerHTML = "<p>No classifications have been defined yet.</p>";
-        return;
+    try {
+        const querySnapshot = await getDocs(collection(db, "classifications"));
+
+        if (querySnapshot.empty) {
+            listDiv.innerHTML = "<p>No classifications have been defined yet.</p>";
+            return;
+        }
+
+        listDiv.innerHTML = "";
+
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const name = data.name || docSnap.id;
+            const color = data.color || "#ffd400";
+            const description = data.description || "";
+
+            const p = document.createElement("p");
+            p.innerHTML = `
+                <span class="class" style="background:${color}; color:#000;">${name}</span>
+                ${description ? " — " + description : ""}
+            `;
+            listDiv.appendChild(p);
+        });
+    } catch (err) {
+        console.error("Could not load classifications:", err);
+        listDiv.innerHTML = "<p>Unable to load classifications. Check console for details.</p>";
     }
-
-    listDiv.innerHTML = "";
-
-    querySnapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        const name = data.name || docSnap.id;
-        const color = data.color || "#ffd400";
-        const description = data.description || "";
-
-        const p = document.createElement("p");
-        p.innerHTML = `
-            <span class="class" style="background:${color}; color:#000;">${name}</span>
-            ${description ? " — " + description : ""}
-        `;
-        listDiv.appendChild(p);
-    });
 }
 
 loadClassifications();
