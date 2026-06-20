@@ -469,3 +469,33 @@ input[type="color"] {
     border-top: none;
     margin-top: 0;
 }
+
+/* =========================================
+   CLASSIFICATION REORDER BUTTONS
+========================================= */
+
+.reorderBtns {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.reorderBtns button {
+    background: #111;
+    color: #ffd400;
+    border: 1px solid #ffd400;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.reorderBtns button:hover:not(:disabled) {
+    background: #ffd400;
+    color: black;
+}
+
+.reorderBtns button:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+}
