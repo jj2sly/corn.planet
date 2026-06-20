@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Classification System</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -44,18 +45,26 @@ async function loadClassifications() {
             return;
         }
 
-        listDiv.innerHTML = "";
-
+        let items = [];
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            const name = data.name || docSnap.id;
-            const color = data.color || "#ffd400";
-            const description = data.description || "";
+            items.push({
+                name: data.name || docSnap.id,
+                color: data.color || "#ffd400",
+                description: data.description || "",
+                order: typeof data.order === "number" ? data.order : 9999
+            });
+        });
 
+        items.sort((a, b) => a.order - b.order);
+
+        listDiv.innerHTML = "";
+
+        items.forEach((item) => {
             const p = document.createElement("p");
             p.innerHTML = `
-                <span class="class" style="background:${color}; color:#000;">${name}</span>
-                ${description ? " — " + description : ""}
+                <span class="class" style="background:${item.color}; color:#000;">${item.name}</span>
+                ${item.description ? " — " + item.description : ""}
             `;
             listDiv.appendChild(p);
         });
