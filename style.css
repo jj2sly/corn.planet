@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Oswald:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Oswald:wght@400;600;700&family=Roboto+Mono:wght@400;700&display=swap');
 
 body {
     font-family: 'PT Sans', Arial, sans-serif;
@@ -498,4 +498,165 @@ input[type="color"] {
 .reorderBtns button:disabled {
     opacity: 0.25;
     cursor: not-allowed;
+}
+
+/* =========================================
+   LOADING STATES
+========================================= */
+
+.loadingText {
+    color: #888;
+    font-style: italic;
+    letter-spacing: 2px;
+    animation: loadingPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+/* =========================================
+   ENTITY / ARTIFACT IMAGES
+========================================= */
+
+.entityImage {
+    display: block;
+    max-width: 100%;
+    max-height: 400px;
+    width: auto;
+    border: 2px solid #ffd400;
+    margin: 14px 0;
+    object-fit: contain;
+    background: #0b0b0b;
+}
+
+#imageEdit {
+    background: #111;
+    color: #eaeaea;
+    border: 2px solid #ffd400;
+    padding: 8px;
+    margin: 10px 0;
+}
+
+/* =========================================
+   SCP AUTHENTICITY PASS
+========================================= */
+
+/* Page frame + vignette depth */
+html {
+    background: #000000;
+}
+
+body {
+    position: relative;
+    border-left: 1px solid #2a2a2a;
+    border-right: 1px solid #2a2a2a;
+    padding-left: 30px;
+    padding-right: 30px;
+}
+
+body::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    box-shadow: inset 0 0 200px rgba(0, 0, 0, 0.85);
+    z-index: -1;
+}
+
+/* Item number: monospace, stamped look */
+#number {
+    font-family: 'Roboto Mono', 'Oswald', monospace;
+    letter-spacing: 4px;
+    font-size: 2.4rem;
+}
+
+/* Classification / containment as compact stamp badges instead of full-width text */
+#classTag,
+#containmentTag {
+    display: inline-block;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    background: #0b0b0b;
+    border: 1px solid #ffd400;
+    padding: 4px 12px;
+    margin: 4px 6px 4px 0;
+}
+
+/* Roman-numeral section numbering for top-level section headers */
+body {
+    counter-reset: section;
+}
+
+h2 {
+    counter-increment: section;
+    font-size: 1.25rem;
+    letter-spacing: 1.5px;
+}
+
+h2::before {
+    content: counter(section, upper-roman) ". ";
+    color: #ffd400;
+    opacity: 0.7;
+}
+
+/* The entity/artifact title shouldn't be numbered like a section */
+#title {
+    counter-increment: 0;
+}
+
+#title::before {
+    content: none;
+}
+
+/* Tighter document rhythm */
+.entryText {
+    font-size: 1rem;
+}
+
+/* Activity log: monospace timestamps for a system-log feel */
+.logEntry strong {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+/* Database entry rows: small directional marker for a file-index feel */
+.entry a::before {
+    content: "▸ ";
+    color: #ffd400;
+    opacity: 0.6;
+}
+
+/* Buttons: slightly more compact, bureaucratic stamp feel */
+button {
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    letter-spacing: 1.5px;
+}
+
+button:active {
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
+}
+
+/* Warning banner: subtle hazard-stripe edge for extra authenticity */
+.warning {
+    background-image: repeating-linear-gradient(
+        45deg,
+        #ffd400,
+        #ffd400 18px,
+        #e6bf00 18px,
+        #e6bf00 36px
+    );
+    color: #000;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+}
+
+.warning {
+    background-color: #ffd400; /* fallback if gradient unsupported */
 }
