@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Entity File</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -295,35 +296,95 @@ document.getElementById("editBtn")?.addEventListener("click", async () => {
         return;
     }
 
+    const newTitle = document.getElementById("titleEdit").value;
+    const newClassification = document.getElementById("classificationEdit").value;
+    const newContainmentStatus = document.getElementById("containmentStatusEdit").value;
+    const newDescription = document.getElementById("descriptionEdit").value;
+    const newContainmentProcedures = document.getElementById("containmentEdit").value;
+    const newAddendum = document.getElementById("addendumEdit").value;
+
+    // Build activity log entries based on what actually changed
+    let logs = (currentData && currentData.logs) || [];
+
+    function addLog(message) {
+        logs.push({
+            date: new Date().toLocaleString(),
+            message
+        });
+    }
+
+    if (currentData) {
+        if ((currentData.title || "") !== newTitle) {
+            addLog("Title changed.");
+        }
+        if ((currentData.classification || "") !== newClassification) {
+            addLog(`Classification changed to ${newClassification}.`);
+        }
+        if ((currentData.containment || "") !== newContainmentStatus) {
+            addLog("Containment status updated.");
+        }
+        if ((currentData.description || "") !== newDescription) {
+            addLog("Description modified.");
+        }
+        if ((currentData.containmentProcedures || "") !== newContainmentProcedures) {
+            addLog("Containment procedures updated.");
+        }
+        if ((currentData.addendum || "") !== newAddendum) {
+            addLog("Addendum modified.");
+        }
+    }
+
+    // Fallback if nothing actually changed
+    const priorLogCount = (currentData && currentData.logs) ? currentData.logs.length : 0;
+    if (logs.length === priorLogCount) {
+        addLog("File reviewed, no changes made.");
+    }
+
     await updateDoc(doc(db, "entities", id), {
-        title:
-            document.getElementById("titleEdit").value,
-
-        classification:
-            document.getElementById("classificationEdit").value,
-
-        containment:
-            document.getElementById("containmentStatusEdit").value,
-
-        description:
-            document.getElementById("descriptionEdit").value,
-
-        containmentProcedures:
-            document.getElementById("containmentEdit").value,
-
-        addendum:
-            document.getElementById("addendumEdit").value
+        title: newTitle,
+        classification: newClassification,
+        containment: newContainmentStatus,
+        description: newDescription,
+        containmentProcedures: newContainmentProcedures,
+        addendum: newAddendum,
+        logs: logs
     });
 
-    // Reflect the new values in the view immediately
+    // Keep local state in sync
+    currentData = {
+        ...currentData,
+        title: newTitle,
+        classification: newClassification,
+        containment: newContainmentStatus,
+        description: newDescription,
+        containmentProcedures: newContainmentProcedures,
+        addendum: newAddendum,
+        logs: logs
+    };
+
     document.getElementById("title").textContent =
-        document.getElementById("titleEdit").value || "UNTITLED ENTITY";
+        newTitle || "UNTITLED ENTITY";
 
     document.getElementById("classTag").textContent =
-        "CLASSIFICATION: " + document.getElementById("classificationEdit").value;
+        "CLASSIFICATION: " + newClassification;
 
     document.getElementById("containmentTag").textContent =
-        "CONTAINMENT: " + document.getElementById("containmentStatusEdit").value;
+        "CONTAINMENT: " + newContainmentStatus;
+
+    // Re-render the activity log immediately
+    const logDiv = document.getElementById("activityLog");
+    if (logDiv) {
+        logDiv.innerHTML = logs
+            .slice()
+            .reverse()
+            .map(log => `
+                <div class="logEntry">
+                    <strong>${log.date || "Unknown date"}</strong><br>
+                    ${log.message || "No message"}
+                </div>
+            `)
+            .join("");
+    }
 
     document.getElementById("status").textContent =
         "Changes saved successfully.";
