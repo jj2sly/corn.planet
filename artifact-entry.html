@@ -2,14 +2,20 @@
 <html>
 <head>
     <title>Artifact File</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<a href="admin.html" class="adminLink">ADMIN</a>
 
 <header>
     <h1 id="number">LOADING...</h1>
     <h2 id="title"></h2>
     <input type="text" id="titleEdit" style="display:none;" placeholder="Artifact title">
+
+    <div id="imageView"></div>
+    <input type="file" id="imageEdit" accept="image/*" style="display:none;">
 
     <p id="classTag">CLASSIFICATION: ...</p>
     <select id="classificationEdit" style="display:none;">
@@ -22,23 +28,23 @@
 </header>
 
     <h2>PROPERTIES</h2>
-<div id="propertiesView" class="entryText"></div>
+<div id="propertiesView" class="entryText"><p class="loadingText">DECRYPTING...</p></div>
 <textarea id="propertiesEdit" class="entryText" style="display:none;"></textarea>
 
     <h2>DESCRIPTION</h2>
-<div id="descriptionView" class="entryText"></div>
+<div id="descriptionView" class="entryText"><p class="loadingText">DECRYPTING...</p></div>
 <textarea id="descriptionEdit" class="entryText" style="display:none;"></textarea>
 
 <h2>CONTAINMENT / HANDLING PROCEDURES</h2>
-<div id="containmentView" class="entryText"></div>
+<div id="containmentView" class="entryText"><p class="loadingText">DECRYPTING...</p></div>
 <textarea id="containmentEdit" class="entryText" style="display:none;"></textarea>
 
 <h2>ADDENDUM</h2>
-<div id="addendumView" class="entryText"></div>
+<div id="addendumView" class="entryText"><p class="loadingText">DECRYPTING...</p></div>
 <textarea id="addendumEdit" class="entryText" style="display:none;"></textarea>
 
 <h2>ACTIVITY LOG</h2>
-<div id="activityLog"></div>
+<div id="activityLog"><p class="loadingText">LOADING LOG...</p></div>
 
 <button id="editBtn">EDIT FILE</button>
 <button id="revealBtn" style="display:none;">REVEAL REDACTIONS</button>
@@ -59,6 +65,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 import {
+    getStorage,
+    ref,
+    uploadBytes,
+    getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+import {
     getAuth,
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -75,6 +88,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 const params = new URLSearchParams(window.location.search);
 const id = params.get("id");
@@ -184,6 +198,13 @@ async function loadEntry() {
     document.getElementById("titleEdit").value =
         data.title || "";
 
+    const imageView = document.getElementById("imageView");
+    if (data.imageURL) {
+        imageView.innerHTML = `<img src="${data.imageURL}" class="entityImage" alt="Artifact image">`;
+    } else {
+        imageView.innerHTML = "";
+    }
+
     document.getElementById("classificationEdit").value =
         (data.classification || "COSMIC").toUpperCase();
 
@@ -271,6 +292,9 @@ function toggleMode() {
     document.getElementById("titleEdit").style.display =
         isEditMode ? "inline-block" : "none";
 
+    document.getElementById("imageEdit").style.display =
+        isEditMode ? "block" : "none";
+
     document.getElementById("classTag").style.display =
         isEditMode ? "none" : "block";
     document.getElementById("classificationEdit").style.display =
@@ -290,31 +314,116 @@ document.getElementById("editBtn")?.addEventListener("click", async () => {
         return;
     }
 
+    const newTitle = document.getElementById("titleEdit").value;
+    const newClassification = document.getElementById("classificationEdit").value;
+    const newProperties = document.getElementById("propertiesEdit").value;
+    const newDescription = document.getElementById("descriptionEdit").value;
+    const newContainmentProcedures = document.getElementById("containmentEdit").value;
+    const newAddendum = document.getElementById("addendumEdit").value;
+
+    // Handle optional new image upload
+    let newImageURL = (currentData && currentData.imageURL) || "";
+    const imageFile = document.getElementById("imageEdit").files[0];
+    if (imageFile) {
+        document.getElementById("status").textContent = "Uploading image...";
+        const imageRef = ref(storage, `artifacts/${id}-${imageFile.name}`);
+        await uploadBytes(imageRef, imageFile);
+        newImageURL = await getDownloadURL(imageRef);
+    }
+
+    // Build activity log entries based on what actually changed
+    let logs = (currentData && currentData.logs) || [];
+
+    function addLog(message) {
+        logs.push({
+            date: new Date().toLocaleString(),
+            message
+        });
+    }
+
+    if (currentData) {
+        if ((currentData.title || "") !== newTitle) {
+            addLog("Title changed.");
+        }
+        if ((currentData.classification || "") !== newClassification) {
+            addLog(`Classification changed to ${newClassification}.`);
+        }
+        if ((currentData.properties || "") !== newProperties) {
+            addLog("Properties modified.");
+        }
+        if ((currentData.description || "") !== newDescription) {
+            addLog("Description modified.");
+        }
+        if ((currentData.containmentProcedures || "") !== newContainmentProcedures) {
+            addLog("Containment/handling procedures updated.");
+        }
+        if ((currentData.addendum || "") !== newAddendum) {
+            addLog("Addendum modified.");
+        }
+        if ((currentData.imageURL || "") !== newImageURL) {
+            addLog("Image updated.");
+        }
+    }
+
+    // Fallback if nothing actually changed
+    const priorLogCount = (currentData && currentData.logs) ? currentData.logs.length : 0;
+    if (logs.length === priorLogCount) {
+        addLog("File reviewed, no changes made.");
+    }
+
     await updateDoc(doc(db, "artifacts", id), {
-        title:
-            document.getElementById("titleEdit").value,
-
-        classification:
-            document.getElementById("classificationEdit").value,
-
-        properties:
-            document.getElementById("propertiesEdit").value,
-
-        description:
-            document.getElementById("descriptionEdit").value,
-
-        containmentProcedures:
-            document.getElementById("containmentEdit").value,
-
-        addendum:
-            document.getElementById("addendumEdit").value
+        title: newTitle,
+        classification: newClassification,
+        properties: newProperties,
+        description: newDescription,
+        containmentProcedures: newContainmentProcedures,
+        addendum: newAddendum,
+        imageURL: newImageURL,
+        logs: logs
     });
 
+    // Keep local state in sync
+    currentData = {
+        ...currentData,
+        title: newTitle,
+        classification: newClassification,
+        properties: newProperties,
+        description: newDescription,
+        containmentProcedures: newContainmentProcedures,
+        addendum: newAddendum,
+        imageURL: newImageURL,
+        logs: logs
+    };
+
+    // Refresh the displayed image
+    const imageView = document.getElementById("imageView");
+    if (newImageURL) {
+        imageView.innerHTML = `<img src="${newImageURL}" class="entityImage" alt="Artifact image">`;
+    } else {
+        imageView.innerHTML = "";
+    }
+    document.getElementById("imageEdit").value = "";
+
     document.getElementById("title").textContent =
-        document.getElementById("titleEdit").value || "UNTITLED ARTIFACT";
+        newTitle || "UNTITLED ARTIFACT";
 
     document.getElementById("classTag").textContent =
-        "CLASSIFICATION: " + document.getElementById("classificationEdit").value;
+        "CLASSIFICATION: " + newClassification;
+
+    // Re-render the activity log immediately
+    const logDiv = document.getElementById("activityLog");
+    if (logDiv) {
+        logDiv.innerHTML = logs
+            .slice()
+            .reverse()
+            .map(log => `
+                <div class="logEntry">
+                    <strong>${log.date || "Unknown date"}</strong><br>
+                    ${log.message || "No message"}
+                </div>
+            `)
+            .join("");
+    }
 
     document.getElementById("status").textContent =
         "Changes saved successfully.";
@@ -389,5 +498,6 @@ document.getElementById("revealBtn")?.addEventListener("click", () => {
 loadEntry();
 </script>
 
+<script src="transitions.js"></script>
 </body>
 </html>
