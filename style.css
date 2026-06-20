@@ -660,3 +660,131 @@ button:active {
 .warning {
     background-color: #ffd400; /* fallback if gradient unsupported */
 }
+
+/* =========================================
+   GENERAL POLISH PASS
+========================================= */
+
+/* Custom scrollbar to match theme */
+::-webkit-scrollbar {
+    width: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+    background: #444;
+    border: 2px solid #0a0a0a;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #ffd400;
+}
+
+/* Text selection color */
+::selection {
+    background: #ffd400;
+    color: #000;
+}
+
+/* Focus states for accessibility + polish, instead of default blue outline */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid #ffd400;
+    outline-offset: 2px;
+}
+
+/* Smooth transitions across interactive elements */
+a, button, .entry, .class, input, select, textarea {
+    transition: background-color 0.2s ease, color 0.2s ease,
+                border-color 0.2s ease, box-shadow 0.2s ease,
+                transform 0.15s ease;
+}
+
+/* Gentle fade-in on page load */
+body {
+    animation: pageFadeIn 0.4s ease;
+}
+
+@keyframes pageFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Subtle depth on document panels */
+.file,
+.database,
+.legend {
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+    position: relative;
+}
+
+/* Sci-fi style corner brackets on document panels */
+.file::before,
+.file::after,
+.database::before,
+.database::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-color: #ffd400;
+    border-style: solid;
+    opacity: 0.8;
+}
+
+.file::before,
+.database::before {
+    top: -2px;
+    left: -2px;
+    border-width: 2px 0 0 2px;
+}
+
+.file::after,
+.database::after {
+    bottom: -2px;
+    right: -2px;
+    border-width: 0 2px 2px 0;
+}
+
+/* Classification tag badges: a touch more weight */
+.class {
+    box-shadow: 0 0 8px rgba(255, 212, 0, 0.15);
+    letter-spacing: 0.5px;
+}
+
+/* Entry rows: subtle lift on hover instead of just background change */
+.entry:hover {
+    transform: translateX(4px);
+}
+
+/* Input/select/textarea placeholder styling */
+input::placeholder,
+textarea::placeholder {
+    color: #666;
+    font-style: italic;
+}
+
+/* Links inside body text (not nav/buttons) get a consistent underline-on-hover style */
+.entryText a {
+    color: #ffd400;
+    text-decoration: none;
+    border-bottom: 1px dotted #ffd400;
+}
+.entryText a:hover {
+    border-bottom-style: solid;
+}
+
+/* Header subtitle text: slightly muted, refined tracking */
+header p {
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    opacity: 0.85;
+}
+
+/* Smooth scrolling for in-page anchors */
+html {
+    scroll-behavior: smooth;
+}
