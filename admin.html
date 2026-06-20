@@ -53,6 +53,11 @@
 
     <textarea id="addendum" placeholder="Addendum"></textarea>
 
+    <br><br>
+    <label for="imageUpload" style="color:#ffd400; font-weight:bold;">Image URL (optional):</label><br><br>
+    <input type="text" id="imageUpload" placeholder="https://example.com/image.jpg">
+    <br><br>
+
     <button id="submitBtn">Create Entity</button>
 
     <p id="status"></p>
@@ -100,6 +105,11 @@
     <textarea id="artContainmentProcedures" placeholder="Containment / Handling Procedures"></textarea>
 
     <textarea id="artAddendum" placeholder="Addendum"></textarea>
+
+    <br><br>
+    <label for="artImageUpload" style="color:#ffd400; font-weight:bold;">Image URL (optional):</label><br><br>
+    <input type="text" id="artImageUpload" placeholder="https://example.com/image.jpg">
+    <br><br>
 
     <button id="artSubmitBtn">Create Artifact</button>
 
@@ -168,6 +178,7 @@ window.addEventListener("load", async () => {
 document.getElementById("submitBtn").addEventListener("click", async () => {
 
     const docId = document.getElementById("docId").value;
+    const imageURL = document.getElementById("imageUpload").value.trim();
 
     const newData = {
         title: document.getElementById("title").value,
@@ -176,6 +187,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         description: document.getElementById("description").value,
         containmentProcedures: document.getElementById("containmentProcedures").value,
         addendum: document.getElementById("addendum").value,
+        imageURL: imageURL,
         logs: [
             {
                 date: new Date().toLocaleString(),
@@ -194,6 +206,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
     document.getElementById("description").value = "";
     document.getElementById("containmentProcedures").value = "";
     document.getElementById("addendum").value = "";
+    document.getElementById("imageUpload").value = "";
 
     // Generate the next ID immediately after submit
     const nextId = await generateNextCPE();
@@ -430,6 +443,16 @@ async function refreshArtDocId() {
 document.getElementById("artSubmitBtn").addEventListener("click", async () => {
 
     const docId = document.getElementById("artDocId").value;
+    const imageFile = document.getElementById("artImageUpload").files[0];
+
+    let imageURL = "";
+
+    if (imageFile) {
+        document.getElementById("artStatus").textContent = "Uploading image...";
+        const imageRef = ref(storage, `artifacts/${docId}-${imageFile.name}`);
+        await uploadBytes(imageRef, imageFile);
+        imageURL = await getDownloadURL(imageRef);
+    }
 
     const newData = {
         title: document.getElementById("artTitle").value,
@@ -438,6 +461,7 @@ document.getElementById("artSubmitBtn").addEventListener("click", async () => {
         description: document.getElementById("artDescription").value,
         containmentProcedures: document.getElementById("artContainmentProcedures").value,
         addendum: document.getElementById("artAddendum").value,
+        imageURL: imageURL,
         logs: [
             {
                 date: new Date().toLocaleString(),
@@ -456,6 +480,7 @@ document.getElementById("artSubmitBtn").addEventListener("click", async () => {
     document.getElementById("artDescription").value = "";
     document.getElementById("artContainmentProcedures").value = "";
     document.getElementById("artAddendum").value = "";
+    document.getElementById("artImageUpload").value = "";
 
     refreshArtDocId();
 });
@@ -488,5 +513,6 @@ refreshArtDocId();
 
 </script>
 
+<script src="transitions.js"></script>
 </body>
 </html>
