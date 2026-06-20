@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CPI Records Division</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+    <h1>RECORDS DIVISION</h1>
+    <p id="roleSubtitle">CONTENT CREATION & CURATION</p>
+</header>
+
+<a href="index.html" class="backBtn">⬅ BACK TO HOME</a>
+<br><br>
+
+<p id="authChecking" class="loadingText">VERIFYING ACCESS CREDENTIALS...</p>
+
+<div id="accessDenied" style="display:none;" class="warning">
+    ACCESS LEVEL INSUFFICIENT FOR THIS TERMINAL
+</div>
+
+<div id="recordsContent" style="display:none;">
+
+    <div class="tabBar" id="recordsTabBar">
+        <button class="tabBtn active" data-tab="entityPanel">CREATE ENTITY</button>
+        <button class="tabBtn" data-tab="classPanel" id="classTabBtn">CLASSIFICATIONS</button>
+        <button class="tabBtn" data-tab="artifactPanel">CREATE ARTIFACT</button>
+    </div>
+
+    <div class="file" id="entityPanel">
+
+        <h2>Create New Entity</h2>
+
+        <input id="docId" placeholder="Auto-generating..." disabled>
+
+        <input id="title" placeholder="Title"><br><br>
+
+        <select id="classification">
+            <option value="COSMIC">COSMIC</option>
+            <option value="EARTHLY">EARTHLY</option>
+            <option value="LOCAL">LOCAL</option>
+            <option value="CONSTRICTED">CONSTRICTED</option>
+            <option value="NEUTRALIZED">NEUTRALIZED</option>
+        </select>
+        <br><br>
+
+        <select id="containment">
+            <option value="MINIMAL">MINIMAL</option>
+            <option value="STANDARD">STANDARD</option>
+            <option value="ENHANCED">ENHANCED</option>
+            <option value="MAXIMUM">MAXIMUM</option>
+            <option value="TERMINATION">TERMINATION</option>
+        </select>
+        <br><br>
+
+        <textarea id="description" placeholder="Description"></textarea>
+        <textarea id="containmentProcedures" placeholder="Containment Procedures"></textarea>
+        <textarea id="addendum" placeholder="Addendum"></textarea>
+
+        <br><br>
+        <label for="imageUpload" style="color:#ffd400; font-weight:bold;">Image (optional):</label><br><br>
+        <input type="file" id="imageUpload" accept="image/*">
+        <br><br>
+
+        <button id="submitBtn">Create Entity</button>
+
+        <p id="status"></p>
+
+    </div>
+
+    <div class="file" id="classPanel">
+
+        <h2>Manage Classifications</h2>
+
+        <div id="classificationList"></div>
+
+        <h3>Add New Classification</h3>
+
+        <input id="newClassName" placeholder="Classification name (e.g. ANOMALOUS)">
+        <br><br>
+        <input id="newClassDescription" placeholder="Short description (e.g. Reality-altering entities)">
+        <br><br>
+        <label for="newClassColor" style="color:#ffd400; font-weight:bold;">Color:</label>
+        <input type="color" id="newClassColor" value="#ffd400">
+        <br><br>
+        <button id="addClassBtn">Add Classification</button>
+
+        <p id="classStatus"></p>
+
+    </div>
+
+    <div class="file" id="artifactPanel">
+
+        <h2>Create New Artifact</h2>
+
+        <input id="artDocId" placeholder="Auto-generating..." disabled>
+
+        <input id="artTitle" placeholder="Artifact Title"><br><br>
+
+        <select id="artClassification">
+            <!-- populated dynamically from classifications collection -->
+        </select>
+        <br><br>
+
+        <textarea id="artProperties" placeholder="Properties / Object Class"></textarea>
+        <textarea id="artDescription" placeholder="Description"></textarea>
+        <textarea id="artContainmentProcedures" placeholder="Containment / Handling Procedures"></textarea>
+        <textarea id="artAddendum" placeholder="Addendum"></textarea>
+
+        <br><br>
+        <label for="artImageUpload" style="color:#ffd400; font-weight:bold;">Image (optional):</label><br><br>
+        <input type="file" id="artImageUpload" accept="image/*">
+        <br><br>
+
+        <button id="artSubmitBtn">Create Artifact</button>
+
+        <p id="artStatus"></p>
+
+    </div>
+
+</div>
+
+<script type="module">
+import {
+    doc,
+    setDoc,
+    updateDoc,
+    deleteDoc,
+    collection,
+    getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { db, auth, ROLE_LIST, can, getUserRole, ensureUserDoc } from "./roles.js";
+
+let currentRole = "VIEWER";
+
+onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+        window.location.replace("login.html");
+        return;
+    }
+
+    await ensureUserDoc(user);
+    currentRole = await getUserRole(user.uid);
+
+    document.getElementById("authChecking").style.display = "none";
+
+    // Records Division requires CPI Correspondent or above.
+    if (!can.accessRecordsDivision(currentRole)) {
+        document.getElementById("accessDenied").style.display = "block";
+        return;
+    }
+
+    const roleInfo = ROLE_LIST.find(r => r.id === currentRole);
+    document.getElementById("roleSubtitle").textContent =
+        "CLEARANCE: " + (roleInfo ? roleInfo.label.toUpperCase() : "UNKNOWN") + " — CONTENT CREATION & CURATION";
+
+    document.getElementById("recordsContent").style.display = "block";
+
+    // Classifications management requires Strike Team Overseer or above.
+    if (!can.manageClassifications(currentRole)) {
+        document.getElementById("classTabBtn").style.display = "none";
+    }
+});
+
+window.addEventListener("pageshow", (event) => {
+    if (event.persisted) {
+        window.location.reload();
+    }
+});
+
+/* =========================
+   CLOUDINARY IMAGE UPLOAD
+========================= */
+
+const CLOUDINARY_CLOUD_NAME = "dzeymqtsv";
+const CLOUDINARY_UPLOAD_PRESET = "cornplanetcloud";
+
+async function uploadImageToCloudinary(file) {
+    const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+    const response = await fetch(url, { method: "POST", body: formData });
+    if (!response.ok) {
+        throw new Error("Image upload failed. Check your Cloudinary preset settings.");
+    }
+    const data = await response.json();
+    return data.secure_url;
+}
+
+/* =========================
+   ENTITY CREATION
+========================= */
+
+async function generateNextCPE() {
+    const querySnapshot = await getDocs(collection(db, "entities"));
+    let max = 0;
+    querySnapshot.forEach((docSnap) => {
+        const match = docSnap.id.match(/CPE-(\d+)/);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > max) max = num;
+        }
+    });
+    return "CPE-" + String(max + 1).padStart(3, "0");
+}
+
+window.addEventListener("load", async () => {
+    document.getElementById("docId").value = await generateNextCPE();
+});
+
+document.getElementById("submitBtn").addEventListener("click", async () => {
+    if (!can.editCreateContent(currentRole)) {
+        document.getElementById("status").textContent = "Insufficient clearance.";
+        return;
+    }
+
+    const docId = document.getElementById("docId").value;
+    const imageFile = document.getElementById("imageUpload").files[0];
+    let imageURL = "";
+
+    if (imageFile) {
+        document.getElementById("status").textContent = "Uploading image...";
+        try {
+            imageURL = await uploadImageToCloudinary(imageFile);
+        } catch (err) {
+            console.error(err);
+            document.getElementById("status").textContent = "Image upload failed. Entity not created.";
+            return;
+        }
+    }
+
+    const newData = {
+        title: document.getElementById("title").value,
+        classification: document.getElementById("classification").value,
+        containment: document.getElementById("containment").value,
+        description: document.getElementById("description").value,
+        containmentProcedures: document.getElementById("containmentProcedures").value,
+        addendum: document.getElementById("addendum").value,
+        imageURL: imageURL,
+        logs: [{ date: new Date().toLocaleString(), message: "Entity file created." }]
+    };
+
+    await setDoc(doc(db, "entities", docId), newData);
+
+    document.getElementById("status").textContent = "Entity successfully created.";
+
+    document.getElementById("title").value = "";
+    document.getElementById("description").value = "";
+    document.getElementById("containmentProcedures").value = "";
+    document.getElementById("addendum").value = "";
+    document.getElementById("imageUpload").value = "";
+
+    document.getElementById("docId").value = await generateNextCPE();
+});
+
+/* =========================
+   CLASSIFICATION MANAGEMENT
+========================= */
+
+function classNameToDocId(name) {
+    return name.trim().toUpperCase().replace(/\s+/g, "_");
+}
+
+async function loadClassifications() {
+    const listDiv = document.getElementById("classificationList");
+    const artClassSelect = document.getElementById("artClassification");
+
+    listDiv.innerHTML = "Loading...";
+
+    const querySnapshot = await getDocs(collection(db, "classifications"));
+
+    if (querySnapshot.empty) {
+        listDiv.innerHTML = "<p>No classifications yet. Add one below.</p>";
+        artClassSelect.innerHTML = "";
+        return;
+    }
+
+    let items = [];
+    let rawIndex = 0;
+    querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        items.push({
+            id: docSnap.id,
+            name: data.name || docSnap.id,
+            color: data.color || "#ffd400",
+            description: data.description || "",
+            order: typeof data.order === "number" ? data.order : null,
+            fallbackIndex: rawIndex
+        });
+        rawIndex++;
+    });
+
+    items.sort((a, b) => {
+        const orderA = a.order !== null ? a.order : 1000 + a.fallbackIndex;
+        const orderB = b.order !== null ? b.order : 1000 + b.fallbackIndex;
+        return orderA - orderB;
+    });
+
+    const normalizeWrites = [];
+    items.forEach((item, index) => {
+        if (item.order !== index) {
+            normalizeWrites.push(updateDoc(doc(db, "classifications", item.id), { order: index }));
+        }
+        item.order = index;
+    });
+    if (normalizeWrites.length > 0) await Promise.all(normalizeWrites);
+
+    listDiv.innerHTML = "";
+    artClassSelect.innerHTML = "";
+
+    items.forEach((item, index) => {
+        const row = document.createElement("div");
+        row.className = "entry";
+        row.innerHTML = `
+            <div class="reorderBtns">
+                <button data-id="${item.id}" data-index="${index}" class="moveUpBtn" ${index === 0 ? "disabled" : ""}>▲</button>
+                <button data-id="${item.id}" data-index="${index}" class="moveDownBtn" ${index === items.length - 1 ? "disabled" : ""}>▼</button>
+            </div>
+            <span class="class" style="background:${item.color}; color:#000;">${item.name}</span>
+            <input type="text" value="${item.description}" data-id="${item.id}" class="classDescInput" placeholder="Description" style="flex:1; min-width:150px;">
+            <input type="color" value="${item.color}" data-id="${item.id}" class="classColorInput">
+            <button data-id="${item.id}" class="saveClassBtn">SAVE</button>
+            <button data-id="${item.id}" class="deleteClassBtn">DELETE</button>
+        `;
+        listDiv.appendChild(row);
+
+        const opt = document.createElement("option");
+        opt.value = item.name;
+        opt.textContent = item.name;
+        artClassSelect.appendChild(opt);
+    });
+
+    document.querySelectorAll(".saveClassBtn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-id");
+            const colorInput = document.querySelector(`.classColorInput[data-id="${id}"]`);
+            const descInput = document.querySelector(`.classDescInput[data-id="${id}"]`);
+            await updateDoc(doc(db, "classifications", id), {
+                color: colorInput.value,
+                description: descInput.value
+            });
+            document.getElementById("classStatus").textContent = `Updated ${id}.`;
+            loadClassifications();
+        });
+    });
+
+    document.querySelectorAll(".deleteClassBtn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-id");
+            const confirmed = confirm(`Delete classification "${id}"? This cannot be undone.`);
+            if (!confirmed) return;
+            await deleteDoc(doc(db, "classifications", id));
+            document.getElementById("classStatus").textContent = `Deleted ${id}.`;
+            loadClassifications();
+        });
+    });
+
+    document.querySelectorAll(".moveUpBtn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const index = parseInt(btn.getAttribute("data-index"), 10);
+            if (index === 0) return;
+            await swapOrder(items[index], items[index - 1]);
+        });
+    });
+
+    document.querySelectorAll(".moveDownBtn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const index = parseInt(btn.getAttribute("data-index"), 10);
+            if (index === items.length - 1) return;
+            await swapOrder(items[index], items[index + 1]);
+        });
+    });
+}
+
+async function swapOrder(itemA, itemB) {
+    await updateDoc(doc(db, "classifications", itemA.id), { order: itemB.order });
+    await updateDoc(doc(db, "classifications", itemB.id), { order: itemA.order });
+    loadClassifications();
+}
+
+document.getElementById("addClassBtn").addEventListener("click", async () => {
+    if (!can.manageClassifications(currentRole)) {
+        document.getElementById("classStatus").textContent = "Insufficient clearance.";
+        return;
+    }
+
+    const nameInput = document.getElementById("newClassName");
+    const descInput = document.getElementById("newClassDescription");
+    const colorInput = document.getElementById("newClassColor");
+
+    const name = nameInput.value.trim().toUpperCase();
+    const description = descInput.value.trim();
+    const color = colorInput.value;
+
+    if (!name) {
+        document.getElementById("classStatus").textContent = "Please enter a classification name.";
+        return;
+    }
+
+    const docId = classNameToDocId(name);
+
+    const existing = await getDocs(collection(db, "classifications"));
+    let maxOrder = -1;
+    existing.forEach((docSnap) => {
+        const data = docSnap.data();
+        const ord = typeof data.order === "number" ? data.order : 0;
+        if (ord > maxOrder) maxOrder = ord;
+    });
+
+    await setDoc(doc(db, "classifications", docId), {
+        name: name,
+        description: description,
+        color: color,
+        order: maxOrder + 1
+    });
+
+    document.getElementById("classStatus").textContent = `Classification "${name}" added.`;
+
+    nameInput.value = "";
+    descInput.value = "";
+    colorInput.value = "#ffd400";
+
+    loadClassifications();
+});
+
+/* =========================
+   ARTIFACT CREATION
+========================= */
+
+async function generateNextART() {
+    const querySnapshot = await getDocs(collection(db, "artifacts"));
+    let max = 0;
+    querySnapshot.forEach((docSnap) => {
+        const match = docSnap.id.match(/ART-(\d+)/);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > max) max = num;
+        }
+    });
+    return "ART-" + String(max + 1).padStart(3, "0");
+}
+
+async function refreshArtDocId() {
+    document.getElementById("artDocId").value = await generateNextART();
+}
+
+document.getElementById("artSubmitBtn").addEventListener("click", async () => {
+    if (!can.editCreateContent(currentRole)) {
+        document.getElementById("artStatus").textContent = "Insufficient clearance.";
+        return;
+    }
+
+    const docId = document.getElementById("artDocId").value;
+    const imageFile = document.getElementById("artImageUpload").files[0];
+    let imageURL = "";
+
+    if (imageFile) {
+        document.getElementById("artStatus").textContent = "Uploading image...";
+        try {
+            imageURL = await uploadImageToCloudinary(imageFile);
+        } catch (err) {
+            console.error(err);
+            document.getElementById("artStatus").textContent = "Image upload failed. Artifact not created.";
+            return;
+        }
+    }
+
+    const newData = {
+        title: document.getElementById("artTitle").value,
+        classification: document.getElementById("artClassification").value,
+        properties: document.getElementById("artProperties").value,
+        description: document.getElementById("artDescription").value,
+        containmentProcedures: document.getElementById("artContainmentProcedures").value,
+        addendum: document.getElementById("artAddendum").value,
+        imageURL: imageURL,
+        logs: [{ date: new Date().toLocaleString(), message: "Artifact file created." }]
+    };
+
+    await setDoc(doc(db, "artifacts", docId), newData);
+
+    document.getElementById("artStatus").textContent = "Artifact successfully created.";
+
+    document.getElementById("artTitle").value = "";
+    document.getElementById("artProperties").value = "";
+    document.getElementById("artDescription").value = "";
+    document.getElementById("artContainmentProcedures").value = "";
+    document.getElementById("artAddendum").value = "";
+    document.getElementById("artImageUpload").value = "";
+
+    refreshArtDocId();
+});
+
+/* =========================
+   TAB SWITCHING
+========================= */
+
+document.querySelectorAll("#recordsTabBar .tabBtn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll("#recordsTabBar .tabBtn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll("#recordsContent .file").forEach((panel) => panel.style.display = "none");
+
+        btn.classList.add("active");
+        document.getElementById(btn.getAttribute("data-tab")).style.display = "block";
+    });
+});
+
+document.querySelectorAll("#recordsContent .file").forEach((panel, index) => {
+    panel.style.display = index === 0 ? "block" : "none";
+});
+
+/* =========================
+   START
+========================= */
+
+loadClassifications();
+refreshArtDocId();
+
+</script>
+
+<script src="cornfall.js"></script>
+<script src="transitions.js"></script>
+</body>
+</html>
