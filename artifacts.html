@@ -36,12 +36,16 @@
 
   async function loadClassificationColors() {
       const colorMap = {};
-      const querySnapshot = await getDocs(collection(db, "classifications"));
-      querySnapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          const name = (data.name || docSnap.id).toUpperCase();
-          colorMap[name] = data.color || "#ffd400";
-      });
+      try {
+          const querySnapshot = await getDocs(collection(db, "classifications"));
+          querySnapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              const name = (data.name || docSnap.id).toUpperCase();
+              colorMap[name] = data.color || "#ffd400";
+          });
+      } catch (err) {
+          console.warn("Could not load classification colors:", err);
+      }
       return colorMap;
   }
 
