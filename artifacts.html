@@ -1,78 +1,455 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Corn Planet Artifact Database</title>
+    <title>Artifact File</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
 <header>
-    <a href="admin.html">ADMIN PANEL</a>
-    <h1>CORN PLANET ARTIFACT DATABASE</h1>
-    <p>SECURE • STUDY • DOCUMENT</p>
+    <h1 id="number">LOADING...</h1>
+    <h2 id="title"></h2>
+    <input type="text" id="titleEdit" style="display:none;" placeholder="Artifact title">
+
+    <p id="classTag">CLASSIFICATION: ...</p>
+    <select id="classificationEdit" style="display:none;">
+        <option value="COSMIC">COSMIC</option>
+        <option value="EARTHLY">EARTHLY</option>
+        <option value="LOCAL">LOCAL</option>
+        <option value="SELDOM">CONSTRICTED</option>
+        <option value="NEUTRALIZED">NEUTRALIZED</option>
+    </select>
 </header>
-<div class="warning">
-    ACCESS LEVEL 2 REQUIRED
-</div>
-<a href="classification.html" class="backBtn">VIEW CLASSIFICATION SYSTEM</a>
-<a href="index.html" class="backBtn">⬅ BACK TO HOME</a>
-    <div class="database">
-  <h2>Artifact Index</h2>
-  <div id="container"></div>
-</div>
+
+    <h2>PROPERTIES</h2>
+<div id="propertiesView" class="entryText"></div>
+<textarea id="propertiesEdit" class="entryText" style="display:none;"></textarea>
+
+    <h2>DESCRIPTION</h2>
+<div id="descriptionView" class="entryText"></div>
+<textarea id="descriptionEdit" class="entryText" style="display:none;"></textarea>
+
+<h2>CONTAINMENT / HANDLING PROCEDURES</h2>
+<div id="containmentView" class="entryText"></div>
+<textarea id="containmentEdit" class="entryText" style="display:none;"></textarea>
+
+<h2>ADDENDUM</h2>
+<div id="addendumView" class="entryText"></div>
+<textarea id="addendumEdit" class="entryText" style="display:none;"></textarea>
+
+<h2>ACTIVITY LOG</h2>
+<div id="activityLog"></div>
+
+<button id="editBtn">EDIT FILE</button>
+<button id="revealBtn" style="display:none;">REVEAL REDACTIONS</button>
+<button id="deleteBtn">DELETE FILE</button>
+
+<a href="artifacts.html" class="backBtn">⬅ BACK TO DATABASE</a>
+
+<p id="status"></p>
+
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  const firebaseConfig = {
-  apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
-  authDomain: "cpo-9af17.firebaseapp.com",
-  projectId: "cpo-9af17",
-  storageBucket: "cpo-9af17.firebasestorage.app",
-  messagingSenderId: "526427336111",
-  appId: "1:526427336111:web:8b71369117416ae937d35a"
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+    getFirestore,
+    doc,
+    getDoc,
+    updateDoc,
+    deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+import {
+    getAuth,
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBshT0wE2kjCIPpt1BozZvLlY3kGwWEH90",
+    authDomain: "cpo-9af17.firebaseapp.com",
+    projectId: "cpo-9af17",
+    storageBucket: "cpo-9af17.firebasestorage.app",
+    messagingSenderId: "526427336111",
+    appId: "1:526427336111:web:8b71369117416ae937d35a"
 };
-    const container = document.getElementById("container");
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
 
-  async function loadClassificationColors() {
-      const colorMap = {};
-      try {
-          const querySnapshot = await getDocs(collection(db, "classifications"));
-          querySnapshot.forEach((docSnap) => {
-              const data = docSnap.data();
-              const name = (data.name || docSnap.id).toUpperCase();
-              colorMap[name] = data.color || "#ffd400";
-          });
-      } catch (err) {
-          console.warn("Could not load classification colors:", err);
-      }
-      return colorMap;
-  }
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-  async function loadEntries() {
-  const colorMap = await loadClassificationColors();
-  const querySnapshot = await getDocs(collection(db, "artifacts"));
-  console.log("ARTIFACTS FOUND:", querySnapshot.size);
-  if (!querySnapshot.size) {
-    container.innerHTML = "<p>No artifacts found in database.</p>";
-    return;
-  }
-  querySnapshot.forEach((docSnap) => {
-    const data = docSnap.data();
-    const div = document.createElement("div");
-    div.className = "entry";
-    const title = data.title || "UNTITLED ARTIFACT";
-    const classification = (data.classification || "UNKNOWN").toString();
-    const upperClass = classification.toUpperCase();
-    const color = colorMap[upperClass] || "#888";
-    div.innerHTML = `
-      <a href="artifact-entry.html?id=${docSnap.id}">${title}</a>
-      <span class="class" style="background:${color}; color:#000;">${classification}</span>
-    `;
-    container.appendChild(div);
-  });
+const params = new URLSearchParams(window.location.search);
+const id = params.get("id");
+
+let isEditMode = false;
+
+/* =========================
+   AUTH
+========================= */
+onAuthStateChanged(auth, (user) => {
+    const editBtn = document.getElementById("editBtn");
+    const deleteBtn = document.getElementById("deleteBtn");
+
+    if (!editBtn || !deleteBtn) return;
+
+    if (user) {
+        editBtn.style.display = "inline-block";
+        deleteBtn.style.display = "inline-block";
+
+        const revealBtn = document.getElementById("revealBtn");
+        if (revealBtn) {
+            revealBtn.style.display = "inline-block";
+        }
+    } else {
+        editBtn.style.display = "none";
+        deleteBtn.style.display = "none";
+
+        const status = document.getElementById("status");
+        if (status) {
+            status.textContent = "ACCESS LEVEL REQUIRED TO EDIT";
+        }
+    }
+});
+
+/* =========================
+   REDACTIONS
+========================= */
+function applyRedactions(text) {
+    if (typeof text !== "string") return "";
+
+    return text
+        .replace(
+            /\/r!!(.*?)\/r!!/g,
+            `<span class="redacted-cosmic">████ COSMIC ERASED ████</span>`
+        )
+        .replace(
+            /\/r!(.*?)\/r!/g,
+            `<span class="redacted-heavy">██ CLASSIFIED ██</span>`
+        )
+        .replace(
+            /\/r(.*?)\/r/g,
+            `<span class="redacted-normal">███ REDACTED ███</span>`
+        );
 }
-  loadEntries();
+
+/* =========================
+   PARAGRAPH FORMATTING
+========================= */
+function formatAsParagraphs(text) {
+    if (typeof text !== "string" || text.trim() === "") return "";
+
+    let chunks = text.split(/\n\s*\n/);
+    if (chunks.length === 1) {
+        chunks = text.split(/\n/);
+    }
+
+    return chunks
+        .map(chunk => chunk.trim())
+        .filter(chunk => chunk.length > 0)
+        .map(chunk => `<p>${applyRedactions(chunk)}</p>`)
+        .join("");
+}
+
+/* =========================
+   LOAD ENTRY
+========================= */
+async function loadEntry() {
+
+    if (!id) {
+        document.getElementById("title").textContent =
+            "NO ARTIFACT ID PROVIDED";
+        return;
+    }
+
+    const docRef = doc(db, "artifacts", id);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+        document.getElementById("title").textContent =
+            "ARTIFACT NOT FOUND";
+        return;
+    }
+
+    const data = docSnap.data();
+    currentData = data;
+
+    console.log("ARTIFACT DATA:", data);
+
+    document.getElementById("number").textContent = id;
+
+    document.getElementById("title").textContent =
+        data.title || "UNTITLED ARTIFACT";
+
+    document.getElementById("classTag").textContent =
+        "CLASSIFICATION: " + (data.classification || "UNKNOWN");
+
+    document.getElementById("titleEdit").value =
+        data.title || "";
+
+    document.getElementById("classificationEdit").value =
+        (data.classification || "COSMIC").toUpperCase();
+
+    document.getElementById("propertiesView").innerHTML =
+        formatAsParagraphs(data.properties || "");
+
+    document.getElementById("descriptionView").innerHTML =
+        formatAsParagraphs(data.description || "");
+
+    document.getElementById("containmentView").innerHTML =
+        formatAsParagraphs(data.containmentProcedures || "");
+
+    document.getElementById("addendumView").innerHTML =
+        formatAsParagraphs(data.addendum || "");
+
+    document.getElementById("propertiesEdit").value =
+        data.properties || "";
+
+    document.getElementById("descriptionEdit").value =
+        data.description || "";
+
+    document.getElementById("containmentEdit").value =
+        data.containmentProcedures || "";
+
+    document.getElementById("addendumEdit").value =
+        data.addendum || "";
+
+    const logDiv = document.getElementById("activityLog");
+
+    if (!logDiv) {
+        console.warn("activityLog element missing in HTML");
+        return;
+    }
+
+    const logs = data.logs || [];
+
+    if (logs.length === 0) {
+        logDiv.innerHTML = "No activity recorded.";
+    } else {
+        logDiv.innerHTML = logs
+            .slice()
+            .reverse()
+            .map(log => `
+                <div class="logEntry">
+                    <strong>${log.date || "Unknown date"}</strong><br>
+                    ${log.message || "No message"}
+                </div>
+            `)
+            .join("");
+    }
+}
+
+/* =========================
+   EDIT MODE
+========================= */
+function toggleMode() {
+    isEditMode = !isEditMode;
+
+    const viewIds = [
+        "propertiesView",
+        "descriptionView",
+        "containmentView",
+        "addendumView"
+    ];
+
+    const editIds = [
+        "propertiesEdit",
+        "descriptionEdit",
+        "containmentEdit",
+        "addendumEdit"
+    ];
+
+    viewIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = isEditMode ? "none" : "block";
+    });
+
+    editIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = isEditMode ? "block" : "none";
+    });
+
+    document.getElementById("title").style.display =
+        isEditMode ? "none" : "block";
+    document.getElementById("titleEdit").style.display =
+        isEditMode ? "inline-block" : "none";
+
+    document.getElementById("classTag").style.display =
+        isEditMode ? "none" : "block";
+    document.getElementById("classificationEdit").style.display =
+        isEditMode ? "inline-block" : "none";
+
+    document.getElementById("editBtn").textContent =
+        isEditMode ? "SAVE CHANGES" : "EDIT FILE";
+}
+
+/* =========================
+   EDIT BUTTON
+========================= */
+document.getElementById("editBtn")?.addEventListener("click", async () => {
+
+    if (!isEditMode) {
+        toggleMode();
+        return;
+    }
+
+    const newTitle = document.getElementById("titleEdit").value;
+    const newClassification = document.getElementById("classificationEdit").value;
+    const newProperties = document.getElementById("propertiesEdit").value;
+    const newDescription = document.getElementById("descriptionEdit").value;
+    const newContainmentProcedures = document.getElementById("containmentEdit").value;
+    const newAddendum = document.getElementById("addendumEdit").value;
+
+    // Build activity log entries based on what actually changed
+    let logs = (currentData && currentData.logs) || [];
+
+    function addLog(message) {
+        logs.push({
+            date: new Date().toLocaleString(),
+            message
+        });
+    }
+
+    if (currentData) {
+        if ((currentData.title || "") !== newTitle) {
+            addLog("Title changed.");
+        }
+        if ((currentData.classification || "") !== newClassification) {
+            addLog(`Classification changed to ${newClassification}.`);
+        }
+        if ((currentData.properties || "") !== newProperties) {
+            addLog("Properties modified.");
+        }
+        if ((currentData.description || "") !== newDescription) {
+            addLog("Description modified.");
+        }
+        if ((currentData.containmentProcedures || "") !== newContainmentProcedures) {
+            addLog("Containment/handling procedures updated.");
+        }
+        if ((currentData.addendum || "") !== newAddendum) {
+            addLog("Addendum modified.");
+        }
+    }
+
+    // Fallback if nothing actually changed
+    const priorLogCount = (currentData && currentData.logs) ? currentData.logs.length : 0;
+    if (logs.length === priorLogCount) {
+        addLog("File reviewed, no changes made.");
+    }
+
+    await updateDoc(doc(db, "artifacts", id), {
+        title: newTitle,
+        classification: newClassification,
+        properties: newProperties,
+        description: newDescription,
+        containmentProcedures: newContainmentProcedures,
+        addendum: newAddendum,
+        logs: logs
+    });
+
+    // Keep local state in sync
+    currentData = {
+        ...currentData,
+        title: newTitle,
+        classification: newClassification,
+        properties: newProperties,
+        description: newDescription,
+        containmentProcedures: newContainmentProcedures,
+        addendum: newAddendum,
+        logs: logs
+    };
+
+    document.getElementById("title").textContent =
+        newTitle || "UNTITLED ARTIFACT";
+
+    document.getElementById("classTag").textContent =
+        "CLASSIFICATION: " + newClassification;
+
+    // Re-render the activity log immediately
+    const logDiv = document.getElementById("activityLog");
+    if (logDiv) {
+        logDiv.innerHTML = logs
+            .slice()
+            .reverse()
+            .map(log => `
+                <div class="logEntry">
+                    <strong>${log.date || "Unknown date"}</strong><br>
+                    ${log.message || "No message"}
+                </div>
+            `)
+            .join("");
+    }
+
+    document.getElementById("status").textContent =
+        "Changes saved successfully.";
+
+    toggleMode();
+});
+
+/* =========================
+   DELETE BUTTON
+========================= */
+document.getElementById("deleteBtn")?.addEventListener("click", async () => {
+
+    const confirmed = confirm(
+        "TERMINATION PROTOCOL\n\nDelete this artifact permanently?"
+    );
+
+    if (!confirmed) return;
+
+    await deleteDoc(doc(db, "artifacts", id));
+
+    window.location.href = "artifacts.html";
+});
+
+/* =========================
+   START
+========================= */
+let redactionsRevealed = false;
+let currentData = null;
+
+document.getElementById("revealBtn")?.addEventListener("click", () => {
+
+    if (!currentData) return;
+
+    redactionsRevealed = !redactionsRevealed;
+
+    if (redactionsRevealed) {
+
+        document.getElementById("propertiesView").textContent =
+            currentData.properties || "";
+
+        document.getElementById("descriptionView").textContent =
+            currentData.description || "";
+
+        document.getElementById("containmentView").textContent =
+            currentData.containmentProcedures || "";
+
+        document.getElementById("addendumView").textContent =
+            currentData.addendum || "";
+
+        document.getElementById("revealBtn").textContent =
+            "HIDE REDACTIONS";
+
+    } else {
+
+        document.getElementById("propertiesView").innerHTML =
+            formatAsParagraphs(currentData.properties || "");
+
+        document.getElementById("descriptionView").innerHTML =
+            formatAsParagraphs(currentData.description || "");
+
+        document.getElementById("containmentView").innerHTML =
+            formatAsParagraphs(currentData.containmentProcedures || "");
+
+        document.getElementById("addendumView").innerHTML =
+            formatAsParagraphs(currentData.addendum || "");
+
+        document.getElementById("revealBtn").textContent =
+            "REVEAL REDACTIONS";
+    }
+});
+
+loadEntry();
 </script>
+
 </body>
 </html>
