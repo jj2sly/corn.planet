@@ -1,41 +1,58 @@
-// Ambient falling corn background effect.
-// Spawns drifting corn particles that fall from the top of the screen,
+// Ambient "Corn Solar System" background effect.
+// A corn-cob sun sits in the corner with planets orbiting around it,
 // purely decorative and non-interactive.
 
 (function () {
     const container = document.createElement("div");
-    container.id = "cornFallContainer";
+    container.id = "cornSystemContainer";
     document.body.appendChild(container);
 
-    function spawnCorn() {
-        const corn = document.createElement("span");
-        corn.className = "cornParticle";
-        corn.textContent = "🌽";
+    // The sun itself
+    const sun = document.createElement("div");
+    sun.id = "cornSun";
+    sun.textContent = "🌽";
+    container.appendChild(sun);
 
-        const startX = Math.random() * 100; // vw
-        const duration = 8 + Math.random() * 7; // seconds
-        const size = 0.8 + Math.random() * 1.4; // rem
-        const drift = (Math.random() - 0.5) * 120; // px sideways drift
-        const spinDirection = Math.random() < 0.5 ? 1 : -1;
+    // Glow behind the sun
+    const glow = document.createElement("div");
+    glow.id = "cornSunGlow";
+    container.appendChild(glow);
 
-        corn.style.left = startX + "vw";
-        corn.style.fontSize = size + "rem";
-        corn.style.animationDuration = duration + "s";
-        corn.style.setProperty("--drift", drift + "px");
-        corn.style.setProperty("--spin", (360 * spinDirection) + "deg");
+    // Planets: each gets its own orbit ring (for the path) and a
+    // planet element that spins around it. Distance/speed/size vary
+    // so it reads as a loose solar system rather than a perfect clock.
+    const planets = [
+        { emoji: "🪨", distance: 70,  duration: 9,  size: 0.7 },
+        { emoji: "🌑", distance: 110, duration: 14, size: 0.8 },
+        { emoji: "🌍", distance: 155, duration: 20, size: 1.0 },
+        { emoji: "🔴", distance: 205, duration: 28, size: 0.85 },
+        { emoji: "🟠", distance: 265, duration: 38, size: 1.3 },
+        { emoji: "🪐", distance: 330, duration: 50, size: 1.2 },
+        { emoji: "🔵", distance: 400, duration: 64, size: 0.95 },
+        { emoji: "🌌", distance: 470, duration: 80, size: 0.9 }
+    ];
 
-        container.appendChild(corn);
+    planets.forEach((p, i) => {
+        const ring = document.createElement("div");
+        ring.className = "orbitRing";
+        ring.style.width = (p.distance * 2) + "px";
+        ring.style.height = (p.distance * 2) + "px";
+        container.appendChild(ring);
 
-        setTimeout(() => {
-            corn.remove();
-        }, duration * 1000 + 200);
-    }
+        const orbit = document.createElement("div");
+        orbit.className = "planetOrbit";
+        orbit.style.width = (p.distance * 2) + "px";
+        orbit.style.height = (p.distance * 2) + "px";
+        orbit.style.animationDuration = p.duration + "s";
+        // Stagger starting angle so planets don't all line up
+        orbit.style.animationDelay = "-" + (p.duration * (i / planets.length)) + "s";
 
-    // Spawn a new piece of corn at a steady, gentle interval
-    setInterval(spawnCorn, 900);
+        const planet = document.createElement("span");
+        planet.className = "cornPlanet";
+        planet.textContent = p.emoji;
+        planet.style.fontSize = p.size + "rem";
 
-    // Seed a few immediately so it doesn't feel empty on page load
-    for (let i = 0; i < 4; i++) {
-        setTimeout(spawnCorn, i * 400);
-    }
+        orbit.appendChild(planet);
+        container.appendChild(orbit);
+    });
 })();
