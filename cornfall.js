@@ -24,6 +24,7 @@
     // Planets: real texture images, sized/spaced/timed to feel like a
     // loose solar system rather than a perfect mechanical clock.
     const planets = [
+<<<<<<< HEAD
         { name: "Mercury", img: TEX + "2k_mercury.jpg",       distance: 65,  duration: 9,  size: 20 },
         { name: "Venus",   img: TEX + "2k_venus_surface.jpg", distance: 100, duration: 14, size: 26 },
         { name: "Earth",   img: TEX + "2k_earth_daymap.jpg",  distance: 140, duration: 20, size: 30 },
@@ -32,6 +33,16 @@
         { name: "Saturn",  img: TEX + "2k_saturn.jpg",        distance: 295, duration: 50, size: 40 },
         { name: "Uranus",  img: TEX + "2k_uranus.jpg",        distance: 355, duration: 64, size: 30 },
         { name: "Neptune", img: TEX + "2k_neptune.jpg",       distance: 415, duration: 80, size: 28 }
+=======
+        { name: "Mercury", img: TEX + "2k_mercury.jpg",       distance: 70,  duration: 9,  size: 16 },
+        { name: "Venus",   img: TEX + "2k_venus_surface.jpg", distance: 110, duration: 14, size: 20 },
+        { name: "Earth",   img: TEX + "2k_earth_daymap.jpg",  distance: 155, duration: 20, size: 24 },
+        { name: "Mars",    img: TEX + "2k_mars.jpg",          distance: 205, duration: 28, size: 18 },
+        { name: "Jupiter", img: TEX + "2k_jupiter.jpg",       distance: 265, duration: 38, size: 36 },
+        { name: "Saturn",  img: TEX + "2k_saturn.jpg",        distance: 330, duration: 50, size: 32 },
+        { name: "Uranus",  img: TEX + "2k_uranus.jpg",        distance: 400, duration: 64, size: 24 },
+        { name: "Neptune", img: TEX + "2k_neptune.jpg",       distance: 470, duration: 80, size: 22 }
+>>>>>>> cdac7fa882155a45e7b41910ad91d43f659d6bc1
     ];
 
     planets.forEach((p, i) => {
