@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CPST Party — Host Screen</title>
+    <meta name="description" content="The shared screen for a CPST Party session. Put it on the TV." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/css/party.css" />
+    <script type="module" src="/js/host.js"></script>
+  </head>
+  <body class="host-body">
+    <header class="host-bar">
+      <a class="brand" href="/">CPST PARTY</a>
+      <p class="join-hint" id="joinHint" hidden>
+        Join at <span class="mono" id="joinUrl"></span> · code<span class="code" id="barCode"></span>
+      </p>
+      <div class="host-controls" id="hostControls"></div>
+    </header>
+    <div id="banner" class="sticky-banner"></div>
+    <main class="stage" id="stage">
+      <p class="boot">CPST PARTY SYSTEM INITIALIZING...</p>
+    </main>
+    <footer class="host-foot">
+      <span class="ticker" id="ticker">CLASSIFIED PARTY SESSION</span>
+      <span id="connStatus" role="status">CONNECTING…</span>
+    </footer>
+  </body>
+</html>

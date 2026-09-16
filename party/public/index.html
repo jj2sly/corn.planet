@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <title>CPST Party</title>
+    <meta name="description" content="Phone-controlled party games from the Corn Planet Strike Team. Host on a TV, play on your phones." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/css/party.css" />
+    <script type="module" src="/js/index.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/">CPST PARTY</a>
+      <nav aria-label="Main">
+        <a href="/prompts">Prompt library</a>
+        <a href="/account" id="accountLink">Account</a>
+      </nav>
+    </header>
+
+    <main class="shell stack">
+      <section class="hero">
+        <p class="boot" id="boot">CPST PARTY SYSTEM INITIALIZING</p>
+        <h1 class="flicker">CPST PARTY</h1>
+        <p class="sub">Corn Planet Strike Team · classified party session terminal</p>
+      </section>
+
+      <div class="warning">Authorized personnel only · excessive corn activity detected</div>
+
+      <div class="grid-2">
+        <section class="panel stack" aria-labelledby="joinTitle">
+          <h2 id="joinTitle">Join a session</h2>
+          <p>On your phone. Grab the 4-letter code from the host screen.</p>
+          <form class="stack" action="/play" method="get" id="joinForm">
+            <div class="field">
+              <label for="code">Session code</label>
+              <input
+                id="code"
+                name="code"
+                type="text"
+                class="code-input"
+                maxlength="4"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                required
+              />
+            </div>
+            <button class="btn big" type="submit">Join</button>
+          </form>
+        </section>
+
+        <section class="panel stack" aria-labelledby="hostTitle">
+          <h2 id="hostTitle">Host a session</h2>
+          <p>On the big screen — a laptop, or a TV everyone can see. It shows the code, the prompts, the votes and the scores.</p>
+          <a class="btn big ghost" href="/host">Open host screen</a>
+          <p class="hint">3–8 agents. Nobody needs to install anything.</p>
+        </section>
+      </div>
+
+      <section class="panel quiet stack" aria-labelledby="howTitle">
+        <h2 id="howTitle">Operation briefing</h2>
+        <ol class="steps">
+          <li>Open the host screen on a TV or laptop. A session code appears.</li>
+          <li>Everyone opens this site on their phone and enters the code.</li>
+          <li>The host (or the first agent to join) starts the operation.</li>
+          <li>Answer, vote and laugh from your phone. Points appear on the big screen.</li>
+        </ol>
+      </section>
+
+      <section class="panel quiet stack" aria-labelledby="gamesTitle">
+        <h2 id="gamesTitle">Operations on file</h2>
+        <div id="games" class="grid-2"><p class="muted">Loading…</p></div>
+      </section>
+
+      <p class="muted">
+        Part of the Corn Planet Strike Team. Your CPST Database login works here too.
+        <a href="https://jj2sly.github.io/corn.planet/" rel="noopener">Visit the CPST Database</a>.
+      </p>
+    </main>
+  </body>
+</html>
