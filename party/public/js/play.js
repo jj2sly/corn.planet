@@ -70,7 +70,7 @@ async function onStatus(status) {
     const resumed = await conn.request("player:resume", { code: session.code, token: session.token });
     if (resumed.ok) return saveSession({ code: resumed.code, token: resumed.token, name: resumed.name });
     saveSession(null);
-    return showJoin(resumed.message);
+    return showJoin(resumed.error === "NETWORK" ? resumed.message : "Your previous session has ended. Join the new one with the code on the host screen.");
   }
   showJoin();
 }
