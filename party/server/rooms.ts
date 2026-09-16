@@ -96,6 +96,8 @@ export class Room {
   private stats = new Map<string, Record<string, number>>();
   private readonly usedPromptIds = new Set<number>();
   private timer: PhaseTimer | null = null;
+  /** Increments every time a game starts a new phase timer; lets host skips target one phase. */
+  private step = 0;
 
   constructor(code: string, deps: RoomDeps) {
     this.code = code;
@@ -304,8 +306,13 @@ export class Room {
     this.game.handleInput(playerId, action, payload);
   }
 
-  hostGameAction(action: unknown, payload: unknown): void {
+  /**
+   * A host/leader game action. `expectedStep` (from the viewer's last state) makes it apply only
+   * to the phase they were looking at, so a skip tapped just as a timer fires can't skip two phases.
+   */
+  hostGameAction(action: unknown, payload: unknown, expectedStep?: unknown): void {
     if (this.status !== "IN_GAME" || !this.game || typeof action !== "string") throw new PartyError("INVALID_ACTION");
+    if (expectedStep !== undefined && expectedStep !== this.step) throw new PartyError("PHASE_CLOSED");
     this.game.hostAction(action, payload);
   }
 
@@ -397,6 +404,7 @@ export class Room {
 
   private setTimer(ms: number, onExpire: () => void): void {
     this.clearTimer();
+    this.step += 1;
     this.timer = { totalMs: ms, remainingMs: ms, deadline: Date.now() + ms, onExpire, handle: null };
     if (!this.paused) this.armTimer();
   }
@@ -443,6 +451,7 @@ export class Room {
       paused: this.paused,
       hostConnected: this.hostSockets.size > 0,
       leaderId,
+      step: this.step,
       maxPlayers: ROOM_LIMITS.maxPlayers,
       players: this.activePlayers().map((p) => ({
         id: p.id,

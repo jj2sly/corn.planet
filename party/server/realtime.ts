@@ -260,8 +260,8 @@ export function createRealtime({ io, rooms, auth, db, trustProxy }: RealtimeDeps
       rooms.close(room, "CLOSED_BY_HOST");
     });
 
-    on("game:host", ({ action, payload }) => {
-      controlledRoom(socket).hostGameAction(action, payload);
+    on("game:host", ({ action, payload, step }) => {
+      controlledRoom(socket).hostGameAction(action, payload, step);
     });
 
     on("game:input", ({ action, payload }) => {

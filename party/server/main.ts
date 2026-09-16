@@ -13,7 +13,7 @@ server.http.listen(config.port, config.host, () => {
   console.log("CPST PARTY SYSTEM INITIALIZING...");
   console.log(`  auth mode: ${config.auth.mode}   database: ${config.databasePath}`);
   console.log(`  host screen: http://localhost:${config.port}/host`);
-  if (!config.production) {
+  if (!config.production && (config.host === "0.0.0.0" || config.host === "::")) {
     for (const addresses of Object.values(networkInterfaces())) {
       for (const a of addresses ?? []) {
         if (a.family === "IPv4" && !a.internal) console.log(`  phones on this network: http://${a.address}:${config.port}/play`);

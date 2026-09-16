@@ -171,6 +171,20 @@ describe("leader and host", () => {
     assert.equal((room.viewFor({ kind: "host" }).game as { phase: string }).phase, "ANSWERING");
   });
 
+  it("ignores a skip aimed at a phase whose timer already fired", () => {
+    const { manager } = makeRooms();
+    const { room } = roomWithPlayers(manager, ["A", "B", "C"]);
+    const phase = () => (room.viewFor({ kind: "host" }).game as { phase: string }).phase;
+    room.startGame();
+    const introStep = room.viewFor({ kind: "host" }).step;
+    mock.timers.tick(10_000); // the intro timer fires just before the host's skip arrives
+    assert.equal(phase(), "ANSWERING");
+    expectError(() => room.hostGameAction("skip", undefined, introStep), "PHASE_CLOSED");
+    assert.equal(phase(), "ANSWERING", "the stale skip didn't cut answering short");
+    room.hostGameAction("skip", undefined, room.viewFor({ kind: "host" }).step);
+    assert.notEqual(phase(), "ANSWERING");
+  });
+
   it("lets the leader continue without the host display", () => {
     const { manager } = makeRooms();
     const { room } = roomWithPlayers(manager, ["A", "B", "C"]);
