@@ -1,0 +1,190 @@
+import assert from "node:assert/strict";
+import type { AddressInfo } from "node:net";
+import { after, before, describe, it } from "node:test";
+import { createPartyServer, type PartyServer } from "../server/app.ts";
+import { createAuthVerifier } from "../server/auth.ts";
+import type { AuthConfig } from "../server/config.ts";
+import { PartyDb } from "../server/db.ts";
+
+async function startServer(authConfig: AuthConfig) {
+  const db = new PartyDb(":memory:");
+  const server = createPartyServer({ db, auth: createAuthVerifier(authConfig), authConfig });
+  await new Promise<void>((resolve) => server.http.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${(server.http.address() as AddressInfo).port}`;
+  return { db, server, base };
+}
+
+const ALICE = "dev:alice:VIEWER";
+const BOB = "dev:bob:CORRESPONDENT";
+const MOD = "dev:boss:EXEC";
+
+describe("REST API", () => {
+  let server: PartyServer;
+  let base: string;
+
+  const call = async (method: string, path: string, token?: string, body?: unknown, rawBody?: string) => {
+    const response = await fetch(base + path, {
+      method,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(body !== undefined || rawBody !== undefined ? { "Content-Type": "application/json" } : {}),
+      },
+      body: rawBody ?? (body === undefined ? undefined : JSON.stringify(body)),
+    });
+    const text = await response.text();
+    return { status: response.status, headers: response.headers, json: text ? JSON.parse(text) : null, text };
+  };
+
+  before(async () => {
+    ({ server, base } = await startServer({ mode: "dev" }));
+  });
+  after(() => server.close());
+
+  it("serves public config with the installed games and security headers", async () => {
+    const res = await call("GET", "/api/config");
+    assert.equal(res.status, 200);
+    assert.equal(res.json.auth.mode, "dev");
+    assert.equal(res.json.games[0].id, "chaos");
+    assert.deepEqual(res.json.contentModes, ["safe", "chaos", "custom"]);
+    assert.match(res.headers.get("content-security-policy")!, /script-src 'self'/);
+    assert.equal(res.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(res.headers.get("x-powered-by"), null);
+  });
+
+  it("requires a valid login for account endpoints", async () => {
+    assert.equal((await call("GET", "/api/me")).json.error, "AUTH_REQUIRED");
+    const bad = await call("GET", "/api/me", "dev:forged");
+    assert.equal(bad.status, 401);
+    assert.equal(bad.json.error, "AUTH_FAILED");
+
+    const me = await call("GET", "/api/me", ALICE);
+    assert.equal(me.status, 200);
+    assert.deepEqual(me.json, { uid: "dev-alice", displayName: "Agent LICE", role: "VIEWER", isModerator: false });
+  });
+
+  it("validates and saves display names", async () => {
+    assert.equal((await call("PUT", "/api/me", ALICE, { displayName: "" })).json.error, "INVALID_NAME");
+    assert.equal((await call("PUT", "/api/me", ALICE, { displayName: "x".repeat(40) })).status, 400);
+    assert.equal((await call("PUT", "/api/me", ALICE, { displayName: "Alice the Cob" })).status, 200);
+    assert.equal((await call("GET", "/api/me", ALICE)).json.displayName, "Alice the Cob");
+  });
+
+  it("returns empty stats and history for a new account", async () => {
+    const stats = await call("GET", "/api/me/stats", BOB);
+    assert.equal(stats.json.gamesPlayed, 0);
+    assert.deepEqual((await call("GET", "/api/me/history", BOB)).json, []);
+  });
+
+  it("creates, edits, lists and deletes your own prompts", async () => {
+    const invalid = await call("POST", "/api/prompts", ALICE, { text: "hi", category: "corn", rating: "safe" });
+    assert.equal(invalid.status, 400);
+    assert.equal(invalid.json.error, "INVALID_INPUT");
+    assert.match(invalid.json.message, /5–150/);
+    assert.equal((await call("POST", "/api/prompts", ALICE, { text: "Valid prompt text", category: "nope", rating: "safe" })).status, 400);
+    assert.equal((await call("POST", "/api/prompts", ALICE, { text: "Valid prompt text", category: "corn", rating: "spicy" })).status, 400);
+    assert.equal((await call("POST", "/api/prompts", ALICE, { text: "Valid prompt text", category: "corn", rating: "safe", tags: "bad tag!" })).status, 400);
+
+    const created = await call("POST", "/api/prompts", ALICE, { text: "The corn silo is humming ____.", category: "corn", rating: "safe", tags: "silo, Hum" });
+    assert.equal(created.status, 201);
+    assert.equal(created.json.status, "approved");
+    assert.deepEqual(created.json.tags, ["silo", "hum"]);
+    assert.equal(created.json.mine, true);
+    assert.equal(created.json.author, "Alice the Cob");
+
+    const id = created.json.id;
+    const edited = await call("PATCH", `/api/prompts/${id}`, ALICE, { rating: "chaos" });
+    assert.equal(edited.json.status, "pending", "edits go back through moderation");
+    assert.equal((await call("GET", "/api/prompts/mine", ALICE)).json.length, 1);
+
+    // Another user can't edit or delete it, and doesn't see moderation details.
+    assert.equal((await call("PATCH", `/api/prompts/${id}`, BOB, { text: "hijacked prompt" })).status, 403);
+    assert.equal((await call("DELETE", `/api/prompts/${id}`, BOB)).status, 403);
+
+    assert.equal((await call("DELETE", `/api/prompts/${id}`, ALICE)).status, 204);
+    assert.equal((await call("DELETE", `/api/prompts/${id}`, ALICE)).status, 404);
+    assert.equal((await call("PATCH", `/api/prompts/abc`, ALICE, {})).status, 404);
+  });
+
+  it("hides moderation details of other people's prompts in the library", async () => {
+    const created = await call("POST", "/api/prompts", ALICE, { text: "Library visible prompt", category: "science", rating: "safe" });
+    const library = await call("GET", "/api/prompts/library?q=Library%20visible", BOB);
+    assert.equal(library.json.length, 1);
+    const entry = library.json[0];
+    assert.equal(entry.id, created.json.id);
+    assert.equal(entry.mine, false);
+    assert.equal(entry.status, undefined);
+    assert.equal(entry.openReports, undefined);
+    assert.ok(!("authorUid" in entry));
+  });
+
+  it("files reports once per user", async () => {
+    const created = await call("POST", "/api/prompts", ALICE, { text: "Reportable prompt here", category: "general", rating: "safe" });
+    const id = created.json.id;
+    assert.equal((await call("POST", `/api/prompts/${id}/report`, BOB, { reason: "unfunny" })).status, 201);
+    const again = await call("POST", `/api/prompts/${id}/report`, BOB, { reason: "still unfunny" });
+    assert.equal(again.json.alreadyReported, true);
+    assert.equal((await call("POST", `/api/prompts/999999/report`, BOB, {})).status, 404);
+    assert.equal((await call("POST", `/api/prompts/${id}/report`, BOB, { reason: "x".repeat(500) })).status, 400);
+  });
+
+  it("restricts moderation to Overseers and Execs", async () => {
+    assert.equal((await call("GET", "/api/mod/prompts", ALICE)).status, 403);
+    assert.equal((await call("GET", "/api/mod/prompts", BOB)).status, 403);
+    assert.equal((await call("GET", "/api/mod/prompts", "dev:ov:OVERSEER")).status, 200);
+
+    const pending = await call("POST", "/api/prompts", BOB, { text: "A chaos prompt awaiting review", category: "cosmic", rating: "chaos" });
+    assert.equal(pending.json.status, "pending");
+    const queue = await call("GET", "/api/mod/prompts?view=pending", MOD);
+    assert.ok(queue.json.some((p: { id: number }) => p.id === pending.json.id));
+
+    const approved = await call("PATCH", `/api/prompts/${pending.json.id}`, MOD, { status: "approved" });
+    assert.equal(approved.json.status, "approved");
+    assert.equal((await call("PATCH", `/api/prompts/${pending.json.id}`, MOD, { status: "vaporized" })).status, 400);
+    assert.equal((await call("GET", "/api/mod/prompts?view=everything", MOD)).status, 400);
+  });
+
+  it("lets moderators manage categories, packs and settings with validation", async () => {
+    assert.ok((await call("POST", "/api/mod/categories", MOD, { name: "Snacks" })).json.includes("snacks"));
+    assert.equal((await call("POST", "/api/mod/categories", MOD, { name: "no spaces allowed" })).status, 400);
+    assert.equal((await call("DELETE", "/api/mod/categories/general", MOD)).status, 400);
+    assert.ok(!(await call("DELETE", "/api/mod/categories/snacks", MOD)).json.includes("snacks"));
+
+    const pack = await call("POST", "/api/mod/packs", MOD, { name: "Friday Night", description: "Late-night nonsense" });
+    assert.equal(pack.status, 201);
+    assert.equal((await call("POST", "/api/mod/packs", MOD, { name: "Friday Night" })).status, 400);
+    const disabled = await call("PATCH", `/api/mod/packs/${pack.json.id}`, MOD, { enabled: false });
+    assert.equal(disabled.json.enabled, false);
+
+    assert.equal((await call("PUT", "/api/mod/settings", MOD, { reportThreshold: -1 })).status, 400);
+    assert.equal((await call("PUT", "/api/mod/settings", MOD, { moderationPolicy: "yolo" })).status, 400);
+    assert.deepEqual((await call("PUT", "/api/mod/settings", MOD, { moderationPolicy: "all", reportThreshold: 3 })).json, {
+      moderationPolicy: "all",
+      reportThreshold: 3,
+    });
+  });
+
+  it("returns safe errors for malformed input and unknown routes", async () => {
+    const malformed = await call("POST", "/api/prompts", ALICE, undefined, "{not json");
+    assert.equal(malformed.status, 400);
+    assert.deepEqual(Object.keys(malformed.json).sort(), ["error", "message", "ok"]);
+    assert.ok(!malformed.text.includes("SyntaxError") && !malformed.text.includes(" at "));
+
+    const huge = await call("POST", "/api/prompts", ALICE, undefined, JSON.stringify({ text: "x".repeat(50_000) }));
+    assert.equal(huge.status, 400);
+    assert.equal((await call("GET", "/api/nope")).json.error, "NOT_FOUND");
+  });
+});
+
+describe("REST API with accounts disabled", () => {
+  it("reports accounts as disabled but still serves config", async () => {
+    const { server, base } = await startServer({ mode: "none" });
+    try {
+      const config = (await (await fetch(`${base}/api/config`)).json()) as { auth: { mode: string } };
+      assert.equal(config.auth.mode, "none");
+      const me = await fetch(`${base}/api/me`, { headers: { Authorization: `Bearer ${ALICE}` } });
+      assert.equal(((await me.json()) as { error: string }).error, "AUTH_DISABLED");
+    } finally {
+      await server.close();
+    }
+  });
+});

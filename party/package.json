@@ -8,8 +8,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "start": "node server/main.ts",
-    "dev": "node --watch server/main.ts",
+    "start": "node --env-file-if-exists=.env server/main.ts",
+    "dev": "node --env-file-if-exists=.env --watch server/main.ts",
     "typecheck": "tsc --noEmit -p .",
     "test": "node --test --test-concurrency=1 \"test/**/*.test.ts\"",
     "check": "npm run typecheck && npm test"
