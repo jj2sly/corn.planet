@@ -172,6 +172,14 @@ describe("REST API", () => {
     const huge = await call("POST", "/api/prompts", ALICE, undefined, JSON.stringify({ text: "x".repeat(50_000) }));
     assert.equal(huge.status, 400);
     assert.equal((await call("GET", "/api/nope")).json.error, "NOT_FOUND");
+
+    const page404 = await fetch(`${base}/no/such/page`);
+    assert.equal(page404.status, 404);
+    assert.match(await page404.text(), /FILE NOT FOUND/);
+    // Path traversal attempts never escape public/.
+    const traversal = await fetch(`${base}/..%2fserver%2fdb.ts`);
+    assert.equal(traversal.status, 404);
+    assert.ok(!(await traversal.text()).includes("CREATE TABLE"));
   });
 });
 

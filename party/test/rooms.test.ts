@@ -26,6 +26,18 @@ describe("room creation and codes", () => {
     expectError(() => manager.get("AAAA"), "ROOM_NOT_FOUND");
   });
 
+  it("refuses new rooms past the global cap", () => {
+    const { manager } = makeRooms();
+    const original = ROOM_LIMITS.maxRooms;
+    ROOM_LIMITS.maxRooms = 3;
+    try {
+      for (let i = 0; i < 3; i++) manager.create();
+      expectError(() => manager.create(), "SERVER_BUSY");
+    } finally {
+      ROOM_LIMITS.maxRooms = original;
+    }
+  });
+
   it("gives each room a long secret host key", () => {
     const { manager } = makeRooms();
     assert.match(manager.create().hostKey, /^[0-9a-f]{48}$/);

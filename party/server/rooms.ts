@@ -7,6 +7,8 @@ import { cleanName, normalizeCode } from "./text.ts";
 
 export const ROOM_LIMITS = {
   maxPlayers: 8,
+  /** Hard cap on live rooms so a flood of room creation can't exhaust memory. */
+  maxRooms: 500,
   /** A leader who blips offline (screen lock, refresh) keeps leadership this long. */
   leaderGraceMs: 30_000,
   /** Disconnected players are removed from a lobby after this long. */
@@ -486,6 +488,7 @@ export class RoomManager {
   }
 
   create(): Room {
+    if (this.rooms.size >= ROOM_LIMITS.maxRooms) throw new PartyError("SERVER_BUSY");
     for (let attempt = 0; attempt < 100; attempt++) {
       let code = "";
       for (let i = 0; i < 4; i++) code += CODE_ALPHABET[Math.floor(this.deps.random() * CODE_ALPHABET.length)];

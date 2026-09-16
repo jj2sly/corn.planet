@@ -30,6 +30,7 @@ const STATUS_BY_ERROR: Partial<Record<ErrorCode, number>> = {
   NOT_FOUND: 404,
   AUTH_DISABLED: 404,
   RATE_LIMITED: 429,
+  SERVER_BUSY: 503,
   SERVER_ERROR: 500,
 };
 

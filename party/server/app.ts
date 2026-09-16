@@ -91,6 +91,11 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
   });
   app.use(express.static(PUBLIC_DIR, { index: false, extensions: ["html"] }));
   app.use((_req, res) => res.status(404).sendFile("404.html", { root: PUBLIC_DIR }));
+  // Never show stack traces to visitors, whatever NODE_ENV is.
+  app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error("[cpst-party] request error:", err);
+    if (!res.headersSent) res.status(500).type("text/plain").send("CPST Party encountered an error. Try again.");
+  });
 
   const http = createServer(app);
   const io = new Server(http, {

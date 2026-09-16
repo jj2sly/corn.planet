@@ -25,6 +25,7 @@ export const ERROR_MESSAGES = {
   NOT_ELIGIBLE: "You can't vote on your own incident.",
   ALREADY_VOTED: "Your vote is already locked in.",
   RATE_LIMITED: "Slow down, agent. Try again in a moment.",
+  SERVER_BUSY: "CPST Party is at capacity right now. Try again in a few minutes.",
   AUTH_REQUIRED: "Log in to do that.",
   AUTH_FAILED: "Your login could not be verified. Log in again.",
   AUTH_DISABLED: "Accounts are not enabled on this server.",
