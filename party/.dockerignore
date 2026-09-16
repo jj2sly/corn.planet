@@ -1,0 +1,9 @@
+node_modules
+data
+test
+docs
+.env
+.env.*
+*.db
+*.db-*
+.claude

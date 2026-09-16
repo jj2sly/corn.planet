@@ -73,6 +73,20 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `games/registry.ts` | List of installed games |
 | `games/chaos.ts` | CPST Chaos |
 
+### Browser code (`party/public/`)
+
+| File | Responsibility |
+|---|---|
+| `index.html`, `js/index.js` | Landing page: join form, host link, installed games |
+| `host.html`, `js/host.js` | Host screen: session create/resume, lobby + settings, results, game renderer dispatch |
+| `play.html`, `js/play.js` | Phone controller: join/rejoin, lobby, pause banner, results, game renderer dispatch |
+| `js/games/chaos-host.js`, `js/games/chaos-play.js` | CPST Chaos views for the host screen and phones |
+| `account.html`, `js/account.js` | Login/register (Firebase), display name, stats, history |
+| `prompts.html`, `js/prompts.js` | Prompt writing, library, reports, moderation console |
+| `js/common.js` | `el()` (textContent-only DOM helper), API client, countdowns, keyed mounting |
+| `js/auth.js`, `js/connection.js` | Firebase/dev login and the Socket.IO connection |
+| `css/party.css` | The CPST look, responsive and TV-scaled |
+
 ## 5. Rooms
 
 - **Codes**: 4 letters from a consonant-only alphabet (no accidental words, no 0/O confusion).
@@ -82,7 +96,7 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
   - *Leader* — the earliest-joined connected player. Can use host controls from their phone,
     so the room is never stuck if the host display disappears.
 - **Room status**: `LOBBY → IN_GAME → FINAL_RESULTS → (LOBBY | IN_GAME replay)`.
-- **Joining** only in `LOBBY`. Errors: `ROOM_NOT_FOUND`, `ROOM_FULL`, `GAME_IN_PROGRESS`, `NAME_TAKEN`, `INVALID_NAME`.
+- **Joining** in `LOBBY` or between games (`FINAL_RESULTS`), not mid-game. Errors: `ROOM_NOT_FOUND`, `ROOM_FULL`, `GAME_IN_PROGRESS`, `NAME_TAKEN`, `INVALID_NAME`.
 - **Reconnect**: the phone keeps `{code, token}` in `sessionStorage` (survives refresh, per-tab) and
   offers a one-tap rejoin from `localStorage` if the tab was closed. A logged-in user rejoining the
   same room reclaims their seat by account. State is always re-rendered from the server's current
@@ -91,6 +105,29 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
   without it. **Leader disconnect**: leadership passes to the next connected player.
 - **Cleanup**: lobby players who stay disconnected for 2 min are removed; rooms with nobody connected
   for 10 min, or older than 6 h, are deleted.
+
+### Realtime protocol (Socket.IO)
+
+Every client event is `socket.emit(event, payload, ack)` and gets `{ ok: true, ... }` or
+`{ ok: false, error, message }`. The server pushes `state` (that socket's personal view),
+`session:ended` (`{ error, message }`) and `hello` (login status).
+
+| Event | Who | Payload | Effect |
+|---|---|---|---|
+| `host:create` | host | – | New room; ack has `code`, `hostKey` |
+| `host:resume` | host | `code`, `hostKey` | Re-attach a host screen |
+| `player:join` | phone | `code`, `name` | Join (or reclaim seat by account); ack has `playerId`, `token` |
+| `player:resume` | phone | `code`, `token` | Re-attach after refresh/disconnect |
+| `room:leave` | either | – | Player leaves; host screen detaches |
+| `room:configure` | host/leader | `gameId?`, `contentMode?`, `settings?` | Lobby settings |
+| `room:start` | host/leader | – | Start or replay |
+| `room:lobby` | host/leader | – | End game / back to lobby |
+| `room:resume` | host/leader | – | Continue while the host screen is away |
+| `room:kick` | host/leader | `playerId` | Remove a player |
+| `room:close` | host | – | Close the session for everyone |
+| `game:host` | host/leader | `action`, `payload?`, `step?` | Game host action (e.g. `skip`), ignored if `step` is stale |
+| `game:input` | player | `action`, `payload` | Game input (Chaos: `answer`, `vote`) |
+| `state:request` | either | – | Resend current state |
 
 ## 6. Minigame framework
 
@@ -113,6 +150,12 @@ The room gives the game a `GameContext`: player list, a single pausable phase ti
 and `finish()` which records results and moves the room to `FINAL_RESULTS`. Rooms, networking,
 reconnects, pausing, scoreboards and stats persistence are all generic — a new game only
 implements its own phases and views, plus host/phone renderers in `public/js/games/<id>-*.js`.
+`test/framework.test.ts` runs a second, unrelated game through the same rooms to keep this true;
+[ADDING_A_GAME.md](ADDING_A_GAME.md) is the step-by-step guide.
+
+Planned future games (not built): CPST Draw, Trivia, Gamble, Hidden roles, Prediction. The
+existing CPST Database could later supply flavor (entity names, classifications) by reading its
+public Firestore collections from the server, without the database depending on CPST Party.
 
 ## 7. CPST Chaos
 
@@ -163,7 +206,8 @@ and recent history. Stats are only returned to their owner. Emails are never sto
 - Host actions require the `hostKey` socket or the current leader; player actions require the
   bound player socket.
 - All user text is cleaned server-side and rendered with `textContent` client-side.
-- Rate limits on room creation, join attempts, socket events and prompt/report creation.
+- Rate limits on connections, room creation, join attempts, socket events, API reads and prompt/report writes.
+- Host skips carry the phase step they target, so a tap racing a timer can't skip two phases.
 - Security headers + a Content-Security-Policy with no inline scripts.
 - Errors are sent as short codes + friendly messages; no stack traces.
 - No secrets in git: `.env` is ignored; the Firebase *web* config is public by design.
