@@ -54,6 +54,34 @@ function categorySelect(id, current) {
   );
 }
 
+function savedMessage(saved, editing) {
+  if (saved.status === "approved") return editing ? "Saved — the new wording is live in games." : "Filed and approved — it can appear in games now.";
+  if (saved.status === "disabled") return "Saved. This prompt is disabled, so it won't appear in games.";
+  return editing ? "Saved. It returns to games once a moderator approves it." : "Filed. A moderator will review it before it appears in games.";
+}
+
+/** Swaps a list item for the edit form. onDone(prompt) runs after saving (with the saved prompt) or cancelling. */
+function editButton(item, p, onDone) {
+  return el("button", {
+    class: "btn subtle small",
+    type: "button",
+    text: "Edit",
+    onclick: () =>
+      item.replaceChildren(
+        promptForm({
+          prompt: p,
+          submitLabel: "Save changes",
+          onSave: async (body) => {
+            const saved = await call(`/prompts/${p.id}`, { method: "PATCH", body });
+            setTimeout(() => onDone(saved), 1200);
+            return saved;
+          },
+          onCancel: () => onDone(p),
+        }),
+      ),
+  });
+}
+
 /** The shared create/edit form. onSave receives the payload and returns the saved prompt. */
 function promptForm({ prompt, submitLabel, onSave, onCancel }) {
   const uid = Math.random().toString(36).slice(2, 8);
@@ -83,11 +111,7 @@ function promptForm({ prompt, submitLabel, onSave, onCancel }) {
             tags: tags.value,
             rating: form.querySelector(`input[name="rating-${uid}"]:checked`).value,
           });
-          notice(
-            note,
-            saved.status === "approved" ? "Filed and approved — it can appear in games now." : "Filed. A moderator will review it before it appears in games.",
-            "ok",
-          );
+          notice(note, savedMessage(saved, Boolean(prompt)), "ok");
           if (!prompt) {
             text.value = "";
             tags.value = "";
@@ -151,24 +175,7 @@ function mineItem(p, reload) {
     el(
       "div",
       { class: "row" },
-      el("button", {
-        class: "btn subtle small",
-        type: "button",
-        text: "Edit",
-        onclick: () =>
-          item.replaceChildren(
-            promptForm({
-              prompt: p,
-              submitLabel: "Save changes",
-              onSave: async (body) => {
-                const saved = await call(`/prompts/${p.id}`, { method: "PATCH", body });
-                setTimeout(reload, 1200);
-                return saved;
-              },
-              onCancel: reload,
-            }),
-          ),
-      }),
+      editButton(item, p, reload),
       el("button", {
         class: "btn danger small",
         type: "button",
@@ -260,9 +267,8 @@ function libraryItem(p) {
     el("button", { class: "btn small", type: "submit", text: "Send report" }),
     el("button", { class: "btn subtle small", type: "button", text: "Cancel", onclick: () => (reportForm.hidden = true) }),
   );
-  return el(
-    "li",
-    {},
+  const item = el("li");
+  item.append(
     el(
       "div",
       { class: "grow stack" },
@@ -271,8 +277,14 @@ function libraryItem(p) {
       reportForm,
       note,
     ),
-    p.mine ? el("span", { class: "stamp", text: "Yours" }) : el("button", { class: "btn subtle small", type: "button", text: "Report", onclick: () => ((reportForm.hidden = false), reason.focus()) }),
+    el(
+      "div",
+      { class: "row" },
+      p.mine ? el("span", { class: "stamp", text: "Yours" }) : el("button", { class: "btn subtle small", type: "button", text: "Report", onclick: () => ((reportForm.hidden = false), reason.focus()) }),
+      me.isModerator || p.mine ? editButton(item, p, (updated) => item.replaceWith(libraryItem(updated))) : null,
+    ),
   );
+  return item;
 }
 
 // ------------------------------------------------------------------ moderation
@@ -334,9 +346,8 @@ function moderationItem(p, packs, reload) {
     el("option", { value: "", text: "No pack (community)" }),
     packs.map((k) => el("option", { value: String(k.id), text: k.name, selected: k.id === p.packId })),
   );
-  return el(
-    "li",
-    {},
+  const item = el("li");
+  item.append(
     el(
       "div",
       { class: "grow stack" },
@@ -349,6 +360,7 @@ function moderationItem(p, packs, reload) {
     el(
       "div",
       { class: "row" },
+      editButton(item, p, reload),
       p.status !== "approved" ? el("button", { class: "btn small", type: "button", text: "Approve", onclick: () => act(() => call(`/prompts/${p.id}`, { method: "PATCH", body: { status: "approved" } })) }) : null,
       p.status !== "disabled" ? el("button", { class: "btn subtle small", type: "button", text: "Disable", onclick: () => act(() => call(`/prompts/${p.id}`, { method: "PATCH", body: { status: "disabled" } })) }) : null,
       p.openReports
@@ -367,6 +379,7 @@ function moderationItem(p, packs, reload) {
       el("button", { class: "btn danger small", type: "button", text: "Remove", onclick: () => confirm("Permanently remove this prompt?") && act(() => call(`/prompts/${p.id}`, { method: "DELETE" })) }),
     ),
   );
+  return item;
 }
 
 async function packsView() {
