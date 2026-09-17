@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Personnel File</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<a href="login.html" class="adminLink">LOGIN / SIGN UP</a>
+<a href="records.html" class="recordsLink">RECORDS DIVISION</a>
+
+<header>
+    <h1 id="number">LOADING...</h1>
+    <h2 id="title"></h2>
+    <input type="text" id="titleEdit" style="display:none;" placeholder="Operative name">
+
+    <div id="imageView"></div>
+    <input type="file" id="imageEdit" accept="image/*" style="display:none;">
+
+    <p id="tagView">STATUS: ...</p>
+    <div id="metaHeader"></div>
+</header>
+
+<div id="recordBody"></div>
+
+<button id="editBtn" style="display:none;">EDIT FILE</button>
+<button id="revealBtn" style="display:none;">REVEAL REDACTIONS</button>
+<button id="deleteBtn" style="display:none;">DELETE FILE</button>
+
+<a href="personnel.html" class="backBtn">⬅ BACK TO DATABASE</a>
+
+<p id="status"></p>
+
+<script type="module">
+import { initRecordView } from "./record-view.js";
+
+initRecordView({
+    collection: "personnel",
+    label: "PERSONNEL FILE",
+    listHref: "personnel.html",
+    tag: {
+        key: "status",
+        label: "STATUS",
+        options: ["ACTIVE", "INACTIVE", "REASSIGNED", "MIA", "DECEASED", "REDACTED"]
+    },
+    meta: [
+        { key: "clearance", label: "CLEARANCE", options: ["LEVEL 1", "LEVEL 2", "LEVEL 3", "LEVEL 4", "LEVEL 5"] }
+    ],
+    fields: [
+        { key: "designation", label: "DESIGNATION" },
+        { key: "description", label: "SERVICE RECORD" },
+        { key: "specialisation", label: "SPECIALISATION" },
+        { key: "addendum", label: "ADDENDUM" }
+    ],
+    refs: [
+        { key: "notableIncidents", label: "NOTABLE INCIDENTS", collection: "incidents", href: "incident-entry.html" }
+    ]
+});
+</script>
+
+<script type="module" src="nav-auth.js"></script>
+<script src="cornfall.js"></script>
+<script src="transitions.js"></script>
+</body>
+</html>

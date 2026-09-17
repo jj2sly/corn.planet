@@ -28,6 +28,8 @@
         <button class="tabBtn active" data-tab="entityPanel">CREATE ENTITY</button>
         <button class="tabBtn" data-tab="classPanel" id="classTabBtn">CLASSIFICATIONS</button>
         <button class="tabBtn" data-tab="artifactPanel">CREATE ARTIFACT</button>
+        <button class="tabBtn" data-tab="incidentPanel">CREATE INCIDENT</button>
+        <button class="tabBtn" data-tab="personnelPanel">CREATE PERSONNEL</button>
     </div>
 
     <div class="file" id="entityPanel">
@@ -118,6 +120,105 @@
         <button id="artSubmitBtn">Create Artifact</button>
 
         <p id="artStatus"></p>
+
+    </div>
+
+    <div class="file" id="incidentPanel">
+
+        <h2>Create New Incident</h2>
+
+        <input id="incDocId" placeholder="Auto-generating..." disabled>
+
+        <input id="incTitle" placeholder="Incident Title"><br><br>
+
+        <select id="incSeverity">
+            <option value="MINOR">MINOR</option>
+            <option value="MODERATE">MODERATE</option>
+            <option value="SEVERE">SEVERE</option>
+            <option value="CATASTROPHIC">CATASTROPHIC</option>
+            <option value="TOTAL BREACH">TOTAL BREACH</option>
+        </select>
+        <br><br>
+
+        <select id="incStatus">
+            <option value="ONGOING">ONGOING</option>
+            <option value="CONTAINED">CONTAINED</option>
+            <option value="RESOLVED">RESOLVED</option>
+            <option value="UNRESOLVED">UNRESOLVED</option>
+            <option value="COVERED UP">COVERED UP</option>
+        </select>
+        <br><br>
+
+        <input id="incDate" placeholder="Date of occurrence (e.g. 14 MARCH, YEAR 3)"><br><br>
+
+        <textarea id="incSummary" placeholder="Summary (one or two lines)"></textarea>
+        <textarea id="incDescription" placeholder="Incident Report"></textarea>
+        <textarea id="incResolution" placeholder="Resolution"></textarea>
+        <textarea id="incAddendum" placeholder="Addendum"></textarea>
+
+        <br><br>
+        <label for="incEntities" style="color:#ffd400; font-weight:bold;">Entities involved (ctrl/cmd-click for several):</label><br><br>
+        <select id="incEntities" multiple size="6"></select>
+        <br><br>
+
+        <label for="incPersonnel" style="color:#ffd400; font-weight:bold;">Personnel involved:</label><br><br>
+        <select id="incPersonnel" multiple size="6"></select>
+        <br><br>
+
+        <label for="incImageUpload" style="color:#ffd400; font-weight:bold;">Image (optional):</label><br><br>
+        <input type="file" id="incImageUpload" accept="image/*">
+        <br><br>
+
+        <button id="incSubmitBtn">Create Incident</button>
+
+        <p id="incStatusMsg"></p>
+
+    </div>
+
+    <div class="file" id="personnelPanel">
+
+        <h2>Create New Personnel File</h2>
+
+        <input id="perDocId" placeholder="Auto-generating..." disabled>
+
+        <input id="perTitle" placeholder="Operative Name"><br><br>
+
+        <select id="perStatus">
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="INACTIVE">INACTIVE</option>
+            <option value="REASSIGNED">REASSIGNED</option>
+            <option value="MIA">MIA</option>
+            <option value="DECEASED">DECEASED</option>
+            <option value="REDACTED">REDACTED</option>
+        </select>
+        <br><br>
+
+        <select id="perClearance">
+            <option value="LEVEL 1">LEVEL 1</option>
+            <option value="LEVEL 2">LEVEL 2</option>
+            <option value="LEVEL 3">LEVEL 3</option>
+            <option value="LEVEL 4">LEVEL 4</option>
+            <option value="LEVEL 5">LEVEL 5</option>
+        </select>
+        <br><br>
+
+        <textarea id="perDesignation" placeholder="Designation (e.g. Field Agent, Containment Specialist)"></textarea>
+        <textarea id="perDescription" placeholder="Service Record"></textarea>
+        <textarea id="perSpecialisation" placeholder="Specialisation"></textarea>
+        <textarea id="perAddendum" placeholder="Addendum"></textarea>
+
+        <br><br>
+        <label for="perIncidents" style="color:#ffd400; font-weight:bold;">Notable incidents:</label><br><br>
+        <select id="perIncidents" multiple size="6"></select>
+        <br><br>
+
+        <label for="perImageUpload" style="color:#ffd400; font-weight:bold;">Image (optional):</label><br><br>
+        <input type="file" id="perImageUpload" accept="image/*">
+        <br><br>
+
+        <button id="perSubmitBtn">Create Personnel File</button>
+
+        <p id="perStatusMsg"></p>
 
     </div>
 
@@ -497,6 +598,186 @@ document.getElementById("artSubmitBtn").addEventListener("click", async () => {
 });
 
 /* =========================
+   SHARED RECORD HELPERS
+========================= */
+
+// Next free sequential id for a collection, e.g. nextId("incidents", "INC") -> "INC-004".
+async function nextId(collectionName, prefix) {
+    const querySnapshot = await getDocs(collection(db, collectionName));
+    let max = 0;
+    const pattern = new RegExp("^" + prefix + "-(\\d+)$");
+    querySnapshot.forEach((docSnap) => {
+        const match = docSnap.id.match(pattern);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > max) max = num;
+        }
+    });
+    return prefix + "-" + String(max + 1).padStart(3, "0");
+}
+
+// Fills a <select multiple> with the records of another collection.
+async function fillRefSelect(selectId, collectionName) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    const items = [];
+    try {
+        const querySnapshot = await getDocs(collection(db, collectionName));
+        querySnapshot.forEach((docSnap) => {
+            items.push({ id: docSnap.id, title: docSnap.data().title || docSnap.id });
+        });
+    } catch (err) {
+        console.warn("Could not load " + collectionName + ":", err);
+    }
+    items.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+    select.innerHTML = "";
+    for (const item of items) {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.id + " — " + item.title;
+        select.appendChild(opt);
+    }
+}
+
+function selectedValues(selectId) {
+    const select = document.getElementById(selectId);
+    return select ? Array.from(select.selectedOptions).map((o) => o.value) : [];
+}
+
+function clearFields(ids) {
+    for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+    }
+}
+
+/* =========================
+   INCIDENT CREATION
+========================= */
+
+async function refreshIncDocId() {
+    document.getElementById("incDocId").value = await nextId("incidents", "INC");
+}
+
+document.getElementById("incSubmitBtn").addEventListener("click", async () => {
+    const statusEl = document.getElementById("incStatusMsg");
+
+    if (!can.editCreateContent(currentRole)) {
+        statusEl.textContent = "Insufficient clearance.";
+        return;
+    }
+
+    const title = document.getElementById("incTitle").value.trim();
+    if (!title) {
+        statusEl.textContent = "An incident needs a title.";
+        return;
+    }
+
+    const docId = document.getElementById("incDocId").value;
+    const imageFile = document.getElementById("incImageUpload").files[0];
+    let imageURL = "";
+
+    if (imageFile) {
+        statusEl.textContent = "Uploading image...";
+        try {
+            imageURL = await uploadImageToCloudinary(imageFile);
+        } catch (err) {
+            console.error(err);
+            statusEl.textContent = "Image upload failed. Incident not created.";
+            return;
+        }
+    }
+
+    const newData = {
+        title: title,
+        severity: document.getElementById("incSeverity").value,
+        status: document.getElementById("incStatus").value,
+        date: document.getElementById("incDate").value,
+        summary: document.getElementById("incSummary").value,
+        description: document.getElementById("incDescription").value,
+        resolution: document.getElementById("incResolution").value,
+        addendum: document.getElementById("incAddendum").value,
+        entitiesInvolved: selectedValues("incEntities"),
+        personnelInvolved: selectedValues("incPersonnel"),
+        imageURL: imageURL,
+        logs: [{ date: new Date().toLocaleString(), message: "Incident file created." }]
+    };
+
+    await setDoc(doc(db, "incidents", docId), newData);
+
+    statusEl.textContent = "Incident " + docId + " successfully filed.";
+
+    clearFields(["incTitle", "incDate", "incSummary", "incDescription", "incResolution", "incAddendum", "incImageUpload"]);
+    for (const id of ["incEntities", "incPersonnel"]) {
+        for (const option of document.getElementById(id).options) option.selected = false;
+    }
+
+    await refreshIncDocId();
+});
+
+/* =========================
+   PERSONNEL CREATION
+========================= */
+
+async function refreshPerDocId() {
+    document.getElementById("perDocId").value = await nextId("personnel", "PER");
+}
+
+document.getElementById("perSubmitBtn").addEventListener("click", async () => {
+    const statusEl = document.getElementById("perStatusMsg");
+
+    if (!can.editCreateContent(currentRole)) {
+        statusEl.textContent = "Insufficient clearance.";
+        return;
+    }
+
+    const title = document.getElementById("perTitle").value.trim();
+    if (!title) {
+        statusEl.textContent = "An operative needs a name.";
+        return;
+    }
+
+    const docId = document.getElementById("perDocId").value;
+    const imageFile = document.getElementById("perImageUpload").files[0];
+    let imageURL = "";
+
+    if (imageFile) {
+        statusEl.textContent = "Uploading image...";
+        try {
+            imageURL = await uploadImageToCloudinary(imageFile);
+        } catch (err) {
+            console.error(err);
+            statusEl.textContent = "Image upload failed. Personnel file not created.";
+            return;
+        }
+    }
+
+    const newData = {
+        title: title,
+        status: document.getElementById("perStatus").value,
+        clearance: document.getElementById("perClearance").value,
+        designation: document.getElementById("perDesignation").value,
+        description: document.getElementById("perDescription").value,
+        specialisation: document.getElementById("perSpecialisation").value,
+        addendum: document.getElementById("perAddendum").value,
+        notableIncidents: selectedValues("perIncidents"),
+        imageURL: imageURL,
+        logs: [{ date: new Date().toLocaleString(), message: "Personnel file created." }]
+    };
+
+    await setDoc(doc(db, "personnel", docId), newData);
+
+    statusEl.textContent = "Personnel file " + docId + " successfully created.";
+
+    clearFields(["perTitle", "perDesignation", "perDescription", "perSpecialisation", "perAddendum", "perImageUpload"]);
+    for (const option of document.getElementById("perIncidents").options) option.selected = false;
+
+    await refreshPerDocId();
+});
+
+/* =========================
    TAB SWITCHING
 ========================= */
 
@@ -520,6 +801,11 @@ document.querySelectorAll("#recordsContent .file").forEach((panel, index) => {
 
 loadClassifications();
 refreshArtDocId();
+refreshIncDocId();
+refreshPerDocId();
+fillRefSelect("incEntities", "entities");
+fillRefSelect("incPersonnel", "personnel");
+fillRefSelect("perIncidents", "incidents");
 
 </script>
 

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Corn Planet Incident Database</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <a href="login.html" class="adminLink">LOGIN / SIGN UP</a>
+<a href="records.html" class="recordsLink">RECORDS DIVISION</a>
+    <h1>CORN PLANET INCIDENT DATABASE</h1>
+    <p>RECORD • REVIEW • LEARN NOTHING</p>
+</header>
+<div class="warning">
+    ACCESS LEVEL 2 REQUIRED
+</div>
+<a href="entities.html" class="backBtn">VIEW ENTITY DATABASE</a>
+<a href="index.html" class="backBtn">⬅ BACK TO HOME</a>
+    <div class="database">
+  <h2>Incident Index</h2>
+
+  <label for="sortSelect" style="color:#ffd400; font-weight:bold; margin-right:8px;">Sort by:</label>
+  <select id="sortSelect">
+      <option value="id">ID Number</option>
+      <option value="titleAsc">Title (A–Z)</option>
+      <option value="titleDesc">Title (Z–A)</option>
+      <option value="severity">Severity</option>
+  </select>
+
+  <br><br>
+
+  <div id="container"><p class="loadingText">DECRYPTING DATABASE...</p></div>
+</div>
+<script type="module">
+  import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { db } from "./roles.js";
+
+  const container = document.getElementById("container");
+
+  // Severity ordering for the sort dropdown; anything unrecognised sorts last.
+  const SEVERITY_ORDER = ["MINOR", "MODERATE", "SEVERE", "CATASTROPHIC", "TOTAL BREACH"];
+  const SEVERITY_COLORS = {
+      "MINOR": "#00bd1f",
+      "MODERATE": "#ffd400",
+      "SEVERE": "#ff8800",
+      "CATASTROPHIC": "#ff0088",
+      "TOTAL BREACH": "#800000"
+  };
+
+  async function loadEntries() {
+      const querySnapshot = await getDocs(collection(db, "incidents"));
+
+      if (!querySnapshot.size) {
+          container.innerHTML = "<p>No incidents found in database.</p>";
+          return;
+      }
+
+      const items = [];
+      querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          items.push({
+              id: docSnap.id,
+              title: data.title || "UNTITLED INCIDENT",
+              severity: (data.severity || "UNKNOWN").toString().toUpperCase()
+          });
+      });
+
+      function render(sortMode) {
+          let sorted = items.slice();
+
+          if (sortMode === "titleAsc") {
+              sorted.sort((a, b) => a.title.localeCompare(b.title));
+          } else if (sortMode === "titleDesc") {
+              sorted.sort((a, b) => b.title.localeCompare(a.title));
+          } else if (sortMode === "severity") {
+              const rank = (s) => {
+                  const i = SEVERITY_ORDER.indexOf(s);
+                  return i === -1 ? SEVERITY_ORDER.length : i;
+              };
+              sorted.sort((a, b) => rank(a.severity) - rank(b.severity) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+          } else {
+              sorted.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+          }
+
+          container.innerHTML = "";
+          sorted.forEach((item) => {
+              const div = document.createElement("div");
+              div.className = "entry";
+              const color = SEVERITY_COLORS[item.severity] || "#888";
+
+              const link = document.createElement("a");
+              link.href = `incident-entry.html?id=${encodeURIComponent(item.id)}`;
+              link.textContent = item.title;
+
+              const tag = document.createElement("span");
+              tag.className = "class";
+              tag.style.background = color;
+              tag.style.color = "#000";
+              tag.textContent = item.severity;
+
+              div.appendChild(link);
+              div.appendChild(tag);
+              container.appendChild(div);
+          });
+      }
+
+      render("id");
+
+      document.getElementById("sortSelect").addEventListener("change", (e) => {
+          render(e.target.value);
+      });
+  }
+
+  loadEntries().catch((err) => {
+      console.error(err);
+      container.innerHTML = "<p>Could not reach the database.</p>";
+  });
+</script>
+<script type="module" src="nav-auth.js"></script>
+<script src="cornfall.js"></script>
+<script src="transitions.js"></script>
+</body>
+</html>
