@@ -1,0 +1,94 @@
+// =========================================
+// CPI DATABASE — FIRESTORE SECURITY RULES
+//
+// REFERENCE COPY. The live rules are edited in the Firebase console
+// (console.firebase.google.com -> project cpo-9af17 -> Firestore Database -> Rules).
+// This file is NOT deployed by anything; the console is the source of truth.
+// Keep this file in step by hand whenever the console rules change.
+//
+// Roles live at users/{uid}.role, not in auth custom claims: the project is on the
+// Spark plan, so there are no Cloud Functions to set claims with. See roles.js.
+//
+//   VIEWER(0) -> CPI_EMPLOYEE(1) -> CORRESPONDENT(2) -> OVERSEER(3) -> EXEC(4)
+//
+// The `incidents` and `personnel` blocks below were added on 2026-09-17 for the
+// canon-driven Corn Planet Party games. They mirror `entities`: world-readable so the
+// party server can read canon with no token and guests can play, writable only by
+// CPI Correspondent and above.
+// =========================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function level() {
+      return role() == 'EXEC' ? 4
+           : role() == 'OVERSEER' ? 3
+           : role() == 'CORRESPONDENT' ? 2
+           : role() == 'CPI_EMPLOYEE' ? 1
+           : 0;
+    }
+
+    function isCorrespondentOrAbove() {
+      return request.auth != null && level() >= 2;
+    }
+
+    function isOverseerOrAbove() {
+      return request.auth != null && level() >= 3;
+    }
+
+    function isExec() {
+      return request.auth != null && role() == 'EXEC';
+    }
+
+    // ---- Canon record collections -------------------------------------------
+    // Public read: the database site reads these without signing in, and the Corn
+    // Planet Party server reads them server-side with no token so guests can play.
+
+    match /entities/{id} {
+      allow read: if true;
+      allow create, update, delete: if isCorrespondentOrAbove();
+    }
+
+    match /artifacts/{id} {
+      allow read: if true;
+      allow create, update, delete: if isCorrespondentOrAbove();
+    }
+
+    match /incidents/{id} {
+      allow read: if true;
+      allow create, update, delete: if isCorrespondentOrAbove();
+    }
+
+    match /personnel/{id} {
+      allow read: if true;
+      allow create, update, delete: if isCorrespondentOrAbove();
+    }
+
+    match /classifications/{id} {
+      allow read: if true;
+      allow create, update, delete: if isOverseerOrAbove();
+    }
+
+    // ---- User documents ------------------------------------------------------
+    // Never world-readable: these carry email addresses. A user reads their own doc
+    // (this is how the party server resolves a player's CPI role, using that user's
+    // own ID token). Only an Exec may change roles.
+
+    match /users/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isExec());
+
+      // A new account may create only its own doc, and only as VIEWER.
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.role == 'VIEWER';
+
+      allow update, delete: if isExec();
+    }
+  }
+}

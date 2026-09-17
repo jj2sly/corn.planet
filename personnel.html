@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Corn Planet Personnel Database</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <a href="login.html" class="adminLink">LOGIN / SIGN UP</a>
+<a href="records.html" class="recordsLink">RECORDS DIVISION</a>
+    <h1>CORN PLANET PERSONNEL DATABASE</h1>
+    <p>STRIKE TEAM SERVICE RECORDS</p>
+</header>
+<div class="warning">
+    ACCESS LEVEL 2 REQUIRED
+</div>
+<a href="incidents.html" class="backBtn">VIEW INCIDENT DATABASE</a>
+<a href="index.html" class="backBtn">⬅ BACK TO HOME</a>
+    <div class="database">
+  <h2>Personnel Index</h2>
+
+  <label for="sortSelect" style="color:#ffd400; font-weight:bold; margin-right:8px;">Sort by:</label>
+  <select id="sortSelect">
+      <option value="id">ID Number</option>
+      <option value="titleAsc">Name (A–Z)</option>
+      <option value="titleDesc">Name (Z–A)</option>
+      <option value="clearance">Clearance</option>
+      <option value="status">Status</option>
+  </select>
+
+  <br><br>
+
+  <div id="container"><p class="loadingText">DECRYPTING DATABASE...</p></div>
+</div>
+<script type="module">
+  import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { db } from "./roles.js";
+
+  const container = document.getElementById("container");
+
+  const STATUS_COLORS = {
+      "ACTIVE": "#00bd1f",
+      "INACTIVE": "#888888",
+      "REASSIGNED": "#ffd400",
+      "MIA": "#ff8800",
+      "DECEASED": "#800000",
+      "REDACTED": "#62008f"
+  };
+
+  async function loadEntries() {
+      const querySnapshot = await getDocs(collection(db, "personnel"));
+
+      if (!querySnapshot.size) {
+          container.innerHTML = "<p>No personnel found in database.</p>";
+          return;
+      }
+
+      const items = [];
+      querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          items.push({
+              id: docSnap.id,
+              title: data.title || "UNNAMED OPERATIVE",
+              designation: (data.designation || "").toString(),
+              clearance: (data.clearance || "").toString().toUpperCase(),
+              status: (data.status || "UNKNOWN").toString().toUpperCase()
+          });
+      });
+
+      function render(sortMode) {
+          let sorted = items.slice();
+
+          if (sortMode === "titleAsc") {
+              sorted.sort((a, b) => a.title.localeCompare(b.title));
+          } else if (sortMode === "titleDesc") {
+              sorted.sort((a, b) => b.title.localeCompare(a.title));
+          } else if (sortMode === "clearance") {
+              // Highest clearance first; "LEVEL 3" sorts on its number.
+              const rank = (c) => {
+                  const m = /(\d+)/.exec(c);
+                  return m ? -Number(m[1]) : 1;
+              };
+              sorted.sort((a, b) => rank(a.clearance) - rank(b.clearance) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+          } else if (sortMode === "status") {
+              sorted.sort((a, b) => a.status.localeCompare(b.status) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+          } else {
+              sorted.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+          }
+
+          container.innerHTML = "";
+          sorted.forEach((item) => {
+              const div = document.createElement("div");
+              div.className = "entry";
+              const color = STATUS_COLORS[item.status] || "#888";
+
+              const link = document.createElement("a");
+              link.href = `personnel-entry.html?id=${encodeURIComponent(item.id)}`;
+              link.textContent = item.designation ? `${item.title} — ${item.designation}` : item.title;
+
+              const tag = document.createElement("span");
+              tag.className = "class";
+              tag.style.background = color;
+              tag.style.color = "#000";
+              tag.textContent = item.status;
+
+              div.appendChild(link);
+              div.appendChild(tag);
+              container.appendChild(div);
+          });
+      }
+
+      render("id");
+
+      document.getElementById("sortSelect").addEventListener("change", (e) => {
+          render(e.target.value);
+      });
+  }
+
+  loadEntries().catch((err) => {
+      console.error(err);
+      container.innerHTML = "<p>Could not reach the database.</p>";
+  });
+</script>
+<script type="module" src="nav-auth.js"></script>
+<script src="cornfall.js"></script>
+<script src="transitions.js"></script>
+</body>
+</html>
