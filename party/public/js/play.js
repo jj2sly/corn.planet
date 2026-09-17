@@ -3,8 +3,9 @@
 import { $, announce, createMount, el, loadConfig, notice, ordinal, plural, rank, startCountdowns, store } from "./common.js";
 import { connect } from "./connection.js";
 import * as chaos from "./games/chaos-play.js";
+import * as cornorshit from "./games/cornorshit-play.js";
 
-const RENDERERS = { chaos };
+const RENDERERS = { chaos, cornorshit };
 const SESSION_KEY = "cpst-party:player"; // { code, token, name }
 const NAME_KEY = "cpst-party:last-name";
 

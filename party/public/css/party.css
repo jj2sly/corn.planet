@@ -1295,3 +1295,68 @@ th {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- Database reference (Corn or Shit reveal) ---------------------------- */
+/* Shown once a round is over: which CPI Database record the true claim came from. */
+
+.reference {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  border: 2px solid var(--yellow);
+  background: #0d0d0d;
+  padding: 12px 16px;
+}
+
+.reference .eyebrow {
+  width: 100%;
+}
+
+.reference-id {
+  font-family: var(--mono);
+  font-size: clamp(1.1rem, 2vw, 1.8rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--yellow);
+  overflow-wrap: anywhere;
+}
+
+a.reference-id:hover,
+a.reference-id:focus-visible {
+  text-decoration: underline;
+}
+
+/* ---- Operation picker ---------------------------------------------------- */
+/* Shown in the host lobby whenever more than one game is installed. */
+
+.game-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.game-choice {
+  flex: 1 1 auto;
+  padding: 10px 16px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--head);
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.game-choice:hover:not(.selected) {
+  border-color: var(--yellow);
+}
+
+.game-choice.selected {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: #000;
+  font-weight: 700;
+}

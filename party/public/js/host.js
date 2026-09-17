@@ -3,8 +3,9 @@
 import { $, announce, createMount, el, flavorLine, loadConfig, notice, plural, scoreboardEl, startCountdowns, store } from "./common.js";
 import { connect } from "./connection.js";
 import * as chaos from "./games/chaos-host.js";
+import * as cornorshit from "./games/cornorshit-host.js";
 
-const RENDERERS = { chaos };
+const RENDERERS = { chaos, cornorshit };
 const SESSION_KEY = "cpst-party:host";
 
 const stage = $("#stage");
@@ -260,39 +261,103 @@ const CONTENT_LABELS = {
   custom: ["Custom", "Only prompts written by your group's accounts, safe and chaos."],
 };
 
-/** A heads-up on the host screen when the prompt library is too small for good games. */
-function libraryWarning() {
+/** Per-game lobby settings. A game with no entry here simply shows no settings. */
+const SETTINGS_FORMS = {
+  chaos(settings, configure, next) {
+    return [
+      choiceGroup("Paired rounds", "rounds", [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (v) => configure({ settings: { rounds: v } })),
+      choiceGroup(
+        "Final round",
+        "totalBreach",
+        [[true, "Total Breach"], [false, "None"]],
+        settings.totalBreach,
+        (v) => configure({ settings: { totalBreach: v } }),
+      ),
+      choiceGroup("Report time", "answerSeconds", [[60, "60s"], [90, "90s"], [120, "120s"]], settings.answerSeconds, (v) =>
+        configure({ settings: { answerSeconds: v } }),
+      ),
+      choiceGroup("Vote time", "voteSeconds", [[15, "15s"], [25, "25s"], [40, "40s"]], settings.voteSeconds, (v) =>
+        configure({ settings: { voteSeconds: v } }),
+      ),
+      choiceGroup(
+        "Humor level",
+        "contentMode",
+        config.contentModes.map((m) => [m, CONTENT_LABELS[m][0]]),
+        next.config.contentMode,
+        (v) => configure({ contentMode: v }),
+      ),
+      el("p", { class: "hint", text: CONTENT_LABELS[next.config.contentMode][1] }),
+    ];
+  },
+  cornorshit(settings, configure) {
+    return [
+      choiceGroup("Rounds", "rounds", [[3, "3"], [5, "5"], [8, "8"]], settings.rounds, (v) => configure({ settings: { rounds: v } })),
+      choiceGroup("Call time", "guessSeconds", [[15, "15s"], [25, "25s"], [40, "40s"]], settings.guessSeconds, (v) =>
+        configure({ settings: { guessSeconds: v } }),
+      ),
+      el("p", { class: "hint", text: "Claims are drawn from the CPI Database. Nothing this game makes up is ever written back to it." }),
+    ];
+  },
+};
+
+/**
+ * A heads-up when the selected game has too little material: prompts for Cornlashing, CPI
+ * Database records for the canon-driven games.
+ */
+function sourceWarning() {
   const node = el("p", { class: "banner", role: "status", hidden: true });
   let counts = null;
+  let canon = null;
   let mode = null;
+  let gameId = null;
+
   const show = () => {
-    if (!counts || !mode) return;
-    const safeOnly = mode === "safe";
-    const n = safeOnly ? counts.safe : counts.total;
-    const kind = safeOnly ? "safe prompts" : "prompts";
-    node.hidden = n >= 20;
+    if (gameId === "chaos") {
+      if (!counts || !mode) return;
+      const safeOnly = mode === "safe";
+      const n = safeOnly ? counts.safe : counts.total;
+      const kind = safeOnly ? "safe prompts" : "prompts";
+      node.hidden = n >= 20;
+      node.textContent =
+        n === 0
+          ? `The prompt library has no ${kind} yet, so games will use a few placeholder incidents. Logged-in agents can add prompts at ${location.host}/prompts.`
+          : `Only ${n} ${kind} in the library, so incidents will repeat. Add more at ${location.host}/prompts.`;
+      return;
+    }
+
+    if (!canon) return;
+    const n = canon.entity + canon.incident + canon.personnel;
+    node.hidden = n >= 8;
     node.textContent =
       n === 0
-        ? `The prompt library has no ${kind} yet, so games will use a few placeholder incidents. Logged-in agents can add prompts at ${location.host}/prompts.`
-        : `Only ${n} ${kind} in the library, so incidents will repeat. Add more at ${location.host}/prompts.`;
+        ? "The CPI Database has no records this game can use yet. Add entities in the Records Division first."
+        : `Only ${plural(n, "CPI Database record")} available, so records will repeat. Add more in the Records Division.`;
   };
-  // Fresh counts (not the cached page config), since prompts may have been added since this page loaded.
+
+  // Fresh counts (not the cached page config), since records and prompts may have changed.
   fetch("/api/config")
     .then((r) => r.json())
-    .then((c) => ((counts = c.promptCounts), show()))
+    .then((c) => ((counts = c.promptCounts), (canon = c.canonCounts), show()))
     .catch(() => {});
-  return { node, update: (nextMode) => ((mode = nextMode), show()) };
+
+  return {
+    node,
+    update: (nextGameId, nextMode) => ((gameId = nextGameId), (mode = nextMode), show()),
+  };
 }
 
 function buildLobby(s) {
   const grid = el("ul", { class: "agent-grid", "aria-label": "Agents in this session" });
   const count = el("span");
   const leader = el("p", { class: "muted" });
+  const gameList = el("div", { class: "game-list", role: "group", "aria-label": "Available operations" });
+  const gameCard = el("div", { class: "game-card" });
   const settingsBox = el("div", { class: "settings-grid" });
   const start = el("button", { class: "btn big", type: "button", text: "Start operation", onclick: () => act("room:start", {}, startNote) });
   const startNote = el("p", { class: "notice" });
-  const library = libraryWarning();
-  const game = config.games.find((g) => g.id === s.config.gameId) ?? config.games[0];
+  const source = sourceWarning();
+
+  const gameFor = (state) => config.games.find((g) => g.id === state.config.gameId) ?? config.games[0];
 
   const node = el(
     "div",
@@ -312,7 +377,7 @@ function buildLobby(s) {
       location.hostname === "localhost" || location.hostname === "127.0.0.1"
         ? el("p", { class: "banner", text: "Phones can't open “localhost”. Open this page using this computer's network address (shown in the server console) so the join link works." })
         : null,
-      el("h2", {}, "Agents ", count),
+      el("div", { class: "row spread" }, el("h2", {}, "Agents ", count), null),
       grid,
       leader,
     ),
@@ -320,16 +385,10 @@ function buildLobby(s) {
       "section",
       { class: "panel stack" },
       el("h2", { text: "Select operation" }),
-      el(
-        "div",
-        { class: "game-card" },
-        el("h3", { text: game.name }),
-        el("p", { class: "muted", text: game.tagline }),
-        el("p", { text: game.description }),
-        el("p", { class: "mono", text: `${game.minPlayers}–${game.maxPlayers} agents` }),
-      ),
+      gameList,
+      gameCard,
       settingsBox,
-      library.node,
+      source.node,
       start,
       startNote,
     ),
@@ -340,41 +399,42 @@ function buildLobby(s) {
     update(next) {
       grid.replaceChildren(...agentCards(next, { kick: true }));
       count.textContent = `(${next.players.length}/${next.maxPlayers})`;
-      library.update(next.config.contentMode);
       const leaderPlayer = next.players.find((p) => p.id === next.leaderId);
       leader.textContent = leaderPlayer ? `Session leader: ${leaderPlayer.name}` : "Waiting for the first agent…";
+
+      const game = gameFor(next);
+      source.update(game.id, next.config.contentMode);
+
+      // Rebuild the picker only when the selection changed, so a click isn't lost mid-press.
+      if (gameList.dataset.selected !== game.id) {
+        gameList.dataset.selected = game.id;
+        gameList.replaceChildren(
+          ...config.games.map((g) =>
+            el("button", {
+              class: `game-choice ${g.id === game.id ? "selected" : ""}`.trim(),
+              type: "button",
+              "aria-pressed": String(g.id === game.id),
+              text: g.name,
+              onclick: () => act("room:configure", { gameId: g.id }, startNote),
+            }),
+          ),
+        );
+        gameCard.replaceChildren(
+          el("h3", { text: game.name }),
+          el("p", { class: "muted", text: game.tagline }),
+          el("p", { text: game.description }),
+          el("p", { class: "mono", text: `${game.minPlayers}–${game.maxPlayers} agents` }),
+        );
+      }
 
       // Rebuild settings only when they changed, so keyboard focus isn't lost on every update.
       const signature = JSON.stringify(next.config);
       if (settingsBox.dataset.signature !== signature) {
         const focusedName = document.activeElement?.name;
         settingsBox.dataset.signature = signature;
-        const settings = next.config.settings;
         const configure = (patch) => act("room:configure", patch, startNote);
-        settingsBox.replaceChildren(
-          choiceGroup("Paired rounds", "rounds", [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (v) => configure({ settings: { rounds: v } })),
-          choiceGroup(
-            "Final round",
-            "totalBreach",
-            [[true, "Total Breach"], [false, "None"]],
-            settings.totalBreach,
-            (v) => configure({ settings: { totalBreach: v } }),
-          ),
-          choiceGroup("Report time", "answerSeconds", [[60, "60s"], [90, "90s"], [120, "120s"]], settings.answerSeconds, (v) =>
-            configure({ settings: { answerSeconds: v } }),
-          ),
-          choiceGroup("Vote time", "voteSeconds", [[15, "15s"], [25, "25s"], [40, "40s"]], settings.voteSeconds, (v) =>
-            configure({ settings: { voteSeconds: v } }),
-          ),
-          choiceGroup(
-            "Humor level",
-            "contentMode",
-            config.contentModes.map((m) => [m, CONTENT_LABELS[m][0]]),
-            next.config.contentMode,
-            (v) => configure({ contentMode: v }),
-          ),
-          el("p", { class: "hint", text: CONTENT_LABELS[next.config.contentMode][1] }),
-        );
+        const form = SETTINGS_FORMS[game.id];
+        settingsBox.replaceChildren(...(form ? form(next.config.settings, configure, next) : []));
         if (focusedName) settingsBox.querySelector(`input[name="${focusedName}"]:checked`)?.focus();
       }
 
@@ -385,6 +445,7 @@ function buildLobby(s) {
     },
   };
 }
+
 
 function buildResults(s) {
   const results = s.results;

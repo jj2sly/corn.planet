@@ -15,6 +15,7 @@ export const ERROR_MESSAGES = {
   NOT_ENOUGH_PLAYERS: "Not enough connected agents to start this game.",
   TOO_MANY_PLAYERS: "Too many agents for this game.",
   UNKNOWN_GAME: "That game is not installed.",
+  NO_CANON: "The CPI Database has no records this game can use yet.",
   INVALID_ACTION: "That action isn't available right now.",
   PHASE_CLOSED: "Too late — that window has closed.",
   NOT_YOUR_PROMPT: "That incident wasn't assigned to you.",

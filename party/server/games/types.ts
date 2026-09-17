@@ -33,8 +33,9 @@ export interface Highlight {
 export interface GameCanon {
   /** `count` distinct random canon records of a kind, using the room's seeded randomness. */
   sample(kind: CanonKind, count: number): CanonRecord[];
+  /** Every canon record of a kind. A fresh array, safe for the caller to shuffle. */
+  list(kind: CanonKind): CanonRecord[];
   get(ref: string): CanonRecord | null;
-  count(kind: CanonKind): number;
   /** Records that this round was built from a canon record; saved with the game's history. */
   used(round: number, ref: string): void;
 }

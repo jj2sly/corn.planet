@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { CONTENT_MODES, type ContentMode, type GameRecord, type PickedPrompt } from "./db.ts";
 import type { CanonService } from "./canon.ts";
+import { CONTENT_MODES, type ContentMode, type GameRecord, type PickedPrompt } from "./db.ts";
 import { PartyError } from "./errors.ts";
 import type { GameContext, GameDefinition, GameInstance, Highlight, Viewer } from "./games/types.ts";
 import { EMERGENCY_PROMPTS } from "./seed.ts";
@@ -277,8 +277,8 @@ export class Room {
       pickPrompts: (count) => this.pickPrompts(count),
       canon: {
         sample: (kind, count) => this.deps.canon.sample(kind, count, () => this.deps.random()),
+        list: (kind) => [...this.deps.canon.byKind(kind)],
         get: (ref) => this.deps.canon.get(ref),
-        count: (kind) => this.deps.canon.byKind(kind).length,
         used: (round, ref) => {
           // Only real canon ids are recorded, never anything a game invented.
           if (live() && this.deps.canon.get(ref)) this.canonRefs.push({ round, ref });
