@@ -130,10 +130,12 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 10. Next task
 
-Nothing pushed or deployed from this session. Suggested next steps:
+The rename and this doc were pushed to `origin/cpst-party` on 2026-09-17 (commit `99c22d8`), which
+triggers a Railway redeploy. **The live site was not verified from this session** — checks against
+the production domain were blocked by the permission classifier. Next steps:
 
-1. Push `cpst-party` (**this redeploys Railway and ends any session in progress**), then check
-   `/healthz` and a real login on the public domain.
+1. Confirm the deploy: `/healthz` returns 200, the landing page reads "CORN PLANET PARTY", `/host`
+   offers "Cornlashing", and a real login works on `/account`.
 2. Then feature work: a second minigame on the existing framework (`party/docs/ADDING_A_GAME.md`,
    already proven by `framework.test.ts`), or CPI Database flavor integration (read the public
    `entities`/`classifications` collections server-side for game content).
