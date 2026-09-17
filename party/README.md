@@ -211,8 +211,9 @@ Checklist:
    - Source branch: `cpst-party` (until it's merged)
    - Root directory: `/party`
    - Railway config file path: `/party/railway.json` (the config path doesn't follow the root directory)
-3. **Variables**: `AUTH_MODE=firebase`, `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`.
-   `NODE_ENV`, `HOST`, `DATABASE_PATH` and `TRUST_PROXY` are already set in the Dockerfile, and Railway provides `PORT`.
+3. **Variables**: none required. The Dockerfile already sets `NODE_ENV`, `HOST`, `DATABASE_PATH`, `TRUST_PROXY`
+   and the CPST Firebase login settings (`AUTH_MODE=firebase` plus the public web config); Railway provides `PORT`.
+   Set a variable in Railway only to override one of these.
 4. Add a **volume** mounted at `/data` (this is where the prompt library, profiles and stats live).
 5. **Networking** → generate a public domain, then check `https://YOUR-DOMAIN/healthz`.
 
