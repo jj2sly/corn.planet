@@ -61,7 +61,7 @@ function loginForm() {
     "section",
     { class: "panel stack shell narrow" },
     el("h2", { text: "Access terminal" }),
-    el("p", {}, "Use your ", el("strong", { text: "CPST Database" }), " email and password — it's the same account."),
+    el("p", {}, "Use your ", el("strong", { text: "CPI Database" }), " email and password — it's the same account."),
     el(
       "form",
       {
@@ -216,7 +216,7 @@ function historyPanel(history) {
                   "tr",
                   {},
                   el("td", { text: new Date(h.endedAt).toLocaleDateString() }),
-                  el("td", { text: h.gameId === "chaos" ? "CPST Chaos" : h.gameId }),
+                  el("td", { text: h.gameId === "chaos" ? "Cornlashing" : h.gameId }),
                   el("td", { text: ordinal(h.placement) }),
                   el("td", { class: "mono", text: h.score.toLocaleString() }),
                   el("td", { text: String(h.playerCount) }),
@@ -233,7 +233,7 @@ function historyPanel(history) {
     await loadConfig();
     await initAuth();
   } catch {
-    return page(el("p", { class: "banner danger", role: "alert", text: "Can't reach the CPST Party server. Refresh to try again." }));
+    return page(el("p", { class: "banner danger", role: "alert", text: "Can't reach the Corn Planet Party server. Refresh to try again." }));
   }
   onAuthChange(() => render());
   render();

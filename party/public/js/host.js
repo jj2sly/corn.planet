@@ -42,7 +42,7 @@ async function init() {
   try {
     config = await loadConfig();
   } catch {
-    stage.replaceChildren(el("div", { class: "banner danger", text: "Can't reach the CPST Party server. Refresh to try again." }));
+    stage.replaceChildren(el("div", { class: "banner danger", text: "Can't reach the Corn Planet Party server. Refresh to try again." }));
     return;
   }
   conn = await connect({ onState, onEnded, onStatus });
@@ -51,7 +51,7 @@ async function init() {
 async function onStatus(status) {
   $("#connStatus").textContent = status === "connected" ? "SECURE LINK ESTABLISHED" : "SIGNAL LOST — RECONNECTING…";
   if (status !== "connected") {
-    setBanner(el("div", { class: "banner danger", role: "alert", text: "Connection to the CPST Party server lost. Reconnecting…" }));
+    setBanner(el("div", { class: "banner danger", role: "alert", text: "Connection to the Corn Planet Party server lost. Reconnecting…" }));
     return;
   }
   setBanner(null);

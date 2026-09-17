@@ -42,7 +42,7 @@ async function init() {
   try {
     config = await loadConfig();
   } catch {
-    main.replaceChildren(el("div", { class: "banner danger", role: "alert", text: "Can't reach the CPST Party server. Refresh to try again." }));
+    main.replaceChildren(el("div", { class: "banner danger", role: "alert", text: "Can't reach the Corn Planet Party server. Refresh to try again." }));
     return;
   }
   conn = await connect({
@@ -88,7 +88,7 @@ function onEnded(info) {
 
 function showJoin(message) {
   state = null;
-  document.title = "CPST Party — Join";
+  document.title = "Corn Planet Party — Join";
   mount(`join:${Date.now()}`, buildJoin, message);
 }
 
@@ -192,7 +192,7 @@ function buildJoin(message) {
 
 function onState(next) {
   state = next;
-  document.title = `CPST Party — ${next.code}`;
+  document.title = `Corn Planet Party — ${next.code}`;
   const phase = next.status === "IN_GAME" ? next.game?.phase : next.status;
   if (phase !== lastPhase) {
     lastPhase = phase;

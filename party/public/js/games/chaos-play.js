@@ -1,4 +1,4 @@
-// CPST Chaos on a phone. Views are keyed so typing and focus survive live state updates.
+// Cornlashing on a phone. Views are keyed so typing and focus survive live state updates.
 
 import { el, letter, notice, ordinal, plural, rank, store, timerEl } from "../common.js";
 

@@ -1,15 +1,15 @@
-# CPST Party — Architecture
+# Corn Planet Party — Architecture
 
-CPST Party is a phone-controlled multiplayer party game platform for the Corn Planet
-Strike Team. A host screen (laptop/TV) shows the shared game; players use their phones as
-controllers. The first game is **CPST Chaos**.
+Corn Planet Party is a phone-controlled multiplayer party game platform for the Corn Planet
+Institution. A host screen (laptop/TV) shows the shared game; players use their phones as
+controllers. The first game is **Cornlashing**.
 
-It lives entirely in `party/` and **coexists** with the existing CPST Database site in the
+It lives entirely in `party/` and **coexists** with the existing CPI Database site in the
 repository root. Nothing in the existing site depends on it.
 
 ## 1. What already existed (inspected before building)
 
-| Area | Existing CPST Database |
+| Area | Existing CPI Database |
 |---|---|
 | Frontend | Static HTML pages + one shared `style.css`, vanilla JS, no build step |
 | Hosting | GitHub Pages, served from `main` (`jj2sly.github.io/corn.planet`) |
@@ -24,20 +24,20 @@ repository root. Nothing in the existing site depends on it.
 ## 2. Why a separate server
 
 GitHub Pages only serves static files, and the Firebase project has no Cloud Functions, so
-there is nowhere in the existing stack to run an **authoritative** game server. CPST Party
+there is nowhere in the existing stack to run an **authoritative** game server. Corn Planet Party
 therefore runs as its own small Node.js process that also serves its own pages.
 
 ```
- Phones / TV browser                         CPST Party server (Node 24)
+ Phones / TV browser                         Corn Planet Party server (Node 24)
  ───────────────────                         ─────────────────────────────────────
  party/public/*.html  ── HTTP /api/* ──────▶ Express  ── node:sqlite ──▶ party.db
-                      ── Socket.IO ────────▶ RoomManager ─▶ Game (CPST Chaos)
+                      ── Socket.IO ────────▶ RoomManager ─▶ Game (Cornlashing)
         │                                         │
         └── Firebase Auth (email/password) ──┐    └── verifies Firebase ID tokens (jose + Google JWKS)
                                              ▼        reads users/{uid}.role via Firestore REST
                                    Firebase project cpo-9af17   (read-only; never writes)
 
- Existing CPST Database (GitHub Pages) ── Firebase Auth + Firestore   ← unchanged
+ Existing CPI Database (GitHub Pages) ── Firebase Auth + Firestore   ← unchanged
 ```
 
 ## 3. Stack decisions (and the simpler options chosen)
@@ -71,7 +71,7 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `ratelimit.ts` | Tiny fixed-window rate limiter |
 | `games/types.ts` | The minigame contract |
 | `games/registry.ts` | List of installed games |
-| `games/chaos.ts` | CPST Chaos |
+| `games/chaos.ts` | Cornlashing |
 
 ### Browser code (`party/public/`)
 
@@ -80,12 +80,12 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `index.html`, `js/index.js` | Landing page: join form, host link, installed games |
 | `host.html`, `js/host.js` | Host screen: session create/resume, lobby + settings, results, game renderer dispatch |
 | `play.html`, `js/play.js` | Phone controller: join/rejoin, lobby, pause banner, results, game renderer dispatch |
-| `js/games/chaos-host.js`, `js/games/chaos-play.js` | CPST Chaos views for the host screen and phones |
+| `js/games/chaos-host.js`, `js/games/chaos-play.js` | Cornlashing views for the host screen and phones |
 | `account.html`, `js/account.js` | Login/register (Firebase), display name, stats, history |
 | `prompts.html`, `js/prompts.js` | Prompt writing, library, reports, moderation console |
 | `js/common.js` | `el()` (textContent-only DOM helper), API client, countdowns, keyed mounting |
 | `js/auth.js`, `js/connection.js` | Firebase/dev login and the Socket.IO connection |
-| `css/party.css` | The CPST look, responsive and TV-scaled |
+| `css/party.css` | The Corn Planet look, responsive and TV-scaled |
 
 ## 5. Rooms
 
@@ -153,11 +153,11 @@ implements its own phases and views, plus host/phone renderers in `public/js/gam
 `test/framework.test.ts` runs a second, unrelated game through the same rooms to keep this true;
 [ADDING_A_GAME.md](ADDING_A_GAME.md) is the step-by-step guide.
 
-Planned future games (not built): CPST Draw, Trivia, Gamble, Hidden roles, Prediction. The
-existing CPST Database could later supply flavor (entity names, classifications) by reading its
-public Firestore collections from the server, without the database depending on CPST Party.
+Planned future games (not built): Corn Planet Draw, Trivia, Gamble, Hidden roles, Prediction. The
+existing CPI Database could later supply flavor (entity names, classifications) by reading its
+public Firestore collections from the server, without the database depending on Corn Planet Party.
 
-## 7. CPST Chaos
+## 7. Cornlashing
 
 Theme: every prompt is an **incident**; players are field agents filing **incident reports**; the
 rest of the room is the **review board**.
@@ -199,7 +199,7 @@ then after the last round `FINAL_RESULTS` (room level).
 `games` + `game_players` (score, placement, per-game counters as JSON). A user's stats are
 aggregated from their rows: games played, wins, rounds, answers submitted, votes cast/received,
 total points, best placement, prompts created and how often they were used, favourite categories,
-and recent history. Stats are only returned to their owner. Emails are never stored by CPST Party.
+and recent history. Stats are only returned to their owner. Emails are never stored by Corn Planet Party.
 
 ## 10. Security summary
 

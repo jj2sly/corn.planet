@@ -1,14 +1,14 @@
-# CPST Party
+# Corn Planet Party
 
-Phone-controlled multiplayer party games from the **Corn Planet Strike Team**.
+Phone-controlled multiplayer party games from the **Corn Planet Institution**.
 One screen hosts (laptop or TV), 3–8 agents play on their phones. The first game is
-**CPST Chaos**: anonymous incident reports, head-to-head votes, points.
+**Cornlashing**: anonymous incident reports, head-to-head votes, points.
 
 > **Players:** open the site on your phone → enter the 4-letter code → pick a name → play.
 > **Host:** open `/host` on the big screen → show the code → start the operation.
 
-CPST Party lives in `party/` and runs next to the existing CPST Database site in the repository
-root. The database site does not depend on it and keeps working if CPST Party is down.
+Corn Planet Party lives in `party/` and runs next to the existing CPI Database site in the repository
+root. The database site does not depend on it and keeps working if Corn Planet Party is down.
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together and
 [docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md) for building the next minigame.
 
@@ -25,7 +25,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together
 - [Prompts and moderation](#prompts-and-moderation)
 - [Database](#database)
 - [Deployment](#deployment)
-- [Linking from the CPST Database](#linking-from-the-cpst-database)
+- [Linking from the CPI Database](#linking-from-the-cpi-database)
 - [Troubleshooting](#troubleshooting)
 
 ## Requirements
@@ -45,7 +45,7 @@ cp .env.example .env
 
 For local testing without real accounts, set `AUTH_MODE=dev` in `.env`. That enables a fake login
 on the Account page where you pick any user id and CPI role (the server refuses this mode when
-`NODE_ENV=production`). To use the real CPST Database logins, keep `AUTH_MODE=firebase`.
+`NODE_ENV=production`). To use the real CPI Database logins, keep `AUTH_MODE=firebase`.
 
 ```bash
 npm run dev      # restarts on file changes
@@ -79,7 +79,7 @@ tab (each tab keeps its own seat).
 | `DATABASE_PATH` | `./data/party.db` | SQLite file. Must be on persistent storage in production |
 | `TRUST_PROXY` | `0` | `1` behind a platform proxy/load balancer, so rate limits see real client IPs |
 | `AUTH_MODE` | `firebase` if `FIREBASE_PROJECT_ID` is set, else `none` | `firebase`, `dev` (local only) or `none` (guests only) |
-| `FIREBASE_PROJECT_ID` | — | The CPST Database Firebase project (`cpo-9af17`) |
+| `FIREBASE_PROJECT_ID` | — | The CPI Database Firebase project (`cpo-9af17`) |
 | `FIREBASE_API_KEY` | — | Firebase **web** API key |
 | `FIREBASE_AUTH_DOMAIN` | — | e.g. `cpo-9af17.firebaseapp.com` |
 
@@ -96,7 +96,7 @@ npm run check       # both
 ```
 
 The suite covers rooms (codes, joining, limits, duplicate names, leaving, disconnects, reconnects,
-leader transfer, host pause, cleanup), CPST Chaos (assignment, answer validation and editing,
+leader transfer, host pause, cleanup), Cornlashing (assignment, answer validation and editing,
 anonymity, vote validation, scoring, full games, replay), the database (moderation policy,
 reports, stats), the REST API (auth, ownership, moderator permissions, validation, safe errors)
 and real Socket.IO multiplayer (full game over sockets with an author-leak scan, refresh recovery,
@@ -127,7 +127,7 @@ session replacement, host refresh, kicks, logins, rate limiting).
 - Lobby players who stay disconnected for 2 minutes are removed. Sessions with nobody connected
   for 10 minutes, or older than 6 hours, are closed.
 
-**CPST Chaos rules**
+**Cornlashing rules**
 - Each paired round, every agent gets two incidents; each incident is shared with one other agent.
 - Reports are anonymous while the review board (everyone except the two authors) votes.
 - Points: `100 × round` per vote, plus a `100 × round` **Unanimous Ruling** bonus for getting every
@@ -137,7 +137,7 @@ session replacement, host refresh, kicks, logins, rate limiting).
 
 ## Accounts
 
-CPST Party reuses the **CPST Database Firebase accounts**: same email and password. Guests can play
+Corn Planet Party reuses the **CPI Database Firebase accounts**: same email and password. Guests can play
 without an account; logged-in players get statistics and game history on `/account`, and can write
 prompts. New registrations start as Viewer, just like on the database site.
 
@@ -145,10 +145,10 @@ prompts. New registrations start as Viewer, just like on the database site.
 - The server verifies the token against Google's public keys (issuer/audience = the project) and
   reads the user's CPI role from their own `users/{uid}` Firestore document using that same token,
   so the existing Firestore rules still decide what can be read.
-- **CPST Party never writes to Firebase.** Display names, prompts and stats are stored in its own
+- **Corn Planet Party never writes to Firebase.** Display names, prompts and stats are stored in its own
   SQLite database, keyed by Firebase uid. Emails are never stored or shown to other players.
 - **Strike Team Overseers and CPI Execs** (roles managed in the database site's admin panel) are
-  prompt moderators in CPST Party.
+  prompt moderators in Corn Planet Party.
 
 ## Prompts and moderation
 
@@ -185,7 +185,7 @@ Rooms are in memory and don't need backing up.
 
 ## Deployment
 
-GitHub Pages (where the database site lives) only serves static files, so CPST Party needs a host
+GitHub Pages (where the database site lives) only serves static files, so Corn Planet Party needs a host
 that can run **one long-running Node.js process** with **WebSockets** and **persistent disk**:
 
 - Any container platform with a persistent volume (for example Fly.io or Railway volumes, or a
@@ -213,7 +213,7 @@ Checklist:
    - Root directory: `/party`
    - Railway config file path: `/party/railway.json` (the config path doesn't follow the root directory)
 3. **Variables**: none required. The Dockerfile already sets `NODE_ENV`, `HOST`, `DATABASE_PATH`, `TRUST_PROXY`
-   and the CPST Firebase login settings (`AUTH_MODE=firebase` plus the public web config); Railway provides `PORT`.
+   and the CPI Firebase login settings (`AUTH_MODE=firebase` plus the public web config); Railway provides `PORT`.
    Set a variable in Railway only to override one of these.
 4. Add a **volume** mounted at `/data` (this is where the prompt library, profiles and stats live).
 5. **Networking** → generate a public domain, then check `https://YOUR-DOMAIN/healthz`.
@@ -225,8 +225,8 @@ deployed branch redeploys; sessions in progress end on redeploy, the database su
 
 ```bash
 cd party
-docker build -t cpst-party .
-docker run -p 3000:3000 -v cpst-party-data:/data --env-file .env cpst-party
+docker build -t corn-planet-party .
+docker run -p 3000:3000 -v corn-planet-party-data:/data --env-file .env corn-planet-party
 ```
 
 (The Dockerfile was written for this project but not test-built here, because Docker wasn't
@@ -242,18 +242,18 @@ NODE_ENV=production node --env-file=.env server/main.ts
 
 **Firebase settings to check once the domain exists**
 - If the Firebase web API key has HTTP-referrer restrictions (Google Cloud console → Credentials),
-  add the CPST Party domain.
+  add the Corn Planet Party domain.
 - If sign-in reports an unauthorized domain, add it under Firebase console → Authentication →
   Settings → Authorized domains.
 
-## Linking from the CPST Database
+## Linking from the CPI Database
 
-The database site was intentionally left unchanged. Once CPST Party has a public URL, a link can be
+The database site was intentionally left unchanged. Once Corn Planet Party has a public URL, a link can be
 added to the database home page, for example next to the existing entries in `index.html`:
 
 ```html
 <div class="entry">
-    <a href="https://YOUR-CPST-PARTY-DOMAIN/">CPST PARTY</a>
+    <a href="https://YOUR-CORN-PLANET-PARTY-DOMAIN/">CORN PLANET PARTY</a>
     <span>&rarr;</span>
 </div>
 ```

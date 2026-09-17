@@ -39,7 +39,7 @@ function voteFirstAllowed(room: Room, ids: string[]) {
 beforeEach(() => mock.timers.enable({ apis: ["setTimeout", "Date"] }));
 afterEach(() => mock.timers.reset());
 
-describe("CPST Chaos: prompt assignment", () => {
+describe("Cornlashing: prompt assignment", () => {
   it("gives every agent exactly two incidents, each shared by two different agents, no pair twice", () => {
     for (const count of [3, 4, 5, 8]) {
       const names = Array.from({ length: count }, (_, i) => `Agent${i}`);
@@ -87,7 +87,7 @@ describe("CPST Chaos: prompt assignment", () => {
   });
 });
 
-describe("CPST Chaos: answering", () => {
+describe("Cornlashing: answering", () => {
   it("validates, cleans and allows editing reports until the deadline", () => {
     const { room, ids } = startGame(["A", "B", "C"]);
     const [a, b] = ids as [string, string];
@@ -131,7 +131,7 @@ describe("CPST Chaos: answering", () => {
   });
 });
 
-describe("CPST Chaos: anonymity", () => {
+describe("Cornlashing: anonymity", () => {
   it("never reveals authors to anyone while voting, including after reconnecting", () => {
     const { room, ids, players } = startGame(["Alpha", "Bravo", "Charlie", "Delta"]);
     mock.timers.tick(CHAOS_TIMING.introMs);
@@ -167,7 +167,7 @@ describe("CPST Chaos: anonymity", () => {
   });
 });
 
-describe("CPST Chaos: voting", () => {
+describe("Cornlashing: voting", () => {
   it("rejects author votes, unknown reports, duplicates and stale incidents", () => {
     const { room, ids } = startGame(["A", "B", "C", "D"]);
     mock.timers.tick(CHAOS_TIMING.introMs);
@@ -208,7 +208,7 @@ describe("CPST Chaos: voting", () => {
   });
 });
 
-describe("CPST Chaos: scoring", () => {
+describe("Cornlashing: scoring", () => {
   it("awards 100 × round per vote plus a unanimous bonus", () => {
     const { room, ids } = startGame(["A", "B", "C", "D"], { rounds: 1, totalBreach: false });
     mock.timers.tick(CHAOS_TIMING.introMs);
@@ -279,7 +279,7 @@ describe("CPST Chaos: scoring", () => {
   });
 });
 
-describe("CPST Chaos: full game and results", () => {
+describe("Cornlashing: full game and results", () => {
   it("plays to final results, ranks with ties, and records per-player stats", () => {
     const { room, ids, records, db } = startGame(["A", "B", "C", "D"], { rounds: 1, totalBreach: true }, ["uid-a", null, null, null]);
     const phases = new Set<string>();
@@ -344,7 +344,7 @@ describe("CPST Chaos: full game and results", () => {
   });
 });
 
-describe("CPST Chaos: settings", () => {
+describe("Cornlashing: settings", () => {
   it("clamps untrusted settings", () => {
     assert.deepEqual(chaosGame.parseSettings({ rounds: -4, answerSeconds: 1e9, voteSeconds: "abc", totalBreach: "yes" }), {
       rounds: 1,

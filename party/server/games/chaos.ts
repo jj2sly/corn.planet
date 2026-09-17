@@ -1,4 +1,4 @@
-// CPST CHAOS — every prompt is an incident, players file anonymous incident reports,
+// CORNLASHING — every prompt is an incident, players file anonymous incident reports,
 // and everyone else on the review board votes for the report they accept.
 
 import { randomBytes } from "node:crypto";
@@ -422,7 +422,7 @@ class ChaosGame implements GameInstance {
 
 export const chaosGame: GameDefinition<ChaosSettings> = {
   id: "chaos",
-  name: "CPST Chaos",
+  name: "Cornlashing",
   tagline: "File the funniest incident report. Survive the review board.",
   description:
     "Each round, agents receive classified incidents on their phones and file short, anonymous reports. " +

@@ -1,4 +1,4 @@
-// Shared helpers for every CPST Party page. All user-provided text is inserted with
+// Shared helpers for every Corn Planet Party page. All user-provided text is inserted with
 // textContent (via el()), never as HTML.
 
 /** Creates an element. attrs: class, text, dataset, on* handlers, and plain attributes. */
@@ -73,7 +73,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Calls the CPST Party API with the current login token. */
+/** Calls the Corn Planet Party API with the current login token. */
 export async function api(path, { method = "GET", body, token } = {}) {
   let response;
   try {
@@ -86,7 +86,7 @@ export async function api(path, { method = "GET", body, token } = {}) {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError("NETWORK", "Can't reach the CPST Party server. Check your connection.", 0);
+    throw new ApiError("NETWORK", "Can't reach the Corn Planet Party server. Check your connection.", 0);
   }
   if (response.status === 204) return null;
   const data = await response.json().catch(() => null);

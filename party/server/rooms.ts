@@ -361,7 +361,7 @@ export class Room {
     try {
       this.deps.recordGame(record);
     } catch (err) {
-      console.error("[cpst-party] failed to record game stats:", err);
+      console.error("[corn-planet-party] failed to record game stats:", err);
     }
 
     this.results = { gameId: this.gameId, gameName: this.definition.name, rounds, standings, highlights };
@@ -384,7 +384,7 @@ export class Room {
       for (const id of ids) this.usedPromptIds.add(id);
       this.deps.incrementUsage(ids);
     } catch (err) {
-      console.error("[cpst-party] prompt lookup failed, using emergency prompts:", err);
+      console.error("[corn-planet-party] prompt lookup failed, using emergency prompts:", err);
     }
     for (let i = 0; picked.length < count; i++) {
       picked.push({ id: null, text: EMERGENCY_PROMPTS[i % EMERGENCY_PROMPTS.length]!, category: "general" });
@@ -397,7 +397,7 @@ export class Room {
     try {
       fn();
     } catch (err) {
-      console.error(`[cpst-party] game error in room ${this.code}, returning to lobby:`, err);
+      console.error(`[corn-planet-party] game error in room ${this.code}, returning to lobby:`, err);
       this.returnToLobby();
     }
   }

@@ -33,7 +33,7 @@ loadConfig()
     );
     if (config.auth.mode === "none") $("#accountLink").hidden = true;
   })
-  .catch(() => $("#games").replaceChildren(el("p", { class: "notice error", text: "Can't reach the CPST Party server right now." })));
+  .catch(() => $("#games").replaceChildren(el("p", { class: "notice error", text: "Can't reach the Corn Planet Party server right now." })));
 
 const showUser = (user) => ($("#accountLink").textContent = user ? "My account" : "Log in");
 initAuth()

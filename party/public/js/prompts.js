@@ -565,7 +565,7 @@ async function render() {
         "section",
         { class: "panel stack shell narrow" },
         el("h2", { text: "Clearance required" }),
-        el("p", { text: "Log in with your CPST account to write, browse and report prompts." }),
+        el("p", { text: "Log in with your CPI account to write, browse and report prompts." }),
         el("a", { class: "btn", href: "/account", text: "Log in" }),
       ),
     );
@@ -628,7 +628,7 @@ async function render() {
   try {
     await initAuth();
   } catch {
-    return main.replaceChildren(masthead, el("p", { class: "banner danger", role: "alert", text: "Can't reach the CPST Party server. Refresh to try again." }));
+    return main.replaceChildren(masthead, el("p", { class: "banner danger", role: "alert", text: "Can't reach the Corn Planet Party server. Refresh to try again." }));
   }
   onAuthChange(() => render());
   render();

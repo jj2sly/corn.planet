@@ -12,7 +12,7 @@ interface CoinSettings {
   rounds: number;
 }
 
-/** CPST Coin Toss: everyone calls heads or tails, the server flips, correct calls score. */
+/** Corn Planet Coin Toss: everyone calls heads or tails, the server flips, correct calls score. */
 class CoinToss implements GameInstance {
   private readonly ctx: GameContext;
   private readonly settings: CoinSettings;
@@ -84,7 +84,7 @@ class CoinToss implements GameInstance {
 
 const coinToss: GameDefinition<CoinSettings> = {
   id: "coin",
-  name: "CPST Coin Toss",
+  name: "Corn Planet Coin Toss",
   tagline: "Heads, tails, or containment breach.",
   description: "Call the flip. Be right.",
   minPlayers: 3,
@@ -121,7 +121,7 @@ describe("minigame framework", () => {
 
     assert.equal(room.status, "FINAL_RESULTS");
     const results = room.viewFor({ kind: "host" }).results!;
-    assert.equal(results.gameName, "CPST Coin Toss");
+    assert.equal(results.gameName, "Corn Planet Coin Toss");
     assert.equal(results.standings.reduce((sum, s) => sum + s.score, 0) % 100, 0);
     assert.equal(records[0]!.gameId, "coin");
     assert.equal(records[0]!.players.find((p) => p.uid === "uid-a")!.stats.callsMade, 2);

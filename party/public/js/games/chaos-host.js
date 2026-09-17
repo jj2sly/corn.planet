@@ -1,4 +1,4 @@
-// CPST Chaos on the host screen. Each phase is built once and then updated in place.
+// Cornlashing on the host screen. Each phase is built once and then updated in place.
 
 import { el, letter, plural, rank, scoreboardEl, timerEl } from "../common.js";
 

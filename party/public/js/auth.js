@@ -1,5 +1,5 @@
-// Login for CPST Party. In production this is the CPST Database's Firebase login: the same
-// email and password. Tokens are verified by the CPST Party server, never trusted as-is.
+// Login for Corn Planet Party. In production this is the CPI Database's Firebase login: the same
+// email and password. Tokens are verified by the Corn Planet Party server, never trusted as-is.
 
 import { loadConfig, store } from "./common.js";
 
@@ -71,7 +71,7 @@ export function onAuthChange(fn) {
 }
 
 const FIREBASE_ERRORS = {
-  "auth/invalid-credential": "That email and password don't match any CPST personnel record.",
+  "auth/invalid-credential": "That email and password don't match any CPI personnel record.",
   "auth/invalid-email": "That doesn't look like an email address.",
   "auth/user-disabled": "This account has been disabled.",
   "auth/too-many-requests": "Too many attempts. Wait a minute and try again.",

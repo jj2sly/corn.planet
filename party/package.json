@@ -1,8 +1,8 @@
 {
-  "name": "cpst-party",
+  "name": "corn-planet-party",
   "version": "0.1.0",
   "private": true,
-  "description": "CPST Party: phone-controlled multiplayer party games for the Corn Planet Strike Team",
+  "description": "Corn Planet Party: phone-controlled multiplayer party games for the Corn Planet Institution",
   "type": "module",
   "engines": {
     "node": ">=24"

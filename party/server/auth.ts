@@ -1,7 +1,7 @@
-// Accounts are the existing CPST Database Firebase accounts. The browser signs in with the
+// Accounts are the existing CPI Database Firebase accounts. The browser signs in with the
 // Firebase SDK and sends its ID token; this module verifies that token against Google's public
 // keys and reads the user's CPI role from their own users/{uid} Firestore document.
-// CPST Party never writes to Firebase.
+// Corn Planet Party never writes to Firebase.
 
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import type { AuthConfig } from "./config.ts";
@@ -22,7 +22,7 @@ export interface AuthVerifier {
 /** CPI roles from the database site's roles.js, lowest to highest. */
 export const CPI_ROLES = ["VIEWER", "CPI_EMPLOYEE", "CORRESPONDENT", "OVERSEER", "EXEC"] as const;
 
-/** Strike Team Overseers and CPI Execs moderate CPST Party prompts. */
+/** Strike Team Overseers and CPI Execs moderate Corn Planet Party prompts. */
 const MODERATOR_ROLES = new Set(["OVERSEER", "EXEC"]);
 
 const GOOGLE_JWKS = new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com");
@@ -45,7 +45,7 @@ export function createAuthVerifier(config: AuthConfig, fetchImpl: typeof fetch =
   }
 
   if (config.mode === "dev") {
-    console.warn("[cpst-party] AUTH_MODE=dev: fake logins are enabled. Never use this in production.");
+    console.warn("[corn-planet-party] AUTH_MODE=dev: fake logins are enabled. Never use this in production.");
     return {
       mode: "dev",
       // Token format: dev:<uid>:<ROLE>

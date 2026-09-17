@@ -1,10 +1,10 @@
-# Adding a minigame to CPST Party
+# Adding a minigame to Corn Planet Party
 
 Rooms, joining, reconnects, host/leader controls, pausing, timers, scoring, final results and stats
 persistence are all generic. A new game only defines its own rules, phases and views.
 
 A complete working example lives in [`test/framework.test.ts`](../test/framework.test.ts):
-**CPST Coin Toss**, a second game that runs through the unchanged room system in the test suite.
+**Corn Planet Coin Toss**, a second game that runs through the unchanged room system in the test suite.
 
 ## 1. Server: implement the game
 
@@ -13,7 +13,7 @@ Create `server/games/<id>.ts` exporting a `GameDefinition` (see `server/games/ty
 ```ts
 export const myGame: GameDefinition<MySettings> = {
   id: "draw",                       // stable id, stored in game history
-  name: "CPST Draw",
+  name: "Corn Planet Draw",
   tagline: "Sketch the entity. Survive the critique.",
   description: "…shown on the host screen and landing page…",
   minPlayers: 3,
@@ -62,7 +62,7 @@ and in the host screen's game list. `room:configure` with `{ gameId }` selects i
 
 ## 3. Client: render it
 
-Add two ES modules and register them next to CPST Chaos:
+Add two ES modules and register them next to Cornlashing:
 
 - `public/js/games/<id>-host.js` → `export function render(mount, state)`, registered in `RENDERERS` in `public/js/host.js`
 - `public/js/games/<id>-play.js` → `export function render(mount, state, tools)`, registered in `RENDERERS` in `public/js/play.js`
@@ -79,7 +79,7 @@ Always create elements with `el()` from `public/js/common.js`, which uses `textC
 `innerHTML` with player text. Scripts must be files (the CSP blocks inline scripts), and styles belong
 in `public/css/party.css`.
 
-If a game needs new input types (for example CPST Draw's canvas strokes), keep payloads small and
+If a game needs new input types (for example Corn Planet Draw's canvas strokes), keep payloads small and
 validate them server-side; Socket.IO messages are capped at 64 KB.
 
 ## 4. Test it
