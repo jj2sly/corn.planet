@@ -202,6 +202,24 @@ Checklist:
    Use the platform's log viewer.
 8. Room cleanup runs automatically every 15 seconds.
 
+**Railway (the chosen host)**
+
+`party/railway.json` holds the build and health-check settings. One-time setup in the Railway dashboard:
+
+1. Create a project → **Deploy from GitHub repo** → `jj2sly/corn.planet`.
+2. In the service's **Settings**:
+   - Source branch: `cpst-party` (until it's merged)
+   - Root directory: `/party`
+   - Railway config file path: `/party/railway.json` (the config path doesn't follow the root directory)
+3. **Variables**: `AUTH_MODE=firebase`, `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, and
+   `RAILWAY_RUN_UID=0` (the image runs as a non-root user, which can't write to Railway volumes otherwise).
+   `NODE_ENV`, `HOST`, `DATABASE_PATH` and `TRUST_PROXY` are already set in the Dockerfile, and Railway provides `PORT`.
+4. Add a **volume** mounted at `/data` (this is where the prompt library, profiles and stats live).
+5. **Networking** → generate a public domain, then check `https://YOUR-DOMAIN/healthz`.
+
+Keep it at one replica (Railway doesn't allow replicas with a volume anyway). Every push to the
+deployed branch redeploys; sessions in progress end on redeploy, the database survives.
+
 **Docker**
 
 ```bash
