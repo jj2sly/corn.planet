@@ -3,6 +3,13 @@ export type AuthConfig =
   | { mode: "dev" }
   | { mode: "none" };
 
+/** Where games read CPI canon from. Null when no Firebase project is configured. */
+export interface CanonConfig {
+  projectId: string;
+  /** Base URL of the CPI Database site, for the "inspect the record" links games show. */
+  siteUrl: string;
+}
+
 export interface Config {
   port: number;
   host: string;
@@ -10,6 +17,7 @@ export interface Config {
   databasePath: string;
   trustProxy: boolean;
   auth: AuthConfig;
+  canon: CanonConfig | null;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -37,6 +45,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const port = Number(env.PORT ?? 3000);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error(`Invalid PORT "${env.PORT}"`);
 
+  // Canon is read from the same Firebase project as logins, but it does not depend on AUTH_MODE:
+  // the canon collections are world-readable, so a server running with AUTH_MODE=none or dev
+  // still serves canon-driven games to guests.
+  const canon: CanonConfig | null = projectId
+    ? {
+        projectId,
+        siteUrl: env.CPI_DATABASE_URL?.trim() || "https://jj2sly.github.io/corn.planet",
+      }
+    : null;
+
   return {
     port,
     host: env.HOST?.trim() || "0.0.0.0",
@@ -44,5 +62,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     databasePath: env.DATABASE_PATH?.trim() || "./data/party.db",
     trustProxy: env.TRUST_PROXY === "1" || env.TRUST_PROXY === "true",
     auth,
+    canon,
   };
 }

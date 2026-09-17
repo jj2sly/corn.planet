@@ -5,10 +5,11 @@ import { createPartyServer, type PartyServer } from "../server/app.ts";
 import { createAuthVerifier } from "../server/auth.ts";
 import type { AuthConfig } from "../server/config.ts";
 import { PartyDb } from "../server/db.ts";
+import { stubCanon } from "./helpers.ts";
 
 async function startServer(authConfig: AuthConfig) {
   const db = new PartyDb(":memory:");
-  const server = createPartyServer({ db, auth: createAuthVerifier(authConfig), authConfig });
+  const server = createPartyServer({ db, auth: createAuthVerifier(authConfig), authConfig, canon: stubCanon() });
   await new Promise<void>((resolve) => server.http.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${(server.http.address() as AddressInfo).port}`;
   return { db, server, base };

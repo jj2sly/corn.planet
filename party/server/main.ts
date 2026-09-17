@@ -1,6 +1,7 @@
 import { networkInterfaces } from "node:os";
 import { createPartyServer } from "./app.ts";
 import { createAuthVerifier } from "./auth.ts";
+import { CANON_REFRESH_MS, createCanonService } from "./canon.ts";
 import { loadConfig } from "./config.ts";
 import { PartyDb } from "./db.ts";
 
@@ -16,7 +17,26 @@ try {
   throw err;
 }
 const auth = createAuthVerifier(config.auth);
-const server = createPartyServer({ db, auth, authConfig: config.auth, trustProxy: config.trustProxy });
+
+// Canon is read from the CPI Database and kept warm here, so games can read it synchronously.
+// With no Firebase project configured there is simply no canon, and canon-driven games say so
+// rather than failing.
+const canon = config.canon
+  ? createCanonService(config.canon)
+  : createCanonService({ projectId: "" });
+
+const server = createPartyServer({ db, auth, authConfig: config.auth, canon, trustProxy: config.trustProxy });
+
+if (config.canon) {
+  void canon.refresh().then(() => {
+    const { records, lastError } = canon.status();
+    console.log(`[corn-planet-party] canon loaded: ${records} CPI Database records${lastError ? ` (partial: ${lastError})` : ""}`);
+  });
+  const canonTimer = setInterval(() => void canon.refresh(), CANON_REFRESH_MS);
+  canonTimer.unref();
+} else {
+  console.warn("[corn-planet-party] no FIREBASE_PROJECT_ID: canon-driven games have no source material.");
+}
 
 server.http.listen(config.port, config.host, () => {
   console.log("CORN PLANET PARTY SYSTEM INITIALIZING...");

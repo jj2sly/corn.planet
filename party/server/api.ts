@@ -1,5 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { bearerToken, defaultDisplayName, type AuthUser, type AuthVerifier } from "./auth.ts";
+import type { CanonService } from "./canon.ts";
 import {
   CONTENT_MODES,
   MODERATION_POLICIES,
@@ -20,6 +21,7 @@ import { cleanName, cleanTags, cleanText, LIMITS } from "./text.ts";
 export interface ApiDeps {
   db: PartyDb;
   auth: AuthVerifier;
+  canon: CanonService;
   firebase: { apiKey: string; authDomain: string; projectId: string } | null;
 }
 
@@ -70,7 +72,7 @@ function publicPrompt(p: Prompt, viewerUid: string, moderator: boolean) {
   };
 }
 
-export function createApi({ db, auth, firebase }: ApiDeps): express.Router {
+export function createApi({ db, auth, canon, firebase }: ApiDeps): express.Router {
   const api = express.Router();
   const writeLimiter = new RateLimiter(30, 10 * 60_000);
   const readLimiter = new RateLimiter(240, 60_000);
@@ -138,6 +140,12 @@ export function createApi({ db, auth, firebase }: ApiDeps): express.Router {
       contentModes: CONTENT_MODES,
       categories: db.listCategories(),
       promptCounts: db.countPlayablePrompts(),
+      // Lets the host lobby warn when a canon-driven game has nothing to draw on.
+      canonCounts: {
+        entity: canon.byKind("entity").length,
+        incident: canon.byKind("incident").length,
+        personnel: canon.byKind("personnel").length,
+      },
       limits: LIMITS,
     });
   });

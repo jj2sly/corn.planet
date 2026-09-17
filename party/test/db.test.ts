@@ -167,3 +167,46 @@ describe("database: statistics", () => {
     assert.equal(db.getUserStats("nobody").gamesPlayed, 0);
   });
 });
+
+describe("database: canon references", () => {
+  const game = (canonRefs?: { round: number; ref: string }[]) => ({
+    gameId: "cornorshit",
+    roomCode: "BCDF",
+    rounds: 2,
+    startedAt: Date.now() - 60_000,
+    endedAt: Date.now(),
+    players: [{ uid: "u1", name: "u1", score: 100, placement: 1, stats: {} }],
+    canonRefs,
+  });
+
+  it("records which canon a game drew on, and counts repeat use", () => {
+    const db = new PartyDb(":memory:");
+
+    db.recordGame(game([{ round: 1, ref: "CPE-002" }, { round: 2, ref: "CPE-004" }]));
+    db.recordGame(game([{ round: 1, ref: "CPE-002" }]));
+
+    assert.deepEqual(db.canonUsage(), [
+      { ref: "CPE-002", uses: 2 },
+      { ref: "CPE-004", uses: 1 },
+    ]);
+  });
+
+  it("copes with games that used no canon at all", () => {
+    const db = new PartyDb(":memory:");
+
+    db.recordGame(game());
+    db.recordGame(game([]));
+
+    assert.deepEqual(db.canonUsage(), []);
+  });
+
+  it("drops a game's canon references when the game row goes", () => {
+    const db = new PartyDb(":memory:");
+    db.recordGame(game([{ round: 1, ref: "CPE-002" }]));
+
+    const raw = db as unknown as { db: { exec(sql: string): void } };
+    raw.db.exec("DELETE FROM games");
+
+    assert.deepEqual(db.canonUsage(), [], "the ON DELETE CASCADE must reach game_canon_refs");
+  });
+});

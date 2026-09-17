@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { CONTENT_MODES, type ContentMode, type GameRecord, type PickedPrompt } from "./db.ts";
+import type { CanonService } from "./canon.ts";
 import { PartyError } from "./errors.ts";
 import type { GameContext, GameDefinition, GameInstance, Highlight, Viewer } from "./games/types.ts";
 import { EMERGENCY_PROMPTS } from "./seed.ts";
@@ -54,6 +55,7 @@ export interface FinalResults {
 
 export interface RoomDeps {
   games: ReadonlyMap<string, GameDefinition>;
+  canon: CanonService;
   pickPrompts(mode: ContentMode, count: number, exclude: ReadonlySet<number>): PickedPrompt[];
   incrementUsage(ids: number[]): void;
   recordGame(record: GameRecord): void;
@@ -96,6 +98,8 @@ export class Room {
   private gameStartedAt = 0;
   private scores = new Map<string, number>();
   private stats = new Map<string, Record<string, number>>();
+  /** CPI canon records the current game drew on, saved with its history when it finishes. */
+  private canonRefs: { round: number; ref: string }[] = [];
   private readonly usedPromptIds = new Set<number>();
   private timer: PhaseTimer | null = null;
   /** Increments every time a game starts a new phase timer; lets host skips target one phase. */
@@ -271,6 +275,15 @@ export class Room {
         this.stats.set(id, counters);
       },
       pickPrompts: (count) => this.pickPrompts(count),
+      canon: {
+        sample: (kind, count) => this.deps.canon.sample(kind, count, () => this.deps.random()),
+        get: (ref) => this.deps.canon.get(ref),
+        count: (kind) => this.deps.canon.byKind(kind).length,
+        used: (round, ref) => {
+          // Only real canon ids are recorded, never anything a game invented.
+          if (live() && this.deps.canon.get(ref)) this.canonRefs.push({ round, ref });
+        },
+      },
       random: () => this.deps.random(),
       changed: () => live() && this.changed(),
       finish: (summary) => live() && this.finishGame(summary.rounds, summary.highlights),
@@ -278,6 +291,7 @@ export class Room {
 
     this.scores = new Map(active.map((p) => [p.id, 0]));
     this.stats = new Map();
+    this.canonRefs = [];
     this.results = null;
     this.status = "IN_GAME";
     // Starting from a phone while the display is away is an explicit choice to play without it.
@@ -357,6 +371,7 @@ export class Room {
         placement: s.placement,
         stats: this.stats.get(s.playerId) ?? {},
       })),
+      canonRefs: this.canonRefs,
     };
     try {
       this.deps.recordGame(record);

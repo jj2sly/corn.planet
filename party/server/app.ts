@@ -4,6 +4,7 @@ import express from "express";
 import { Server } from "socket.io";
 import { createApi } from "./api.ts";
 import type { AuthVerifier } from "./auth.ts";
+import type { CanonService } from "./canon.ts";
 import type { AuthConfig } from "./config.ts";
 import type { PartyDb } from "./db.ts";
 import { GAMES } from "./games/registry.ts";
@@ -14,6 +15,7 @@ export interface PartyServerOptions {
   db: PartyDb;
   auth: AuthVerifier;
   authConfig: AuthConfig;
+  canon: CanonService;
   trustProxy?: boolean;
   random?: () => number;
 }
@@ -49,7 +51,7 @@ const PAGES: Record<string, string> = {
 };
 
 export function createPartyServer(options: PartyServerOptions): PartyServer {
-  const { db, auth, authConfig } = options;
+  const { db, auth, authConfig, canon } = options;
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", options.trustProxy ? 1 : false);
@@ -66,7 +68,8 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
   });
 
   app.get("/healthz", (_req, res) => {
-    res.json({ ok: true, rooms: rooms.rooms.size });
+    const { records, lastError } = canon.status();
+    res.json({ ok: true, rooms: rooms.rooms.size, canon: { records, degraded: lastError !== null } });
   });
 
   app.use(
@@ -74,6 +77,7 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
     createApi({
       db,
       auth,
+      canon,
       firebase:
         authConfig.mode === "firebase"
           ? { apiKey: authConfig.apiKey, authDomain: authConfig.authDomain, projectId: authConfig.projectId }
@@ -108,6 +112,7 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
   let realtime: ReturnType<typeof createRealtime> | null = null;
   const rooms = new RoomManager({
     games: GAMES,
+    canon,
     pickPrompts: (mode, count, exclude) => db.pickPrompts(mode, count, exclude),
     incrementUsage: (ids) => db.incrementUsage(ids),
     recordGame: (record) => db.recordGame(record),

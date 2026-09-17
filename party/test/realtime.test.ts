@@ -5,7 +5,7 @@ import { io as connect, type Socket } from "socket.io-client";
 import { createPartyServer, type PartyServer } from "../server/app.ts";
 import { createAuthVerifier } from "../server/auth.ts";
 import { PartyDb } from "../server/db.ts";
-import type { ChaosView } from "./helpers.ts";
+import { stubCanon, type ChaosView } from "./helpers.ts";
 
 interface Ack {
   ok: boolean;
@@ -101,7 +101,7 @@ describe("realtime multiplayer", () => {
 
   before(async () => {
     db = new PartyDb(":memory:");
-    server = createPartyServer({ db, auth: createAuthVerifier({ mode: "dev" }), authConfig: { mode: "dev" } });
+    server = createPartyServer({ db, auth: createAuthVerifier({ mode: "dev" }), authConfig: { mode: "dev" }, canon: stubCanon() });
     await new Promise<void>((resolve) => server.http.listen(0, "127.0.0.1", resolve));
     url = `http://127.0.0.1:${(server.http.address() as AddressInfo).port}`;
   });

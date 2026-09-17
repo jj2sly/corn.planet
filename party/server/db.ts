@@ -63,6 +63,11 @@ export interface GameRecord {
   startedAt: number;
   endedAt: number;
   players: { uid: string | null; name: string; score: number; placement: number; stats: Record<string, number> }[];
+  /**
+   * CPI Database records this game drew on, e.g. { round: 1, ref: "CPE-002" }. These point at
+   * canon; nothing the game generated is stored here (see docs/CANON.md).
+   */
+  canonRefs?: { round: number; ref: string }[];
 }
 
 export interface UserStats {
@@ -224,6 +229,22 @@ export class PartyDb {
         this.db.exec("DELETE FROM prompts");
         this.db.exec("DELETE FROM packs WHERE name = 'Standard Issue'");
         this.db.exec("PRAGMA user_version = 2");
+      });
+    }
+    if (version < 3) {
+      // Which canon a round was built from. Generated game content is never written here: this
+      // table only ever holds ids that already exist in the CPI Database.
+      this.transaction(() => {
+        this.db.exec(`
+CREATE TABLE IF NOT EXISTS game_canon_refs (
+  game_row_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  round INTEGER NOT NULL,
+  ref TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS game_canon_refs_game ON game_canon_refs(game_row_id);
+CREATE INDEX IF NOT EXISTS game_canon_refs_ref ON game_canon_refs(ref);
+`);
+        this.db.exec("PRAGMA user_version = 3");
       });
     }
   }
@@ -552,7 +573,20 @@ export class PartyDb {
       for (const p of record.players) {
         addPlayer.run(game.lastInsertRowid, p.uid, p.name, p.score, p.placement, JSON.stringify(p.stats));
       }
+
+      const addCanonRef = this.db.prepare("INSERT INTO game_canon_refs (game_row_id, round, ref) VALUES (?, ?, ?)");
+      for (const { round, ref } of record.canonRefs ?? []) {
+        addCanonRef.run(game.lastInsertRowid, round, ref);
+      }
     });
+  }
+
+  /** How often each canon record has been used in a game, most-used first. */
+  canonUsage(): { ref: string; uses: number }[] {
+    const rows = this.db
+      .prepare("SELECT ref, COUNT(*) AS uses FROM game_canon_refs GROUP BY ref ORDER BY uses DESC, ref ASC")
+      .all() as Row[];
+    return rows.map((row) => ({ ref: String(row.ref), uses: Number(row.uses) }));
   }
 
   getUserStats(uid: string): UserStats {
