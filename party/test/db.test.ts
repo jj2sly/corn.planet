@@ -3,22 +3,43 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { DatabaseSync } from "node:sqlite";
 import { PartyDb } from "../server/db.ts";
-import { SEED_PROMPTS } from "../server/seed.ts";
 
 const input = (text: string, rating: "safe" | "chaos" = "safe") => ({ text, category: "corn", tags: ["kernel"], rating });
 
 describe("database: seeding and migrations", () => {
-  it("seeds the Standard Issue pack once, even across restarts", () => {
+  it("starts with an empty prompt library and the default categories", () => {
+    const db = new PartyDb(":memory:");
+    assert.deepEqual(db.listPacks(), []);
+    assert.deepEqual(db.countPlayablePrompts(), { total: 0, safe: 0 });
+    assert.ok(db.listCategories().includes("general"));
+  });
+
+  it("clears the old library once when upgrading, and never touches prompts added afterwards", () => {
     const dir = mkdtempSync(join(tmpdir(), "cpst-party-"));
     try {
       const path = join(dir, "party.db");
-      new PartyDb(path).close();
-      const db = new PartyDb(path);
-      const packs = db.listPacks();
-      assert.equal(packs.length, 1);
-      assert.equal(packs[0]!.promptCount, SEED_PROMPTS.length);
-      assert.ok(db.listCategories().includes("general"));
+      // Recreate a version-1 database that still has the old built-in pack and a reported prompt.
+      let db = new PartyDb(path);
+      const pack = db.createPack("Standard Issue", "old built-ins")!;
+      const old = db.createPrompt("u1", input("An old prompt"));
+      db.updatePromptAsModerator(old.id, { packId: pack.id });
+      db.reportPrompt(old.id, "u2", "meh");
+      db.createPack("Friday Night", "kept");
+      db.close();
+      const raw = new DatabaseSync(path);
+      raw.exec("PRAGMA user_version = 1");
+      raw.close();
+
+      db = new PartyDb(path);
+      assert.deepEqual(db.countPlayablePrompts(), { total: 0, safe: 0 });
+      assert.deepEqual(db.listPacks().map((p) => p.name), ["Friday Night"]);
+      const fresh = db.createPrompt("u1", input("A brand new prompt"));
+      db.close();
+
+      db = new PartyDb(path);
+      assert.equal(db.getPrompt(fresh.id)?.text, "A brand new prompt", "the cleanup only runs once");
       db.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -49,25 +70,30 @@ describe("database: prompts and moderation policy", () => {
 
   it("only offers approved prompts from enabled packs to games", () => {
     const db = new PartyDb(":memory:");
+    const pack = db.createPack("Friday Night", "")!;
+    const packed = db.createPrompt("u1", input("A prompt in a pack"));
+    db.updatePromptAsModerator(packed.id, { packId: pack.id });
     const pending = db.createPrompt("u1", input("Pending chaos", "chaos"));
-    const pack = db.listPacks()[0]!;
     db.updatePack(pack.id, { enabled: false });
-    const picked = db.pickPrompts("chaos", 500, new Set());
-    assert.equal(picked.length, 0, "built-ins are in the disabled pack; the only community prompt is pending");
+    assert.equal(db.pickPrompts("chaos", 500, new Set()).length, 0, "the pack is disabled and the other prompt is pending");
+    assert.deepEqual(db.countPlayablePrompts(), { total: 0, safe: 0 });
 
     db.updatePromptAsModerator(pending.id, { status: "approved" });
     assert.deepEqual(db.pickPrompts("chaos", 500, new Set()).map((p) => p.id), [pending.id]);
     assert.deepEqual(db.pickPrompts("safe", 500, new Set()), [], "chaos-rated prompts never appear in safe mode");
+    assert.deepEqual(db.countPlayablePrompts(), { total: 1, safe: 0 });
   });
 
-  it("prefers the group's own prompts in custom mode and tops up with built-ins", () => {
+  it("picks random prompts without duplicates and respects exclusions", () => {
     const db = new PartyDb(":memory:");
-    const own = [db.createPrompt("u1", input("Our prompt one")), db.createPrompt("u2", input("Our prompt two"))];
-    const picked = db.pickPrompts("custom", 5, new Set());
-    assert.equal(picked.length, 5);
-    assert.deepEqual(new Set(picked.slice(0, 2).map((p) => p.id)), new Set(own.map((p) => p.id)));
-    assert.equal(new Set(picked.map((p) => p.id)).size, 5, "no duplicates");
-    assert.equal(db.pickPrompts("chaos", 3, new Set(picked.map((p) => p.id!))).filter((p) => picked.some((x) => x.id === p.id)).length, 0);
+    const own = Array.from({ length: 6 }, (_, i) => db.createPrompt(`u${i}`, input(`Group prompt number ${i}`)));
+    const picked = db.pickPrompts("custom", 4, new Set());
+    assert.equal(picked.length, 4);
+    assert.equal(new Set(picked.map((p) => p.id)).size, 4, "no duplicates");
+    const rest = db.pickPrompts("chaos", 10, new Set(picked.map((p) => p.id!)));
+    assert.equal(rest.length, 2);
+    assert.ok(rest.every((p) => !picked.some((x) => x.id === p.id)));
+    assert.equal(own.length, 6);
   });
 
   it("disables a prompt automatically at the report threshold, once per reporter", () => {

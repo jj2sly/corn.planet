@@ -46,6 +46,7 @@ describe("REST API", () => {
     assert.equal(res.json.auth.mode, "dev");
     assert.equal(res.json.games[0].id, "chaos");
     assert.deepEqual(res.json.contentModes, ["safe", "chaos", "custom"]);
+    assert.deepEqual(res.json.promptCounts, { total: 0, safe: 0 }, "the library starts empty");
     assert.match(res.headers.get("content-security-policy")!, /script-src 'self'/);
     assert.equal(res.headers.get("x-content-type-options"), "nosniff");
     assert.equal(res.headers.get("x-powered-by"), null);

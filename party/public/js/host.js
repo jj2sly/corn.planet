@@ -257,8 +257,32 @@ function choiceGroup(legend, name, options, current, onChange) {
 const CONTENT_LABELS = {
   safe: ["Safe", "General silly humor only."],
   chaos: ["Chaos", "Adds the edgier, more absurd friend-group prompts."],
-  custom: ["Custom", "Your group's own prompts first, topped up with the standard library."],
+  custom: ["Custom", "Only prompts written by your group's accounts, safe and chaos."],
 };
+
+/** A heads-up on the host screen when the prompt library is too small for good games. */
+function libraryWarning() {
+  const node = el("p", { class: "banner", role: "status", hidden: true });
+  let counts = null;
+  let mode = null;
+  const show = () => {
+    if (!counts || !mode) return;
+    const safeOnly = mode === "safe";
+    const n = safeOnly ? counts.safe : counts.total;
+    const kind = safeOnly ? "safe prompts" : "prompts";
+    node.hidden = n >= 20;
+    node.textContent =
+      n === 0
+        ? `The prompt library has no ${kind} yet, so games will use a few placeholder incidents. Logged-in agents can add prompts at ${location.host}/prompts.`
+        : `Only ${n} ${kind} in the library, so incidents will repeat. Add more at ${location.host}/prompts.`;
+  };
+  // Fresh counts (not the cached page config), since prompts may have been added since this page loaded.
+  fetch("/api/config")
+    .then((r) => r.json())
+    .then((c) => ((counts = c.promptCounts), show()))
+    .catch(() => {});
+  return { node, update: (nextMode) => ((mode = nextMode), show()) };
+}
 
 function buildLobby(s) {
   const grid = el("ul", { class: "agent-grid", "aria-label": "Agents in this session" });
@@ -267,6 +291,7 @@ function buildLobby(s) {
   const settingsBox = el("div", { class: "settings-grid" });
   const start = el("button", { class: "btn big", type: "button", text: "Start operation", onclick: () => act("room:start", {}, startNote) });
   const startNote = el("p", { class: "notice" });
+  const library = libraryWarning();
   const game = config.games.find((g) => g.id === s.config.gameId) ?? config.games[0];
 
   const node = el(
@@ -304,6 +329,7 @@ function buildLobby(s) {
         el("p", { class: "mono", text: `${game.minPlayers}–${game.maxPlayers} agents` }),
       ),
       settingsBox,
+      library.node,
       start,
       startNote,
     ),
@@ -314,6 +340,7 @@ function buildLobby(s) {
     update(next) {
       grid.replaceChildren(...agentCards(next, { kick: true }));
       count.textContent = `(${next.players.length}/${next.maxPlayers})`;
+      library.update(next.config.contentMode);
       const leaderPlayer = next.players.find((p) => p.id === next.leaderId);
       leader.textContent = leaderPlayer ? `Session leader: ${leaderPlayer.name}` : "Waiting for the first agent…";
 

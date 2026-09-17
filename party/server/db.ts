@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import { SEED_CATEGORIES, SEED_PROMPTS, STANDARD_PACK } from "./seed.ts";
+import { SEED_CATEGORIES } from "./seed.ts";
 
 export type PromptRating = "safe" | "chaos";
 export type PromptStatus = "pending" | "approved" | "disabled";
@@ -217,25 +217,21 @@ export class PartyDb {
         this.db.exec("PRAGMA user_version = 1");
       });
     }
+    if (version < 2) {
+      // The group chose to start with an empty library: clear every prompt (reports cascade) and
+      // the old built-in pack, once. Prompts added after this migration are never touched.
+      this.transaction(() => {
+        this.db.exec("DELETE FROM prompts");
+        this.db.exec("DELETE FROM packs WHERE name = 'Standard Issue'");
+        this.db.exec("PRAGMA user_version = 2");
+      });
+    }
   }
 
   private seed(): void {
+    const addCategory = this.db.prepare("INSERT OR IGNORE INTO categories (name) VALUES (?)");
     this.transaction(() => {
-      const created = nowIso();
-      const addCategory = this.db.prepare("INSERT OR IGNORE INTO categories (name) VALUES (?)");
       for (const name of SEED_CATEGORIES) addCategory.run(name);
-
-      this.db
-        .prepare("INSERT OR IGNORE INTO packs (name, description, created_at) VALUES (?, ?, ?)")
-        .run(STANDARD_PACK.name, STANDARD_PACK.description, created);
-      const pack = this.db.prepare("SELECT id FROM packs WHERE name = ?").get(STANDARD_PACK.name) as Row;
-
-      const addPrompt = this.db.prepare(`
-        INSERT OR IGNORE INTO prompts (text, category, rating, status, pack_id, builtin_key, created_at, updated_at)
-        VALUES (?, ?, ?, 'approved', ?, ?, ?, ?)`);
-      for (const seed of SEED_PROMPTS) {
-        addPrompt.run(seed.text, seed.category, seed.rating, pack.id as number, seed.key, created, created);
-      }
     });
   }
 
@@ -435,6 +431,17 @@ export class PartyDb {
     return (this.db.prepare(`${PROMPT_SELECT} WHERE p.author_uid = ? ORDER BY p.created_at DESC`).all(uid) as Row[]).map(toPrompt);
   }
 
+  /** How many prompts games can currently draw from, overall and safe-rated. */
+  countPlayablePrompts(): { total: number; safe: number } {
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS total, COALESCE(SUM(p.rating = 'safe'), 0) AS safe
+         FROM prompts p LEFT JOIN packs k ON k.id = p.pack_id WHERE ${PLAYABLE}`,
+      )
+      .get() as Row;
+    return { total: Number(row.total), safe: Number(row.safe) };
+  }
+
   listLibrary(filter: { rating?: PromptRating; category?: string; search?: string; limit: number; offset: number }): Prompt[] {
     const where = [PLAYABLE];
     const params: SQLInputValue[] = [];
@@ -492,7 +499,7 @@ export class PartyDb {
 
   /**
    * Picks up to `count` random playable prompts for a content mode, skipping `excludeIds`.
-   * Custom mode prefers prompts written by the group and tops up with built-ins.
+   * Custom mode prefers prompts written by the group's accounts.
    */
   pickPrompts(mode: ContentMode, count: number, excludeIds: ReadonlySet<number>): PickedPrompt[] {
     const exclude = [...excludeIds];

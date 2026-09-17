@@ -165,11 +165,12 @@ prompts. New registrations start as Viewer, just like on the database site.
   - Prompts reaching the report threshold (default 2) are disabled until a moderator reviews them.
 
 Humor levels chosen by the host: **Safe** uses safe prompts only; **Chaos** adds chaos prompts;
-**Custom** uses the group's own prompts first and tops up with the Standard Issue pack. Disabled
-prompts and prompts in disabled packs never appear in games.
+**Custom** uses only prompts written by the group's accounts. Disabled prompts and prompts in disabled
+packs never appear in games.
 
-The 90 original **Standard Issue** prompts are seeded on first start and can be edited or disabled
-by moderators like any other prompt.
+The library **starts empty**: the group writes its own prompts. Until there are enough, games fall back
+to a few placeholder incidents, and the host screen's lobby warns when the library is empty or small.
+(Databases created before this change had their old built-in prompts cleared once, on upgrade.)
 
 ## Database
 

@@ -184,9 +184,11 @@ then after the last round `FINAL_RESULTS` (room level).
 - Tables: `prompts` (text, author, category, tags, rating `safe|chaos`, status
   `pending|approved|disabled`, pack, usage count, timestamps), `categories`, `packs`, `reports`,
   `settings`.
-- Built-in original CPST prompts are seeded into the **Standard Issue** pack on first start.
-- **Room content modes**: *Safe* (safe prompts), *Chaos* (safe + chaos), *Custom* (your group's own
-  prompts first, topped up with built-ins if there aren't enough).
+- The library starts empty and is written by the group. Migration 2 cleared the original built-in
+  prompts once; if a game needs more prompts than exist, placeholder incidents fill the gap and the
+  host lobby shows a warning (from `promptCounts` in `/api/config`).
+- **Room content modes**: *Safe* (safe prompts), *Chaos* (safe + chaos), *Custom* (only prompts
+  written by the group's accounts).
 - **Moderation policy** (admin setting): auto-approve `all`, `safe` (chaos-rated prompts wait for
   review — default), or `none`. Prompts reaching the report threshold (default 2) are disabled
   automatically until reviewed.

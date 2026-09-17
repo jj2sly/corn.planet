@@ -70,6 +70,9 @@ describe("CPST Chaos: prompt assignment", () => {
   it("uses safe prompts only in safe mode and does not repeat prompts within a room", () => {
     const { room, ids, db } = startGame(["A", "B", "C", "D", "E", "F", "G", "H"], { rounds: 3 });
     room.returnToLobby();
+    db.updateSettings({ moderationPolicy: "all" });
+    for (let i = 0; i < 40; i++) db.createPrompt("writer", { text: `Safe incident number ${i}`, category: "corn", tags: [], rating: "safe" });
+    for (let i = 0; i < 20; i++) db.createPrompt("writer", { text: `Chaos incident number ${i}`, category: "corn", tags: [], rating: "chaos" });
     room.configure({ contentMode: "safe" });
     const seen = new Set<string>();
     for (let game = 0; game < 3; game++) {

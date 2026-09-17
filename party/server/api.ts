@@ -137,6 +137,7 @@ export function createApi({ db, auth, firebase }: ApiDeps): express.Router {
       games: gameSummaries(),
       contentModes: CONTENT_MODES,
       categories: db.listCategories(),
+      promptCounts: db.countPlayablePrompts(),
       limits: LIMITS,
     });
   });
