@@ -18,13 +18,14 @@ Two things in one repository:
 
 | Part | Where | What |
 |---|---|---|
-| **CPI Database** site | repo root (`*.html`, `style.css`, `roles.js`, `nav-auth.js`, …) | Static site on GitHub Pages (`jj2sly.github.io/corn.planet`, served from `main`). Vanilla JS, no build step. Firebase Auth + Firestore (project `cpo-9af17`, Spark plan — no Cloud Functions). Collections: `entities` (`CPE-001`…), `artifacts` (`ART-001`…), `classifications`, `users/{uid}`. Roles: VIEWER(0) → CPI_EMPLOYEE(1) → CORRESPONDENT(2) → OVERSEER(3) → EXEC(4), enforced by Firestore rules (configured in the Firebase console, **not** in this repo). Admin: `admin.html` (EXEC assigns roles), `records.html` (CORRESPONDENT+ creates records). |
-| **Corn Planet Party** | `party/` | Phone-controlled multiplayer party-game server. Node 24 + TypeScript run directly (no bundler, no compile step), Express 5, Socket.IO 4, SQLite via built-in `node:sqlite`. One long-running process, rooms in memory. First game: **Cornlashing**. |
+| **CPI Database** site | repo root (`*.html`, `style.css`, `roles.js`, `nav-auth.js`, …) | Static site on GitHub Pages (`jj2sly.github.io/corn.planet`, served from `main`). Vanilla JS, no build step. Firebase Auth + Firestore (project `cpo-9af17`, Spark plan — no Cloud Functions). Collections: `entities` (`CPE-001`…), `artifacts` (`ART-001`…), `incidents` (`INC-001`…), `personnel` (`PER-001`…), `classifications`, `users/{uid}`. Roles: VIEWER(0) → CPI_EMPLOYEE(1) → CORRESPONDENT(2) → OVERSEER(3) → EXEC(4), enforced by Firestore rules (configured in the Firebase console, **not** in this repo). Admin: `admin.html` (EXEC assigns roles), `records.html` (CORRESPONDENT+ creates records). |
+| **Corn Planet Party** | `party/` | Phone-controlled multiplayer party-game server. Node 24 + TypeScript run directly (no bundler, no compile step), Express 5, Socket.IO 4, SQLite via built-in `node:sqlite`. One long-running process, rooms in memory. Games: **Cornlashing** and **Corn or Shit** (canon-driven). |
 
 The database site does **not** depend on `party/`. `index.html` links to Corn Planet Party.
 
-**Do not**: rename `CPE-###` entity IDs (breaks live Firestore data), change the Firestore schema,
-write to Firebase from the party server (it is read-only there by design).
+**Do not**: rename `CPE-###`/`INC-###`/`PER-###` IDs (breaks live Firestore data), change the
+Firestore schema, or write to Firebase from the party server (it is read-only there by design —
+see `party/docs/CANON.md`, which is the rule the whole canon integration rests on).
 
 ## 2. Git
 
@@ -101,17 +102,35 @@ Hubs: `el()`, `PartyDb`, `Room`, `PartyError`, `$`, `ChaosGame`, `createRealtime
 `config.ts` env · `db.ts` all SQL + migrations (`PRAGMA user_version`) · `auth.ts` Firebase ID-token
 verification (jose + Google JWKS) and role lookup · `api.ts` REST · `rooms.ts` room/player lifecycle
 · `realtime.ts` socket handlers · `text.ts` input cleaning · `ratelimit.ts` ·
-`games/{types,registry,chaos}.ts`. Browser code in `public/` (vanilla ES modules, `el()` helper,
-`games/chaos-{host,play}.js`). Adding a game: `party/docs/ADDING_A_GAME.md`.
+`canon.ts` read-only CPI Database access (warm snapshot, redactions stripped) ·
+`games/{types,registry,chaos,claims,cornorshit}.ts`. Browser code in `public/` (vanilla ES modules,
+`el()` helper, `games/chaos-{host,play}.js`, `games/cornorshit-{host,play}.js`). Adding a game:
+`party/docs/ADDING_A_GAME.md`. Canon rules: `party/docs/CANON.md`.
 
 Server is authoritative for state, timers, scores, votes and authorship. All user text is cleaned
 server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 8. Status
 
-- Corn Planet Party is **feature-complete for one game** and documented; deployed to Railway from `cpst-party`.
-- Tests: 68 passing (`party/test/`: rooms, chaos, db, api, realtime, framework). `tsc --noEmit` clean.
-- Prompt library intentionally **starts empty**; games fall back to placeholder incidents.
+- Corn Planet Party has **two games** and is documented; deployed to Railway from `cpst-party`.
+- Tests: **115 passing** (`party/test/`: rooms, chaos, cornorshit, claims, canon, db, api, realtime,
+  framework). `tsc --noEmit` clean.
+- The CPI Database has **incidents** and **personnel** record types (`INC-###`, `PER-###`) alongside
+  entities and artifacts, with cross-references between them.
+- Canon integration is live: the party server reads 21 entity records from Firestore at startup and
+  Corn or Shit was played end to end against them.
+- Prompt library intentionally **starts empty**; Cornlashing falls back to placeholder incidents.
+  Corn or Shit does not need prompts at all — it runs on canon.
+
+### ⚠ Blocking action, not doable from here
+
+**The `incidents` and `personnel` Firestore rules must be applied in the Firebase console.**
+Until then both collections are default-deny: the new database pages show "Could not reach the
+database", creating a record fails, and the party server logs
+`canon partially unavailable: incidents: HTTP 403; personnel: HTTP 403` (it degrades to entities
+only, which is why Corn or Shit still works). Copy the `incidents` and `personnel` blocks from
+`firestore.rules` into console.firebase.google.com → project `cpo-9af17` → Firestore Database →
+Rules. `firestore.rules` is a reference copy only; the console is the source of truth.
 
 ### Known issues / gaps
 1. `graphify.exe` is not on PATH (see §3) — prefix it or add that Scripts directory too.
@@ -119,26 +138,46 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 3. Graphify cannot see inline-script HTML (§6) and community labels are placeholders
    (`Community N`) because no LLM backend was configured for labelling.
 4. Docker image never built locally (no Docker).
-5. Planned-but-unbuilt games: Draw, Trivia, Gamble, Hidden roles, Prediction.
+5. `CPE-011` is titled "TEST" and is real content as far as the games are concerned — it shows up
+   in Corn or Shit rounds. Delete it in the Records Division if it is junk.
+6. `artifacts` is empty, so it is deliberately left out of `canon.ts`. Add a spec there once it has
+   content.
+7. Planned-but-unbuilt games: Entity Auction, My Cob Escaped What Do I Do Now???, Draw, Trivia,
+   Gamble, Hidden roles, Prediction.
+8. Canon promotion (turning a memorable game moment into a real record) is **designed but not
+   built** — see `party/docs/CANON.md` §8.
 
-## 9. Decisions (2026-09-17)
+## 9. Decisions
 
+**2026-09-17 (naming and tooling)**
 1. **Branding**: applied — see the note at the top. Display names only; internal ids kept.
 2. **Branch**: stay on `cpst-party`; no `cpi-party` branch.
 3. **Node on PATH**: done (user PATH; the previous value is backed up in the session scratchpad).
 4. **OmniRoute**: excluded (see §6).
 
+**2026-09-17 (canon integration)**
+5. **Record types added**: incidents and personnel, ids `INC-###` and `PER-###` — matching the
+   existing short-prefix convention (`CPE-`, `ART-`) rather than the longer `CPI-INCIDENT-###` form.
+6. **Canon is world-readable**: incidents and personnel are public-read like entities, so the party
+   server reads them with no token and **guests with no CPI account can play canon-driven games**.
+7. **The party server never writes to Firebase.** Canon is read-only; generated game content is
+   never canon. This is the load-bearing rule — `party/docs/CANON.md`.
+8. **Fabricated claims are built by template, not by an LLM**: a real field value from one record
+   attributed to another of the same kind. No API key, no cost, deterministic in tests, in-universe
+   by construction, and checked so the lie can never accidentally be true.
+9. **Canon promotion will be a handoff**, not a server-side Firestore write: a moderator reviews a
+   candidate and creates the record themselves in the Records Division, under their own account.
+10. **Shipping order**: Corn or Shit first, then reassess before building Entity Auction and
+    My Cob Escaped.
+
 ## 10. Next task
 
-The rename and this doc were pushed to `origin/cpst-party` on 2026-09-17 (commit `99c22d8`), which
-triggers a Railway redeploy. **The live site was not verified from this session** — checks against
-the production domain were blocked by the permission classifier. Next steps:
-
-1. Confirm the deploy: `/healthz` returns 200, the landing page reads "CORN PLANET PARTY", `/host`
-   offers "Cornlashing", and a real login works on `/account`.
-2. Then feature work: a second minigame on the existing framework (`party/docs/ADDING_A_GAME.md`,
-   already proven by `framework.test.ts`), or CPI Database flavor integration (read the public
-   `entities`/`classifications` collections server-side for game content).
+1. **Apply the Firestore rules** (see the blocking action in §8), then write a few incidents and
+   personnel in the Records Division so Corn or Shit can use more than entities. Verify the new
+   pages load and `/healthz` stops reporting `degraded: true`.
+2. Play Corn or Shit with real people on real phones (it has only been driven from browser tabs
+   here) and check the deployed build after the next push to `cpst-party`.
+3. Then: Entity Auction, or the canon promotion workflow, or My Cob Escaped.
 
 Optional later: renaming the internal game id `chaos` → `cornlashing` would mean renaming 3 files,
 the registry entry, and a SQLite migration for existing `games.game_id` rows. Not worth it unless asked.

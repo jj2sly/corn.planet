@@ -45,9 +45,14 @@ Use the `GameContext` instead of your own infrastructure:
 | `ctx.addPoints(id, n)` | Scores. Final standings and ties are computed by the room |
 | `ctx.countStat(id, key, n?)` | Per-player counters saved with the game. Keys `answersSubmitted`, `votesCast`, `votesReceived`, `roundsPlayed`, `unanimousRulings` and `category:<name>` feed the account page |
 | `ctx.pickPrompts(count)` | Prompts for the room's humor level, without repeats in the room |
+| `ctx.canon` | Read-only CPI Database access: `list(kind)`, `sample(kind, n)`, `get(ref)`, and `used(round, ref)` to note which record a round came from. See [CANON.md](CANON.md) |
 | `ctx.random()` | Randomness (seeded in tests) |
 | `ctx.changed()` | Push fresh views to every screen |
 | `ctx.finish({ rounds, highlights })` | End the game: rank, record stats, show the final debrief |
+
+If the game uses canon, read [CANON.md](CANON.md) first. In short: canon is read-only, anything the
+game invents is generated content and never becomes canon, redacted fields are skipped, and the
+game must cope with canon being empty or small (refuse to start with `NO_CANON`, or finish early).
 
 Rules of thumb:
 - **The server decides everything.** Never accept scores, winners, timers or other players' data from a client.
@@ -59,6 +64,10 @@ Rules of thumb:
 
 Add it to `INSTALLED` in `server/games/registry.ts`. It then appears in `/api/config`, on the landing page
 and in the host screen's game list. `room:configure` with `{ gameId }` selects it.
+
+If the game needs lobby settings, add an entry to `SETTINGS_FORMS` in `public/js/host.js` keyed by
+your game id. Without one the game simply shows no settings. The operation picker, the game card and
+the minimum-player check all follow the selected game automatically.
 
 ## 3. Client: render it
 

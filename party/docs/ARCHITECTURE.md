@@ -2,7 +2,7 @@
 
 Corn Planet Party is a phone-controlled multiplayer party game platform for the Corn Planet
 Institution. A host screen (laptop/TV) shows the shared game; players use their phones as
-controllers. The first game is **Cornlashing**.
+controllers. The games are **Cornlashing** and **Corn or Shit**.
 
 It lives entirely in `party/` and **coexists** with the existing CPI Database site in the
 repository root. Nothing in the existing site depends on it.
@@ -69,9 +69,12 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `realtime.ts` | Socket.IO event handlers, per-socket state views, rate limits |
 | `text.ts` | Input cleaning/validation shared by API and sockets |
 | `ratelimit.ts` | Tiny fixed-window rate limiter |
+| `canon.ts` | Read-only access to the CPI Database: fetch, cache, strip redactions ([CANON.md](CANON.md)) |
 | `games/types.ts` | The minigame contract |
 | `games/registry.ts` | List of installed games |
 | `games/chaos.ts` | Cornlashing |
+| `games/claims.ts` | Turning a canon record into one true and one fabricated claim |
+| `games/cornorshit.ts` | Corn or Shit |
 
 ### Browser code (`party/public/`)
 
@@ -81,6 +84,7 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `host.html`, `js/host.js` | Host screen: session create/resume, lobby + settings, results, game renderer dispatch |
 | `play.html`, `js/play.js` | Phone controller: join/rejoin, lobby, pause banner, results, game renderer dispatch |
 | `js/games/chaos-host.js`, `js/games/chaos-play.js` | Cornlashing views for the host screen and phones |
+| `js/games/cornorshit-host.js`, `js/games/cornorshit-play.js` | Corn or Shit views |
 | `account.html`, `js/account.js` | Login/register (Firebase), display name, stats, history |
 | `prompts.html`, `js/prompts.js` | Prompt writing, library, reports, moderation console |
 | `js/common.js` | `el()` (textContent-only DOM helper), API client, countdowns, keyed mounting |
@@ -153,11 +157,23 @@ implements its own phases and views, plus host/phone renderers in `public/js/gam
 `test/framework.test.ts` runs a second, unrelated game through the same rooms to keep this true;
 [ADDING_A_GAME.md](ADDING_A_GAME.md) is the step-by-step guide.
 
-Planned future games (not built): Corn Planet Draw, Trivia, Gamble, Hidden roles, Prediction. The
-existing CPI Database could later supply flavor (entity names, classifications) by reading its
-public Firestore collections from the server, without the database depending on Corn Planet Party.
+Games reach CPI canon through `ctx.canon` (list / sample / get / used). It is read-only: a game can
+read the CPI Database and note which records a round used, and can never write to it. The rules are
+in [CANON.md](CANON.md), which every canon-driven game should follow.
 
-## 7. Cornlashing
+Planned future games (not built): Entity Auction, My Cob Escaped What Do I Do Now???, Corn Planet
+Draw, Trivia, Gamble, Hidden roles, Prediction.
+
+## 7a. Canon
+
+`canon.ts` reads the CPI Database's world-readable `entities`, `incidents` and `personnel`
+collections over the Firestore REST API, with no token, and keeps a warm in-memory snapshot
+(refreshed by `main.ts` at startup and every 10 minutes). Reads are synchronous so games stay
+synchronous. Redaction markers are stripped rather than revealed, collections fail independently,
+and a failed refresh keeps the last good snapshot. `game_canon_refs` records which records a game
+drew on. Full rules, including canon vs generated content: [CANON.md](CANON.md).
+
+## 7b. Cornlashing
 
 Theme: every prompt is an **incident**; players are field agents filing **incident reports**; the
 rest of the room is the **review board**.
@@ -178,6 +194,18 @@ then after the last round `FINAL_RESULTS` (room level).
   in the `VERDICT` phase. A phone sees which report is its *own* (to block self-votes) and nothing else.
 - **Validation**: 1–80 characters after cleaning, editable until the deadline, rejected after it;
   one vote per voter per incident, no self-votes, no votes for unknown reports.
+
+## 7c. Corn or Shit
+
+Two claims about one CPI Database record: one quoted from the record, one fabricated by moving a
+real field value from another record of the same kind onto it (`claims.ts`). Phases per round:
+`INTRO → GUESSING → REVEAL`. Correct calls score `100`; calling every round right over at least 3
+rounds adds a `200` Perfect Record bonus. The reveal shows which claim is documented, the `CPE-###`
+reference with a link to its page on the database site, and which record the fabrication borrowed
+from. Which option is real never appears in any view before the reveal.
+
+The fabrication is built by template, not by a model — no API key, no cost, deterministic in tests,
+and the borrowed value is checked against the real one so the lie can never accidentally be true.
 
 ## 8. Prompts and moderation
 
@@ -204,6 +232,8 @@ and recent history. Stats are only returned to their owner. Emails are never sto
 ## 10. Security summary
 
 - Server is authoritative for state, timers, scores, votes, winners and authorship.
+- **Corn Planet Party never writes to the CPI Database.** Canon is read-only here, so a game can
+  never turn a player's invention into lore ([CANON.md](CANON.md)).
 - Firebase ID tokens verified (RS256, issuer/audience = project) against Google's public keys.
 - Host actions require the `hostKey` socket or the current leader; player actions require the
   bound player socket.

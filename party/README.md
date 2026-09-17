@@ -1,16 +1,18 @@
 # Corn Planet Party
 
 Phone-controlled multiplayer party games from the **Corn Planet Institution**.
-One screen hosts (laptop or TV), 3–8 agents play on their phones. The first game is
-**Cornlashing**: anonymous incident reports, head-to-head votes, points.
+One screen hosts (laptop or TV), 3–8 agents play on their phones. Two games so far:
+**Cornlashing** (anonymous incident reports, head-to-head votes, points) and **Corn or Shit**
+(one claim is in the CPI Database, one was made up — call it).
 
 > **Players:** open the site on your phone → enter the 4-letter code → pick a name → play.
 > **Host:** open `/host` on the big screen → show the code → start the operation.
 
 Corn Planet Party lives in `party/` and runs next to the existing CPI Database site in the repository
 root. The database site does not depend on it and keeps working if Corn Planet Party is down.
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together and
-[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md) for building the next minigame.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together,
+[docs/CANON.md](docs/CANON.md) for the rules on CPI Database canon versus content games generate,
+and [docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md) for building the next minigame.
 
 ---
 
@@ -82,6 +84,7 @@ tab (each tab keeps its own seat).
 | `FIREBASE_PROJECT_ID` | — | The CPI Database Firebase project (`cpo-9af17`) |
 | `FIREBASE_API_KEY` | — | Firebase **web** API key |
 | `FIREBASE_AUTH_DOMAIN` | — | e.g. `cpo-9af17.firebaseapp.com` |
+| `CPI_DATABASE_URL` | `https://jj2sly.github.io/corn.planet` | The CPI Database site, used for the "inspect the record" links games show |
 
 The Firebase values are the same public web config already shipped in the database site's pages.
 They are not secrets; security comes from server-side token verification and Firestore rules.
@@ -106,12 +109,13 @@ session replacement, host refresh, kicks, logins, rate limiting).
 
 **Host (big screen)**
 1. Open `/host`. A session code appears.
-2. Pick settings: paired rounds (1–3), the Total Breach final round, report/vote timers and the
-   humor level (Safe, Chaos, Custom).
-3. Start once at least 3 agents are connected. Use **Skip ▸** to move past a phase early,
+2. For Cornlashing, pick paired rounds (1–3), the Total Breach final round, report/vote timers and
+   the humor level (Safe, Chaos, Custom). For Corn or Shit, pick rounds (3/5/8) and call time.
+3. Pick the operation (Cornlashing or Corn or Shit); the settings below it follow your choice.
+4. Start once at least 3 agents are connected. Use **Skip ▸** to move past a phase early,
    **End game** to return to the lobby, **Close session** to end it for everyone. You can remove
    an agent with ✕ in the lobby.
-4. After the final debrief: **Replay** or **Return to lobby**.
+5. After the final debrief: **Replay** or **Return to lobby**.
 
 **Players (phones)**
 1. Open the site, enter the code and a name (names are unique per session).
@@ -134,6 +138,16 @@ session replacement, host refresh, kicks, logins, rate limiting).
   vote when at least 2 were cast. If only one agent files, they get `100 × round` by default.
 - **Total Breach** (optional final round): everyone answers the same incident, everyone votes
   (not for themselves), multiplier = paired rounds + 1.
+
+**Corn or Shit rules**
+- Each round shows two claims about the same CPI Database record. One is quoted from the record;
+  the other was fabricated for the round by taking a real line from a *different* record.
+- Agents pick the documented one on their phones. Correct calls are worth `100`.
+- Calling every round right, over at least 3 rounds, adds a `200` **Perfect Record** bonus.
+- The reveal shows which claim is real, the `CPE-###` reference (tap it on your phone to open the
+  record on the database site) and which record the fabrication borrowed from.
+- Fabricated claims are game content and are **never** written to the CPI Database — see
+  [docs/CANON.md](docs/CANON.md).
 
 ## Accounts
 
