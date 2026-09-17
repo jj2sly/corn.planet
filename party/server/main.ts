@@ -5,7 +5,16 @@ import { loadConfig } from "./config.ts";
 import { PartyDb } from "./db.ts";
 
 const config = loadConfig();
-const db = new PartyDb(config.databasePath);
+let db: PartyDb;
+try {
+  db = new PartyDb(config.databasePath);
+} catch (err) {
+  console.error(
+    `[cpst-party] Could not open the database at ${config.databasePath}. ` +
+      "Check that its folder is on persistent storage (e.g. a volume mounted at /data) and writable by the server.",
+  );
+  throw err;
+}
 const auth = createAuthVerifier(config.auth);
 const server = createPartyServer({ db, auth, authConfig: config.auth, trustProxy: config.trustProxy });
 
