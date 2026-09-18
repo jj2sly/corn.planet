@@ -58,6 +58,7 @@ export const TEST_CANON: CanonRecord[] = [
 export function stubCanon(records: readonly CanonRecord[] = TEST_CANON): CanonService {
   const byRef = new Map(records.map((r) => [r.ref, r]));
   return {
+    siteUrl: "https://example.test/corn.planet",
     async refresh() {},
     all: () => records,
     byKind: (kind) => records.filter((r) => r.kind === kind),

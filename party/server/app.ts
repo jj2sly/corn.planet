@@ -48,6 +48,7 @@ const PAGES: Record<string, string> = {
   "/play": "play.html",
   "/account": "account.html",
   "/prompts": "prompts.html",
+  "/hall": "hall.html",
 };
 
 export function createPartyServer(options: PartyServerOptions): PartyServer {

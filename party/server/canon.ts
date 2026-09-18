@@ -26,6 +26,11 @@ export interface CanonRecord {
   links: Readonly<Record<string, readonly string[]>>;
   /** Deep link to this record on the CPI Database site. */
   url: string;
+  /**
+   * Set on records filed from a Corn Planet Party Hall of Fame moment, e.g. "cpp-moment-42".
+   * Written by the Records Division, never by this server (see promotion.ts).
+   */
+  promotedFrom?: string;
 }
 
 /**
@@ -35,6 +40,8 @@ export interface CanonRecord {
  * the room cleanup sweep.
  */
 export interface CanonService {
+  /** Base URL of the CPI Database site, e.g. for Records Division links. */
+  readonly siteUrl: string;
   /** Re-reads every collection. Never rejects; failures are reported through status(). */
   refresh(): Promise<void>;
   /** Every canon record currently loaded. Empty until the first refresh lands. */
@@ -139,6 +146,8 @@ function toRecord(doc: FirestoreDoc, spec: CollectionSpec, siteUrl: string): Can
     if (list.length) links[key] = list;
   }
 
+  const promotedFrom = cleanText(raw.promotedFrom?.stringValue);
+
   return {
     ref,
     kind: spec.kind,
@@ -146,6 +155,7 @@ function toRecord(doc: FirestoreDoc, spec: CollectionSpec, siteUrl: string): Can
     fields,
     links,
     url: `${siteUrl}/${spec.page}?id=${encodeURIComponent(ref)}`,
+    ...(promotedFrom ? { promotedFrom } : {}),
   };
 }
 
@@ -233,6 +243,8 @@ export function createCanonService(options: CanonOptions): CanonService {
   }
 
   return {
+    siteUrl,
+
     refresh() {
       // One refresh at a time, however often the timer and callers overlap.
       inFlight ??= refresh().finally(() => {

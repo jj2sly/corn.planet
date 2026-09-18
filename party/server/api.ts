@@ -4,9 +4,12 @@ import type { CanonService } from "./canon.ts";
 import {
   CONTENT_MODES,
   MODERATION_POLICIES,
+  MOMENT_STATUSES,
   PROMPT_RATINGS,
   PROMPT_STATUSES,
   type ModerationPolicy,
+  type Moment,
+  type MomentStatus,
   type PartyDb,
   type Prompt,
   type PromptInput,
@@ -15,6 +18,7 @@ import {
 } from "./db.ts";
 import { toClientError, PartyError, type ErrorCode } from "./errors.ts";
 import { gameSummaries } from "./games/registry.ts";
+import { promotionUrl } from "./promotion.ts";
 import { RateLimiter } from "./ratelimit.ts";
 import { cleanName, cleanTags, cleanText, LIMITS } from "./text.ts";
 
@@ -50,6 +54,29 @@ function idParam(req: Request): number {
   const id = Number(req.params.id);
   if (!Number.isSafeInteger(id) || id <= 0) throw new PartyError("NOT_FOUND");
   return id;
+}
+
+const MOMENTS_PAGE = 50;
+
+/**
+ * A Hall of Fame entry as a viewer may see it. The author's uid never leaves the server; moderation
+ * state is only for moderators.
+ */
+function publicMoment(m: Moment, viewerUid: string, moderator: boolean, canon: CanonService) {
+  return {
+    id: m.id,
+    text: m.text,
+    context: m.context,
+    authorName: m.authorName,
+    mine: m.authorUid !== null && m.authorUid === viewerUid,
+    votes: m.votes,
+    votesPossible: m.votesPossible,
+    gameId: m.gameId,
+    createdAt: m.createdAt,
+    canonRef: m.canonRef,
+    canonUrl: m.canonRef ? (canon.get(m.canonRef)?.url ?? null) : null,
+    ...(moderator ? { status: m.status, promotionStartedAt: m.promotionStartedAt } : {}),
+  };
 }
 
 function publicPrompt(p: Prompt, viewerUid: string, moderator: boolean) {
@@ -243,6 +270,24 @@ export function createApi({ db, auth, canon, firebase }: ApiDeps): express.Route
   // ------------------------------------------------------------ moderation
 
   const mod = express.Router();
+  // ------------------------------------------------------------ hall of fame
+
+  api.get("/moments", requireUser, (req, res) => {
+    const u = user(res);
+    const offset = Number(req.query.offset ?? 0);
+    const moments = db.listMoments({
+      // Moderators also see hidden moments, so they can bring them back.
+      includeHidden: u.isModerator,
+      sort: req.query.sort === "recent" ? "recent" : "top",
+      limit: MOMENTS_PAGE,
+      offset: Number.isSafeInteger(offset) && offset >= 0 && offset <= 100_000 ? offset : 0,
+    });
+    res.json({
+      moments: moments.map((m) => publicMoment(m, u.uid, u.isModerator, canon)),
+      pageSize: MOMENTS_PAGE,
+    });
+  });
+
   api.use("/mod", requireUser, requireModerator, mod);
 
   mod.get("/prompts", (req, res) => {
@@ -311,6 +356,28 @@ export function createApi({ db, auth, canon, firebase }: ApiDeps): express.Route
     const pack = db.updatePack(idParam(req), parsePackInput(body(req), true));
     if (!pack) throw new PartyError("INVALID_INPUT", "That pack doesn't exist or the name is taken.");
     res.json(pack);
+  });
+
+  mod.patch("/moments/:id", (req, res) => {
+    const status = (req.body as Record<string, unknown> | undefined)?.status;
+    if (!MOMENT_STATUSES.includes(status as MomentStatus)) {
+      throw new PartyError("INVALID_INPUT", "Status must be visible or hidden.");
+    }
+    const moment = db.setMomentStatus(idParam(req), status as MomentStatus);
+    if (!moment) throw new PartyError("NOT_FOUND");
+    res.json({ moment: publicMoment(moment, user(res).uid, true, canon) });
+  });
+
+  // Starts a promotion: returns a prefilled Records Division link. Nothing is written to the CPI
+  // Database here; the moment becomes canon when a person files the record (see promotion.ts).
+  mod.post("/moments/:id/promote", (req, res) => {
+    const found = db.getMoment(idParam(req));
+    if (!found) throw new PartyError("NOT_FOUND");
+    if (found.canonRef) throw new PartyError("INVALID_ACTION", `That moment is already canon as ${found.canonRef}.`);
+    if (found.status === "hidden") throw new PartyError("INVALID_ACTION", "Unhide that moment before promoting it.");
+
+    const moment = db.startPromotion(found.id, user(res).uid)!;
+    res.json({ url: promotionUrl(moment, canon.siteUrl), moment: publicMoment(moment, user(res).uid, true, canon) });
   });
 
   mod.get("/settings", (_req, res) => {

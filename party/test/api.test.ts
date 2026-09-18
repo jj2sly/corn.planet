@@ -198,3 +198,132 @@ describe("REST API with accounts disabled", () => {
     }
   });
 });
+
+describe("REST API: Hall of Fame and promotion", () => {
+  let server: PartyServer;
+  let base: string;
+  let db: PartyDb;
+
+  const VIEWER = "dev:ann:VIEWER";
+  const OVERSEER = "dev:ovi:OVERSEER";
+
+  const call = async (method: string, path: string, token?: string, body?: unknown) => {
+    const response = await fetch(base + path, {
+      method,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const text = await response.text();
+    return { status: response.status, json: text ? JSON.parse(text) : null };
+  };
+
+  before(async () => {
+    ({ server, base, db } = await startServer({ mode: "dev" }));
+    db.recordGame({
+      gameId: "chaos",
+      roomCode: "BCDF",
+      rounds: 1,
+      startedAt: Date.now() - 60_000,
+      endedAt: Date.now(),
+      players: [],
+      moments: [
+        { text: "mine", context: "incident one", authorUid: "dev-ann", authorName: "Ann", votes: 2, votesPossible: 2 },
+        { text: "theirs", context: "incident two", authorUid: "dev-bo", authorName: "Bo", votes: 1, votesPossible: 2 },
+        { text: "already canon", context: "incident three", authorUid: null, authorName: "Cy", votes: 1, votesPossible: 3 },
+      ],
+    });
+    // CPE-001 is in the stub canon, so this moment gets a deep link to its record.
+    db.markMomentPromoted(3, "CPE-001");
+  });
+  after(() => server.close());
+
+  const texts = async (token: string) =>
+    (await call("GET", "/api/moments", token)).json.moments.map((m: { text: string }) => m.text);
+
+  it("requires a login to browse", async () => {
+    const res = await call("GET", "/api/moments");
+    assert.equal(res.status, 401);
+    assert.equal(res.json.error, "AUTH_REQUIRED");
+  });
+
+  it("shows agents the Hall of Fame without authors' uids or moderation state", async () => {
+    const res = await call("GET", "/api/moments", VIEWER);
+    assert.equal(res.status, 200);
+
+    const mine = res.json.moments.find((m: { text: string }) => m.text === "mine");
+    assert.equal(mine.mine, true, "an agent's own reports are marked");
+    assert.equal(mine.authorName, "Ann");
+    assert.equal(mine.context, "incident one");
+    assert.deepEqual([mine.votes, mine.votesPossible], [2, 2]);
+    assert.equal("authorUid" in mine, false);
+    assert.equal("status" in mine, false);
+    assert.equal("promotionStartedAt" in mine, false);
+
+    assert.equal(res.json.moments.find((m: { text: string }) => m.text === "theirs").mine, false);
+  });
+
+  it("links a canon moment to its record", async () => {
+    const res = await call("GET", "/api/moments", VIEWER);
+    const canon = res.json.moments.find((m: { text: string }) => m.text === "already canon");
+    assert.equal(canon.canonRef, "CPE-001");
+    assert.match(canon.canonUrl, /^https:\/\/example\.test\//);
+  });
+
+  it("sorts by the share of the board, or by recency", async () => {
+    assert.deepEqual(await texts(VIEWER), ["mine", "theirs", "already canon"]);
+    assert.equal((await call("GET", "/api/moments?sort=recent", VIEWER)).status, 200);
+    assert.equal((await call("GET", "/api/moments?offset=-5", VIEWER)).status, 200, "bad paging is clamped, not an error");
+  });
+
+  it("only lets moderators hide moments, and hidden ones leave the public list", async () => {
+    assert.equal((await call("PATCH", "/api/mod/moments/2", VIEWER, { status: "hidden" })).status, 403);
+    assert.equal((await call("PATCH", "/api/mod/moments/2", OVERSEER, { status: "deleted" })).status, 400);
+
+    const hidden = await call("PATCH", "/api/mod/moments/2", OVERSEER, { status: "hidden" });
+    assert.equal(hidden.status, 200);
+    assert.equal(hidden.json.moment.status, "hidden");
+
+    assert.ok(!(await texts(VIEWER)).includes("theirs"));
+    assert.ok((await texts(OVERSEER)).includes("theirs"), "moderators still see it, to bring it back");
+
+    await call("PATCH", "/api/mod/moments/2", OVERSEER, { status: "visible" });
+    assert.ok((await texts(VIEWER)).includes("theirs"));
+  });
+
+  it("only lets moderators start a promotion", async () => {
+    assert.equal((await call("POST", "/api/mod/moments/1/promote", VIEWER)).status, 403);
+  });
+
+  it("hands a moderator a prefilled Records Division link without making anything canon", async () => {
+    const res = await call("POST", "/api/mod/moments/1/promote", OVERSEER);
+    assert.equal(res.status, 200);
+
+    const url = new URL(res.json.url);
+    assert.equal(url.pathname, "/corn.planet/records.html");
+    assert.equal(url.searchParams.get("promote"), "cpp-moment-1");
+    assert.equal(url.searchParams.get("resolution"), "mine");
+    assert.equal(url.searchParams.get("summary"), "incident one");
+
+    assert.ok(res.json.moment.promotionStartedAt, "the Hall of Fame shows the promotion is under way");
+    assert.equal(res.json.moment.canonRef, null, "only a filed record makes it canon");
+    assert.equal(db.getMoment(1)!.canonRef, null);
+  });
+
+  it("refuses to promote a moment that is hidden, already canon, or missing", async () => {
+    await call("PATCH", "/api/mod/moments/2", OVERSEER, { status: "hidden" });
+    const hidden = await call("POST", "/api/mod/moments/2/promote", OVERSEER);
+    assert.equal(hidden.status, 400);
+    assert.match(hidden.json.message, /Unhide/);
+    await call("PATCH", "/api/mod/moments/2", OVERSEER, { status: "visible" });
+
+    const canon = await call("POST", "/api/mod/moments/3/promote", OVERSEER);
+    assert.equal(canon.status, 400);
+    assert.match(canon.json.message, /already canon as CPE-001/);
+
+    assert.equal((await call("POST", "/api/mod/moments/999/promote", OVERSEER)).status, 404);
+    assert.equal((await call("POST", "/api/mod/moments/abc/promote", OVERSEER)).status, 404);
+  });
+});

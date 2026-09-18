@@ -199,6 +199,26 @@ describe("canon: loading records", () => {
     assert.equal(calls.filter((c) => c === "entities").length, 3);
   });
 
+  it("reads the Hall of Fame marker on records filed from a Corn Planet Party moment", async () => {
+    const fetchImpl = (async (input: string | URL) => {
+      const collection = new URL(String(input)).pathname.split("/").pop()!;
+      const docs =
+        collection === "incidents"
+          ? [
+              incidentDoc("INC-007", { title: stringValue("Promoted"), promotedFrom: stringValue("cpp-moment-12") }),
+              incidentDoc("INC-008", { title: stringValue("Ordinary") }),
+            ]
+          : [];
+      return { ok: true, status: 200, json: async () => ({ documents: docs }) } as Response;
+    }) as unknown as typeof fetch;
+
+    const canon = createCanonService({ projectId: "p", fetchImpl });
+    await canon.refresh();
+
+    assert.equal(canon.get("INC-007")!.promotedFrom, "cpp-moment-12");
+    assert.equal("promotedFrom" in canon.get("INC-008")!, false);
+  });
+
   it("returns null for a ref that is not canon", async () => {
     const { canon } = await makeCanon();
     assert.equal(canon.get("CPE-999"), null);

@@ -4,6 +4,7 @@ import { createAuthVerifier } from "./auth.ts";
 import { CANON_REFRESH_MS, createCanonService } from "./canon.ts";
 import { loadConfig } from "./config.ts";
 import { PartyDb } from "./db.ts";
+import { reconcilePromotions } from "./promotion.ts";
 
 const config = loadConfig();
 let db: PartyDb;
@@ -27,12 +28,23 @@ const canon = config.canon
 
 const server = createPartyServer({ db, auth, authConfig: config.auth, canon, trustProxy: config.trustProxy });
 
+// After every canon read, link Hall of Fame moments to any records filed from them.
+async function refreshCanon(): Promise<void> {
+  await canon.refresh();
+  try {
+    const promoted = reconcilePromotions(db, canon);
+    if (promoted > 0) console.log(`[corn-planet-party] ${promoted} Hall of Fame moment(s) are now canon.`);
+  } catch (err) {
+    console.error("[corn-planet-party] could not link promoted moments:", err);
+  }
+}
+
 if (config.canon) {
-  void canon.refresh().then(() => {
+  void refreshCanon().then(() => {
     const { records, lastError } = canon.status();
     console.log(`[corn-planet-party] canon loaded: ${records} CPI Database records${lastError ? ` (partial: ${lastError})` : ""}`);
   });
-  const canonTimer = setInterval(() => void canon.refresh(), CANON_REFRESH_MS);
+  const canonTimer = setInterval(() => void refreshCanon(), CANON_REFRESH_MS);
   canonTimer.unref();
 } else {
   console.warn("[corn-planet-party] no FIREBASE_PROJECT_ID: canon-driven games have no source material.");
