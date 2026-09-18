@@ -122,8 +122,14 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
   (`/healthz` → `canon.degraded: true` until the Firestore rules below are applied).
 - The CPI Database site on `main` (GitHub Pages) has the rename plus the incident and personnel
   pages, cherry-picked from `cpst-party` (`9dfd76b`, `1b9aae5`). Verified live.
-- Tests: **115 passing** (`party/test/`: rooms, chaos, cornorshit, claims, canon, db, api, realtime,
-  framework). `tsc --noEmit` clean.
+- Tests: **145 passing** (`party/test/`: rooms, chaos, cornorshit, claims, canon, promotion, db, api,
+  realtime, framework). `tsc --noEmit` clean.
+- **Hall of Fame + promotion to canon** (built 2026-09-17, not yet pushed at the time of writing):
+  Cornlashing keeps each incident's accepted report(s) in `moments`; `/hall` lists them; moderators
+  hide or promote. Promotion hands a prefilled incident to the Records Division
+  (`records.html?promote=cpp-moment-N`); the filed record carries `promotedFrom` and the party server
+  links the moment to it on its next canon read. Verified in the browser as far as the Records
+  Division login; **the prefilled form itself has not been seen by a real Correspondent+ login yet.**
 - The CPI Database has **incidents** and **personnel** record types (`INC-###`, `PER-###`) alongside
   entities and artifacts, with cross-references between them.
 - Canon integration is live: the party server reads 21 entity records from Firestore at startup and
@@ -155,8 +161,10 @@ never checked against the real console rules.
    content.
 7. Planned-but-unbuilt games: Entity Auction, My Cob Escaped What Do I Do Now???, Draw, Trivia,
    Gamble, Hidden roles, Prediction.
-8. Canon promotion (turning a memorable game moment into a real record) is **designed but not
-   built** — see `party/docs/CANON.md` §8.
+8. Promotion to canon only produces **incidents** (a Cornlashing prompt is an incident, the report
+   its resolution). Promoting as an entity or personnel file isn't supported.
+9. A game ended early saves no moments (same as stats). Corn or Shit saves none by design — its best
+   line is a fabrication about a real record.
 
 ## 9. Decisions
 
@@ -181,6 +189,11 @@ never checked against the real console rules.
 10. **Shipping order**: Corn or Shit first, then reassess before building Entity Auction and
     My Cob Escaped.
 11. **Branches are never merged.** Site changes go to `main` by cherry-pick only (see §2).
+12. **Hall of Fame visibility**: any logged-in account can browse it; only moderators (Overseer/Exec)
+    hide or promote. Author display names are kept with each moment; author uids never leave the
+    server.
+13. **What counts as a moment** in Cornlashing: each incident's winning report(s) with at least one
+    vote. Default rulings don't count.
 
 ## 10. Next task
 
@@ -189,7 +202,10 @@ never checked against the real console rules.
    pages load and `/healthz` stops reporting `degraded: true`.
 2. Play Corn or Shit with real people on real phones. It has been played end to end from browser
    tabs against live canon, and the deployed build serves it, but not yet on actual phones.
-3. Then: Entity Auction, or the canon promotion workflow, or My Cob Escaped.
+3. Promote one real Hall of Fame moment end to end with a Correspondent+ login: check the incident
+   form prefills after the login detour, file it, and confirm `/hall` shows it as canon within ~10 min.
+   (Needs the Firestore rules first — incidents can't be created until then.)
+4. Then: Entity Auction, or My Cob Escaped.
 
 Optional later: renaming the internal game id `chaos` → `cornlashing` would mean renaming 3 files,
 the registry entry, and a SQLite migration for existing `games.game_id` rows. Not worth it unless asked.

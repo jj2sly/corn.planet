@@ -70,6 +70,7 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `text.ts` | Input cleaning/validation shared by API and sockets |
 | `ratelimit.ts` | Tiny fixed-window rate limiter |
 | `canon.ts` | Read-only access to the CPI Database: fetch, cache, strip redactions ([CANON.md](CANON.md)) |
+| `promotion.ts` | Hall of Fame → canon: the prefilled Records Division link, and linking moments to the records filed from them |
 | `games/types.ts` | The minigame contract |
 | `games/registry.ts` | List of installed games |
 | `games/chaos.ts` | Cornlashing |
@@ -85,6 +86,7 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `play.html`, `js/play.js` | Phone controller: join/rejoin, lobby, pause banner, results, game renderer dispatch |
 | `js/games/chaos-host.js`, `js/games/chaos-play.js` | Cornlashing views for the host screen and phones |
 | `js/games/cornorshit-host.js`, `js/games/cornorshit-play.js` | Corn or Shit views |
+| `hall.html`, `js/hall.js` | Hall of Fame: accepted reports, moderator hide and promote |
 | `account.html`, `js/account.js` | Login/register (Firebase), display name, stats, history |
 | `prompts.html`, `js/prompts.js` | Prompt writing, library, reports, moderation console |
 | `js/common.js` | `el()` (textContent-only DOM helper), API client, countdowns, keyed mounting |
@@ -206,6 +208,14 @@ from. Which option is real never appears in any view before the reveal.
 
 The fabrication is built by template, not by a model — no API key, no cost, deterministic in tests,
 and the borrowed value is checked against the real one so the lie can never accidentally be true.
+
+## 7d. Hall of Fame
+
+Games keep memorable moments with `ctx.saveMoment()`; the room saves them with the game's history in
+`moments`. Cornlashing keeps each incident's accepted report(s). `/hall` lists them; moderators can
+hide one or promote it to canon. Promotion is a handoff to the Records Division, never a write from
+this server: the filed record carries `promotedFrom: "cpp-moment-<id>"`, and after each canon refresh
+`reconcilePromotions()` links the moment to it. See [CANON.md](CANON.md) §8.
 
 ## 8. Prompts and moderation
 

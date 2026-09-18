@@ -69,6 +69,7 @@ tab (each tab keeps its own seat).
 | Phone controller | `/play` (or `/join/ABCD` to prefill a code) |
 | Account, stats, history | `/account` |
 | Prompt library and moderation | `/prompts` |
+| Hall of Fame | `/hall` |
 | Health check | `/healthz` |
 
 ## Environment variables
@@ -186,10 +187,25 @@ The library **starts empty**: the group writes its own prompts. Until there are 
 to a few placeholder incidents, and the host screen's lobby warns when the library is empty or small.
 (Databases created before this change had their old built-in prompts cleared once, on upgrade.)
 
+## Hall of Fame
+
+`/hall` (login required) keeps the reports the review board accepted in Cornlashing — every
+incident's winner, or both reports of a split decision. Default rulings aren't kept. Entries rank by
+how much of the board backed them (a unanimous 4 of 4 beats a 3 of 7), or by recency.
+
+Moderators (Strike Team Overseers and CPI Execs) can **hide** an entry, or **promote it to canon**.
+Promoting opens the CPI Database's Records Division with the incident form filled in: the prompt as
+the incident, the report as its resolution. Nothing becomes canon until someone reviews it and
+presses Create Incident there. Within about 10 minutes the Hall of Fame shows it as canon, linked to
+its new `INC-###` record. The full flow is in [docs/CANON.md](docs/CANON.md) §8.
+
+Only games that finish save their moments; a game ended early keeps nothing, the same as stats.
+
 ## Database
 
 SQLite at `DATABASE_PATH`, created and migrated automatically on startup (`PRAGMA user_version`).
-Tables: `profiles`, `prompts`, `packs`, `categories`, `reports`, `settings`, `games`, `game_players`.
+Tables: `profiles`, `prompts`, `packs`, `categories`, `reports`, `settings`, `games`, `game_players`,
+`game_canon_refs`, `moments`.
 
 **Migrations**: add a new `if (version < N)` block in `PartyDb.migrate()` (`server/db.ts`) that runs
 the schema change and sets `PRAGMA user_version = N`. They run in a transaction on startup.

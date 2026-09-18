@@ -45,6 +45,7 @@ Use the `GameContext` instead of your own infrastructure:
 | `ctx.addPoints(id, n)` | Scores. Final standings and ties are computed by the room |
 | `ctx.countStat(id, key, n?)` | Per-player counters saved with the game. Keys `answersSubmitted`, `votesCast`, `votesReceived`, `roundsPlayed`, `unanimousRulings` and `category:<name>` feed the account page |
 | `ctx.pickPrompts(count)` | Prompts for the room's humor level, without repeats in the room |
+| `ctx.saveMoment(moment)` | Keep a memorable moment (author, text, what it answered, votes) for the Hall of Fame. Saved when the game finishes. Moments are never canon unless a moderator promotes one |
 | `ctx.canon` | Read-only CPI Database access: `list(kind)`, `sample(kind, n)`, `get(ref)`, and `used(round, ref)` to note which record a round came from. See [CANON.md](CANON.md) |
 | `ctx.random()` | Randomness (seeded in tests) |
 | `ctx.changed()` | Push fresh views to every screen |

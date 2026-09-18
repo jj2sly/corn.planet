@@ -142,27 +142,42 @@ host screen and a tappable link on phones, so anyone can go and check the record
 Do not show a reference before the round's rules allow it — in Corn or Shit the reference is part
 of the reveal, because naming the record early would give the answer away.
 
-## 8. Promoting generated content to canon — not built yet
+## 8. The Hall of Fame, and promoting a moment to canon
 
-The intended design, when it is built:
+Games keep memorable moments through `ctx.saveMoment()`. They are saved with the game's history in
+the `moments` table and listed at `/hall`. Cornlashing saves the report(s) the review board accepted
+for each incident (not default rulings). Corn or Shit deliberately saves nothing: its best line is a
+fabrication about a real record, and making that canon would contradict the record it lied about.
+
+A moment is generated content. Promoting one works like this:
 
 ```
-a memorable moment in a game
+a moderator presses "Promote to canon" in the Hall of Fame           (party server)
         ↓
-saved as a candidate in Corn Planet Party's SQLite
+POST /api/mod/moments/:id/promote → a Records Division link, prefilled:
+  records.html?promote=cpp-moment-42&title=…&summary=…&resolution=…&addendum=…
         ↓
-a moderator (Strike Team Overseer or CPI Exec) reviews it
+records.html parks it in sessionStorage (it survives the login detour),     (CPI Database site)
+then fills the incident form: the prompt as the incident, the report as its resolution
         ↓
-they choose "promote"
+a person reviews it, writes the incident report, and presses Create Incident
         ↓
-the Records Division opens, prefilled
+the incident is filed with  promotedFrom: "cpp-moment-42"                  (Firestore)
         ↓
-they create the record themselves
+the next canon refresh sees the marker; reconcilePromotions() sets         (party server)
+moments.canon_ref = "INC-007", and the Hall of Fame shows it as canon
 ```
 
-The handoff is deliberate: promotion ends with a human writing the record in the Records Division
-under their own account and their own Firestore permissions, rather than the party server gaining a
-write path to canon. Nothing is promoted automatically, ever.
+Why it is built this way:
+
+- **The party server still never writes to Firebase.** Promotion ends with a person filing the record
+  under their own account and their own Firestore permissions (Correspondent and above).
+- **A moment is only ever shown as canon once the record really exists.** "Promote" only marks a
+  promotion as *started*; `canon_ref` is set from what the server reads back from the CPI Database.
+- **Nothing is promoted automatically, ever.** No vote count, rating or timer makes something canon.
+- The first record filed for a moment wins if it is filed twice. Hidden moments can't be promoted.
+
+Allow up to 10 minutes (one canon refresh) between filing the record and the Hall of Fame showing it.
 
 ## 9. Checklist for a new canon-driven game
 
