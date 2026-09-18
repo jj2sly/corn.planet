@@ -119,8 +119,8 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 8. Status
 
-- **My Cob Escaped, What Do I Do Now???** (built 2026-09-18, **not committed, pushed or deployed
-  yet**): incident-response game on a shared incident engine. Random canon entity (sometimes unknown),
+- **My Cob Escaped, What Do I Do Now???** (built 2026-09-18, committed on `cpst-party` as
+  `7c532aa` + `73767be`, **not pushed or deployed yet**): incident-response game on a shared incident engine. Random canon entity (sometimes unknown),
   data-driven breach/location/facility/problem/personnel/objectives, entity-specific rules, hidden
   0–100 stats shown as qualitative statuses, roles with trades and private intel, 3 lives with
   reassignment at 0, chaos, stage votes, hidden stage scoring, player-created awards, text narration
@@ -259,7 +259,8 @@ mirrored in the file.
 5. Play My Cob Escaped with real people on real phones (it has only been played from browser tabs
    with bots). Tune `party/server/games/mycob/config.ts` from what feels off and re-run
    `node scripts/mycob-sim.ts`. Decide whether to add a model-backed Incident Director.
-6. Commit My Cob Escaped on `cpst-party` (not committed yet), then push when ready (asks first).
+6. Push `cpst-party` when ready (asks first — pushing redeploys Railway with My Cob Escaped and
+   Entity Auction, neither deployed yet).
 
 Optional later: renaming the internal game id `chaos` → `cornlashing` would mean renaming 3 files,
 the registry entry, and a SQLite migration for existing `games.game_id` rows. Not worth it unless asked.
