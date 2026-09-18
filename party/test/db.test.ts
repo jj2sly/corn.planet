@@ -210,3 +210,104 @@ describe("database: canon references", () => {
     assert.deepEqual(db.canonUsage(), [], "the ON DELETE CASCADE must reach game_canon_refs");
   });
 });
+
+describe("database: Hall of Fame moments", () => {
+  const moment = (text: string, votes: number, votesPossible: number) => ({
+    text,
+    context: `Incident for ${text}`,
+    authorUid: text === "mine" ? "u1" : null,
+    authorName: `Author of ${text}`,
+    votes,
+    votesPossible,
+  });
+
+  function withMoments(...moments: ReturnType<typeof moment>[]) {
+    const db = new PartyDb(":memory:");
+    db.recordGame({
+      gameId: "chaos",
+      roomCode: "BCDF",
+      rounds: 1,
+      startedAt: Date.now() - 60_000,
+      endedAt: Date.now(),
+      players: [{ uid: "u1", name: "u1", score: 100, placement: 1, stats: {} }],
+      moments,
+    });
+    return db;
+  }
+
+  const list = (db: PartyDb, sort: "top" | "recent" = "top", includeHidden = false) =>
+    db.listMoments({ includeHidden, sort, limit: 50, offset: 0 });
+
+  it("saves moments with their game, visible and not yet canon", () => {
+    const db = withMoments(moment("mine", 2, 2));
+    const [saved] = list(db);
+
+    assert.equal(saved!.text, "mine");
+    assert.equal(saved!.context, "Incident for mine");
+    assert.equal(saved!.authorUid, "u1");
+    assert.equal(saved!.gameId, "chaos");
+    assert.equal(saved!.status, "visible");
+    assert.equal(saved!.canonRef, null);
+    assert.equal(saved!.promotionStartedAt, null);
+  });
+
+  it("ranks by the share of the board that backed a moment, not the raw count", () => {
+    const db = withMoments(moment("three of seven", 3, 7), moment("four of four", 4, 4), moment("one of two", 1, 2));
+    assert.deepEqual(
+      list(db).map((m) => m.text),
+      ["four of four", "one of two", "three of seven"],
+    );
+  });
+
+  it("hides moments from the public list but keeps them for moderators", () => {
+    const db = withMoments(moment("keep", 2, 2), moment("hide me", 2, 2));
+    const target = list(db).find((m) => m.text === "hide me")!;
+
+    assert.equal(db.setMomentStatus(target.id, "hidden")!.status, "hidden");
+    assert.deepEqual(list(db).map((m) => m.text), ["keep"]);
+    assert.equal(list(db, "top", true).length, 2);
+
+    db.setMomentStatus(target.id, "visible");
+    assert.equal(list(db).length, 2);
+  });
+
+  it("notes a started promotion without touching canon", () => {
+    const db = withMoments(moment("promote me", 2, 2));
+    const [m] = list(db);
+
+    const started = db.startPromotion(m!.id, "mod-uid")!;
+    assert.ok(started.promotionStartedAt);
+    assert.equal(started.canonRef, null, "starting a promotion is not the same as it being canon");
+  });
+
+  it("marks a moment as canon once, and the first record wins", () => {
+    const db = withMoments(moment("promote me", 2, 2));
+    const [m] = list(db);
+
+    assert.equal(db.markMomentPromoted(m!.id, "INC-004"), true);
+    assert.equal(db.markMomentPromoted(m!.id, "INC-004"), false, "repeat reconciliation changes nothing");
+    assert.equal(db.markMomentPromoted(m!.id, "INC-009"), false, "a duplicate filing doesn't steal it");
+    assert.equal(db.getMoment(m!.id)!.canonRef, "INC-004");
+  });
+
+  it("ignores a promotion for a moment that doesn't exist", () => {
+    const db = withMoments(moment("x", 1, 1));
+    assert.equal(db.markMomentPromoted(9999, "INC-001"), false);
+    assert.equal(db.getMoment(9999), null);
+  });
+
+  it("pages through long lists", () => {
+    const db = withMoments(...Array.from({ length: 5 }, (_, i) => moment(`m${i}`, 1, 1)));
+    const first = db.listMoments({ includeHidden: false, sort: "recent", limit: 2, offset: 0 });
+    const second = db.listMoments({ includeHidden: false, sort: "recent", limit: 2, offset: 2 });
+    assert.equal(first.length, 2);
+    assert.equal(second.length, 2);
+    assert.equal(new Set([...first, ...second].map((m) => m.id)).size, 4);
+  });
+
+  it("drops a game's moments when the game row goes", () => {
+    const db = withMoments(moment("gone", 1, 1));
+    (db as unknown as { db: { exec(sql: string): void } }).db.exec("DELETE FROM games");
+    assert.deepEqual(list(db, "top", true), []);
+  });
+});

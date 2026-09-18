@@ -68,6 +68,38 @@ export interface GameRecord {
    * canon; nothing the game generated is stored here (see docs/CANON.md).
    */
   canonRefs?: { round: number; ref: string }[];
+  /** Memorable moments for the Hall of Fame. Generated content, never canon. */
+  moments?: SavedMomentInput[];
+}
+
+export interface SavedMomentInput {
+  text: string;
+  context: string;
+  authorUid: string | null;
+  authorName: string;
+  votes: number;
+  votesPossible: number;
+}
+
+export type MomentStatus = "visible" | "hidden";
+export const MOMENT_STATUSES: readonly MomentStatus[] = ["visible", "hidden"];
+export type MomentSort = "top" | "recent";
+
+export interface Moment {
+  id: number;
+  gameId: string;
+  text: string;
+  context: string;
+  authorUid: string | null;
+  authorName: string;
+  votes: number;
+  votesPossible: number;
+  status: MomentStatus;
+  /** Set once a moderator has opened the Records Division for it. */
+  promotionStartedAt: string | null;
+  /** The canon record it became. Set only once that record really exists in the CPI Database. */
+  canonRef: string | null;
+  createdAt: string;
 }
 
 export interface UserStats {
@@ -172,6 +204,26 @@ FROM prompts p
 LEFT JOIN packs k ON k.id = p.pack_id
 LEFT JOIN profiles pr ON pr.uid = p.author_uid`;
 
+const MOMENT_SELECT = `
+SELECT m.*, g.game_id FROM moments m JOIN games g ON g.id = m.game_row_id`;
+
+function toMoment(row: Row): Moment {
+  return {
+    id: Number(row.id),
+    gameId: String(row.game_id),
+    text: String(row.text),
+    context: String(row.context),
+    authorUid: row.author_uid === null ? null : String(row.author_uid),
+    authorName: String(row.author_name),
+    votes: Number(row.votes),
+    votesPossible: Number(row.votes_possible),
+    status: row.status as MomentStatus,
+    promotionStartedAt: row.promotion_started_at === null ? null : String(row.promotion_started_at),
+    canonRef: row.canon_ref === null ? null : String(row.canon_ref),
+    createdAt: String(row.created_at),
+  };
+}
+
 // Prompts that may appear in games: approved, and not inside a disabled pack.
 const PLAYABLE = `p.status = 'approved' AND (p.pack_id IS NULL OR k.enabled = 1)`;
 
@@ -245,6 +297,32 @@ CREATE INDEX IF NOT EXISTS game_canon_refs_game ON game_canon_refs(game_row_id);
 CREATE INDEX IF NOT EXISTS game_canon_refs_ref ON game_canon_refs(ref);
 `);
         this.db.exec("PRAGMA user_version = 3");
+      });
+    }
+    if (version < 4) {
+      // The Hall of Fame. Generated content only: a moment becomes canon when a person files a
+      // record in the Records Division, which sets canon_ref here (see promotion.ts).
+      this.transaction(() => {
+        this.db.exec(`
+CREATE TABLE IF NOT EXISTS moments (
+  id INTEGER PRIMARY KEY,
+  game_row_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  context TEXT NOT NULL DEFAULT '',
+  author_uid TEXT,
+  author_name TEXT NOT NULL,
+  votes INTEGER NOT NULL,
+  votes_possible INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'visible' CHECK (status IN ('visible', 'hidden')),
+  promotion_started_by TEXT,
+  promotion_started_at TEXT,
+  canon_ref TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS moments_game ON moments(game_row_id);
+CREATE INDEX IF NOT EXISTS moments_status ON moments(status);
+`);
+        this.db.exec("PRAGMA user_version = 4");
       });
     }
   }
@@ -578,7 +656,62 @@ CREATE INDEX IF NOT EXISTS game_canon_refs_ref ON game_canon_refs(ref);
       for (const { round, ref } of record.canonRefs ?? []) {
         addCanonRef.run(game.lastInsertRowid, round, ref);
       }
+
+      const addMoment = this.db.prepare(
+        `INSERT INTO moments (game_row_id, text, context, author_uid, author_name, votes, votes_possible, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      );
+      const endedAt = new Date(record.endedAt).toISOString();
+      for (const m of record.moments ?? []) {
+        addMoment.run(game.lastInsertRowid, m.text, m.context, m.authorUid, m.authorName, m.votes, m.votesPossible, endedAt);
+      }
     });
+  }
+
+  // ---------------------------------------------------------------- hall of fame
+
+  /**
+   * Hall of Fame entries. "top" ranks by the share of the board that backed a moment, so a
+   * unanimous 4 of 4 beats a 3 of 7; "recent" is newest first.
+   */
+  listMoments(options: { includeHidden: boolean; sort: MomentSort; limit: number; offset: number }): Moment[] {
+    const where = options.includeHidden ? "" : "WHERE m.status = 'visible'";
+    const order =
+      options.sort === "recent"
+        ? "m.created_at DESC, m.id DESC"
+        : "(m.votes * 1.0 / MAX(m.votes_possible, 1)) DESC, m.votes DESC, m.id DESC";
+    const rows = this.db
+      .prepare(`${MOMENT_SELECT} ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
+      .all(options.limit, options.offset) as Row[];
+    return rows.map(toMoment);
+  }
+
+  getMoment(id: number): Moment | null {
+    const row = this.db.prepare(`${MOMENT_SELECT} WHERE m.id = ?`).get(id) as Row | undefined;
+    return row ? toMoment(row) : null;
+  }
+
+  setMomentStatus(id: number, status: MomentStatus): Moment | null {
+    this.db.prepare("UPDATE moments SET status = ? WHERE id = ?").run(status, id);
+    return this.getMoment(id);
+  }
+
+  /** Notes that a moderator opened the Records Division for this moment. Canon is not touched. */
+  startPromotion(id: number, moderatorUid: string): Moment | null {
+    this.db
+      .prepare("UPDATE moments SET promotion_started_by = ?, promotion_started_at = ? WHERE id = ?")
+      .run(moderatorUid, nowIso(), id);
+    return this.getMoment(id);
+  }
+
+  /**
+   * Records that a canon record now exists for this moment. Only ever called once the record has
+   * been read back from the CPI Database. The first record wins if a moment was filed twice.
+   * Returns true when this call changed something.
+   */
+  markMomentPromoted(id: number, canonRef: string): boolean {
+    const result = this.db.prepare("UPDATE moments SET canon_ref = ? WHERE id = ? AND canon_ref IS NULL").run(canonRef, id);
+    return Number(result.changes) > 0;
   }
 
   /** How often each canon record has been used in a game, most-used first. */

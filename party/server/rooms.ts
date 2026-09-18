@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { CanonService } from "./canon.ts";
-import { CONTENT_MODES, type ContentMode, type GameRecord, type PickedPrompt } from "./db.ts";
+import { CONTENT_MODES, type ContentMode, type GameRecord, type PickedPrompt, type SavedMomentInput } from "./db.ts";
 import { PartyError } from "./errors.ts";
 import type { GameContext, GameDefinition, GameInstance, Highlight, Viewer } from "./games/types.ts";
 import { EMERGENCY_PROMPTS } from "./seed.ts";
@@ -100,6 +100,8 @@ export class Room {
   private stats = new Map<string, Record<string, number>>();
   /** CPI canon records the current game drew on, saved with its history when it finishes. */
   private canonRefs: { round: number; ref: string }[] = [];
+  /** Hall of Fame moments from the current game, saved with its history when it finishes. */
+  private moments: SavedMomentInput[] = [];
   private readonly usedPromptIds = new Set<number>();
   private timer: PhaseTimer | null = null;
   /** Increments every time a game starts a new phase timer; lets host skips target one phase. */
@@ -284,6 +286,20 @@ export class Room {
           if (live() && this.deps.canon.get(ref)) this.canonRefs.push({ round, ref });
         },
       },
+      saveMoment: (moment) => {
+        if (!live()) return;
+        // Resolved now, not at the end: the author may leave before the game finishes.
+        const author = this.players.find((p) => p.id === moment.authorId);
+        if (!author) return;
+        this.moments.push({
+          text: moment.text,
+          context: moment.context,
+          authorUid: author.uid,
+          authorName: author.name,
+          votes: moment.votes,
+          votesPossible: moment.votesPossible,
+        });
+      },
       random: () => this.deps.random(),
       changed: () => live() && this.changed(),
       finish: (summary) => live() && this.finishGame(summary.rounds, summary.highlights),
@@ -292,6 +308,7 @@ export class Room {
     this.scores = new Map(active.map((p) => [p.id, 0]));
     this.stats = new Map();
     this.canonRefs = [];
+    this.moments = [];
     this.results = null;
     this.status = "IN_GAME";
     // Starting from a phone while the display is away is an explicit choice to play without it.
@@ -372,6 +389,7 @@ export class Room {
         stats: this.stats.get(s.playerId) ?? {},
       })),
       canonRefs: this.canonRefs,
+      moments: this.moments,
     };
     try {
       this.deps.recordGame(record);

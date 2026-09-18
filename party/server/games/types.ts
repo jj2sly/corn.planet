@@ -40,6 +40,25 @@ export interface GameCanon {
   used(round: number, ref: string): void;
 }
 
+/**
+ * Something worth keeping from a game — for Cornlashing, a report the review board accepted. Moments
+ * are saved with the game's history and shown in the Hall of Fame.
+ *
+ * A moment is generated content, never canon. A moderator can promote one, which hands it to the
+ * Records Division to be filed by a person; nothing here ever writes to the CPI Database.
+ */
+export interface MomentInput {
+  /** The player who made it, as a player id in this game. */
+  authorId: string;
+  /** The line itself. */
+  text: string;
+  /** What it was responding to, e.g. the incident prompt. */
+  context: string;
+  /** How many agents backed it, and how many could have. */
+  votes: number;
+  votesPossible: number;
+}
+
 export interface GameContext {
   /** Players still in the game (not left or kicked), in join order. */
   players(): GamePlayer[];
@@ -55,6 +74,8 @@ export interface GameContext {
   pickPrompts(count: number): PickedPrompt[];
   /** Read-only access to CPI canon, and a note of which records a round used. */
   canon: GameCanon;
+  /** Keeps a memorable moment for the Hall of Fame; saved with the game when it finishes. */
+  saveMoment(moment: MomentInput): void;
   /** Uniform random in [0, 1). Injectable so tests are deterministic. */
   random(): number;
   /** Tell the room the game's state changed so every viewer gets a fresh view. */

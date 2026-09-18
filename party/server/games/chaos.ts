@@ -249,6 +249,21 @@ class ChaosGame implements GameInstance {
       entries,
     };
 
+    // The Hall of Fame keeps the report(s) the review board accepted. A default ruling (only one
+    // report filed) was never judged against anything, so it doesn't count.
+    if (!defaulted && maxVotes > 0) {
+      const board = this.eligibleVoters(incident).length;
+      for (const entry of entries.filter((e) => e.votes === maxVotes)) {
+        this.ctx.saveMoment({
+          authorId: entry.authorId,
+          text: entry.text,
+          context: incident.prompt.text,
+          votes: entry.votes,
+          votesPossible: board,
+        });
+      }
+    }
+
     this.phase = "VERDICT";
     this.schedule(this.breach ? CHAOS_TIMING.breachVerdictMs : CHAOS_TIMING.verdictMs, () => this.nextIncident());
     this.ctx.changed();

@@ -279,6 +279,77 @@ describe("Cornlashing: scoring", () => {
   });
 });
 
+describe("Cornlashing: Hall of Fame moments", () => {
+  /** Skips every remaining phase, so no further votes are cast, until the game ends. */
+  function skipToEnd(room: Room) {
+    while (room.status === "IN_GAME") room.hostGameAction("skip", undefined);
+  }
+
+  it("saves each accepted report with its incident, author and share of the board", () => {
+    const { room, ids, records } = startGame(["A", "B", "C", "D"], { rounds: 1, totalBreach: false }, ["uid-a", "uid-b", "uid-c", "uid-d"]);
+    mock.timers.tick(CHAOS_TIMING.introMs);
+    answerAll(room, ids);
+
+    const host = gameView(room);
+    const winning = host.reports![0]!.id;
+    for (const pid of ids.filter((p) => gameView(room, p).canVote)) {
+      room.gameInput(pid, "vote", { incidentId: host.incidentId, reportId: winning });
+    }
+    const entry = gameView(room).verdict!.entries.find((e) => e.reportId === winning)!;
+    skipToEnd(room);
+
+    const moments = records[0]!.moments!;
+    assert.equal(moments.length, 1, "only the incident that was actually voted on");
+    const [moment] = moments;
+    assert.equal(moment!.text, entry.text);
+    assert.equal(moment!.context, host.prompt, "the incident it answered");
+    assert.equal(moment!.authorName, entry.authorName);
+    assert.equal(moment!.authorUid, `uid-${entry.authorName.toLowerCase()}`);
+    assert.deepEqual([moment!.votes, moment!.votesPossible], [2, 2], "unanimous from a board of two");
+  });
+
+  it("keeps both reports of a split decision", () => {
+    const { room, ids, records } = startGame(["A", "B", "C", "D"], { rounds: 1, totalBreach: false });
+    mock.timers.tick(CHAOS_TIMING.introMs);
+    answerAll(room, ids);
+
+    const host = gameView(room);
+    const voters = ids.filter((pid) => gameView(room, pid).canVote);
+    room.gameInput(voters[0]!, "vote", { incidentId: host.incidentId, reportId: host.reports![0]!.id });
+    room.gameInput(voters[1]!, "vote", { incidentId: host.incidentId, reportId: host.reports![1]!.id });
+    skipToEnd(room);
+
+    const moments = records[0]!.moments!;
+    assert.equal(moments.length, 2);
+    assert.ok(moments.every((m) => m.context === host.prompt && m.votes === 1 && m.votesPossible === 2));
+  });
+
+  it("saves nothing for incidents nobody voted on, or default rulings", () => {
+    const { room, ids, records } = startGame(["A", "B", "C"], { rounds: 1, totalBreach: false });
+    mock.timers.tick(CHAOS_TIMING.introMs);
+    const [only] = gameView(room, ids[0]).assignments!;
+    room.gameInput(ids[0]!, "answer", { incidentId: only!.incidentId, text: "I alone filed" });
+    mock.timers.tick(90_000); // answering deadline: one default ruling, the rest unanswered
+    skipToEnd(room);
+
+    assert.deepEqual(records[0]!.moments, []);
+  });
+
+  it("stores them in the Hall of Fame when the game is recorded", () => {
+    const { room, ids, db } = startGame(["A", "B", "C", "D"], { rounds: 1, totalBreach: false });
+    while (room.status === "IN_GAME") {
+      const view = gameView(room);
+      if (view.phase === "ANSWERING") answerAll(room, ids);
+      else if (view.phase === "VOTING") voteFirstAllowed(room, ids);
+      else room.hostGameAction("skip", undefined);
+    }
+
+    const saved = db.listMoments({ includeHidden: false, sort: "top", limit: 50, offset: 0 });
+    assert.equal(saved.length, 4, "four incidents, each with an accepted report");
+    assert.ok(saved.every((m) => m.gameId === "chaos" && m.status === "visible" && m.canonRef === null));
+  });
+});
+
 describe("Cornlashing: full game and results", () => {
   it("plays to final results, ranks with ties, and records per-player stats", () => {
     const { room, ids, records, db } = startGame(["A", "B", "C", "D"], { rounds: 1, totalBreach: true }, ["uid-a", null, null, null]);
