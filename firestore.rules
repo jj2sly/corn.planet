@@ -1,115 +1,90 @@
-// =========================================
-// CPI DATABASE — FIRESTORE SECURITY RULES
-//
-// RECONSTRUCTION, NOT A COPY. The live rules are edited in the Firebase console
-// (console.firebase.google.com -> project cpo-9af17 -> Firestore Database -> Rules) and were never
-// exported into this repo. This file was rebuilt on 2026-09-17 from roles.js and from how the site
-// behaves (entities/classifications readable signed out, users/ not). It has NOT been checked
-// against the console, and nothing deploys it.
-//
-// Do not paste this whole file over the console rules. To enable incidents and personnel, add only
-// these two blocks inside the console's `match /databases/{database}/documents { ... }`. They are
-// self-contained (no helper functions), so they work whatever the rest of the console rules say:
-//
-//   match /incidents/{id} {
-//     allow read: if true;
-//     allow create, update, delete: if request.auth != null
-//       && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-//          in ['CORRESPONDENT', 'OVERSEER', 'EXEC'];
-//   }
-//
-//   match /personnel/{id} {
-//     allow read: if true;
-//     allow create, update, delete: if request.auth != null
-//       && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-//          in ['CORRESPONDENT', 'OVERSEER', 'EXEC'];
-//   }
-//
-// Once the real console rules are pasted in here, replace this header.
-//
-// Roles live at users/{uid}.role, not in auth custom claims: the project is on the
-// Spark plan, so there are no Cloud Functions to set claims with. See roles.js.
-//
-//   VIEWER(0) -> CPI_EMPLOYEE(1) -> CORRESPONDENT(2) -> OVERSEER(3) -> EXEC(4)
-//
-// The `incidents` and `personnel` blocks below were added on 2026-09-17 for the
-// canon-driven Corn Planet Party games. They mirror `entities`: world-readable so the
-// party server can read canon with no token and guests can play, writable only by
-// CPI Correspondent and above.
-// =========================================
-
 rules_version = '2';
+
+// =========================================
+// CPI FIRESTORE SECURITY RULES
+// Paste into Firebase Console -> Firestore Database -> Rules -> Publish.
+//
+// This file is the copy of the console rules kept in the repo (taken from the console on
+// 2026-09-17). Nothing deploys it: the console is what's live, so keep the two in step by hand.
+//
+// Helper functions live INSIDE the service/match block on purpose —
+// they reference the {database} path variable, which is only in scope
+// there. Defining them at the top level (outside the block) silently
+// fails to resolve $(database), and Firestore denies-by-default on any
+// rule that can't evaluate cleanly — which is what caused the
+// "Missing or insufficient permissions" error even for EXEC accounts.
+// =========================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function role() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    function getRole() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : 'VIEWER';
     }
 
-    function level() {
-      return role() == 'EXEC' ? 4
-           : role() == 'OVERSEER' ? 3
-           : role() == 'CORRESPONDENT' ? 2
-           : role() == 'CPI_EMPLOYEE' ? 1
-           : 0;
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    function isCorrespondentOrAbove() {
-      return request.auth != null && level() >= 2;
+    function roleAtLeast(minLevel) {
+      let levels = {
+        'VIEWER': 0,
+        'CPI_EMPLOYEE': 1,
+        'CORRESPONDENT': 2,
+        'OVERSEER': 3,
+        'EXEC': 4
+      };
+      return isSignedIn() && levels[getRole()] >= minLevel;
     }
 
-    function isOverseerOrAbove() {
-      return request.auth != null && level() >= 3;
-    }
-
-    function isExec() {
-      return request.auth != null && role() == 'EXEC';
-    }
-
-    // ---- Canon record collections -------------------------------------------
-    // Public read: the database site reads these without signing in, and the Corn
-    // Planet Party server reads them server-side with no token so guests can play.
-
-    match /entities/{id} {
+    // ---- Public-facing content: anyone can read, no login required ----
+    match /entities/{entityId} {
       allow read: if true;
-      allow create, update, delete: if isCorrespondentOrAbove();
+      allow create, update, delete: if roleAtLeast(2); // CORRESPONDENT+
     }
 
-    match /artifacts/{id} {
+    match /artifacts/{artifactId} {
       allow read: if true;
-      allow create, update, delete: if isCorrespondentOrAbove();
+      allow create, update, delete: if roleAtLeast(2); // CORRESPONDENT+
     }
 
-    match /incidents/{id} {
+    // Added 2026-09-17: incident and personnel files (INC-###, PER-###). World-readable like
+    // entities, so the Corn Planet Party server can read canon with no token and guests can play.
+    match /incidents/{incidentId} {
       allow read: if true;
-      allow create, update, delete: if isCorrespondentOrAbove();
+      allow create, update, delete: if roleAtLeast(2); // CORRESPONDENT+
     }
 
-    match /personnel/{id} {
+    match /personnel/{personnelId} {
       allow read: if true;
-      allow create, update, delete: if isCorrespondentOrAbove();
+      allow create, update, delete: if roleAtLeast(2); // CORRESPONDENT+
     }
 
-    match /classifications/{id} {
+    match /classifications/{classId} {
       allow read: if true;
-      allow create, update, delete: if isOverseerOrAbove();
+      allow create, update, delete: if roleAtLeast(3); // OVERSEER+
     }
 
-    // ---- User documents ------------------------------------------------------
-    // Never world-readable: these carry email addresses. A user reads their own doc
-    // (this is how the party server resolves a player's CPI role, using that user's
-    // own ID token). Only an Exec may change roles.
-
+    // ---- User role records ----
     match /users/{uid} {
-      allow read: if request.auth != null && (request.auth.uid == uid || isExec());
+      // Users can read their own role doc (needed to check their own
+      // permissions client-side). EXEC can read all, for the user list.
+      allow read: if isSignedIn() && (request.auth.uid == uid || roleAtLeast(4));
 
-      // A new account may create only its own doc, and only as VIEWER.
-      allow create: if request.auth != null
-                    && request.auth.uid == uid
-                    && request.resource.data.role == 'VIEWER';
+      // A user can create their OWN doc on signup, but only ever as
+      // VIEWER — they cannot self-promote during creation.
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == 'VIEWER';
 
-      allow update, delete: if isExec();
+      // Only EXEC can change anyone's role.
+      allow update: if roleAtLeast(4);
+
+      // No deletes from the client; remove accounts via Firebase Auth
+      // console if ever needed.
+      allow delete: if false;
     }
   }
 }
