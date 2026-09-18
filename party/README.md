@@ -1,9 +1,10 @@
 # Corn Planet Party
 
 Phone-controlled multiplayer party games from the **Corn Planet Institution**.
-One screen hosts (laptop or TV), 3–8 agents play on their phones. Two games so far:
-**Cornlashing** (anonymous incident reports, head-to-head votes, points) and **Corn or Shit**
-(one claim is in the CPI Database, one was made up — call it).
+One screen hosts (laptop or TV), 3–8 agents play on their phones. Three games so far:
+**Cornlashing** (anonymous incident reports, head-to-head votes, points), **Corn or Shit**
+(one claim is in the CPI Database, one was made up — call it) and **Entity Auction** (bid Kernels
+on sealed containment bays without knowing which CPI entity is inside).
 
 > **Players:** open the site on your phone → enter the 4-letter code → pick a name → play.
 > **Host:** open `/host` on the big screen → show the code → start the operation.
@@ -112,7 +113,8 @@ session replacement, host refresh, kicks, logins, rate limiting).
 1. Open `/host`. A session code appears.
 2. For Cornlashing, pick paired rounds (1–3), the Total Breach final round, report/vote timers and
    the humor level (Safe, Chaos, Custom). For Corn or Shit, pick rounds (3/5/8) and call time.
-3. Pick the operation (Cornlashing or Corn or Shit); the settings below it follow your choice.
+   For Entity Auction, pick starting Kernels, entities per agent, time per bay and event count.
+3. Pick the operation; the settings below it follow your choice.
 4. Start once at least 3 agents are connected. Use **Skip ▸** to move past a phase early,
    **End game** to return to the lobby, **Close session** to end it for everyone. You can remove
    an agent with ✕ in the lobby.
@@ -149,6 +151,26 @@ session replacement, host refresh, kicks, logins, rate limiting).
   record on the database site) and which record the fabrication borrowed from.
 - Fabricated claims are game content and are **never** written to the CPI Database — see
   [docs/CANON.md](docs/CANON.md).
+
+**Entity Auction rules**
+- Every agent starts with `10,000` Kernels. The facility holds *agents × 3* sealed bays, each
+  secretly holding a different real CPI Database entity. If the database holds too few entities
+  the game refuses to start (INSUFFICIENT CONTAINMENT MATERIAL) instead of reusing one.
+- Bays go under the hammer one at a time: open ascending bidding, `30s` per bay, opening bid `0`,
+  raises of at least `100`. Nobody — not even the host screen — is sent what is inside until the
+  timer runs out and the door opens. A bay nobody bid on goes free to an agent with room, so
+  everyone ends with 3.
+- The reveal shows the entity, its classification and its base value (COSMIC `8,000`, EARTHLY
+  `4,000`, LOCAL `2,000`, anything else `2,500`), the winner and the winning bid.
+- Every entity also carries a hidden **modifier** (buff, debuff or neutral). It stays hidden until
+  the **Action Round**: `5` random events hit every agent at once (market crashes, Kernel payouts,
+  modifier triggers), then a final audit reveals every modifier left.
+- **Net worth** = Kernels left + value of the entities still held. Highest wins. It is also the
+  score saved to the account page.
+- Moderators manage the modifiers and events in the moderation console (`/prompts` →
+  Moderation → Entity Auction). Effects are chosen from a fixed list of types with numeric
+  parameters; nothing a moderator writes is ever run as code.
+- All rules live in `DEFAULT_ENTITY_AUCTION_RULES` in `server/games/entityauction.ts`.
 
 ## Accounts
 

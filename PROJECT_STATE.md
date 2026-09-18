@@ -1,15 +1,15 @@
 # Project state — corn.planet
 
 Read this first in a fresh session, then `party/docs/ARCHITECTURE.md` if you need detail.
-Last updated: 2026-09-17.
+Last updated: 2026-09-18.
 
 > **Naming (decided and applied 2026-09-17):** **CPI — Corn Planet Institution** is the umbrella org.
 > **CPST — Corn Planet Strike Team** is the team inside it (still used for role labels like "Strike
 > Team Overseer" and in-fiction prompt text). Renamed throughout: "CPST Party" → **Corn Planet
 > Party**, "CPST Chaos" → **Cornlashing**, "CPST Database" → **CPI Database**.
 > **Internal identifiers were deliberately NOT renamed** — the game id is still `chaos`
-> (`games/chaos.ts`, `js/games/chaos-*.js`, and `games.game_id` rows in SQLite; `account.js` maps the
-> id to the display name), browser storage keys are still `cpst-party:*` (renaming them would drop
+> (`games/chaos.ts`, `js/games/chaos-*.js`, and `games.game_id` rows in SQLite; `account.js` names
+> games from `/api/config`), browser storage keys are still `cpst-party:*` (renaming them would drop
 > players' in-progress seats), the branch is still `cpst-party`, and `CPE-###` entity IDs never change.
 
 ## 1. What this repo is
@@ -19,7 +19,7 @@ Two things in one repository:
 | Part | Where | What |
 |---|---|---|
 | **CPI Database** site | repo root (`*.html`, `style.css`, `roles.js`, `nav-auth.js`, …) | Static site on GitHub Pages (`jj2sly.github.io/corn.planet`, served from `main`). Vanilla JS, no build step. Firebase Auth + Firestore (project `cpo-9af17`, Spark plan — no Cloud Functions). Collections: `entities` (`CPE-001`…), `artifacts` (`ART-001`…), `incidents` (`INC-001`…), `personnel` (`PER-001`…), `classifications`, `users/{uid}`. Roles: VIEWER(0) → CPI_EMPLOYEE(1) → CORRESPONDENT(2) → OVERSEER(3) → EXEC(4), enforced by Firestore rules (configured in the Firebase console, **not** in this repo). Admin: `admin.html` (EXEC assigns roles), `records.html` (CORRESPONDENT+ creates records). |
-| **Corn Planet Party** | `party/` | Phone-controlled multiplayer party-game server. Node 24 + TypeScript run directly (no bundler, no compile step), Express 5, Socket.IO 4, SQLite via built-in `node:sqlite`. One long-running process, rooms in memory. Games: **Cornlashing** and **Corn or Shit** (canon-driven). |
+| **Corn Planet Party** | `party/` | Phone-controlled multiplayer party-game server. Node 24 + TypeScript run directly (no bundler, no compile step), Express 5, Socket.IO 4, SQLite via built-in `node:sqlite`. One long-running process, rooms in memory. Games: **Cornlashing**, and the canon-driven **Corn or Shit** and **Entity Auction**. |
 
 The database site does **not** depend on `party/`. `index.html` links to Corn Planet Party.
 
@@ -61,7 +61,7 @@ export PATH="$LOCALAPPDATA/Programs/node-v24:$PATH"   # every new bash session
 cd party
 npm run dev        # watch mode          npm start    # plain start
 npm run typecheck  # tsc --noEmit        npm test     # node --test
-npm run check      # typecheck + tests   -> 68 tests, 20 suites, all passing (2026-09-17)
+npm run check      # typecheck + tests   -> 174 tests, 43 suites, all passing (2026-09-18)
 ```
 
 Pages: `/` join, `/host` big screen, `/play` phone, `/account`, `/prompts`, `/healthz`.
@@ -121,8 +121,16 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
   Railway serves Cornlashing and Corn or Shit and loaded 21 canon records in production.
 - The CPI Database site on `main` (GitHub Pages) has the rename plus the incident and personnel
   pages, cherry-picked from `cpst-party` (`9dfd76b`, `1b9aae5`). Verified live.
-- Tests: **145 passing** (`party/test/`: rooms, chaos, cornorshit, claims, canon, promotion, db, api,
-  realtime, framework). `tsc --noEmit` clean.
+- Tests: **174 passing** (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
+  promotion, db, api, realtime, framework). `tsc --noEmit` clean.
+- **Entity Auction** (built 2026-09-18, **not pushed or deployed yet**): agents bid Kernels on sealed
+  containment bays, each hiding a real entity; doors open when the server's timer ends; hidden
+  modifiers and random global events in the Action Round; highest net worth wins. Moderators manage
+  modifiers/events at `/prompts` → Moderation → Entity Auction (`auction_effects`, migration 5).
+  Played end to end in the browser (host + phone + bots) against fixture canon, not live canon or
+  real phones. See `party/README.md` and `party/docs/ARCHITECTURE.md` §7e.
+- Fixed in passing (2026-09-18): a game refusing to start (`NO_CANON`) used to leave the room stuck
+  "in game" with no game; `Room.startGame` now creates the game before changing any room state.
 - **Hall of Fame + promotion to canon** (built 2026-09-17):
   Cornlashing keeps each incident's accepted report(s) in `moments`; `/hall` lists them; moderators
   hide or promote. Promotion hands a prefilled incident to the Records Division
@@ -153,12 +161,21 @@ mirrored in the file.
    in Corn or Shit rounds. Delete it in the Records Division if it is junk.
 6. `artifacts` is empty, so it is deliberately left out of `canon.ts`. Add a spec there once it has
    content.
-7. Planned-but-unbuilt games: Entity Auction, My Cob Escaped What Do I Do Now???, Draw, Trivia,
-   Gamble, Hidden roles, Prediction.
+7. Planned-but-unbuilt games: My Cob Escaped What Do I Do Now???, Draw, Trivia, Gamble,
+   Hidden roles, Prediction.
 8. Promotion to canon only produces **incidents** (a Cornlashing prompt is an incident, the report
    its resolution). Promoting as an entity or personnel file isn't supported.
 9. A game ended early saves no moments (same as stats). Corn or Shit saves none by design — its best
    line is a fabrication about a real record.
+10. Entity Auction with 21 entities: 8 agents × 3 needs 24, so the lobby warns and the server refuses;
+    7 agents × 3 (21) or 8 agents × 2 (16) work.
+11. Entity Auction's score is net worth in Kernels (~10–30k per game), so it dominates the account
+    page's "Total points" next to Cornlashing/Corn or Shit scores (hundreds).
+12. Entity Auction has no anti-snipe: a bid in the last second wins outright. Add a "bid extends the
+    timer to N seconds" rule to `DEFAULT_ENTITY_AUCTION_RULES` if that feels bad in play.
+13. Implemented effect types: change/multiply value, lose/duplicate entity, pay owner, pay everyone,
+    trigger modifiers. Transfer, swap and protect are not built; add them to `EFFECT_TYPES` in
+    `party/server/games/auctioneffects.ts` when a modifier needs them.
 
 ## 9. Decisions
 
@@ -189,6 +206,18 @@ mirrored in the file.
 13. **What counts as a moment** in Cornlashing: each incident's winning report(s) with at least one
     vote. Default rulings don't count.
 
+**2026-09-18 (Entity Auction)**
+14. **Unbid bays** go free to an agent with the emptiest collection, so every agent ends the auction
+    with exactly `entitiesPerPlayer` entities. Opening bid minimum is 0, raises at least 100.
+15. **Every entity carries a modifier** drawn from the enabled library (neutral ones exist so not
+    every one matters). After the events, a final audit reveals and applies every modifier left
+    (`actionRound.revealEffects`).
+16. **Events are global**: each applies to every agent or every entity (optionally one
+    classification), never to one randomly chosen player.
+17. **Base values**: COSMIC 8,000, EARTHLY 4,000, LOCAL 2,000, anything else 2,500 — the three
+    classifications the Records Division offers today. All in `DEFAULT_ENTITY_AUCTION_RULES`.
+18. **Moderator UI** lives in the existing moderation console on `/prompts`, not a new page.
+
 ## 10. Next task
 
 1. Write a few incidents and personnel files in the Records Division, so Corn or Shit can use more
@@ -197,7 +226,9 @@ mirrored in the file.
    tabs against live canon, and the deployed build serves it, but not yet on actual phones.
 3. Promote one real Hall of Fame moment end to end with a Correspondent+ login: check the incident
    form prefills after the login detour, file it, and confirm `/hall` shows it as canon within ~10 min.
-4. Then: Entity Auction, or My Cob Escaped.
+4. Play Entity Auction with real people on real phones, against live canon. Then push `cpst-party`
+   (asks first — pushing redeploys Railway). Watch whether 30s per bay and 5 events feel right.
+5. Then: My Cob Escaped.
 
 Optional later: renaming the internal game id `chaos` → `cornlashing` would mean renaming 3 files,
 the registry entry, and a SQLite migration for existing `games.game_id` rows. Not worth it unless asked.

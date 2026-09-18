@@ -45,6 +45,7 @@ Use the `GameContext` instead of your own infrastructure:
 | `ctx.addPoints(id, n)` | Scores. Final standings and ties are computed by the room |
 | `ctx.countStat(id, key, n?)` | Per-player counters saved with the game. Keys `answersSubmitted`, `votesCast`, `votesReceived`, `roundsPlayed`, `unanimousRulings` and `category:<name>` feed the account page |
 | `ctx.pickPrompts(count)` | Prompts for the room's humor level, without repeats in the room |
+| `ctx.effectLibrary()` | The enabled hidden modifiers and events moderators manage (Entity Auction's, but any game may use them) |
 | `ctx.saveMoment(moment)` | Keep a memorable moment (author, text, what it answered, votes) for the Hall of Fame. Saved when the game finishes. Moments are never canon unless a moderator promotes one |
 | `ctx.canon` | Read-only CPI Database access: `list(kind)`, `sample(kind, n)`, `get(ref)`, and `used(round, ref)` to note which record a round came from. See [CANON.md](CANON.md) |
 | `ctx.random()` | Randomness (seeded in tests) |
@@ -53,7 +54,8 @@ Use the `GameContext` instead of your own infrastructure:
 
 If the game uses canon, read [CANON.md](CANON.md) first. In short: canon is read-only, anything the
 game invents is generated content and never becomes canon, redacted fields are skipped, and the
-game must cope with canon being empty or small (refuse to start with `NO_CANON`, or finish early).
+game must cope with canon being empty or small (refuse to start with `NO_CANON` or
+`INSUFFICIENT_CANON`, or finish early). Throwing from `create()` leaves the room untouched in the lobby.
 
 Rules of thumb:
 - **The server decides everything.** Never accept scores, winners, timers or other players' data from a client.

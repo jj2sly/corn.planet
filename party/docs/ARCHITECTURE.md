@@ -2,7 +2,7 @@
 
 Corn Planet Party is a phone-controlled multiplayer party game platform for the Corn Planet
 Institution. A host screen (laptop/TV) shows the shared game; players use their phones as
-controllers. The games are **Cornlashing** and **Corn or Shit**.
+controllers. The games are **Cornlashing**, **Corn or Shit** and **Entity Auction**.
 
 It lives entirely in `party/` and **coexists** with the existing CPI Database site in the
 repository root. Nothing in the existing site depends on it.
@@ -76,6 +76,8 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `games/chaos.ts` | Cornlashing |
 | `games/claims.ts` | Turning a canon record into one true and one fabricated claim |
 | `games/cornorshit.ts` | Corn or Shit |
+| `games/entityauction.ts` | Entity Auction: rules, bays, bidding, Action Round, net worth |
+| `games/auctioneffects.ts` | Entity Auction's effect engine: modifier/event types, validation, starting library |
 
 ### Browser code (`party/public/`)
 
@@ -86,6 +88,7 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `play.html`, `js/play.js` | Phone controller: join/rejoin, lobby, pause banner, results, game renderer dispatch |
 | `js/games/chaos-host.js`, `js/games/chaos-play.js` | Cornlashing views for the host screen and phones |
 | `js/games/cornorshit-host.js`, `js/games/cornorshit-play.js` | Corn or Shit views |
+| `js/games/entityauction-{host,play}.js`, `js/games/entityauction-bay.js` | Entity Auction views; the containment doors are in `-bay.js` |
 | `hall.html`, `js/hall.js` | Hall of Fame: accepted reports, moderator hide and promote |
 | `account.html`, `js/account.js` | Login/register (Firebase), display name, stats, history |
 | `prompts.html`, `js/prompts.js` | Prompt writing, library, reports, moderation console |
@@ -163,8 +166,8 @@ Games reach CPI canon through `ctx.canon` (list / sample / get / used). It is re
 read the CPI Database and note which records a round used, and can never write to it. The rules are
 in [CANON.md](CANON.md), which every canon-driven game should follow.
 
-Planned future games (not built): Entity Auction, My Cob Escaped What Do I Do Now???, Corn Planet
-Draw, Trivia, Gamble, Hidden roles, Prediction.
+Planned future games (not built): My Cob Escaped What Do I Do Now???, Corn Planet Draw, Trivia,
+Gamble, Hidden roles, Prediction.
 
 ## 7a. Canon
 
@@ -208,6 +211,33 @@ from. Which option is real never appears in any view before the reveal.
 
 The fabrication is built by template, not by a model — no API key, no cost, deterministic in tests,
 and the borrowed value is checked against the real one so the lie can never accidentally be true.
+
+## 7e. Entity Auction
+
+Agents bid Kernels on sealed containment bays; each bay secretly holds one real entity. Phases:
+`BRIEFING → (BIDDING → OPENING → REVEALED) per bay → ACTION_INTRO → EVENT × n → AUDIT → TALLY`.
+
+- **Setup** samples *agents × entitiesPerPlayer* distinct entities through `ctx.canon` and refuses to
+  start (`NO_CANON` / `INSUFFICIENT_CANON`) rather than reuse one. Each bay also draws a hidden
+  modifier from the enabled library (`ctx.effectLibrary()`).
+- **Secrecy**: a bay's entity is only in a view once its status is `revealed`; a won entity joins its
+  owner's collection when the lot closes but stays out of every view (and every net worth shown)
+  until its door is open. A modifier is only in a view once revealed — not even whether one exists.
+- **Bidding** is server-authoritative: phase, membership, free collection slot, whole-number amount,
+  minimum opening bid / minimum raise, no raising your own bid, enough Kernels. Nothing is escrowed
+  because only one bay is ever open; a departed agent's bids are dropped and the one below stands.
+- **Door states** (`sealed → active → opening → revealed → collected`) are all the server says about
+  a door. The renderers animate between them; "unlocking" is the first beat of the client's
+  opening animation. Redesigning the facility means editing `entityauction-bay.js` and the `.bay`
+  CSS only.
+- **Effects** (`auctioneffects.ts`): a modifier applies its effect to its own entity; an event applies
+  to every entity still in play (optionally one classification) or to every agent. Types: change or
+  multiply value, lose or duplicate the entity, pay the owner, pay every agent, trigger hidden
+  modifiers. Moderators pick a type and numbers; adding a type is one entry in `EFFECT_TYPES`.
+- **Library**: `auction_effects` table (migration 5, seeded once). Managed at `/api/mod/auction`
+  (moderators only). Games copy the enabled entries at start.
+- **Score** = net worth (Kernels left + value of active entities), so the room's standings are the
+  final ranking. `game_canon_refs` gets one row per opened bay (round = bay number).
 
 ## 7d. Hall of Fame
 

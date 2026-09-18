@@ -41,7 +41,7 @@ server/canon.ts                   CanonService: fetch, cache, strip redactions
 GameContext.canon                 list / sample / get / used
         │
         ▼
-a game                            Corn or Shit, and whatever comes next
+a game                            Corn or Shit, Entity Auction, and whatever comes next
 ```
 
 `CanonService` keeps a warm in-memory snapshot, refreshed by `main.ts` at startup and every ten
@@ -139,7 +139,13 @@ Every `CanonRecord` carries a `url` pointing at its page on the CPI Database sit
 host screen and a tappable link on phones, so anyone can go and check the record after a round.
 
 Do not show a reference before the round's rules allow it — in Corn or Shit the reference is part
-of the reveal, because naming the record early would give the answer away.
+of the reveal, because naming the record early would give the answer away. In Entity Auction nothing
+about a bay's entity leaves the server until its door opens.
+
+Entity Auction gives each entity a Kernel value, an owner and a hidden modifier for one game. Those
+are generated content like everything else a game makes: they live in the room's memory, are never
+written anywhere, and say nothing about the entity's canon record. Its `game_canon_refs` rows are
+the entities whose bays were opened (round = bay number).
 
 ## 8. The Hall of Fame, and promoting a moment to canon
 
