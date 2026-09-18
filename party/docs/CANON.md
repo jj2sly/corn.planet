@@ -19,9 +19,10 @@ creating a record in the Records Division on the database site.
 
 ## 2. Why the server never writes to Firebase
 
-The CPI Database enforces who may write through Firestore security rules (`firestore.rules` in the
-repo root is a reference copy; the Firebase console is the source of truth). Those rules let CPI
-Correspondents and above write, and nobody else.
+The CPI Database enforces who may write through Firestore security rules, which live in the Firebase
+console. (`firestore.rules` in the repo root is a reconstruction of them, not an export, and has not
+been checked against the console.) Those rules let CPI Correspondents and above write, and nobody
+else.
 
 If the party server could write to Firestore, every player in a session — including guests with no
 CPI account — would effectively be writing canon through it. So it does not. `server/canon.ts`
@@ -77,8 +78,9 @@ request per refresh for nothing. Add a spec to `COLLECTIONS` once it has content
 
 ### Adding a new record type
 
-1. Add the collection to `firestore.rules` **and apply it in the Firebase console**, or every read
-   and write will be denied.
+1. Add a `match` block for the collection **in the Firebase console**, or every read and write will
+   be denied (the incident/personnel blocks in the header of `firestore.rules` are the template).
+   Mirror it in `firestore.rules`.
 2. Add a creation form to `records.html` (follow the incident/personnel panels).
 3. Add a listing page and a detail page. The detail page should be a thin spec over
    `record-view.js` rather than another copy of `artifact-entry.html`.

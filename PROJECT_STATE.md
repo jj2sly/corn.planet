@@ -128,9 +128,11 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 Until then both collections are default-deny: the new database pages show "Could not reach the
 database", creating a record fails, and the party server logs
 `canon partially unavailable: incidents: HTTP 403; personnel: HTTP 403` (it degrades to entities
-only, which is why Corn or Shit still works). Copy the `incidents` and `personnel` blocks from
-`firestore.rules` into console.firebase.google.com → project `cpo-9af17` → Firestore Database →
-Rules. `firestore.rules` is a reference copy only; the console is the source of truth.
+only, which is why Corn or Shit still works). Add the two self-contained blocks from the header
+of `firestore.rules` inside the console's `match /databases/{database}/documents { ... }` at
+console.firebase.google.com → project `cpo-9af17` → Firestore Database → Rules. **Add them; do not
+paste the whole file** — `firestore.rules` is a reconstruction from `roles.js` and site behaviour,
+never checked against the real console rules.
 
 ### Known issues / gaps
 1. `graphify.exe` is not on PATH (see §3) — prefix it or add that Scripts directory too.
