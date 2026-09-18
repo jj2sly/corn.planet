@@ -1,10 +1,31 @@
 // =========================================
 // CPI DATABASE — FIRESTORE SECURITY RULES
 //
-// REFERENCE COPY. The live rules are edited in the Firebase console
-// (console.firebase.google.com -> project cpo-9af17 -> Firestore Database -> Rules).
-// This file is NOT deployed by anything; the console is the source of truth.
-// Keep this file in step by hand whenever the console rules change.
+// RECONSTRUCTION, NOT A COPY. The live rules are edited in the Firebase console
+// (console.firebase.google.com -> project cpo-9af17 -> Firestore Database -> Rules) and were never
+// exported into this repo. This file was rebuilt on 2026-09-17 from roles.js and from how the site
+// behaves (entities/classifications readable signed out, users/ not). It has NOT been checked
+// against the console, and nothing deploys it.
+//
+// Do not paste this whole file over the console rules. To enable incidents and personnel, add only
+// these two blocks inside the console's `match /databases/{database}/documents { ... }`. They are
+// self-contained (no helper functions), so they work whatever the rest of the console rules say:
+//
+//   match /incidents/{id} {
+//     allow read: if true;
+//     allow create, update, delete: if request.auth != null
+//       && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+//          in ['CORRESPONDENT', 'OVERSEER', 'EXEC'];
+//   }
+//
+//   match /personnel/{id} {
+//     allow read: if true;
+//     allow create, update, delete: if request.auth != null
+//       && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+//          in ['CORRESPONDENT', 'OVERSEER', 'EXEC'];
+//   }
+//
+// Once the real console rules are pasted in here, replace this header.
 //
 // Roles live at users/{uid}.role, not in auth custom claims: the project is on the
 // Spark plan, so there are no Cloud Functions to set claims with. See roles.js.
