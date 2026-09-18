@@ -119,8 +119,8 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 8. Status
 
-- **My Cob Escaped, What Do I Do Now???** (built 2026-09-18, committed on `cpst-party` as
-  `7c532aa` + `73767be`, **not pushed or deployed yet**): incident-response game on a shared incident engine. Random canon entity (sometimes unknown),
+- **My Cob Escaped, What Do I Do Now???** (built 2026-09-18, **pushed to `cpst-party` on
+  2026-09-18**, so Railway redeploys it; the live deploy has not been checked): incident-response game on a shared incident engine. Random canon entity (sometimes unknown),
   data-driven breach/location/facility/problem/personnel/objectives, entity-specific rules, hidden
   0–100 stats shown as qualitative statuses, roles with trades and private intel, 3 lives with
   reassignment at 0, chaos, stage votes, hidden stage scoring, player-created awards, text narration
@@ -136,7 +136,7 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 - Tests: **250 passing** (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
   promotion, db, api, realtime, framework, mycob, mycob-incident, mycob-rules, mycob-realtime,
   awards). `tsc --noEmit` clean.
-- **Entity Auction** (built 2026-09-18, **not pushed or deployed yet**): agents bid Kernels on sealed
+- **Entity Auction** (built 2026-09-18, on `origin/cpst-party` by 2026-09-18; live deploy not checked): agents bid Kernels on sealed
   containment bays, each hiding a real entity; doors open when the server's timer ends; hidden
   modifiers and random global events in the Action Round; highest net worth wins. Moderators manage
   modifiers/events at `/prompts` → Moderation → Entity Auction (`auction_effects`, migration 5).
@@ -254,13 +254,12 @@ mirrored in the file.
    tabs against live canon, and the deployed build serves it, but not yet on actual phones.
 3. Promote one real Hall of Fame moment end to end with a Correspondent+ login: check the incident
    form prefills after the login detour, file it, and confirm `/hall` shows it as canon within ~10 min.
-4. Play Entity Auction with real people on real phones, against live canon. Then push `cpst-party`
-   (asks first — pushing redeploys Railway). Watch whether 30s per bay and 5 events feel right.
+4. Play Entity Auction with real people on real phones, against live canon. Watch whether 30s per
+   bay and 5 events feel right.
 5. Play My Cob Escaped with real people on real phones (it has only been played from browser tabs
    with bots). Tune `party/server/games/mycob/config.ts` from what feels off and re-run
    `node scripts/mycob-sim.ts`. Decide whether to add a model-backed Incident Director.
-6. Push `cpst-party` when ready (asks first — pushing redeploys Railway with My Cob Escaped and
-   Entity Auction, neither deployed yet).
+6. Check the Railway deploy serves My Cob Escaped and Entity Auction (`/healthz`, then a host screen).
 
 Optional later: renaming the internal game id `chaos` → `cornlashing` would mean renaming 3 files,
 the registry entry, and a SQLite migration for existing `games.game_id` rows. Not worth it unless asked.
