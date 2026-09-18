@@ -1988,3 +1988,566 @@ a.stamp:focus-visible {
     transform: translateY(-6%) scale(1.04);
   }
 }
+
+/* ------------------------------------------------------------------ My Cob Escaped */
+
+.mc-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  gap: clamp(16px, 2.5vw, 40px);
+  align-items: start;
+}
+
+.mc-main > * + * {
+  margin-top: clamp(12px, 1.6vw, 24px);
+}
+
+.mc-board {
+  position: sticky;
+  top: 12px;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  font-size: clamp(0.85rem, 1vw, 1.1rem);
+}
+
+.mc-board h3 {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+.mc-entity {
+  border: 2px solid var(--yellow);
+  padding: 10px 12px;
+  background: repeating-linear-gradient(-45deg, rgba(255, 212, 0, 0.06) 0 12px, transparent 12px 24px);
+}
+
+.mc-entity[data-class="COSMIC"] {
+  border-color: var(--cosmic);
+}
+
+.mc-entity.unknown {
+  border-style: dashed;
+  border-color: var(--danger);
+}
+
+.mc-entity-name {
+  font-family: var(--head);
+  font-size: clamp(1.4rem, 2.2vw, 2.4rem);
+  line-height: 1.1;
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+}
+
+.mc-entity.unknown .mc-entity-name {
+  color: var(--danger);
+  letter-spacing: 0.3em;
+  animation: flicker 3s infinite;
+}
+
+.mc-stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mc-stat {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px;
+  border-left: 4px solid var(--ok);
+  background: var(--panel-2);
+}
+
+.mc-stat .name {
+  font-family: var(--mono);
+  font-size: 0.7em;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mc-stat .value {
+  font-family: var(--head);
+  font-size: 1.15em;
+  letter-spacing: 0.06em;
+}
+
+.mc-stat.tone-ok .value {
+  color: var(--ok);
+}
+
+.mc-stat.tone-warn {
+  border-left-color: var(--yellow);
+}
+
+.mc-stat.tone-warn .value {
+  color: var(--yellow);
+}
+
+.mc-stat.tone-danger {
+  border-left-color: var(--danger);
+}
+
+.mc-stat.tone-danger .value {
+  color: var(--danger);
+}
+
+.mc-systems,
+.mc-objectives,
+.mc-crew,
+.mc-personnel,
+.mc-facts,
+.mc-changes,
+.mc-env,
+.mc-roles,
+.mc-taglist,
+.mc-actions,
+.mc-awards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mc-systems li,
+.mc-crew li,
+.mc-personnel li,
+.mc-objectives li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.mc-systems .cond-degraded .mono {
+  color: var(--yellow);
+}
+
+.mc-systems .cond-offline .mono {
+  color: var(--danger);
+}
+
+.mc-systems .cond-nominal .mono {
+  color: var(--ok);
+}
+
+.mc-objectives .mark {
+  font-family: var(--mono);
+  color: var(--yellow);
+}
+
+.mc-objectives li[data-status="completed"] {
+  color: var(--ok);
+}
+
+.mc-objectives li[data-status="failed"],
+.mc-objectives li[data-status="impossible"] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.mc-crew li.down,
+.mc-crew li.offline {
+  opacity: 0.7;
+}
+
+.mc-lives {
+  color: var(--danger);
+  font-size: 1.1em;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.mc-narration {
+  border-left: 6px solid var(--yellow);
+  padding: 4px 0 4px clamp(12px, 1.5vw, 24px);
+  font-size: clamp(1.1rem, 1.9vw, 2.1rem);
+  line-height: 1.35;
+}
+
+.mc-narration p {
+  margin: 0 0 0.5em;
+}
+
+.mc-narration .n-life_loss {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.mc-narration .n-special_event {
+  color: var(--cosmic);
+}
+
+.mc-narration .n-discovery,
+.mc-narration .n-objective_update {
+  font-size: 0.8em;
+  color: var(--muted);
+}
+
+.mc-siren {
+  animation: bay-alarm 1.2s 4;
+}
+
+.mc-situation .mc-problem {
+  font-family: var(--head);
+  font-size: clamp(1.2rem, 2.2vw, 2.4rem);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.mc-env li {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.mc-env li::before {
+  content: "\26A0  ";
+  font-style: normal;
+  color: var(--yellow);
+}
+
+.mc-roles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 8px;
+}
+
+.mc-roles li {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+}
+
+.mc-roles li span {
+  color: var(--yellow);
+  font-family: var(--head);
+  letter-spacing: 0.05em;
+}
+
+.mc-taglist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mc-taglist li {
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  font-family: var(--head);
+  letter-spacing: 0.06em;
+}
+
+.mc-processing {
+  text-align: center;
+  padding: clamp(24px, 6vw, 96px) 0;
+}
+
+.mc-processing-text {
+  font-family: var(--mono);
+  font-size: clamp(1.2rem, 2.4vw, 2.6rem);
+  letter-spacing: 0.12em;
+  color: var(--yellow);
+  animation: blink 1.4s steps(2, start) infinite;
+}
+
+.mc-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.mc-actions li {
+  padding: 10px 14px;
+  border: 2px solid var(--line);
+  border-left-width: 8px;
+  background: var(--panel);
+}
+
+.mc-actions li p {
+  margin: 6px 0 0;
+}
+
+.mc-actions li[data-outcome="critical"] {
+  border-left-color: var(--ok);
+}
+
+.mc-actions li[data-outcome="success"] {
+  border-left-color: #5fae3f;
+}
+
+.mc-actions li[data-outcome="partial"] {
+  border-left-color: var(--yellow);
+}
+
+.mc-actions li[data-outcome="failure"] {
+  border-left-color: #c9542b;
+}
+
+.mc-actions li[data-outcome="catastrophe"] {
+  border-left-color: var(--danger);
+  background: #1a0806;
+}
+
+.mc-outcome {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.8em;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.mc-outcome.o-critical,
+.mc-outcome.o-success {
+  color: var(--ok);
+}
+
+.mc-outcome.o-partial {
+  color: var(--yellow);
+}
+
+.mc-outcome.o-failure,
+.mc-outcome.o-catastrophe {
+  color: var(--danger);
+}
+
+.mc-outcome.o-catastrophe {
+  background: var(--danger);
+  color: #000;
+}
+
+.mc-life-alert {
+  border: 3px solid var(--danger);
+  background: #2a0a07;
+  color: var(--text);
+  padding: 10px 14px;
+  animation: bay-alarm 0.9s 3;
+}
+
+.mc-life-alert strong {
+  color: var(--danger);
+  letter-spacing: 0.08em;
+}
+
+.mc-life-alert p {
+  margin: 4px 0;
+}
+
+.mc-facts li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.mc-facts .redacted {
+  font-family: var(--mono);
+}
+
+.mc-changes li::before {
+  content: "\25B8  ";
+  color: var(--yellow);
+}
+
+.mc-ending h1 {
+  color: var(--yellow);
+}
+
+.mc-ending.e-escaped h1,
+.mc-ending.e-everyone_dies h1 {
+  color: var(--danger);
+}
+
+.mc-ending-text {
+  font-family: var(--head);
+  font-size: clamp(1.3rem, 2.6vw, 2.8rem);
+  line-height: 1.2;
+}
+
+.mc-breakdown th,
+.mc-breakdown td {
+  text-align: right;
+}
+
+.mc-breakdown th:first-child,
+.mc-breakdown td:first-child {
+  text-align: left;
+}
+
+.mc-awards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+}
+
+.mc-awards li {
+  border: 2px solid var(--yellow);
+  padding: 14px;
+  background: var(--panel);
+}
+
+.mc-award-name {
+  font-family: var(--head);
+  font-size: 1.4em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mc-award-winner {
+  font-family: var(--head);
+  font-size: 1.6em;
+  color: var(--yellow);
+  margin: 8px 0 0;
+}
+
+/* phone */
+
+.mc-you {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 2px solid var(--yellow);
+  background: var(--panel);
+}
+
+.mc-you.down {
+  border-color: var(--danger);
+}
+
+.mc-you .eyebrow {
+  margin: 0;
+}
+
+.mc-you-role {
+  font-family: var(--head);
+  font-size: 1.3rem;
+  letter-spacing: 0.04em;
+}
+
+.mc-notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 4px solid var(--yellow);
+  background: var(--panel-2);
+}
+
+.mc-notice.k-life,
+.mc-notice.k-down {
+  border-left-color: var(--danger);
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.mc-intel summary {
+  cursor: pointer;
+  font-family: var(--head);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--yellow);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.mc-intel h3 {
+  font-size: 1rem;
+  margin: 10px 0 4px;
+}
+
+.mc-tags {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mc-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--head);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mc-tag .icon {
+  font-size: 1.3rem;
+}
+
+.mc-tag .label {
+  flex: 1;
+}
+
+.mc-tag .strong {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--yellow);
+}
+
+.mc-tag[aria-pressed="true"] {
+  border-color: var(--yellow);
+  background: #2a2300;
+}
+
+.mc-tag:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.mc-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 0.95rem;
+}
+
+.mc-check input {
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  accent-color: var(--danger);
+}
+
+.phone .mc-narration {
+  font-size: 1.05rem;
+}
+
+.btn.chosen {
+  background: var(--yellow);
+  color: #000;
+}
+
+@media (max-width: 900px) {
+  .mc-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mc-board {
+    position: static;
+  }
+}

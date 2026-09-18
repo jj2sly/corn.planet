@@ -71,6 +71,8 @@ export interface GameRecord {
   canonRefs?: { round: number; ref: string }[];
   /** Memorable moments for the Hall of Fame. Generated content, never canon. */
   moments?: SavedMomentInput[];
+  /** A game's structured record (JSON), for analytics and tuning. Generated content, never canon. */
+  details?: { kind: string; data: unknown };
 }
 
 export interface SavedMomentInput {
@@ -362,6 +364,21 @@ CREATE TABLE IF NOT EXISTS auction_effects (
 `);
         for (const e of SEED_EFFECTS) this.insertEffect(e);
         this.db.exec("PRAGMA user_version = 5");
+      });
+    }
+    if (version < 6) {
+      // One structured JSON record per game, for games that keep more than scores (My Cob
+      // Escaped's incident, stages, director output and awards). Generated content, never canon.
+      this.transaction(() => {
+        this.db.exec(`
+CREATE TABLE IF NOT EXISTS game_details (
+  game_row_id INTEGER PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  data TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS game_details_kind ON game_details(kind);
+`);
+        this.db.exec("PRAGMA user_version = 6");
       });
     }
   }
@@ -755,7 +772,24 @@ CREATE TABLE IF NOT EXISTS auction_effects (
       for (const m of record.moments ?? []) {
         addMoment.run(game.lastInsertRowid, m.text, m.context, m.authorUid, m.authorName, m.votes, m.votesPossible, endedAt);
       }
+
+      if (record.details) {
+        this.db
+          .prepare("INSERT INTO game_details (game_row_id, kind, data) VALUES (?, ?, ?)")
+          .run(game.lastInsertRowid, record.details.kind, JSON.stringify(record.details.data));
+      }
     });
+  }
+
+  /** Saved game records of one kind, newest first. For analytics, tuning and review; never sent to players. */
+  listGameDetails(kind: string, limit = 50): { gameRowId: number; gameId: string; endedAt: string; data: unknown }[] {
+    const rows = this.db
+      .prepare(
+        `SELECT d.game_row_id, d.data, g.game_id, g.ended_at FROM game_details d JOIN games g ON g.id = d.game_row_id
+         WHERE d.kind = ? ORDER BY d.game_row_id DESC LIMIT ?`,
+      )
+      .all(kind, limit) as Row[];
+    return rows.map((r) => ({ gameRowId: Number(r.game_row_id), gameId: String(r.game_id), endedAt: String(r.ended_at), data: JSON.parse(String(r.data)) as unknown }));
   }
 
   // ---------------------------------------------------------------- hall of fame

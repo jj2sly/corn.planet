@@ -60,6 +60,15 @@ export interface MomentInput {
   votesPossible: number;
 }
 
+/**
+ * A game's structured record, saved as JSON with its history (game_details) for analytics, tuning
+ * and review. Generated content, never canon. `kind` names the shape, e.g. "mycob.v1".
+ */
+export interface GameDetails {
+  kind: string;
+  data: unknown;
+}
+
 export interface GameContext {
   /** Players still in the game (not left or kicked), in join order. */
   players(): GamePlayer[];
@@ -84,7 +93,7 @@ export interface GameContext {
   /** Tell the room the game's state changed so every viewer gets a fresh view. */
   changed(): void;
   /** End the game: the room ranks players by score, records stats and shows final results. */
-  finish(summary: { rounds: number; highlights: Highlight[] }): void;
+  finish(summary: { rounds: number; highlights: Highlight[]; details?: GameDetails }): void;
 }
 
 export interface GameInstance {
@@ -107,6 +116,8 @@ export interface GameDefinition<Settings = unknown> {
   minPlayers: number;
   maxPlayers: number;
   defaultSettings: Settings;
+  /** Static choices the lobby can offer (e.g. modes), published in /api/config. */
+  catalog?: unknown;
   /** Turns untrusted host input into valid settings (clamping/ignoring bad values). Never throws. */
   parseSettings(raw: unknown): Settings;
   create(ctx: GameContext, settings: Settings): GameInstance;

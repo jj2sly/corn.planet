@@ -311,3 +311,51 @@ describe("database: Hall of Fame moments", () => {
     assert.deepEqual(list(db, "top", true), []);
   });
 });
+
+describe("database: structured game records", () => {
+  const game = (gameId: string, details?: { kind: string; data: unknown }) => ({
+    gameId,
+    roomCode: "BCDF",
+    rounds: 3,
+    startedAt: Date.now() - 60_000,
+    endedAt: Date.now(),
+    players: [{ uid: "u1", name: "u1", score: 100, placement: 1, stats: {} }],
+    ...(details ? { details } : {}),
+  });
+
+  it("stores a game's details as JSON and lists them by kind, newest first", () => {
+    const db = new PartyDb(":memory:");
+    db.recordGame(game("mycob", { kind: "mycob.v1", data: { ending: { id: "contained" }, stages: [1, 2, 3] } }));
+    db.recordGame(game("chaos"));
+    db.recordGame(game("mycob", { kind: "mycob.v1", data: { ending: { id: "escaped" }, stages: [] } }));
+    const saved = db.listGameDetails("mycob.v1");
+    assert.equal(saved.length, 2);
+    assert.deepEqual(saved.map((d) => (d.data as { ending: { id: string } }).ending.id), ["escaped", "contained"]);
+    assert.ok(saved.every((d) => d.gameId === "mycob"));
+    assert.deepEqual(db.listGameDetails("other.v1"), []);
+  });
+
+  it("drops a game's details when the game row goes", () => {
+    const db = new PartyDb(":memory:");
+    db.recordGame(game("mycob", { kind: "mycob.v1", data: {} }));
+    (db as unknown as { db: { exec(sql: string): void } }).db.exec("DELETE FROM games");
+    assert.deepEqual(db.listGameDetails("mycob.v1"), []);
+  });
+
+  it("adds the table to an existing version-5 database", () => {
+    const dir = mkdtempSync(join(tmpdir(), "cpst-party-"));
+    try {
+      const path = join(dir, "party.db");
+      new PartyDb(path).close();
+      const raw = new DatabaseSync(path);
+      raw.exec("DROP TABLE game_details; PRAGMA user_version = 5");
+      raw.close();
+      const db = new PartyDb(path);
+      db.recordGame(game("mycob", { kind: "mycob.v1", data: { ok: true } }));
+      assert.deepEqual(db.listGameDetails("mycob.v1")[0]!.data, { ok: true });
+      db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

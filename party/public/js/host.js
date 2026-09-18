@@ -5,8 +5,9 @@ import { connect } from "./connection.js";
 import * as chaos from "./games/chaos-host.js";
 import * as cornorshit from "./games/cornorshit-host.js";
 import * as entityauction from "./games/entityauction-host.js";
+import * as mycob from "./games/mycob-host.js";
 
-const RENDERERS = { chaos, cornorshit, entityauction };
+const RENDERERS = { chaos, cornorshit, entityauction, mycob };
 const SESSION_KEY = "cpst-party:host";
 
 const stage = $("#stage");
@@ -319,6 +320,37 @@ const SETTINGS_FORMS = {
       }),
     ];
   },
+  mycob(settings, configure) {
+    const catalog = config.games.find((g) => g.id === "mycob")?.catalog;
+    if (!catalog) return [];
+    const upcoming = catalog.modes.filter((m) => !m.available);
+    const mode = catalog.modes.find((m) => m.id === settings.mode);
+    const stages = [];
+    for (let n = catalog.stages.min; n <= catalog.stages.max; n++) stages.push([n, String(n)]);
+    return [
+      choiceGroup(
+        "Mode",
+        "mode",
+        catalog.modes.filter((m) => m.available).map((m) => [m.id, `${m.emoji} ${m.name}`]),
+        settings.mode,
+        (v) => configure({ settings: { mode: v } }),
+      ),
+      mode ? el("p", { class: "hint", text: mode.tagline }) : null,
+      upcoming.length ? el("p", { class: "hint", text: `Coming later: ${upcoming.map((m) => `${m.emoji} ${m.name}`).join(" · ")}` }) : null,
+      choiceGroup(
+        "Length",
+        "length",
+        catalog.lengths.map((l) => [l.id, `${l.id[0].toUpperCase()}${l.id.slice(1)} (${l.stages} stages)`]),
+        settings.length,
+        (v) => configure({ settings: { length: v, stages: null } }),
+      ),
+      choiceGroup("Stages", "stages", stages, settings.stages, (v) => configure({ settings: { stages: v } })),
+      el("p", {
+        class: "hint",
+        text: "The escaped entity is a real CPI Database record. Everything that happens to it, the facility and the staff is game-only; nothing is written back.",
+      }),
+    ];
+  },
 };
 
 /**
@@ -349,6 +381,14 @@ function sourceWarning() {
           ? "The CPI Database has no entities yet. Add some in the Records Division first."
           : `INSUFFICIENT CONTAINMENT MATERIAL — ${plural(agents, "agent")} × ${per} needs ${needed} sealed entities, but only ${n} are available. ` +
             "Lower “Entities per agent” or add entities in the Records Division.";
+      return;
+    }
+
+    if (gameId === "mycob") {
+      if (!canon) return;
+      node.hidden = canon.entity > 0;
+      node.classList.add("danger");
+      node.textContent = "The CPI Database has no entities yet, so nothing can escape. Add one in the Records Division first.";
       return;
     }
 

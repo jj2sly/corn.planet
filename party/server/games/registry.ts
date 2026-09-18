@@ -1,6 +1,7 @@
 import { chaosGame } from "./chaos.ts";
 import { cornOrShitGame } from "./cornorshit.ts";
 import { entityAuctionGame } from "./entityauction.ts";
+import { myCobGame } from "./mycob/game.ts";
 import type { GameDefinition } from "./types.ts";
 
 // To add a minigame: implement GameDefinition in games/<id>.ts, add it here, and add
@@ -9,12 +10,13 @@ const INSTALLED: GameDefinition[] = [
   chaosGame as GameDefinition,
   cornOrShitGame as GameDefinition,
   entityAuctionGame as GameDefinition,
+  myCobGame as GameDefinition,
 ];
 
 export const GAMES: ReadonlyMap<string, GameDefinition> = new Map(INSTALLED.map((g) => [g.id, g]));
 
 export function gameSummaries() {
-  return INSTALLED.map(({ id, name, tagline, description, minPlayers, maxPlayers, defaultSettings }) => ({
+  return INSTALLED.map(({ id, name, tagline, description, minPlayers, maxPlayers, defaultSettings, catalog }) => ({
     id,
     name,
     tagline,
@@ -22,5 +24,6 @@ export function gameSummaries() {
     minPlayers,
     maxPlayers,
     defaultSettings,
+    catalog: catalog ?? null,
   }));
 }

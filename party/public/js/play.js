@@ -5,8 +5,9 @@ import { connect } from "./connection.js";
 import * as chaos from "./games/chaos-play.js";
 import * as cornorshit from "./games/cornorshit-play.js";
 import * as entityauction from "./games/entityauction-play.js";
+import * as mycob from "./games/mycob-play.js";
 
-const RENDERERS = { chaos, cornorshit, entityauction };
+const RENDERERS = { chaos, cornorshit, entityauction, mycob };
 const SESSION_KEY = "cpst-party:player"; // { code, token, name }
 const NAME_KEY = "cpst-party:last-name";
 
@@ -220,6 +221,16 @@ const PHASE_ANNOUNCEMENTS = {
   EVENT: "Market event.",
   AUDIT: "Hidden modifiers revealed.",
   TALLY: "Final net worth.",
+  ALERT: "Incident alert. Check your role.",
+  UPDATE: "Incident update.",
+  RESPONSE: "What do you do? Respond now.",
+  PROCESSING: "Processing responses.",
+  CONSEQUENCE: "Consequences are in.",
+  STAGE_VOTE: "Vote for the best move.",
+  OUTCOME: "The incident is over.",
+  AWARD_SUBMIT: "Create an award.",
+  AWARD_VOTE: "Vote on the awards.",
+  AWARD_RESULTS: "The awards.",
   FINAL_RESULTS: "Final results.",
 };
 

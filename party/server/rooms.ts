@@ -3,7 +3,7 @@ import type { CanonService } from "./canon.ts";
 import { CONTENT_MODES, type ContentMode, type GameRecord, type PickedPrompt, type SavedMomentInput } from "./db.ts";
 import { PartyError } from "./errors.ts";
 import type { EffectLibrary } from "./games/auctioneffects.ts";
-import type { GameContext, GameDefinition, GameInstance, Highlight, Viewer } from "./games/types.ts";
+import type { GameContext, GameDefinition, GameDetails, GameInstance, Highlight, Viewer } from "./games/types.ts";
 import { EMERGENCY_PROMPTS } from "./seed.ts";
 import { cleanName, normalizeCode } from "./text.ts";
 
@@ -306,7 +306,7 @@ export class Room {
       },
       random: () => this.deps.random(),
       changed: () => live() && this.changed(),
-      finish: (summary) => live() && this.finishGame(summary.rounds, summary.highlights),
+      finish: (summary) => live() && this.finishGame(summary.rounds, summary.highlights, summary.details),
     };
 
     // Created before anything about the room changes: a game that refuses to start (NO_CANON,
@@ -376,7 +376,7 @@ export class Room {
     }
   }
 
-  private finishGame(rounds: number, highlights: Highlight[]): void {
+  private finishGame(rounds: number, highlights: Highlight[], details?: GameDetails): void {
     const everyone = this.players.filter((p) => this.scores.has(p.id));
     const standings: Standing[] = everyone
       .map((p) => ({ playerId: p.id, name: p.name, score: this.scores.get(p.id) ?? 0, placement: 0, left: p.left }))
@@ -398,6 +398,7 @@ export class Room {
       })),
       canonRefs: this.canonRefs,
       moments: this.moments,
+      ...(details ? { details } : {}),
     };
     try {
       this.deps.recordGame(record);
