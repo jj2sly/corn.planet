@@ -4,8 +4,9 @@ import { $, announce, createMount, el, loadConfig, notice, ordinal, plural, rank
 import { connect } from "./connection.js";
 import * as chaos from "./games/chaos-play.js";
 import * as cornorshit from "./games/cornorshit-play.js";
+import * as entityauction from "./games/entityauction-play.js";
 
-const RENDERERS = { chaos, cornorshit };
+const RENDERERS = { chaos, cornorshit, entityauction };
 const SESSION_KEY = "cpst-party:player"; // { code, token, name }
 const NAME_KEY = "cpst-party:last-name";
 
@@ -211,6 +212,14 @@ const PHASE_ANNOUNCEMENTS = {
   VOTING: "Voting is open.",
   VERDICT: "The ruling is on the host screen.",
   STANDINGS: "Standings on the host screen.",
+  BRIEFING: "Sealed bays ahead.",
+  BIDDING: "Bidding is open.",
+  OPENING: "Containment unlocking.",
+  REVEALED: "Contents revealed.",
+  ACTION_INTRO: "Action Round.",
+  EVENT: "Market event.",
+  AUDIT: "Hidden modifiers revealed.",
+  TALLY: "Final net worth.",
   FINAL_RESULTS: "Final results.",
 };
 

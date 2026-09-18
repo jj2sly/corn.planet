@@ -6,6 +6,7 @@
 
 import type { CanonKind, CanonRecord } from "../canon.ts";
 import type { PickedPrompt } from "../db.ts";
+import type { EffectLibrary } from "./auctioneffects.ts";
 
 export type Viewer = { kind: "host" } | { kind: "player"; playerId: string };
 
@@ -72,6 +73,8 @@ export interface GameContext {
   countStat(playerId: string, key: string, amount?: number): void;
   /** Random prompts for the room's content mode, avoiding repeats within the room. */
   pickPrompts(count: number): PickedPrompt[];
+  /** The enabled hidden modifiers and Action Round events moderators manage (Entity Auction). */
+  effectLibrary(): EffectLibrary;
   /** Read-only access to CPI canon, and a note of which records a round used. */
   canon: GameCanon;
   /** Keeps a memorable moment for the Hall of Fame; saved with the game when it finishes. */

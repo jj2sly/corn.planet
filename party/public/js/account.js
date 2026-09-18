@@ -194,6 +194,9 @@ function statsPanel(s) {
   );
 }
 
+/** Game id -> display name, e.g. "chaos" -> "Cornlashing". */
+let gameNames = {};
+
 function historyPanel(history) {
   return el(
     "section",
@@ -216,7 +219,7 @@ function historyPanel(history) {
                   "tr",
                   {},
                   el("td", { text: new Date(h.endedAt).toLocaleDateString() }),
-                  el("td", { text: h.gameId === "chaos" ? "Cornlashing" : h.gameId }),
+                  el("td", { text: gameNames[h.gameId] ?? h.gameId }),
                   el("td", { text: ordinal(h.placement) }),
                   el("td", { class: "mono", text: h.score.toLocaleString() }),
                   el("td", { text: String(h.playerCount) }),
@@ -230,7 +233,8 @@ function historyPanel(history) {
 
 (async () => {
   try {
-    await loadConfig();
+    const config = await loadConfig();
+    gameNames = Object.fromEntries(config.games.map((g) => [g.id, g.name]));
     await initAuth();
   } catch {
     return page(el("p", { class: "banner danger", role: "alert", text: "Can't reach the Corn Planet Party server. Refresh to try again." }));

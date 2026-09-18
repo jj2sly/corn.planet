@@ -4,8 +4,9 @@ import { $, announce, createMount, el, flavorLine, loadConfig, notice, plural, s
 import { connect } from "./connection.js";
 import * as chaos from "./games/chaos-host.js";
 import * as cornorshit from "./games/cornorshit-host.js";
+import * as entityauction from "./games/entityauction-host.js";
 
-const RENDERERS = { chaos, cornorshit };
+const RENDERERS = { chaos, cornorshit, entityauction };
 const SESSION_KEY = "cpst-party:host";
 
 const stage = $("#stage");
@@ -298,6 +299,26 @@ const SETTINGS_FORMS = {
       el("p", { class: "hint", text: "Claims are drawn from the CPI Database. Nothing this game makes up is ever written back to it." }),
     ];
   },
+  entityauction(settings, configure) {
+    return [
+      choiceGroup("Starting Kernels", "startingKernels", [[5000, "5,000"], [10000, "10,000"], [20000, "20,000"]], settings.startingKernels, (v) =>
+        configure({ settings: { startingKernels: v } }),
+      ),
+      choiceGroup("Entities per agent", "entitiesPerPlayer", [[2, "2"], [3, "3"], [4, "4"]], settings.entitiesPerPlayer, (v) =>
+        configure({ settings: { entitiesPerPlayer: v } }),
+      ),
+      choiceGroup("Time per bay", "auctionSeconds", [[20, "20s"], [30, "30s"], [45, "45s"]], settings.auctionSeconds, (v) =>
+        configure({ settings: { auctionSeconds: v } }),
+      ),
+      choiceGroup("Action Round events", "eventCount", [[3, "3"], [5, "5"], [7, "7"]], settings.eventCount, (v) =>
+        configure({ settings: { eventCount: v } }),
+      ),
+      el("p", {
+        class: "hint",
+        text: "Every bay holds a real CPI Database entity. Values, owners and modifiers exist for this game only; nothing is written back.",
+      }),
+    ];
+  },
 };
 
 /**
@@ -310,8 +331,27 @@ function sourceWarning() {
   let canon = null;
   let mode = null;
   let gameId = null;
+  let room = null;
 
   const show = () => {
+    node.classList.remove("danger");
+    if (gameId === "entityauction") {
+      if (!canon || !room) return;
+      // Every bay needs its own entity; the server refuses to start rather than reuse one.
+      const agents = room.players.length;
+      const per = room.config.settings.entitiesPerPlayer;
+      const needed = agents * per;
+      const n = canon.entity;
+      node.hidden = n > 0 && n >= needed;
+      node.classList.toggle("danger", !node.hidden);
+      node.textContent =
+        n === 0
+          ? "The CPI Database has no entities yet. Add some in the Records Division first."
+          : `INSUFFICIENT CONTAINMENT MATERIAL — ${plural(agents, "agent")} × ${per} needs ${needed} sealed entities, but only ${n} are available. ` +
+            "Lower “Entities per agent” or add entities in the Records Division.";
+      return;
+    }
+
     if (gameId === "chaos") {
       if (!counts || !mode) return;
       const safeOnly = mode === "safe";
@@ -342,7 +382,7 @@ function sourceWarning() {
 
   return {
     node,
-    update: (nextGameId, nextMode) => ((gameId = nextGameId), (mode = nextMode), show()),
+    update: (nextGameId, nextMode, nextRoom) => ((gameId = nextGameId), (mode = nextMode), (room = nextRoom), show()),
   };
 }
 
@@ -403,7 +443,7 @@ function buildLobby(s) {
       leader.textContent = leaderPlayer ? `Session leader: ${leaderPlayer.name}` : "Waiting for the first agent…";
 
       const game = gameFor(next);
-      source.update(game.id, next.config.contentMode);
+      source.update(game.id, next.config.contentMode, next);
 
       // Rebuild the picker only when the selection changed, so a click isn't lost mid-press.
       if (gameList.dataset.selected !== game.id) {

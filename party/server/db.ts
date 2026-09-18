@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import { SEED_EFFECTS, validateEffect, type EffectDef, type EffectKind, type EffectLibrary, type Polarity } from "./games/auctioneffects.ts";
 import { SEED_CATEGORIES } from "./seed.ts";
 
 export type PromptRating = "safe" | "chaos";
@@ -224,6 +225,24 @@ function toMoment(row: Row): Moment {
   };
 }
 
+function toEffect(row: Row): EffectDef {
+  let effect: EffectDef["effect"] = { type: "" };
+  try {
+    effect = JSON.parse(String(row.effect)) as EffectDef["effect"];
+  } catch {
+    // A corrupt effect is shown to moderators as broken and never played (see effectLibrary).
+  }
+  return {
+    id: String(row.id),
+    kind: row.kind as EffectKind,
+    name: String(row.name),
+    polarity: row.polarity === null ? null : (row.polarity as Polarity),
+    description: String(row.description),
+    effect,
+    enabled: row.enabled === 1,
+  };
+}
+
 // Prompts that may appear in games: approved, and not inside a disabled pack.
 const PLAYABLE = `p.status = 'approved' AND (p.pack_id IS NULL OR k.enabled = 1)`;
 
@@ -325,6 +344,36 @@ CREATE INDEX IF NOT EXISTS moments_status ON moments(status);
         this.db.exec("PRAGMA user_version = 4");
       });
     }
+    if (version < 5) {
+      // Entity Auction's hidden modifiers and Action Round events. Seeded once; from then on
+      // moderators own them. Effects are data (a type and its parameters), never code.
+      this.transaction(() => {
+        this.db.exec(`
+CREATE TABLE IF NOT EXISTS auction_effects (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('modifier', 'event')),
+  name TEXT NOT NULL,
+  polarity TEXT CHECK (polarity IN ('buff', 'debuff', 'neutral')),
+  description TEXT NOT NULL,
+  effect TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL
+);
+`);
+        for (const e of SEED_EFFECTS) this.insertEffect(e);
+        this.db.exec("PRAGMA user_version = 5");
+      });
+    }
+  }
+
+  private insertEffect(e: EffectDef): void {
+    this.db
+      .prepare(
+        // OR IGNORE: re-running the seed migration never overwrites what moderators changed.
+        `INSERT OR IGNORE INTO auction_effects (id, kind, name, polarity, description, effect, enabled, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(e.id, e.kind, e.name, e.polarity, e.description, JSON.stringify(e.effect), e.enabled ? 1 : 0, nowIso());
   }
 
   private seed(): void {
@@ -627,6 +676,47 @@ CREATE INDEX IF NOT EXISTS moments_status ON moments(status);
     this.transaction(() => {
       for (const id of ids) stmt.run(id);
     });
+  }
+
+  // ---------------------------------------------------------------- entity auction library
+
+  /** Every modifier and event, modifiers first, for the moderation console. */
+  listAuctionEffects(): EffectDef[] {
+    return (this.db.prepare("SELECT * FROM auction_effects ORDER BY kind DESC, id").all() as Row[]).map(toEffect);
+  }
+
+  getAuctionEffect(id: string): EffectDef | null {
+    const row = this.db.prepare("SELECT * FROM auction_effects WHERE id = ?").get(id) as Row | undefined;
+    return row ? toEffect(row) : null;
+  }
+
+  /** What a game may draw from: enabled entries whose effect is still one the engine knows. */
+  effectLibrary(): EffectLibrary {
+    const playable = this.listAuctionEffects().filter((e) => e.enabled && validateEffect(e.kind, e.effect).ok);
+    return { modifiers: playable.filter((e) => e.kind === "modifier"), events: playable.filter((e) => e.kind === "event") };
+  }
+
+  /** Files a new modifier or event under the next free id for its kind, e.g. BUFF-005 or EVENT-011. */
+  createAuctionEffect(input: Omit<EffectDef, "id">): EffectDef {
+    const prefix = input.kind === "event" ? "EVENT" : (input.polarity ?? "neutral").toUpperCase();
+    const rows = this.db.prepare("SELECT id FROM auction_effects WHERE id LIKE ?").all(`${prefix}-%`) as Row[];
+    const next = 1 + Math.max(0, ...rows.map((r) => Number(String(r.id).slice(prefix.length + 1)) || 0));
+    const id = `${prefix}-${String(next).padStart(3, "0")}`;
+    this.insertEffect({ ...input, id });
+    return this.getAuctionEffect(id)!;
+  }
+
+  updateAuctionEffect(
+    id: string,
+    changes: Partial<Pick<EffectDef, "name" | "polarity" | "description" | "effect" | "enabled">>,
+  ): EffectDef | null {
+    const current = this.getAuctionEffect(id);
+    if (!current) return null;
+    const next = { ...current, ...changes };
+    this.db
+      .prepare("UPDATE auction_effects SET name = ?, polarity = ?, description = ?, effect = ?, enabled = ?, updated_at = ? WHERE id = ?")
+      .run(next.name, next.polarity, next.description, JSON.stringify(next.effect), next.enabled ? 1 : 0, nowIso(), id);
+    return this.getAuctionEffect(id);
   }
 
   // ---------------------------------------------------------------- games & stats

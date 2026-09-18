@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { CanonService } from "./canon.ts";
 import { CONTENT_MODES, type ContentMode, type GameRecord, type PickedPrompt, type SavedMomentInput } from "./db.ts";
 import { PartyError } from "./errors.ts";
+import type { EffectLibrary } from "./games/auctioneffects.ts";
 import type { GameContext, GameDefinition, GameInstance, Highlight, Viewer } from "./games/types.ts";
 import { EMERGENCY_PROMPTS } from "./seed.ts";
 import { cleanName, normalizeCode } from "./text.ts";
@@ -57,6 +58,8 @@ export interface RoomDeps {
   games: ReadonlyMap<string, GameDefinition>;
   canon: CanonService;
   pickPrompts(mode: ContentMode, count: number, exclude: ReadonlySet<number>): PickedPrompt[];
+  /** Enabled Entity Auction modifiers and events, as moderators left them. */
+  effectLibrary(): EffectLibrary;
   incrementUsage(ids: number[]): void;
   recordGame(record: GameRecord): void;
   random(): number;
@@ -277,6 +280,7 @@ export class Room {
         this.stats.set(id, counters);
       },
       pickPrompts: (count) => this.pickPrompts(count),
+      effectLibrary: () => this.deps.effectLibrary(),
       canon: {
         sample: (kind, count) => this.deps.canon.sample(kind, count, () => this.deps.random()),
         list: (kind) => [...this.deps.canon.byKind(kind)],
@@ -305,6 +309,10 @@ export class Room {
       finish: (summary) => live() && this.finishGame(summary.rounds, summary.highlights),
     };
 
+    // Created before anything about the room changes: a game that refuses to start (NO_CANON,
+    // INSUFFICIENT_CANON) must leave the room exactly as it was, not stuck "in game" with no game.
+    const game = definition.create(ctx, definition.parseSettings(this.gameSettings));
+
     this.scores = new Map(active.map((p) => [p.id, 0]));
     this.stats = new Map();
     this.canonRefs = [];
@@ -314,7 +322,7 @@ export class Room {
     // Starting from a phone while the display is away is an explicit choice to play without it.
     this.hostlessResume = this.hostSockets.size === 0;
     this.gameStartedAt = Date.now();
-    this.game = definition.create(ctx, definition.parseSettings(this.gameSettings));
+    this.game = game;
     this.guard(() => this.game?.start());
     this.changed();
   }

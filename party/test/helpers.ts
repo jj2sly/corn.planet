@@ -92,6 +92,7 @@ export function makeRooms(overrides: Partial<RoomDeps> = {}): TestRooms {
     games: GAMES,
     canon: stubCanon(),
     pickPrompts: (mode, count, exclude) => db.pickPrompts(mode, count, exclude),
+    effectLibrary: () => db.effectLibrary(),
     incrementUsage: (ids) => db.incrementUsage(ids),
     recordGame: (record) => {
       records.push(record);

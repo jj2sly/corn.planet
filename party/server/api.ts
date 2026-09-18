@@ -17,6 +17,15 @@ import {
   type PromptStatus,
 } from "./db.ts";
 import { toClientError, PartyError, type ErrorCode } from "./errors.ts";
+import {
+  EFFECT_KINDS,
+  effectCatalog,
+  POLARITIES,
+  validateEffect,
+  type EffectDef,
+  type EffectKind,
+  type Polarity,
+} from "./games/auctioneffects.ts";
 import { gameSummaries } from "./games/registry.ts";
 import { promotionUrl } from "./promotion.ts";
 import { RateLimiter } from "./ratelimit.ts";
@@ -378,6 +387,59 @@ export function createApi({ db, auth, canon, firebase }: ApiDeps): express.Route
 
     const moment = db.startPromotion(found.id, user(res).uid)!;
     res.json({ url: promotionUrl(moment, canon.siteUrl), moment: publicMoment(moment, user(res).uid, true, canon) });
+  });
+
+  // ------------------------------------------------------------ entity auction library
+  // Hidden modifiers and Action Round events. Effects are validated data, never code; games in
+  // progress keep the library they started with.
+
+  function parseAuctionEffect(input: Record<string, unknown>, existing: EffectDef | null) {
+    const kind = existing?.kind ?? input.kind;
+    if (!EFFECT_KINDS.includes(kind as EffectKind)) throw new PartyError("INVALID_INPUT", "Kind must be modifier or event.");
+    const out: Partial<Omit<EffectDef, "id">> & { kind: EffectKind } = { kind: kind as EffectKind };
+
+    if (!existing || input.name !== undefined) {
+      const name = cleanText(input.name, 40);
+      if (!name.ok) throw new PartyError("INVALID_INPUT", "Names are 1–40 characters.");
+      out.name = name.value;
+    }
+    if (!existing || input.description !== undefined) {
+      const description = cleanText(input.description, 200);
+      if (!description.ok) throw new PartyError("INVALID_INPUT", "Descriptions are 1–200 characters.");
+      out.description = description.value;
+    }
+    if (out.kind === "event") {
+      out.polarity = null;
+    } else if (!existing || input.polarity !== undefined) {
+      if (!POLARITIES.includes(input.polarity as Polarity)) throw new PartyError("INVALID_INPUT", "A modifier is a buff, a debuff or neutral.");
+      out.polarity = input.polarity as Polarity;
+    }
+    if (!existing || input.effect !== undefined) {
+      const checked = validateEffect(out.kind, input.effect);
+      if (!checked.ok) throw new PartyError("INVALID_INPUT", checked.message);
+      out.effect = checked.effect;
+    }
+    if (input.enabled !== undefined) {
+      if (typeof input.enabled !== "boolean") throw new PartyError("INVALID_INPUT");
+      out.enabled = input.enabled;
+    }
+    return out;
+  }
+
+  mod.get("/auction", (_req, res) => {
+    res.json({ effects: db.listAuctionEffects(), catalog: effectCatalog() });
+  });
+
+  mod.post("/auction", (req, res) => {
+    const input = parseAuctionEffect(body(req), null);
+    res.status(201).json(db.createAuctionEffect({ enabled: true, ...input } as Omit<EffectDef, "id">));
+  });
+
+  mod.patch("/auction/:id", (req, res) => {
+    const existing = db.getAuctionEffect(String(req.params.id));
+    if (!existing) throw new PartyError("NOT_FOUND");
+    const { kind: _kind, ...changes } = parseAuctionEffect(body(req), existing);
+    res.json(db.updateAuctionEffect(existing.id, changes));
   });
 
   mod.get("/settings", (_req, res) => {

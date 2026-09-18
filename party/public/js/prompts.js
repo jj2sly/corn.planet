@@ -298,6 +298,7 @@ function moderationTab() {
     ["approved", "Approved"],
     ["packs", "Packs & categories"],
     ["settings", "Policy"],
+    ["auction", "Entity Auction"],
   ];
   let view = "pending";
   const bar = el("div", { class: "choices", role: "group", "aria-label": "Moderation view" });
@@ -313,6 +314,7 @@ function moderationTab() {
     try {
       if (view === "packs") return content.replaceChildren(await packsView());
       if (view === "settings") return content.replaceChildren(await settingsView());
+      if (view === "auction") return content.replaceChildren(await auctionView(load));
       const [prompts, packs] = await Promise.all([call(`/mod/prompts?view=${view}`), call("/mod/packs")]);
       content.replaceChildren(
         prompts.length ? el("ul", { class: "list" }, prompts.map((p) => moderationItem(p, packs, load))) : el("p", { class: "muted", text: "Nothing in this queue. Suspiciously calm." }),
@@ -549,6 +551,156 @@ async function settingsView() {
     ),
     el("button", { class: "btn", type: "submit", text: "Save policy" }),
     note,
+  );
+}
+
+// ------------------------------------------------------------------ entity auction library
+
+// Hidden modifiers and Action Round events. Effect types and their parameters come from the
+// server's catalog, so a new effect type shows up here without changing this page.
+
+const POLARITY_STAMP = { buff: "ok", debuff: "danger", neutral: "muted" };
+
+function effectSummary(e, catalog) {
+  const type = catalog[e.kind].find((t) => t.type === e.effect.type);
+  if (!type) return `Unknown effect "${e.effect.type}" — never played`;
+  return [type.label, ...type.params.filter((p) => e.effect[p.key] !== undefined).map((p) => `${p.key} ${e.effect[p.key]}`)].join(" · ");
+}
+
+let effectFormCount = 0;
+
+/** Create or edit form. `existing` is an effect, or just { kind } for a new one. */
+function effectForm(existing, catalog, onSave, onCancel) {
+  const kind = existing.kind;
+  const id = `fx${++effectFormCount}`;
+  const note = el("p", { class: "notice" });
+  const name = el("input", { id: `${id}-name`, type: "text", maxlength: "40", required: true, value: existing.name ?? "" });
+  const description = el("input", { id: `${id}-desc`, type: "text", maxlength: "200", required: true, value: existing.description ?? "" });
+  const polarity =
+    kind === "modifier"
+      ? el("select", { id: `${id}-pol` }, ["buff", "debuff", "neutral"].map((p) => el("option", { value: p, text: p, selected: p === (existing.polarity ?? "buff") })))
+      : null;
+  const type = el("select", { id: `${id}-type` }, catalog[kind].map((t) => el("option", { value: t.type, text: t.label, selected: t.type === existing.effect?.type })));
+  const help = el("p", { class: "hint" });
+  const params = el("div", { class: "stack" });
+  const inputs = new Map();
+
+  const drawParams = () => {
+    const t = catalog[kind].find((c) => c.type === type.value);
+    const current = existing.effect?.type === t.type ? existing.effect : {};
+    help.textContent = t.help;
+    inputs.clear();
+    params.replaceChildren(
+      ...t.params.map((p) => {
+        const input =
+          p.kind === "polarity"
+            ? el("select", { id: `${id}-${p.key}` }, ["", "buff", "debuff", "neutral"].map((v) => el("option", { value: v, text: v || "any", selected: v === (current[p.key] ?? "") })))
+            : el("input", { id: `${id}-${p.key}`, type: "text", inputmode: p.kind === "text" ? "text" : "decimal", value: String(current[p.key] ?? "") });
+        inputs.set(p.key, input);
+        return el("div", { class: "field" }, el("label", { for: input.id, text: p.label }), input);
+      }),
+    );
+  };
+  type.addEventListener("change", drawParams);
+  drawParams();
+
+  return el(
+    "form",
+    {
+      class: "panel quiet stack",
+      onsubmit: async (e) => {
+        e.preventDefault();
+        const effect = { type: type.value };
+        for (const [key, input] of inputs) if (input.value.trim() !== "") effect[key] = input.value.trim();
+        try {
+          await onSave({ kind, name: name.value, description: description.value, effect, ...(polarity ? { polarity: polarity.value } : {}) });
+        } catch (err) {
+          notice(note, err.message, "error");
+        }
+      },
+    },
+    el("div", { class: "field" }, el("label", { for: name.id, text: "Name" }), name),
+    el("div", { class: "field" }, el("label", { for: description.id, text: "Description (shown to players once revealed)" }), description),
+    polarity ? el("div", { class: "field" }, el("label", { for: polarity.id, text: "Kind" }), polarity) : null,
+    el("div", { class: "field" }, el("label", { for: type.id, text: "Effect" }), type, help),
+    params,
+    el("div", { class: "row" }, el("button", { class: "btn", type: "submit", text: "Save" }), el("button", { class: "btn ghost", type: "button", text: "Cancel", onclick: onCancel })),
+    note,
+  );
+}
+
+function effectItem(e, catalog, reload) {
+  const note = el("p", { class: "notice" });
+  const item = el(
+    "li",
+    {},
+    el(
+      "div",
+      { class: "grow stack" },
+      el(
+        "div",
+        { class: "row" },
+        el("span", { class: "stamp muted", text: e.id }),
+        e.polarity ? el("span", { class: `stamp ${POLARITY_STAMP[e.polarity]}`, text: e.polarity }) : null,
+        e.enabled ? null : el("span", { class: "stamp danger", text: "Disabled" }),
+      ),
+      el("div", {}, el("strong", { text: e.name }), ` — ${e.description}`),
+      el("div", { class: "hint mono", text: effectSummary(e, catalog) }),
+    ),
+    el(
+      "span",
+      { class: "row" },
+      el("button", {
+        class: "btn subtle small",
+        type: "button",
+        text: "Edit",
+        onclick: () =>
+          item.replaceChildren(effectForm(e, catalog, async (body) => (await call(`/mod/auction/${e.id}`, { method: "PATCH", body }), reload()), reload)),
+      }),
+      el("button", {
+        class: "btn subtle small",
+        type: "button",
+        text: e.enabled ? "Disable" : "Enable",
+        onclick: async () => {
+          try {
+            await call(`/mod/auction/${e.id}`, { method: "PATCH", body: { enabled: !e.enabled } });
+            reload();
+          } catch (err) {
+            notice(note, err.message, "error");
+          }
+        },
+      }),
+    ),
+    note,
+  );
+  return item;
+}
+
+async function auctionView(reload) {
+  const { effects, catalog } = await call("/mod/auction");
+  const section = (kind, title, hint) => {
+    const slot = el("div");
+    const add = el("button", {
+      class: "btn small",
+      type: "button",
+      text: kind === "event" ? "New event" : "New modifier",
+      onclick: () => slot.replaceChildren(effectForm({ kind }, catalog, async (body) => (await call("/mod/auction", { method: "POST", body }), reload()), () => slot.replaceChildren(add))),
+    });
+    slot.append(add);
+    return el(
+      "section",
+      { class: "stack" },
+      el("h3", { text: title }),
+      el("p", { class: "hint", text: hint }),
+      el("ul", { class: "list" }, effects.filter((e) => e.kind === kind).map((e) => effectItem(e, catalog, reload))),
+      slot,
+    );
+  };
+  return el(
+    "div",
+    { class: "stack" },
+    section("modifier", "Hidden modifiers", "Every entity in a game carries one, drawn at random from the enabled ones. Agents only learn it in the Action Round."),
+    section("event", "Action Round events", "Drawn at random without repeats, and applied to every agent at once. Games already running keep the library they started with."),
   );
 }
 

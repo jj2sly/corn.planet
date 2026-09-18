@@ -115,6 +115,7 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
     games: GAMES,
     canon,
     pickPrompts: (mode, count, exclude) => db.pickPrompts(mode, count, exclude),
+    effectLibrary: () => db.effectLibrary(),
     incrementUsage: (ids) => db.incrementUsage(ids),
     recordGame: (record) => db.recordGame(record),
     random: options.random ?? Math.random,
