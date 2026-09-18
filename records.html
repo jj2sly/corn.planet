@@ -127,6 +127,14 @@
 
         <h2>Create New Incident</h2>
 
+        <div id="incPromotion" class="warning" style="display:none;">
+            PROMOTING A CORN PLANET PARTY MOMENT<br>
+            This was written during a game, so it is not canon yet. Review it, write the incident
+            report, then file it. It becomes canon only when you press Create Incident.
+            <br><br>
+            <button id="incPromotionCancel" type="button">Discard promotion</button>
+        </div>
+
         <input id="incDocId" placeholder="Auto-generating..." disabled>
 
         <input id="incTitle" placeholder="Incident Title"><br><br>
@@ -238,6 +246,35 @@ import { db, auth, ROLE_LIST, can, getUserRole, ensureUserDoc } from "./roles.js
 
 let currentRole = "VIEWER";
 
+/* =========================
+   PROMOTION HANDOFF
+   Corn Planet Party's Hall of Fame sends moderators here with an incident prefilled
+   (?promote=cpp-moment-42&title=...). The parameters are parked in sessionStorage straight
+   away, because the auth check below may detour through login.html, which always lands on
+   index.html and would lose them. The record only becomes canon if someone files it.
+========================= */
+
+const PROMOTION_KEY = "cpi-records:promotion";
+const PROMOTION_MARKER = /^cpp-moment-[1-9]\d{0,9}$/;
+const PROMOTION_FIELDS = ["title", "summary", "resolution", "addendum"];
+let pendingPromotion = null;
+
+(function parkPromotion() {
+    const params = new URLSearchParams(window.location.search);
+    const marker = params.get("promote");
+    if (!marker || !PROMOTION_MARKER.test(marker)) return;
+
+    const promotion = { marker };
+    for (const field of PROMOTION_FIELDS) promotion[field] = (params.get(field) || "").slice(0, 2000);
+    try {
+        sessionStorage.setItem(PROMOTION_KEY, JSON.stringify(promotion));
+    } catch {
+        /* storage unavailable: the prefill is lost, nothing else breaks */
+    }
+    // Keep the long query string out of the address bar and history.
+    history.replaceState(null, "", window.location.pathname);
+})();
+
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
         window.location.replace("login.html");
@@ -260,6 +297,7 @@ onAuthStateChanged(auth, async (user) => {
         "CLEARANCE: " + (roleInfo ? roleInfo.label.toUpperCase() : "UNKNOWN") + " — CONTENT CREATION & CURATION";
 
     document.getElementById("recordsContent").style.display = "block";
+    applyPromotion();
 
     // Classifications management requires Strike Team Overseer or above.
     if (!can.manageClassifications(currentRole)) {
@@ -661,6 +699,42 @@ async function refreshIncDocId() {
     document.getElementById("incDocId").value = await nextId("incidents", "INC");
 }
 
+// Fills the incident form from a parked Hall of Fame promotion, if there is one.
+function applyPromotion() {
+    let promotion = null;
+    try {
+        promotion = JSON.parse(sessionStorage.getItem(PROMOTION_KEY) || "null");
+    } catch {
+        promotion = null;
+    }
+    if (!promotion || !PROMOTION_MARKER.test(promotion.marker || "")) return;
+
+    pendingPromotion = promotion.marker;
+    document.querySelector('#recordsTabBar [data-tab="incidentPanel"]').click();
+    document.getElementById("incTitle").value = promotion.title || "";
+    document.getElementById("incSummary").value = promotion.summary || "";
+    document.getElementById("incResolution").value = promotion.resolution || "";
+    document.getElementById("incAddendum").value = promotion.addendum || "";
+    document.getElementById("incStatus").value = "RESOLVED";
+    document.getElementById("incPromotion").style.display = "block";
+}
+
+function clearPromotion() {
+    pendingPromotion = null;
+    try {
+        sessionStorage.removeItem(PROMOTION_KEY);
+    } catch {
+        /* ignore */
+    }
+    document.getElementById("incPromotion").style.display = "none";
+}
+
+document.getElementById("incPromotionCancel").addEventListener("click", () => {
+    clearPromotion();
+    clearFields(["incTitle", "incSummary", "incResolution", "incAddendum"]);
+    document.getElementById("incStatusMsg").textContent = "Promotion discarded. Nothing was filed.";
+});
+
 document.getElementById("incSubmitBtn").addEventListener("click", async () => {
     const statusEl = document.getElementById("incStatusMsg");
 
@@ -702,12 +776,23 @@ document.getElementById("incSubmitBtn").addEventListener("click", async () => {
         entitiesInvolved: selectedValues("incEntities"),
         personnelInvolved: selectedValues("incPersonnel"),
         imageURL: imageURL,
-        logs: [{ date: new Date().toLocaleString(), message: "Incident file created." }]
+        logs: [{
+            date: new Date().toLocaleString(),
+            message: pendingPromotion
+                ? "Incident file created, promoted from the Corn Planet Party Hall of Fame."
+                : "Incident file created."
+        }]
     };
+
+    // Lets Corn Planet Party link its Hall of Fame moment to this record once it reads canon.
+    if (pendingPromotion) newData.promotedFrom = pendingPromotion;
 
     await setDoc(doc(db, "incidents", docId), newData);
 
-    statusEl.textContent = "Incident " + docId + " successfully filed.";
+    statusEl.textContent = pendingPromotion
+        ? "Incident " + docId + " filed. The Hall of Fame will show it as canon within about 10 minutes."
+        : "Incident " + docId + " successfully filed.";
+    clearPromotion();
 
     clearFields(["incTitle", "incDate", "incSummary", "incDescription", "incResolution", "incAddendum", "incImageUpload"]);
     for (const id of ["incEntities", "incPersonnel"]) {
