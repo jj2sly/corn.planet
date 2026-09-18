@@ -142,6 +142,14 @@ Do not show a reference before the round's rules allow it — in Corn or Shit th
 of the reveal, because naming the record early would give the answer away. In Entity Auction nothing
 about a bay's entity leaves the server until its door opens.
 
+My Cob Escaped builds a whole incident around one canon entity: a breach, a location, facility damage,
+made-up staff, objectives, and everything the players and the Incident Director do to it. All of that is
+generated content and lives in the room (and in the game's `game_details` record, marked `canon: false`).
+Real personnel files it pulls in get game-only statuses (trapped, injured…) that say nothing about the
+real person. It never shows an unidentified entity's name or id, or an undiscovered part of its file,
+until the game reveals it, and director text is scrubbed of both. Its `game_canon_refs` rows are the
+entity, the canon personnel and the prior incidents it drew on (round 1).
+
 Entity Auction gives each entity a Kernel value, an owner and a hidden modifier for one game. Those
 are generated content like everything else a game makes: they live in the room's memory, are never
 written anywhere, and say nothing about the entity's canon record. Its `game_canon_refs` rows are

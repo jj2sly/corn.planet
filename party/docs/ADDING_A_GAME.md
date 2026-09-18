@@ -50,7 +50,7 @@ Use the `GameContext` instead of your own infrastructure:
 | `ctx.canon` | Read-only CPI Database access: `list(kind)`, `sample(kind, n)`, `get(ref)`, and `used(round, ref)` to note which record a round came from. See [CANON.md](CANON.md) |
 | `ctx.random()` | Randomness (seeded in tests) |
 | `ctx.changed()` | Push fresh views to every screen |
-| `ctx.finish({ rounds, highlights })` | End the game: rank, record stats, show the final debrief |
+| `ctx.finish({ rounds, highlights, details? })` | End the game: rank, record stats, show the final debrief. `details: { kind, data }` saves a structured JSON record of the game to `game_details` (read back with `PartyDb.listGameDetails(kind)`) |
 
 If the game uses canon, read [CANON.md](CANON.md) first. In short: canon is read-only, anything the
 game invents is generated content and never becomes canon, redacted fields are skipped, and the
@@ -69,7 +69,8 @@ Add it to `INSTALLED` in `server/games/registry.ts`. It then appears in `/api/co
 and in the host screen's game list. `room:configure` with `{ gameId }` selects it.
 
 If the game needs lobby settings, add an entry to `SETTINGS_FORMS` in `public/js/host.js` keyed by
-your game id. Without one the game simply shows no settings. The operation picker, the game card and
+your game id. Choices the form needs from the server (modes, presets) can go in the definition's
+optional `catalog`, which `/api/config` publishes with the game. Without one the game simply shows no settings. The operation picker, the game card and
 the minimum-player check all follow the selected game automatically.
 
 ## 3. Client: render it

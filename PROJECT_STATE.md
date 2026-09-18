@@ -1,7 +1,7 @@
 # Project state — corn.planet
 
 Read this first in a fresh session, then `party/docs/ARCHITECTURE.md` if you need detail.
-Last updated: 2026-09-18.
+Last updated: 2026-09-18 (My Cob Escaped).
 
 > **Naming (decided and applied 2026-09-17):** **CPI — Corn Planet Institution** is the umbrella org.
 > **CPST — Corn Planet Strike Team** is the team inside it (still used for role labels like "Strike
@@ -19,7 +19,7 @@ Two things in one repository:
 | Part | Where | What |
 |---|---|---|
 | **CPI Database** site | repo root (`*.html`, `style.css`, `roles.js`, `nav-auth.js`, …) | Static site on GitHub Pages (`jj2sly.github.io/corn.planet`, served from `main`). Vanilla JS, no build step. Firebase Auth + Firestore (project `cpo-9af17`, Spark plan — no Cloud Functions). Collections: `entities` (`CPE-001`…), `artifacts` (`ART-001`…), `incidents` (`INC-001`…), `personnel` (`PER-001`…), `classifications`, `users/{uid}`. Roles: VIEWER(0) → CPI_EMPLOYEE(1) → CORRESPONDENT(2) → OVERSEER(3) → EXEC(4), enforced by Firestore rules (configured in the Firebase console, **not** in this repo). Admin: `admin.html` (EXEC assigns roles), `records.html` (CORRESPONDENT+ creates records). |
-| **Corn Planet Party** | `party/` | Phone-controlled multiplayer party-game server. Node 24 + TypeScript run directly (no bundler, no compile step), Express 5, Socket.IO 4, SQLite via built-in `node:sqlite`. One long-running process, rooms in memory. Games: **Cornlashing**, and the canon-driven **Corn or Shit** and **Entity Auction**. |
+| **Corn Planet Party** | `party/` | Phone-controlled multiplayer party-game server. Node 24 + TypeScript run directly (no bundler, no compile step), Express 5, Socket.IO 4, SQLite via built-in `node:sqlite`. One long-running process, rooms in memory. Games: **Cornlashing**, and the canon-driven **Corn or Shit**, **Entity Auction** and **My Cob Escaped, What Do I Do Now???**. |
 
 The database site does **not** depend on `party/`. `index.html` links to Corn Planet Party.
 
@@ -61,7 +61,8 @@ export PATH="$LOCALAPPDATA/Programs/node-v24:$PATH"   # every new bash session
 cd party
 npm run dev        # watch mode          npm start    # plain start
 npm run typecheck  # tsc --noEmit        npm test     # node --test
-npm run check      # typecheck + tests   -> 174 tests, 43 suites, all passing (2026-09-18)
+npm run check      # typecheck + tests   -> 250 tests, 60 suites, all passing (2026-09-18)
+node scripts/mycob-sim.ts 300   # My Cob Escaped balance simulator (offline, ~7s)
 ```
 
 Pages: `/` join, `/host` big screen, `/play` phone, `/account`, `/prompts`, `/healthz`.
@@ -108,21 +109,33 @@ Hubs: `el()`, `PartyDb`, `Room`, `PartyError`, `$`, `ChaosGame`, `createRealtime
 verification (jose + Google JWKS) and role lookup · `api.ts` REST · `rooms.ts` room/player lifecycle
 · `realtime.ts` socket handlers · `text.ts` input cleaning · `ratelimit.ts` ·
 `canon.ts` read-only CPI Database access (warm snapshot, redactions stripped) ·
-`games/{types,registry,chaos,claims,cornorshit}.ts`. Browser code in `public/` (vanilla ES modules,
-`el()` helper, `games/chaos-{host,play}.js`, `games/cornorshit-{host,play}.js`). Adding a game:
-`party/docs/ADDING_A_GAME.md`. Canon rules: `party/docs/CANON.md`.
+`games/{types,registry,chaos,claims,cornorshit,entityauction,auctioneffects,awards}.ts`,
+`games/mycob/{config,content,incident,rules,director,narration,game}.ts`. Browser code in `public/`
+(vanilla ES modules, `el()` helper, `games/<id>-{host,play}.js`). Adding a game:
+`party/docs/ADDING_A_GAME.md`. Canon rules: `party/docs/CANON.md`. My Cob Escaped: `party/docs/MYCOB.md`.
 
 Server is authoritative for state, timers, scores, votes and authorship. All user text is cleaned
 server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 8. Status
 
+- **My Cob Escaped, What Do I Do Now???** (built 2026-09-18, **not committed, pushed or deployed
+  yet**): incident-response game on a shared incident engine. Random canon entity (sometimes unknown),
+  data-driven breach/location/facility/problem/personnel/objectives, entity-specific rules, hidden
+  0–100 stats shown as qualitative statuses, roles with trades and private intel, 3 lives with
+  reassignment at 0, chaos, stage votes, hidden stage scoring, player-created awards, text narration
+  with a voice hook, one `game_details` JSON record per game (migration 6). The Incident Director is an
+  interface; the only implementation is the built-in template director (no LLM, no API key). Modes:
+  Incident Response and Chaos Mode playable; four more listed as coming later. Played end to end in
+  the browser (host + phone tab + bots, fixture canon), not on real phones or live canon. See
+  `party/docs/MYCOB.md`.
 - Corn Planet Party has **two games** and is documented. **Pushed and verified live on 2026-09-17**:
   Railway serves Cornlashing and Corn or Shit and loaded 21 canon records in production.
 - The CPI Database site on `main` (GitHub Pages) has the rename plus the incident and personnel
   pages, cherry-picked from `cpst-party` (`9dfd76b`, `1b9aae5`). Verified live.
-- Tests: **174 passing** (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
-  promotion, db, api, realtime, framework). `tsc --noEmit` clean.
+- Tests: **250 passing** (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
+  promotion, db, api, realtime, framework, mycob, mycob-incident, mycob-rules, mycob-realtime,
+  awards). `tsc --noEmit` clean.
 - **Entity Auction** (built 2026-09-18, **not pushed or deployed yet**): agents bid Kernels on sealed
   containment bays, each hiding a real entity; doors open when the server's timer ends; hidden
   modifiers and random global events in the Action Round; highest net worth wins. Moderators manage
@@ -161,8 +174,9 @@ mirrored in the file.
    in Corn or Shit rounds. Delete it in the Records Division if it is junk.
 6. `artifacts` is empty, so it is deliberately left out of `canon.ts`. Add a spec there once it has
    content.
-7. Planned-but-unbuilt games: My Cob Escaped What Do I Do Now???, Draw, Trivia, Gamble,
-   Hidden roles, Prediction.
+7. Planned-but-unbuilt games: Draw, Trivia, Gamble, Hidden roles, Prediction. My Cob Escaped's
+   other four modes (You Made It Worse, Incident Report, Choose Your Response, CPST Field Operative)
+   are listed in the lobby but not playable.
 8. Promotion to canon only produces **incidents** (a Cornlashing prompt is an incident, the report
    its resolution). Promoting as an entity or personnel file isn't supported.
 9. A game ended early saves no moments (same as stats). Corn or Shit saves none by design — its best
@@ -176,6 +190,9 @@ mirrored in the file.
 13. Implemented effect types: change/multiply value, lose/duplicate entity, pay owner, pay everyone,
     trigger modifiers. Transfer, swap and protect are not built; add them to `EFFECT_TYPES` in
     `party/server/games/auctioneffects.ts` when a modifier needs them.
+14. My Cob Escaped's built-in director can't read free text (it uses tags, approach, outcome and the
+    incident elements a response names), so narration is template-driven. A model-backed
+    `IncidentDirector` is the intended upgrade; nothing else would need to change.
 
 ## 9. Decisions
 
@@ -206,6 +223,17 @@ mirrored in the file.
 13. **What counts as a moment** in Cornlashing: each incident's winning report(s) with at least one
     vote. Default rulings don't count.
 
+**2026-09-18 (My Cob Escaped)**
+19. **No LLM yet**: the Incident Director is an interface with a deterministic built-in director.
+    Adding a model provider (and an API key / cost) is a separate decision.
+20. **Engine rolls first, director narrates within the rolls**; directors can't award points or take
+    lives. Invalid, failing or late (>10 s) directors fall back to the built-in one.
+21. **Responses get an optional approach (careful/standard/reckless) and "put myself in harm's way"**,
+    so chaos and sacrifice are explicit choices, never inferred from wording. Text is never scored.
+22. **Awards**: players invent one award each, then vote on who receives each (no self-votes); no points.
+23. **Persistence**: one generic `game_details` JSON row per game rather than per-game tables.
+24. **Redacted canon stays stripped**: the director never sees `/r…/r` content either.
+
 **2026-09-18 (Entity Auction)**
 14. **Unbid bays** go free to an agent with the emptiest collection, so every agent ends the auction
     with exactly `entitiesPerPlayer` entities. Opening bid minimum is 0, raises at least 100.
@@ -228,7 +256,10 @@ mirrored in the file.
    form prefills after the login detour, file it, and confirm `/hall` shows it as canon within ~10 min.
 4. Play Entity Auction with real people on real phones, against live canon. Then push `cpst-party`
    (asks first — pushing redeploys Railway). Watch whether 30s per bay and 5 events feel right.
-5. Then: My Cob Escaped.
+5. Play My Cob Escaped with real people on real phones (it has only been played from browser tabs
+   with bots). Tune `party/server/games/mycob/config.ts` from what feels off and re-run
+   `node scripts/mycob-sim.ts`. Decide whether to add a model-backed Incident Director.
+6. Commit My Cob Escaped on `cpst-party` (not committed yet), then push when ready (asks first).
 
 Optional later: renaming the internal game id `chaos` → `cornlashing` would mean renaming 3 files,
 the registry entry, and a SQLite migration for existing `games.game_id` rows. Not worth it unless asked.

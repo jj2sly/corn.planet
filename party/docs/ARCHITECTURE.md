@@ -2,7 +2,8 @@
 
 Corn Planet Party is a phone-controlled multiplayer party game platform for the Corn Planet
 Institution. A host screen (laptop/TV) shows the shared game; players use their phones as
-controllers. The games are **Cornlashing**, **Corn or Shit** and **Entity Auction**.
+controllers. The games are **Cornlashing**, **Corn or Shit**, **Entity Auction** and **My Cob
+Escaped, What Do I Do Now???**.
 
 It lives entirely in `party/` and **coexists** with the existing CPI Database site in the
 repository root. Nothing in the existing site depends on it.
@@ -78,6 +79,8 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `games/cornorshit.ts` | Corn or Shit |
 | `games/entityauction.ts` | Entity Auction: rules, bays, bidding, Action Round, net worth |
 | `games/auctioneffects.ts` | Entity Auction's effect engine: modifier/event types, validation, starting library |
+| `games/mycob/*.ts` | My Cob Escaped: `config` (every tunable, modes), `content` (world data, entity rules), `incident` (generator, facts, objectives), `rules` (rolls, effects, scoring, endings), `director` (Incident Director contract, validation, built-in director), `narration`, `game` |
+| `games/awards.ts` | Player-created awards (create, dedupe, vote, results), usable by any game |
 
 ### Browser code (`party/public/`)
 
@@ -89,6 +92,7 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `js/games/chaos-host.js`, `js/games/chaos-play.js` | Cornlashing views for the host screen and phones |
 | `js/games/cornorshit-host.js`, `js/games/cornorshit-play.js` | Corn or Shit views |
 | `js/games/entityauction-{host,play}.js`, `js/games/entityauction-bay.js` | Entity Auction views; the containment doors are in `-bay.js` |
+| `js/games/mycob-{host,play,shared}.js`, `js/games/mycob-voice.js` | My Cob Escaped views; `-voice.js` is where a future narrator voice plugs in |
 | `hall.html`, `js/hall.js` | Hall of Fame: accepted reports, moderator hide and promote |
 | `account.html`, `js/account.js` | Login/register (Firebase), display name, stats, history |
 | `prompts.html`, `js/prompts.js` | Prompt writing, library, reports, moderation console |
@@ -135,7 +139,7 @@ Every client event is `socket.emit(event, payload, ack)` and gets `{ ok: true, .
 | `room:kick` | host/leader | `playerId` | Remove a player |
 | `room:close` | host | – | Close the session for everyone |
 | `game:host` | host/leader | `action`, `payload?`, `step?` | Game host action (e.g. `skip`), ignored if `step` is stale |
-| `game:input` | player | `action`, `payload` | Game input (Chaos: `answer`, `vote`) |
+| `game:input` | player | `action`, `payload` | Game input (Chaos: `answer`, `vote`; My Cob Escaped: `respond`, `vote`, `trade:offer/accept/cancel/decline`, `award:submit`, `award:vote`) |
 | `state:request` | either | – | Resend current state |
 
 ## 6. Minigame framework
@@ -156,7 +160,9 @@ interface GameInstance {
 
 The room gives the game a `GameContext`: player list, a single pausable phase timer, scoring
 (`addPoints`), per-player stat counters, the prompt source, a `changed()` signal to push new views,
-and `finish()` which records results and moves the room to `FINAL_RESULTS`. Rooms, networking,
+and `finish()` which records results (plus, optionally, a structured JSON record of the game saved
+to `game_details`) and moves the room to `FINAL_RESULTS`. A definition may also publish a `catalog`
+of lobby choices (My Cob Escaped's modes and lengths) through `/api/config`. Rooms, networking,
 reconnects, pausing, scoreboards and stats persistence are all generic — a new game only
 implements its own phases and views, plus host/phone renderers in `public/js/games/<id>-*.js`.
 `test/framework.test.ts` runs a second, unrelated game through the same rooms to keep this true;
@@ -166,8 +172,7 @@ Games reach CPI canon through `ctx.canon` (list / sample / get / used). It is re
 read the CPI Database and note which records a round used, and can never write to it. The rules are
 in [CANON.md](CANON.md), which every canon-driven game should follow.
 
-Planned future games (not built): My Cob Escaped What Do I Do Now???, Corn Planet Draw, Trivia,
-Gamble, Hidden roles, Prediction.
+Planned future games (not built): Corn Planet Draw, Trivia, Gamble, Hidden roles, Prediction.
 
 ## 7a. Canon
 
@@ -239,6 +244,24 @@ Agents bid Kernels on sealed containment bays; each bay secretly holds one real 
 - **Score** = net worth (Kernels left + value of active entities), so the room's standings are the
   final ranking. `game_canon_refs` gets one row per opened bay (round = bay number).
 
+## 7f. My Cob Escaped, What Do I Do Now???
+
+An incident-response game on a shared incident engine; full design in [MYCOB.md](MYCOB.md). Phases:
+`ALERT → (UPDATE → RESPONSE → PROCESSING → CONSEQUENCE → STAGE_VOTE) × stages → OUTCOME →
+AWARD_SUBMIT → AWARD_VOTE → AWARD_RESULTS`.
+
+- **Split of power**: the *Incident Director* (an `IncidentDirector`; the built-in one is template-driven
+  and offline) interprets responses and narrates; the *engine* rolls outcomes first, then validates and
+  applies whatever the director proposes within those rolls. The director can't award points, pick
+  winners or take lives on its own; invalid, late or failing directors fall back to the built-in one.
+- **Hidden state** (numeric stats, difficulty, rolls, undiscovered facts, an unknown entity's identity,
+  raw responses, director context) stays in the instance; views carry qualitative statuses and
+  discovered facts only, and director text is scrubbed before it is stored.
+- **Canon**: the entity, and any real personnel and prior incidents, are read through `ctx.canon` and
+  recorded in `game_canon_refs`; everything else is generated. Refuses to start without entities.
+- **Persistence**: one `game_details` row (`kind: "mycob.v1"`) per game for tuning and review.
+- **Tuning**: every number is in `games/mycob/config.ts`; `scripts/mycob-sim.ts` simulates games.
+
 ## 7d. Hall of Fame
 
 Games keep memorable moments with `ctx.saveMoment()`; the room saves them with the game's history in
@@ -264,7 +287,8 @@ this server: the filed record carries `promotedFrom: "cpp-moment-<id>"`, and aft
 
 ## 9. Statistics
 
-`games` + `game_players` (score, placement, per-game counters as JSON). A user's stats are
+`games` + `game_players` (score, placement, per-game counters as JSON), and `game_details` (one JSON
+record per game, for games that keep a structured history). A user's stats are
 aggregated from their rows: games played, wins, rounds, answers submitted, votes cast/received,
 total points, best placement, prompts created and how often they were used, favourite categories,
 and recent history. Stats are only returned to their owner. Emails are never stored by Corn Planet Party.

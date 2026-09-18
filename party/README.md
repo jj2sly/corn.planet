@@ -1,10 +1,11 @@
 # Corn Planet Party
 
 Phone-controlled multiplayer party games from the **Corn Planet Institution**.
-One screen hosts (laptop or TV), 3–8 agents play on their phones. Three games so far:
+One screen hosts (laptop or TV), 3–8 agents play on their phones. Four games so far:
 **Cornlashing** (anonymous incident reports, head-to-head votes, points), **Corn or Shit**
-(one claim is in the CPI Database, one was made up — call it) and **Entity Auction** (bid Kernels
-on sealed containment bays without knowing which CPI entity is inside).
+(one claim is in the CPI Database, one was made up — call it), **Entity Auction** (bid Kernels
+on sealed containment bays without knowing which CPI entity is inside) and **My Cob Escaped, What
+Do I Do Now???** (a CPI entity got out; type what you do, the Incident Director decides what happens).
 
 > **Players:** open the site on your phone → enter the 4-letter code → pick a name → play.
 > **Host:** open `/host` on the big screen → show the code → start the operation.
@@ -13,7 +14,8 @@ Corn Planet Party lives in `party/` and runs next to the existing CPI Database s
 root. The database site does not depend on it and keeps working if Corn Planet Party is down.
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together,
 [docs/CANON.md](docs/CANON.md) for the rules on CPI Database canon versus content games generate,
-and [docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md) for building the next minigame.
+[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md) for building the next minigame, and
+[docs/MYCOB.md](docs/MYCOB.md) for My Cob Escaped's design, director contract and tuning.
 
 ---
 
@@ -104,8 +106,14 @@ The suite covers rooms (codes, joining, limits, duplicate names, leaving, discon
 leader transfer, host pause, cleanup), Cornlashing (assignment, answer validation and editing,
 anonymity, vote validation, scoring, full games, replay), the database (moderation policy,
 reports, stats), the REST API (auth, ownership, moderator permissions, validation, safe errors)
-and real Socket.IO multiplayer (full game over sockets with an author-leak scan, refresh recovery,
-session replacement, host refresh, kicks, logins, rate limiting).
+real Socket.IO multiplayer (full game over sockets with an author-leak scan, refresh recovery,
+session replacement, host refresh, kicks, logins, rate limiting), and My Cob Escaped (incident
+generation, rolls, the director boundary and its fallbacks, lives, roles, voting, awards, scoring caps,
+a secrecy scan of every view, persistence, and a socket game with reconnects).
+
+`node scripts/mycob-sim.ts [games]` plays hundreds of simulated My Cob Escaped games and prints
+balance numbers (endings, lives lost, chaos, playstyle placements) — run it after tuning
+`server/games/mycob/config.ts`.
 
 ## How a session works
 
@@ -114,6 +122,8 @@ session replacement, host refresh, kicks, logins, rate limiting).
 2. For Cornlashing, pick paired rounds (1–3), the Total Breach final round, report/vote timers and
    the humor level (Safe, Chaos, Custom). For Corn or Shit, pick rounds (3/5/8) and call time.
    For Entity Auction, pick starting Kernels, entities per agent, time per bay and event count.
+   For My Cob Escaped, pick the mode (Incident Response or Chaos Mode), the length (Short 3 /
+   Standard 5 / Long 7 stages) or an exact stage count.
 3. Pick the operation; the settings below it follow your choice.
 4. Start once at least 3 agents are connected. Use **Skip ▸** to move past a phase early,
    **End game** to return to the lobby, **Close session** to end it for everyone. You can remove
@@ -172,6 +182,22 @@ session replacement, host refresh, kicks, logins, rate limiting).
   parameters; nothing a moderator writes is ever run as code.
 - All rules live in `DEFAULT_ENTITY_AUCTION_RULES` in `server/games/entityauction.ts`.
 
+**My Cob Escaped rules** (full design: [docs/MYCOB.md](docs/MYCOB.md))
+- A random CPI Database entity has escaped — sometimes nobody knows which one yet. Each incident is
+  generated fresh: breach type (some are specific to the entity's file), location, facility damage,
+  starting problem, real and made-up staff, and objectives.
+- Everyone gets a temporary **role** (trade them on your phone before a stage), private role intel and
+  **3 lives**. Each stage: read the update, pick a response type and type what you do (anything), then
+  watch the combined consequence and vote anonymously for the best move.
+- Outcomes are rolled by the server: roles, the entity, the facility's state, chaos and luck all
+  matter, so brilliant plans can fail and terrible ones can work. Reckless play swings harder and
+  stirs up **chaos**; putting yourself in harm's way helps but can cost a life.
+- At 0 lives you're down, not out: you come back next stage as someone else.
+- It ends contained, terminated, with the entity at large, or with no survivors. Scores (impact,
+  chaos with real consequences, creativity, role use, votes, sacrifice, team result) are revealed
+  at the end. Then everyone invents an award and votes on who gets it.
+- The Incident Director is built in and runs offline; nothing is written to the CPI Database.
+
 ## Accounts
 
 Corn Planet Party reuses the **CPI Database Firebase accounts**: same email and password. Guests can play
@@ -227,7 +253,8 @@ Only games that finish save their moments; a game ended early keeps nothing, the
 
 SQLite at `DATABASE_PATH`, created and migrated automatically on startup (`PRAGMA user_version`).
 Tables: `profiles`, `prompts`, `packs`, `categories`, `reports`, `settings`, `games`, `game_players`,
-`game_canon_refs`, `moments`.
+`game_canon_refs`, `moments`, `auction_effects`, `game_details` (one JSON record per game for games
+that keep more than scores, e.g. My Cob Escaped's full incident history).
 
 **Migrations**: add a new `if (version < N)` block in `PartyDb.migrate()` (`server/db.ts`) that runs
 the schema change and sets `PRAGMA user_version = N`. They run in a transaction on startup.
