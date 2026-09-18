@@ -118,13 +118,12 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 ## 8. Status
 
 - Corn Planet Party has **two games** and is documented. **Pushed and verified live on 2026-09-17**:
-  Railway serves Cornlashing and Corn or Shit and loaded 21 canon records in production
-  (`/healthz` → `canon.degraded: true` until the Firestore rules below are applied).
+  Railway serves Cornlashing and Corn or Shit and loaded 21 canon records in production.
 - The CPI Database site on `main` (GitHub Pages) has the rename plus the incident and personnel
   pages, cherry-picked from `cpst-party` (`9dfd76b`, `1b9aae5`). Verified live.
 - Tests: **145 passing** (`party/test/`: rooms, chaos, cornorshit, claims, canon, promotion, db, api,
   realtime, framework). `tsc --noEmit` clean.
-- **Hall of Fame + promotion to canon** (built 2026-09-17, not yet pushed at the time of writing):
+- **Hall of Fame + promotion to canon** (built 2026-09-17):
   Cornlashing keeps each incident's accepted report(s) in `moments`; `/hall` lists them; moderators
   hide or promote. Promotion hands a prefilled incident to the Records Division
   (`records.html?promote=cpp-moment-N`); the filed record carries `promotedFrom` and the party server
@@ -137,16 +136,12 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 - Prompt library intentionally **starts empty**; Cornlashing falls back to placeholder incidents.
   Corn or Shit does not need prompts at all — it runs on canon.
 
-### ⚠ Blocking action, not doable from here
+### Firestore rules
 
-**The `incidents` and `personnel` Firestore rules must be applied in the Firebase console.**
-Until then both collections are default-deny: the new database pages show "Could not reach the
-database", creating a record fails, and the party server logs
-`canon partially unavailable: incidents: HTTP 403; personnel: HTTP 403` (it degrades to entities
-only, which is why Corn or Shit still works). `firestore.rules` is now the real console rules
-(pasted in by the user on 2026-09-17) plus the `incidents` and `personnel` blocks, so the whole
-file can be pasted into console.firebase.google.com → project `cpo-9af17` → Firestore Database →
-Rules → Publish.
+Published by the user on 2026-09-17 with the `incidents` and `personnel` blocks; verified the same
+day (both collections readable signed out, `users` still 403). `firestore.rules` is a copy of the
+console rules; nothing deploys it, so any change must be published in the console by hand and
+mirrored in the file.
 
 ### Known issues / gaps
 1. `graphify.exe` is not on PATH (see §3) — prefix it or add that Scripts directory too.
@@ -196,14 +191,12 @@ Rules → Publish.
 
 ## 10. Next task
 
-1. **Apply the Firestore rules** (see the blocking action in §8), then write a few incidents and
-   personnel in the Records Division so Corn or Shit can use more than entities. Verify the new
-   pages load and `/healthz` stops reporting `degraded: true`.
+1. Write a few incidents and personnel files in the Records Division, so Corn or Shit can use more
+   than entities (both collections are empty so far).
 2. Play Corn or Shit with real people on real phones. It has been played end to end from browser
    tabs against live canon, and the deployed build serves it, but not yet on actual phones.
 3. Promote one real Hall of Fame moment end to end with a Correspondent+ login: check the incident
    form prefills after the login detour, file it, and confirm `/hall` shows it as canon within ~10 min.
-   (Needs the Firestore rules first — incidents can't be created until then.)
 4. Then: Entity Auction, or My Cob Escaped.
 
 Optional later: renaming the internal game id `chaos` → `cornlashing` would mean renaming 3 files,
