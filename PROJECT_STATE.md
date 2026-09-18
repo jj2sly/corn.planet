@@ -31,7 +31,12 @@ see `party/docs/CANON.md`, which is the rule the whole canon integration rests o
 
 - Branches: `main` (production, GitHub Pages) → `cpst-party` (**all party work happens here**; it is
   what Railway deploys). Decided 2026-09-17: no separate `cpi-party` branch.
-- `cpst-party` is 16 commits ahead of `main`.
+- **Never merge `cpst-party` into `main` (decided 2026-09-17).** Database-site changes reach `main`
+  by `git cherry-pick -x` only, so `party/` never lands on the Pages branch. When a commit mixes site
+  and party files, cherry-pick with `-n` and `git rm` the party-only paths before committing (done
+  for `0b1daa6` → `1b9aae5`). Afterwards, check the site files match:
+  `git diff --stat cpst-party main -- . ':(exclude)party' ':(exclude)PROJECT_STATE.md' ':(exclude).gitignore'`
+  should print nothing.
 - Tags: `cpst-database-backup` (site before party work), `cpst-party-pre-tooling` (2026-09-17, code
   state before dev tooling was added).
 - Remote: `https://github.com/jj2sly/corn.planet.git`. No SSH configured — git clones must use HTTPS.
@@ -112,7 +117,11 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 8. Status
 
-- Corn Planet Party has **two games** and is documented; deployed to Railway from `cpst-party`.
+- Corn Planet Party has **two games** and is documented. **Pushed and verified live on 2026-09-17**:
+  Railway serves Cornlashing and Corn or Shit and loaded 21 canon records in production
+  (`/healthz` → `canon.degraded: true` until the Firestore rules below are applied).
+- The CPI Database site on `main` (GitHub Pages) has the rename plus the incident and personnel
+  pages, cherry-picked from `cpst-party` (`9dfd76b`, `1b9aae5`). Verified live.
 - Tests: **115 passing** (`party/test/`: rooms, chaos, cornorshit, claims, canon, db, api, realtime,
   framework). `tsc --noEmit` clean.
 - The CPI Database has **incidents** and **personnel** record types (`INC-###`, `PER-###`) alongside
@@ -171,14 +180,15 @@ never checked against the real console rules.
    candidate and creates the record themselves in the Records Division, under their own account.
 10. **Shipping order**: Corn or Shit first, then reassess before building Entity Auction and
     My Cob Escaped.
+11. **Branches are never merged.** Site changes go to `main` by cherry-pick only (see §2).
 
 ## 10. Next task
 
 1. **Apply the Firestore rules** (see the blocking action in §8), then write a few incidents and
    personnel in the Records Division so Corn or Shit can use more than entities. Verify the new
    pages load and `/healthz` stops reporting `degraded: true`.
-2. Play Corn or Shit with real people on real phones (it has only been driven from browser tabs
-   here) and check the deployed build after the next push to `cpst-party`.
+2. Play Corn or Shit with real people on real phones. It has been played end to end from browser
+   tabs against live canon, and the deployed build serves it, but not yet on actual phones.
 3. Then: Entity Auction, or the canon promotion workflow, or My Cob Escaped.
 
 Optional later: renaming the internal game id `chaos` → `cornlashing` would mean renaming 3 files,
