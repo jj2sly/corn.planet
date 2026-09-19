@@ -193,7 +193,8 @@ mirrored in the file.
     `party/server/games/auctioneffects.ts` when a modifier needs them.
 14. My Cob Escaped's built-in director can't read free text, so narration is template-driven. The Claude
     director (`MYCOB_DIRECTOR=claude`) reads it and works locally; to go live, set `MYCOB_DIRECTOR` and
-    `ANTHROPIC_API_KEY` in Railway's Variables. The opening alert and the ending are still templates.
+    `ANTHROPIC_API_KEY` in Railway's Variables (done 2026-09-19). Claude also writes the opening and the
+    closing report; all three fall back to the built-in director / templates on any failure.
 
 ## 9. Decisions
 

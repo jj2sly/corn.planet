@@ -192,6 +192,12 @@ Expected output (every field optional; anything else is ignored):
   4-agent games, 6 stages):** 11.6–16.4 s per stage, ~3.3k cached prompt tokens plus 2.8–3.7k input
   and 0.9–1.2k output tokens, about $0.05 per stage (~$0.16 for 3 stages, ~$0.25 for 5). No stage fell
   back and the validator dropped nothing; an unknown entity stayed hidden in all 45 views checked.
+- **Opening and closing report**: a director may also implement `narrate({ kind, context })`. The
+  Claude director writes a 2–3 sentence opening (added to the alert if it arrives while the alert is
+  up; an unknown entity's identity is never sent) and the closing report (shown as "The final report is
+  being filed…" until it arrives, and it must match the engine's ending). Both fall back to the
+  template lines on any failure. A director that fails outright falls back after the 4 s minimum
+  rather than the whole processing window.
 
 ## 8. Roles and lives
 
@@ -297,8 +303,8 @@ entity rules and content in `content.ts`, entity-specific fields once canon stor
 - The built-in director cannot understand free text: it uses the tag, approach, outcome and which
   incident elements a response names. Narration is template-driven and repeats over many games. The
   Claude director fixes that, at a cost and with up to ~20 s of processing per stage.
-- The Claude director's prompt was tuned on two scripted test games, not real play; `claude.ts` holds
-  the prompt. The opening alert and the ending are still template text.
+- The Claude director's prompt was tuned on a few scripted test games, not real play; `claude.ts`
+  holds both prompts.
 - Redacted canon text is stripped before the server sees it, so the director can't use it either.
 - No per-stage feedback from players beyond votes and awards.
 - Balance numbers come from simulated agents, not real playtests.
