@@ -89,6 +89,8 @@ tab (each tab keeps its own seat).
 | `FIREBASE_API_KEY` | — | Firebase **web** API key |
 | `FIREBASE_AUTH_DOMAIN` | — | e.g. `cpo-9af17.firebaseapp.com` |
 | `CPI_DATABASE_URL` | `https://jj2sly.github.io/corn.planet` | The CPI Database site, used for the "inspect the record" links games show |
+| `MYCOB_DIRECTOR` | `builtin` | My Cob Escaped's Incident Director: `builtin` (offline templates, free) or `claude` (Claude API) |
+| `ANTHROPIC_API_KEY` | — | **Secret.** Needed when `MYCOB_DIRECTOR=claude`. Set it in the Railway dashboard, never in git |
 
 The Firebase values are the same public web config already shipped in the database site's pages.
 They are not secrets; security comes from server-side token verification and Firestore rules.
@@ -196,7 +198,11 @@ balance numbers (endings, lives lost, chaos, playstyle placements) — run it af
 - It ends contained, terminated, with the entity at large, or with no survivors. Scores (impact,
   chaos with real consequences, creativity, role use, votes, sacrifice, team result) are revealed
   at the end. Then everyone invents an award and votes on who gets it.
-- The Incident Director is built in and runs offline; nothing is written to the CPI Database.
+- The Incident Director is built in and runs offline, or set `MYCOB_DIRECTOR=claude` to have Claude
+  (`claude-opus-5`) read what everyone typed and narrate it. Claude costs about $0.05 per stage
+  (~$0.25 for a 5-stage game) and takes 11–17 s per stage; on any failure or a stage over 20 s the
+  built-in director takes over for that stage.
+  Nothing is written to the CPI Database either way.
 
 ## Accounts
 

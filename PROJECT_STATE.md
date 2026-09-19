@@ -191,9 +191,9 @@ mirrored in the file.
 13. Implemented effect types: change/multiply value, lose/duplicate entity, pay owner, pay everyone,
     trigger modifiers. Transfer, swap and protect are not built; add them to `EFFECT_TYPES` in
     `party/server/games/auctioneffects.ts` when a modifier needs them.
-14. My Cob Escaped's built-in director can't read free text (it uses tags, approach, outcome and the
-    incident elements a response names), so narration is template-driven. A model-backed
-    `IncidentDirector` is the intended upgrade; nothing else would need to change.
+14. My Cob Escaped's built-in director can't read free text, so narration is template-driven. The Claude
+    director (`MYCOB_DIRECTOR=claude`) reads it and works locally; to go live, set `MYCOB_DIRECTOR` and
+    `ANTHROPIC_API_KEY` in Railway's Variables. The opening alert and the ending are still templates.
 
 ## 9. Decisions
 
@@ -225,8 +225,12 @@ mirrored in the file.
     vote. Default rulings don't count.
 
 **2026-09-18 (My Cob Escaped)**
-19. **No LLM yet**: the Incident Director is an interface with a deterministic built-in director.
-    Adding a model provider (and an API key / cost) is a separate decision.
+19. **Claude director added (same day, on request)**: `MYCOB_DIRECTOR=claude` + `ANTHROPIC_API_KEY` makes
+    `claude-opus-5` (official SDK, structured outputs, low effort, cached system prompt, server-side
+    refusal fallbacks, 20 s timeout) narrate each stage; the default stays the free built-in director.
+    Tested live 2026-09-19 with the user's key in `party/.env`: 11.6–16.4 s and ~$0.05 per stage,
+    no fallbacks, no leaks of an unknown entity. **Not yet enabled on Railway.** This is the first
+    LLM call in the app (see the OmniRoute note in §6).
 20. **Engine rolls first, director narrates within the rolls**; directors can't award points or take
     lives. Invalid, failing or late (>10 s) directors fall back to the built-in one.
 21. **Responses get an optional approach (careful/standard/reckless) and "put myself in harm's way"**,

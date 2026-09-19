@@ -37,7 +37,7 @@ OUTCOME (ending, entity revealed, score breakdown) → AWARD_SUBMIT → AWARD_VO
 | ALERT | 20 s | — (host/leader skip) |
 | UPDATE | 20 s × length scale | — |
 | RESPONSE | 30 s × length scale | every agent has filed (editable until then) |
-| PROCESSING | 4–10 s | director answered and 4 s passed; falls back to the built-in director at 10 s |
+| PROCESSING | 4–10 s (Claude: 4–21 s) | director answered and 4 s passed; falls back to the built-in director at the limit |
 | CONSEQUENCE | 20 s × length scale | — |
 | STAGE_VOTE | 15 s | every eligible agent voted; skipped if nobody acted |
 | OUTCOME / AWARDS | 20 / 45 / 40 / 15 s | everyone has submitted / voted |
@@ -59,6 +59,7 @@ and ends when fewer than 2 agents remain.
 | `incident.ts` | The incident model, `generateIncident()`, facts and reveals, objectives and their evaluation, qualitative status mapping, `scrubHidden()`. |
 | `rules.ts` | Engine mechanics: `analyzeResponse`, `planStage` (rolls, interactions, hazards, events), `effectEnvelope`, `applyStage`, `scoreStage`, `checkEnding`. |
 | `director.ts` | The `IncidentDirector` interface, `DirectorContext`, `validateDirectorOutput()`, and `MockIncidentDirector`. |
+| `claude.ts` | `ClaudeIncidentDirector`: the Claude-backed director, its prompt and output schema (§7). |
 | `narration.ts` | Typed narration events (`NarrationLog`). |
 | `game.ts` | The `GameInstance`: phases, timers, input validation, views, persistence record. `createMyCobGame({ director?, config? })`; `myCobGame` is the registered default. |
 | `../awards.ts` | `AwardCeremony`, player-created awards, reusable by any game. |
@@ -180,8 +181,17 @@ Expected output (every field optional; anything else is ignored):
   for the whole stage. A late answer is discarded.
 - **Built-in director** (`MockIncidentDirector`): deterministic per stage, templates only, no network.
   It reads the engine's references to aim actions (a rescue targets the staff member you named) and
-  never quotes raw responses. **A language-model director is one class implementing the interface**,
-  passed as `createMyCobGame({ director })` in `registry.ts`.
+  never quotes raw responses.
+- **Claude director** (`claude.ts`, `MYCOB_DIRECTOR=claude` + `ANTHROPIC_API_KEY`): one call per stage
+  to `claude-opus-5` through the official SDK, with the answer bound to `DIRECTOR_SCHEMA` by structured
+  outputs, `effort: "low"` for speed, the system prompt cached (stages are ~90 s apart, well inside the
+  5-minute cache), server-side refusal fallbacks (`fallbacks: "default"`), a 20 s timeout and no retries.
+  The processing window becomes 21 s; anything slower, refused, truncated or malformed falls back to
+  the built-in director for that stage. It receives the hidden incident and the agents' own words; the
+  validator additionally cuts any response it quotes verbatim. **Measured (2026-09-19, two live
+  4-agent games, 6 stages):** 11.6–16.4 s per stage, ~3.3k cached prompt tokens plus 2.8–3.7k input
+  and 0.9–1.2k output tokens, about $0.05 per stage (~$0.16 for 3 stages, ~$0.25 for 5). No stage fell
+  back and the validator dropped nothing; an unknown entity stayed hidden in all 45 views checked.
 
 ## 8. Roles and lives
 
@@ -285,8 +295,10 @@ entity rules and content in `content.ts`, entity-specific fields once canon stor
 ## 15. Known limitations
 
 - The built-in director cannot understand free text: it uses the tag, approach, outcome and which
-  incident elements a response names. Narration is template-driven and repeats over many games. A
-  model-backed director is the intended upgrade.
+  incident elements a response names. Narration is template-driven and repeats over many games. The
+  Claude director fixes that, at a cost and with up to ~20 s of processing per stage.
+- The Claude director's prompt was tuned on two scripted test games, not real play; `claude.ts` holds
+  the prompt. The opening alert and the ending are still template text.
 - Redacted canon text is stripped before the server sees it, so the director can't use it either.
 - No per-stage feedback from players beyond votes and awards.
 - Balance numbers come from simulated agents, not real playtests.

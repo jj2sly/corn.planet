@@ -79,7 +79,7 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `games/cornorshit.ts` | Corn or Shit |
 | `games/entityauction.ts` | Entity Auction: rules, bays, bidding, Action Round, net worth |
 | `games/auctioneffects.ts` | Entity Auction's effect engine: modifier/event types, validation, starting library |
-| `games/mycob/*.ts` | My Cob Escaped: `config` (every tunable, modes), `content` (world data, entity rules), `incident` (generator, facts, objectives), `rules` (rolls, effects, scoring, endings), `director` (Incident Director contract, validation, built-in director), `narration`, `game` |
+| `games/mycob/*.ts` | My Cob Escaped: `config` (every tunable, modes), `content` (world data, entity rules), `incident` (generator, facts, objectives), `rules` (rolls, effects, scoring, endings), `director` (Incident Director contract, validation, built-in director), `claude` (Claude-backed director, `MYCOB_DIRECTOR=claude`), `narration`, `game` |
 | `games/awards.ts` | Player-created awards (create, dedupe, vote, results), usable by any game |
 
 ### Browser code (`party/public/`)
