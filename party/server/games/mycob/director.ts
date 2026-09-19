@@ -37,6 +37,25 @@ export interface IncidentDirector {
    * back to the mock director. The return value is untrusted and always validated.
    */
   resolveStage(context: DirectorContext): Promise<unknown>;
+  /**
+   * Optional: the opening alert and the closing report as short text. Without it, or when it fails
+   * or is late, the game uses its own template lines. The return value is untrusted.
+   */
+  narrate?(request: NarrationRequest): Promise<unknown>;
+}
+
+/** What the game asks for when it wants the opening or the closing narration. */
+export interface NarrationRequest {
+  kind: "opening" | "ending";
+  context: Record<string, unknown>;
+}
+
+/** Director text for the opening or ending: cleaned, capped, and scrubbed of what's still hidden. */
+export function validateNarration(raw: unknown, incident: Incident, max: number, revealing?: ReadonlySet<string>): string | null {
+  const cleaned = cleanText(raw, max * 4);
+  if (!cleaned.ok) return null;
+  const text = scrubHidden(cleaned.value, incident, revealing);
+  return [...text].length > max ? `${[...text].slice(0, max - 1).join("")}…` : text;
 }
 
 /** Everything a director is told about a stage. Server-side only; never sent to any client. */
@@ -416,9 +435,21 @@ export function validateDirectorOutput(raw: unknown, plan: StagePlan, incident: 
   }
 
   const activeSecondary = incident.objectives.filter((o) => o.kind === "secondary" && o.status === "active").length;
+  // Nothing that repeats an objective the engine already has, or is adding for this stage's new problem.
+  const coveredNpcs = new Set<string>(plan.newProblem?.hint.npcId ? [plan.newProblem.hint.npcId] : []);
+  for (const o of incident.objectives) {
+    if (o.status === "active" && (o.goal.type === "rescue" || o.goal.type === "protect")) coveredNpcs.add(o.goal.npcId);
+  }
+  const coveredNames = incident.personnel.filter((p) => coveredNpcs.has(p.id)).map((p) => p.name.toLowerCase());
+  const existing = new Set(incident.objectives.filter((o) => o.status === "active").map((o) => o.text.toLowerCase()));
   const newObjectives = asArray(input.newObjectives)
     .map((o) => scrub(o.text, config.narration.objectiveMax))
     .filter((t): t is string => !!t)
+    .filter((t) => {
+      const repeat = existing.has(t.toLowerCase()) || coveredNames.some((name) => t.toLowerCase().includes(name));
+      if (repeat) issues.push("dropped duplicate objective");
+      return !repeat;
+    })
     .slice(0, Math.max(0, Math.min(config.objectives.maxNewPerStage, config.newProblems.maxActiveSecondary - activeSecondary)));
 
   const objectiveUpdates: ValidatedOutput["objectiveUpdates"] = [];

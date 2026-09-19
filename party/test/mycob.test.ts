@@ -412,6 +412,18 @@ describe("My Cob Escaped: the Incident Director", () => {
     });
   }
 
+  it("falls back after the minimum wait when a director fails fast, not the whole window", async () => {
+    const errors = mock.method(console, "error", () => {});
+    const { room, ids } = start({ director: { id: "dead-key", resolveStage: async () => { throw new Error("401"); } } });
+    await until(room, "RESPONSE");
+    for (const id of ids) room.gameInput(id, "respond", { tag: "CONTAIN", text: "Lock it" });
+    await settle();
+    errors.mock.restore();
+    assert.equal(room.viewFor({ kind: "host" }).timer!.totalMs, T.processingMinMs);
+    await step(room);
+    assert.equal(phase(room), "CONSEQUENCE");
+  });
+
   it("ignores a director that answers after the phase was skipped", async () => {
     let answer: (v: unknown) => void = () => {};
     const late: IncidentDirector = { id: "late", resolveStage: () => new Promise((resolve) => (answer = resolve)) };
@@ -520,5 +532,61 @@ describe("My Cob Escaped: settings and modes", () => {
       return chaos;
     };
     assert.ok((await chaosAt("chaos_mode")) > (await chaosAt("incident_response")) + 20);
+  });
+});
+
+describe("My Cob Escaped: the opening and the closing report", () => {
+  const withNarration = (narrate: IncidentDirector["narrate"]): IncidentDirector => {
+    const mock = new MockIncidentDirector();
+    return { id: "narrator", resolveStage: (ctx) => mock.resolveStage(ctx), narrate };
+  };
+
+  it("adds the director's opening to the alert and uses its closing report", async () => {
+    const director = withNarration(async (request) => (request.kind === "opening" ? "A HUSH FALLS OVER THE CORN." : "IT IS OVER, MORE OR LESS."));
+    const { room, ids } = start({ director });
+    await settle();
+    const alert = view(room).narration.map((n: View) => n.text);
+    assert.equal(alert.length, 2, "the template alert, then the director's opening");
+    assert.equal(alert[1], "A HUSH FALLS OVER THE CORN.");
+    await playThrough(room, ids, (v) => {
+      if (v?.phase === "OUTCOME" && v.outcome.narration !== null) assert.equal(v.outcome.narration, "IT IS OVER, MORE OR LESS.");
+    });
+    assert.equal(room.results!.highlights[0]!.text, "IT IS OVER, MORE OR LESS.");
+  });
+
+  it("drops an opening that arrives after the alert", async () => {
+    let answer: (text: string) => void = () => {};
+    const director = withNarration((request) => (request.kind === "opening" ? new Promise((resolve) => (answer = resolve)) : Promise.resolve("END")));
+    const { room } = start({ director });
+    await until(room, "UPDATE");
+    const before = JSON.stringify(view(room).narration);
+    answer("TOO LATE");
+    await settle();
+    assert.equal(JSON.stringify(view(room).narration), before);
+  });
+
+  it("falls back to the template ending when the director fails, and uses it for the built-in director", async () => {
+    const errors = mock.method(console, "error", () => {});
+    const failing = withNarration(async () => {
+      throw new Error("down");
+    });
+    for (const director of [failing, undefined]) {
+      const { room } = start({ director });
+      for (let i = 0; i < 100 && phase(room) !== "OUTCOME"; i++) room.hostGameAction("skip", {});
+      await settle();
+      const v = view(room);
+      assert.equal(v.phase, "OUTCOME");
+      assert.ok(v.outcome.narration && v.outcome.narration.length > 10, "the template closing report");
+      assert.ok(v.narration.some((n: View) => n.text === v.outcome.narration), "and it reached the screen");
+    }
+    errors.mock.restore();
+  });
+
+  it("scrubs an unidentified entity out of the opening", async () => {
+    const yellow = TEST_CANON.find((r) => r.ref === "CPE-005")!;
+    const director = withNarration(async () => "Big Yellow is loose again.");
+    const { room } = start({ director, canon: [yellow], config: { unknownEntity: { chance: 1 } } });
+    await settle();
+    assert.doesNotMatch(JSON.stringify(view(room)), /Big Yellow/);
   });
 });

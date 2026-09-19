@@ -2,7 +2,7 @@
 // Views are keyed by phase and stage so typing survives the live updates streaming in.
 
 import { el, notice, plural, store, timerEl } from "../common.js";
-import { APPROACH_INFO, factsList, livesEl, narrationEl, outcomeStamp, stampEl, TAG_INFO } from "./mycob-shared.js";
+import { APPROACH_INFO, factsList, liveNarration, livesEl, narrationEl, outcomeStamp, PENDING_REPORT, stampEl, TAG_INFO } from "./mycob-shared.js";
 
 const DRAFT_KEY = "cpst-party:mycob-draft";
 const seenNotices = new Set();
@@ -127,19 +127,21 @@ function buildBriefing(s, tools) {
   const t = timerRow(s.timer, stageLabel(g));
   const trades = tradePanel(tools);
   const intel = el("div", { dataset: { role: g.you.role.id } }, roleIntel(g));
+  const narration = liveNarration(g.narration);
   trades.render(g);
   return screen(
     s,
     [
       t.node,
       g.phase === "ALERT" ? el("div", { class: "warning", text: "Containment breach" }) : null,
-      narrationEl(g.narration),
+      narration.node,
       el("p", { class: "phone-prompt", text: g.incident.problem }),
       intel,
       trades.node,
     ],
     (next) => {
       t.set(next.timer);
+      narration.set(next.game.narration);
       trades.render(next.game);
       if (next.game.you.role.id !== intel.dataset.role) {
         intel.dataset.role = next.game.you.role.id;
@@ -340,11 +342,13 @@ function buildOutcome(s) {
   const o = g.outcome;
   const t = timerRow(s.timer, "Operation complete");
   const mine = o.breakdown.find((b) => b.playerId === g.you.playerId);
+  const report = el("p", { class: "muted", text: o.narration ?? PENDING_REPORT });
+  const card = statusCard(o.id === "contained" || o.id === "terminated" ? "★" : "⚠", o.title, null, report);
   return screen(
     s,
     [
       t.node,
-      statusCard(o.id === "contained" || o.id === "terminated" ? "★" : "⚠", o.title, o.narration),
+      card,
       el(
         "div",
         { class: "reference" },
@@ -368,7 +372,10 @@ function buildOutcome(s) {
           )
         : null,
     ],
-    (next) => t.set(next.timer),
+    (next) => {
+      t.set(next.timer);
+      report.textContent = next.game.outcome.narration ?? PENDING_REPORT;
+    },
   );
 }
 

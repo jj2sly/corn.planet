@@ -8,7 +8,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { PERSONNEL_STATUSES } from "./incident.ts";
 import { SYSTEM_IDS } from "./content.ts";
-import type { DirectorContext, IncidentDirector } from "./director.ts";
+import type { DirectorContext, IncidentDirector, NarrationRequest } from "./director.ts";
 
 export const CLAUDE_DIRECTOR_MODEL = "claude-opus-5";
 /** One stage's call. The game's processing window must be a little longer than this. */
@@ -68,7 +68,8 @@ Rules:
 - lifeEvents: one short, specific reason for each agent with lifeAtRisk true or listed in hazards, and nobody else.
 - intent "terminate" only for an action that really tries to kill or destroy the entity. It succeeds only when that action's terminationPossible is true; narrate it either way.
 - Staff and facility changes need a cause in this stage. Staff only die after a catastrophe.
-- New game-only facts (newInformation with label and text, factId null) and new objectives must be small and plausible. At most one new objective.
+- Never declare the entity contained, terminated or escaped, or the incident over: the engine decides that, and the containment status shows how it is going. Describe progress and setbacks, not the ending.
+- New game-only facts (newInformation with label and text, factId null) and new objectives must be small and plausible. At most one new objective, and never one for newProblem (the engine already makes that an objective) or for anything an existing objective covers.
 - You never award points or pick winners.
 - Match the tone field (calm, tense or unhinged). Deadpan, silly, with Corn Planet flavor (corn, paperwork, the Records Division). Keep it PG-13.
 - Summaries under 180 characters. Use empty arrays when nothing applies. If there is a special event, work it into the narration, and set specialEventText to a one-line banner for it (under 90 characters, without the event's name); otherwise null. threatLocation is "unchanged", "unknown", or a location id.`;
@@ -96,6 +97,14 @@ export function toDirectorOutput(answer: Record<string, unknown>): Record<string
     ...(threatLocation === "unknown" ? { threatLocation: null } : threatLocation && threatLocation !== "unchanged" ? { threatLocation } : {}),
   };
 }
+
+const NARRATOR_PROMPT = `You are the narrator of "My Cob Escaped, What Do I Do Now???", a party game about containment incidents at a Corn Planet Institution facility. Your words are shown on a TV and read aloud. Deadpan, silly, with Corn Planet flavor (corn, paperwork, the Records Division); PG-13. Refer to agents by name or "they", never "he" or "she". Never mention numbers, stats or rolls. Reply with the text only: no title, no quotation marks, no formatting.
+
+You get either an opening or an ending request as JSON.
+
+Opening: 2 or 3 sentences, under 350 characters, read while the agents look at their new roles. Set the scene and the stakes; don't just repeat the breach and location, which are already on screen. While entity.identityKnown is false, never name the entity or give its id; call it "the entity".
+
+Ending: 2 to 4 sentences, under 500 characters: the closing report. It must match ending.id (contained, terminated, escaped, everyone_dies) and never contradict it, and it should call back to the most memorable moments in the stage narrations.`;
 
 export class ClaudeIncidentDirector implements IncidentDirector {
   readonly id = CLAUDE_DIRECTOR_MODEL;
@@ -130,5 +139,25 @@ export class ClaudeIncidentDirector implements IncidentDirector {
     const text = response.content.find((block) => block.type === "text");
     if (!text || text.type !== "text") throw new Error("no answer in the response");
     return toDirectorOutput(JSON.parse(text.text) as Record<string, unknown>);
+  }
+
+  /** The opening alert and the closing report: short plain text. The game falls back to its template. */
+  async narrate(request: NarrationRequest): Promise<unknown> {
+    const response = await this.client.beta.messages.create(
+      {
+        model: CLAUDE_DIRECTOR_MODEL,
+        max_tokens: 4000,
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        output_config: { effort: "low" },
+        system: NARRATOR_PROMPT,
+        messages: [{ role: "user", content: JSON.stringify(request) }],
+      },
+      { timeout: this.timeoutMs, maxRetries: 0 },
+    );
+    if (response.stop_reason !== "end_turn") throw new Error(`no usable text (${response.stop_reason})`);
+    const text = response.content.find((block) => block.type === "text");
+    if (!text || text.type !== "text") throw new Error("no answer in the response");
+    return text.text;
   }
 }

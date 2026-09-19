@@ -37,7 +37,16 @@ import {
   type ResponseTag,
 } from "./config.ts";
 import { DEPARTMENTS, ENDING_TEXT, NPC_FIRST, NPC_LAST, SYSTEM_IDS, SYSTEMS } from "./content.ts";
-import { buildDirectorContext, MockIncidentDirector, validateDirectorOutput, type DirectorContext, type IncidentDirector, type ValidatedOutput } from "./director.ts";
+import {
+  buildDirectorContext,
+  MockIncidentDirector,
+  validateDirectorOutput,
+  validateNarration,
+  type DirectorContext,
+  type IncidentDirector,
+  type NarrationRequest,
+  type ValidatedOutput,
+} from "./director.ts";
 import {
   describeStat,
   evaluateObjectives,
@@ -60,6 +69,7 @@ import {
   roleOf,
   scoreStage,
   teamScore,
+  toneFor,
   type ActionInput,
   type ScoreLine,
   type ScoringMemory,
@@ -204,7 +214,8 @@ class MyCobGame implements GameInstance {
   private readonly history: string[] = [];
   private readonly records: StageRecord[] = [];
   private readonly mvps: { stage: number; playerIds: string[]; votes: number }[] = [];
-  private ending: { id: EndingId; stage: number; narration: string } | null = null;
+  /** narration is null while the director is still writing the closing report. */
+  private ending: { id: EndingId; stage: number; narration: string | null; template: string; narratedBy: "director" | "template" | null } | null = null;
   private totals = new Map<string, ScoreLine>();
   private team = 0;
   private nextStep: (() => void) | null = null;
@@ -287,6 +298,76 @@ class MyCobGame implements GameInstance {
     this.phase = "ALERT";
     this.schedule(this.config.timing.alertMs, () => this.beginStage());
     this.ctx.changed();
+
+    // The director's own opening joins the alert if it arrives while the alert is still up.
+    this.askNarration("opening", this.openingContext(), (text) => {
+      if (this.phase !== "ALERT") return;
+      this.narration.add("incident_alert", 0, text);
+      this.ctx.changed();
+    });
+  }
+
+  /** Asks the director for the opening or the closing report. Never blocks the game. */
+  private askNarration(kind: NarrationRequest["kind"], context: Record<string, unknown>, apply: (text: string) => void, fallback: () => void = () => {}): void {
+    const narrate = this.director.narrate?.bind(this.director);
+    if (!narrate) return fallback();
+    // At the end of the game there is nothing left to hide.
+    const revealing = kind === "ending" ? new Set(this.incident.facts.map((f) => f.id)) : undefined;
+    let pending: Promise<unknown>;
+    try {
+      pending = Promise.resolve(narrate({ kind, context: structuredClone(context) }));
+    } catch (err) {
+      pending = Promise.reject(err);
+    }
+    pending
+      .then(
+        (raw) => {
+          if (this.disposed) return;
+          const text = validateNarration(raw, this.incident, this.config.narration.maxLength, revealing);
+          if (text) apply(text);
+          else fallback();
+        },
+        (err: unknown) => {
+          console.error(`[corn-planet-party] incident director ${kind} failed; using the template:`, err instanceof Error ? err.message : err);
+          if (!this.disposed) fallback();
+        },
+      )
+      .catch((err: unknown) => console.error("[corn-planet-party] could not apply the director's narration:", err));
+  }
+
+  private openingContext(): Record<string, unknown> {
+    const inc = this.incident;
+    return {
+      tone: toneFor(inc.stats),
+      mode: modeById(inc.mode)?.name ?? inc.mode,
+      incident: {
+        code: inc.code,
+        breach: { name: inc.breach.name, text: inc.breach.text },
+        location: inc.location.name,
+        problem: inc.problem.text,
+        environment: inc.environment.map((e) => e.text),
+        // An unknown entity's identity is not sent at all: what the director does not know it cannot leak.
+        entity: inc.entity.identityKnown
+          ? { identityKnown: true, title: inc.entity.title, classification: inc.entity.classification, containment: inc.entity.containment }
+          : { identityKnown: false },
+        objectives: inc.objectives.map((o) => o.text),
+      },
+      crew: [...this.crew.values()].map((m) => ({ name: m.name, role: roleOf(this.config, m.roleId).name })),
+    };
+  }
+
+  private endingContext(ending: EndingId): Record<string, unknown> {
+    const inc = this.incident;
+    return {
+      ending: { id: ending, title: ENDING_TEXT[ending].title },
+      stagesPlayed: this.stage,
+      entity: { title: inc.entity.title, classification: inc.entity.classification, initiallyUnknown: inc.entity.initiallyUnknown, identifiedAtStage: inc.entity.revealedStage },
+      stageNarrations: this.history,
+      statuses: STAT_IDS.map((id) => describeStat(id, inc.stats[id], this.config)).map(({ name, value }) => `${name}: ${value}`),
+      objectives: inc.objectives.map((o) => ({ text: o.text, status: o.status })),
+      crew: [...this.crew.values()].map((m) => ({ name: m.name, livesLost: m.livesLost, wentDown: m.downs > 0 })),
+      commendations: this.mvps.map((m) => ({ stage: m.stage, names: m.playerIds.map((id) => this.crew.get(id)?.name ?? "?") })),
+    };
   }
 
   // ------------------------------------------------------------------ the stage loop
@@ -426,6 +507,11 @@ class MyCobGame implements GameInstance {
       },
       (err: unknown) => {
         console.error("[corn-planet-party] incident director failed; the fallback director will narrate:", err instanceof Error ? err.message : err);
+        // No point waiting out the whole window for an answer that isn't coming.
+        if (this.disposed || this.processing?.token !== token || this.phase !== "PROCESSING") return;
+        const wait = Math.max(0, this.config.timing.processingMinMs - (Date.now() - started));
+        this.schedule(wait, () => this.completeProcessing());
+        this.ctx.changed();
       },
     );
   }
@@ -572,14 +658,27 @@ class MyCobGame implements GameInstance {
     const random = () => this.ctx.random();
     const text = fill(pick(ENDING_TEXT[ending].lines, random), { entity: inc.entity.title });
     const tail = ending === "contained" || ending === "terminated" ? ` Resolved in ${this.stage} stage${this.stage === 1 ? "" : "s"}.` : "";
-    this.ending = { id: ending, stage: this.stage, narration: text.charAt(0).toUpperCase() + text.slice(1) + tail };
+    const template = text.charAt(0).toUpperCase() + text.slice(1) + tail;
+    this.ending = { id: ending, stage: this.stage, narration: null, template, narratedBy: null };
     this.narration.newBeat();
-    this.narration.add("ending", this.stage, `${ENDING_TEXT[ending].title}. ${this.ending.narration}`);
+    this.narration.add("ending", this.stage, `${ENDING_TEXT[ending].title}.`);
+
+    // The closing report: the director's if it has one, otherwise (or on any failure) the template.
+    const settle = (narration: string, by: "director" | "template") => {
+      const e = this.ending;
+      if (!e || e.narration !== null) return;
+      e.narration = narration;
+      e.narratedBy = by;
+      if (this.phase === "OUTCOME") this.narration.add("ending", this.stage, narration);
+      this.ctx.changed();
+    };
 
     this.phase = "OUTCOME";
     const awardsPossible = this.config.awards.enabled && this.activeCrew().length >= 2;
     this.schedule(this.config.timing.outcomeMs, () => (awardsPossible ? this.openAwardSubmit() : this.finish()));
     this.ctx.changed();
+    // After the phase change, so a template settled at once still reaches the screens.
+    this.askNarration("ending", this.endingContext(ending), (t) => settle(t, "director"), () => settle(template, "template"));
   }
 
   private openAwardSubmit(): void {
@@ -628,7 +727,7 @@ class MyCobGame implements GameInstance {
       highlights.push({
         title: ENDING_TEXT[this.ending.id].title,
         playerName: null,
-        text: this.ending.narration,
+        text: this.ending.narration ?? this.ending.template,
         detail: `Incident ${inc.code} · ${inc.entity.ref} ${inc.entity.title} · ${inc.breach.name}`,
       });
     }

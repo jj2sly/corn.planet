@@ -207,6 +207,37 @@ describe("My Cob Escaped: the Claude Incident Director", () => {
   });
 });
 
+describe("My Cob Escaped: Claude's opening and closing report", () => {
+  it("asks for plain text, with fallbacks and the same timeout", async () => {
+    const { client, calls } = fakeClient(() => ({ stop_reason: "end_turn", text: "The corn remembers." }));
+    const text = await new ClaudeIncidentDirector({ client, timeoutMs: 9_000 }).narrate({ kind: "ending", context: { ending: { id: "escaped" } } });
+    assert.equal(text, "The corn remembers.");
+    const { params, options } = calls[0]!;
+    assert.equal(params.model, "claude-opus-5");
+    assert.equal(params.fallbacks, "default");
+    assert.equal(params.output_config.effort, "low");
+    assert.equal(params.output_config.format, undefined, "plain text, no schema");
+    assert.match(params.messages[0].content, /"kind":"ending"/);
+    assert.deepEqual(options, { timeout: 9_000, maxRetries: 0 });
+    await assert.rejects(new ClaudeIncidentDirector({ client: fakeClient(() => ({ stop_reason: "refusal" })).client }).narrate({ kind: "opening", context: {} }));
+  });
+});
+
+describe("My Cob Escaped: objectives a director may add", () => {
+  it("drops one that repeats an objective the engine already has or is adding", () => {
+    const { incident, config, plan } = stage();
+    const npc = incident.personnel[0]!;
+    // Room for a new objective: only the primary and the one below are open.
+    incident.objectives = incident.objectives.filter((o) => o.kind === "primary");
+    incident.objectives.push({ id: "o-x", kind: "secondary", text: `Rescue ${npc.name}`, goal: { type: "rescue", npcId: npc.id }, status: "active", createdStage: 1, resolvedStage: null, source: "generated" });
+    const out = validateDirectorOutput({ newObjectives: [{ text: `Get ${npc.name} out of there` }] }, plan, incident, config)!;
+    assert.deepEqual(out.newObjectives, []);
+    assert.ok(out.issues.includes("dropped duplicate objective"));
+    const fresh = validateDirectorOutput({ newObjectives: [{ text: "Find out why the vending machine is humming" }] }, plan, incident, config)!;
+    assert.deepEqual(fresh.newObjectives, ["Find out why the vending machine is humming"]);
+  });
+});
+
 describe("configuration: the Incident Director", () => {
   it("defaults to the built-in director and accepts claude", () => {
     assert.equal(loadConfig({}).incidentDirector, "builtin");

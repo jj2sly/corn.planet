@@ -6,8 +6,10 @@ import { el, plural, timerEl } from "../common.js";
 import {
   entityCard,
   factsList,
+  liveNarration,
   livesEl,
   narrationEl,
+  PENDING_REPORT,
   objectivesList,
   outcomeStamp,
   personnelList,
@@ -93,12 +95,13 @@ function buildAlert(s) {
     { class: "mc-roles" },
     g.incident.crew.map((c) => el("li", {}, el("strong", { text: c.name }), el("span", { text: c.role }))),
   );
+  const narration = liveNarration(g.narration);
   return layout(
     s,
     [
       head.node,
       el("div", { class: "warning mc-siren", text: `Containment breach · ${g.incident.breach.name}` }),
-      narrationEl(g.narration),
+      narration.node,
       situation(g.incident),
       el("h2", { text: "Temporary assignments" }),
       crew,
@@ -106,6 +109,7 @@ function buildAlert(s) {
     ],
     (next) => {
       head.setTimer(next.timer);
+      narration.set(next.game.narration);
       crew.replaceChildren(...next.game.incident.crew.map((c) => el("li", {}, el("strong", { text: c.name }), el("span", { text: c.role }))));
     },
   );
@@ -287,12 +291,13 @@ function breakdownTable(outcome) {
 
 function endingBlock(g) {
   const o = g.outcome;
-  return el(
+  const text = el("p", { class: "mc-ending-text", text: o.narration ?? PENDING_REPORT });
+  const node = el(
     "div",
     { class: `mc-ending e-${o.id}` },
     el("p", { class: "eyebrow", text: `Incident ${g.incident.code} · ${plural(o.stagesPlayed, "stage")}` }),
     el("h1", { class: "flicker", text: o.title }),
-    el("p", { class: "mc-ending-text", text: o.narration }),
+    text,
     el(
       "div",
       { class: "reference" },
@@ -301,16 +306,18 @@ function endingBlock(g) {
       el("span", { class: "muted", text: `${o.entity.title} · ${o.entity.classification}` }),
     ),
   );
+  return { node, set: (next) => (text.textContent = next.outcome.narration ?? PENDING_REPORT) };
 }
 
 function buildOutcome(s) {
   const g = s.game;
   const head = header("Operation complete", "", s.timer);
+  const ending = endingBlock(g);
   return layout(
     s,
     [
       head.node,
-      endingBlock(g),
+      ending.node,
       g.outcome.mvps.length
         ? el("p", {}, el("strong", { text: "Stage commendations: " }), g.outcome.mvps.map((m) => `S${m.stage} ${m.names.join(" & ")}`).join(" · "))
         : null,
@@ -318,7 +325,10 @@ function buildOutcome(s) {
       breakdownTable(g.outcome),
       el("p", { class: "muted", text: "Everything that happened in this incident is game-only. The CPI Database is unchanged." }),
     ],
-    (next) => head.setTimer(next.timer),
+    (next) => {
+      head.setTimer(next.timer);
+      ending.set(next.game);
+    },
   );
 }
 

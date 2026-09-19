@@ -123,6 +123,23 @@ export function personnelList(inc) {
   );
 }
 
+/** Shown while the director is still writing the closing report. */
+export const PENDING_REPORT = "The final report is being filed…";
+
+/** The narrator's lines, redrawn when new ones arrive mid-phase (the director's opening, say). */
+export function liveNarration(events) {
+  const node = el("div");
+  let ids = "";
+  const set = (next) => {
+    const key = next.map((n) => n.id).join(",");
+    if (key === ids) return;
+    ids = key;
+    node.replaceChildren(narrationEl(next));
+  };
+  set(events);
+  return { node, set };
+}
+
 /** The narrator's current lines. */
 export function narrationEl(events) {
   return el(
