@@ -18,6 +18,8 @@ export interface Config {
   trustProxy: boolean;
   auth: AuthConfig;
   canon: CanonConfig | null;
+  /** Who narrates My Cob Escaped: the built-in template director, or Claude (needs ANTHROPIC_API_KEY). */
+  incidentDirector: "builtin" | "claude";
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -55,6 +57,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       }
     : null;
 
+  const incidentDirector = env.MYCOB_DIRECTOR?.trim() || "builtin";
+  if (incidentDirector !== "builtin" && incidentDirector !== "claude") {
+    throw new Error(`Unknown MYCOB_DIRECTOR "${incidentDirector}" (expected builtin or claude)`);
+  }
+
   return {
     port,
     host: env.HOST?.trim() || "0.0.0.0",
@@ -63,5 +70,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     trustProxy: env.TRUST_PROXY === "1" || env.TRUST_PROXY === "true",
     auth,
     canon,
+    incidentDirector,
   };
 }

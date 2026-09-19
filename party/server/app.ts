@@ -8,6 +8,7 @@ import type { CanonService } from "./canon.ts";
 import type { AuthConfig } from "./config.ts";
 import type { PartyDb } from "./db.ts";
 import { GAMES } from "./games/registry.ts";
+import type { GameDefinition } from "./games/types.ts";
 import { createRealtime } from "./realtime.ts";
 import { RoomManager } from "./rooms.ts";
 
@@ -18,6 +19,8 @@ export interface PartyServerOptions {
   canon: CanonService;
   trustProxy?: boolean;
   random?: () => number;
+  /** The installed games; defaults to the registry's. */
+  games?: ReadonlyMap<string, GameDefinition>;
 }
 
 export interface PartyServer {
@@ -112,7 +115,7 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
 
   let realtime: ReturnType<typeof createRealtime> | null = null;
   const rooms = new RoomManager({
-    games: GAMES,
+    games: options.games ?? GAMES,
     canon,
     pickPrompts: (mode, count, exclude) => db.pickPrompts(mode, count, exclude),
     effectLibrary: () => db.effectLibrary(),

@@ -262,6 +262,17 @@ describe("My Cob Escaped: the director boundary", () => {
     assert.ok(!out.narration.includes(secret));
   });
 
+  it("lets director text name what it reveals in the same stage", () => {
+    const { incident, config } = setup(1, { unknownEntity: { chance: 1 } }, "CPE-005");
+    incident.stats.information = 80;
+    const plan = forcedPlan(incident, config, [input("a", "INVESTIGATE")], ["success"]);
+    const out = validateDirectorOutput({ revealEntity: true, narration: "The file says it all: it's Big Yellow." }, plan, incident, config)!;
+    assert.ok(out.reveals.includes("f-identity"));
+    assert.match(out.narration, /Big Yellow/, "not censored in the very stage it is revealed");
+    const refused = validateDirectorOutput({ narration: "It's Big Yellow." }, plan, incident, config)!;
+    assert.doesNotMatch(refused.narration, /Big Yellow/, "still censored when nothing reveals it");
+  });
+
   it("gets complete, deterministic output from the mock director that validates cleanly", () => {
     const { incident, config } = setup(4);
     const plan = forcedPlan(incident, config, [input("a", "CONTAIN", "Lock the cafeteria doors"), input("b", "COMMUNICATE"), input("c", "OTHER", "Kill it with fire")], [

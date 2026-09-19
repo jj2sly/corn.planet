@@ -219,15 +219,16 @@ const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * director's narration): the entity's name and id while it is unidentified, and verbatim copies
  * of undiscovered facts.
  */
-export function scrubHidden(text: string, incident: Incident): string {
+export function scrubHidden(text: string, incident: Incident, revealing: ReadonlySet<string> = new Set()): string {
   let out = text;
-  if (!incident.entity.identityKnown) {
+  // Facts being revealed in this same stage count as known: the narration may name them.
+  if (!incident.entity.identityKnown && !revealing.has("f-identity")) {
     for (const token of [incident.entity.title, incident.entity.ref]) {
       if (token.trim().length >= 3) out = out.replace(new RegExp(escapeRegExp(token.trim()), "gi"), "[UNIDENTIFIED ENTITY]");
     }
   }
   for (const fact of incident.facts) {
-    if (fact.visibility !== "known" && fact.text.length >= 10 && out.includes(fact.text)) {
+    if (fact.visibility !== "known" && !revealing.has(fact.id) && fact.text.length >= 10 && out.includes(fact.text)) {
       out = out.split(fact.text).join("[DATA WITHHELD]");
     }
   }

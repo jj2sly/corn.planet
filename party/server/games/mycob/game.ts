@@ -449,8 +449,10 @@ class MyCobGame implements GameInstance {
     this.narration.newBeat();
     this.narration.add("consequence", this.stage, output.narration);
     // Its own event (for the screen and a future voice), unless the narration already told it.
-    if (result.specialEvent && !output.narration.includes(result.specialEvent.text)) {
-      this.narration.add("special_event", this.stage, `${result.specialEvent.name}: ${result.specialEvent.text}`);
+    const event = result.specialEvent;
+    if (event && !output.narration.includes(event.text)) {
+      const named = event.text.toLowerCase().startsWith(event.name.toLowerCase());
+      this.narration.add("special_event", this.stage, named ? event.text : `${event.name}: ${event.text}`);
     }
     for (const fact of result.reveals) this.narration.add("discovery", this.stage, `Discovered — ${fact.label}: ${this.scrub(fact.text)}`);
     for (const change of result.objectiveChanges) this.narration.add("objective_update", this.stage, `Objective ${change.to}: ${this.scrub(change.text)}`);

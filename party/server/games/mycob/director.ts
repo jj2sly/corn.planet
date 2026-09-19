@@ -252,10 +252,38 @@ export function validateDirectorOutput(raw: unknown, plan: StagePlan, incident: 
   const input = asObject(raw);
   if (!input) return null;
   const issues: string[] = [];
+
+  // Reveals first: a budget earned by actions that went somewhere, and the identity has its own
+  // bar. What is revealed this stage may then be named in this stage's text.
+  const progress = plan.actions.filter((a) => a.roll.outcome !== "failure" && a.roll.outcome !== "catastrophe").length;
+  let budget = Math.min(config.reveals.maxPerStage, progress * config.reveals.perSuccess + (incident.stats.information >= 75 ? 1 : 0));
+  const identityAllowed = identityRevealAllowed(plan, incident, config);
+  const reveals: string[] = [];
+  const requests = asArray(input.newInformation);
+  if (input.revealEntity === true) requests.unshift({ factId: "f-identity" });
+  for (const r of requests) {
+    const factId = str(r.factId);
+    if (!factId) continue;
+    const fact = incident.facts.find((f) => f.id === factId);
+    if (!fact || fact.visibility === "known" || reveals.includes(factId) || budget <= 0) continue;
+    if (fact.about === "identity" && !identityAllowed) {
+      issues.push("refused identity reveal");
+      continue;
+    }
+    const holder = fact.heldBy ? incident.personnel.find((p) => p.id === fact.heldBy) : undefined;
+    if (holder && (holder.status === "dead" || holder.status === "missing")) continue;
+    reveals.push(factId);
+    budget -= 1;
+  }
+  const revealing = new Set(reveals);
+
+  // Agents never see each other's raw responses, so a director quoting one word for word is cut.
+  const rawResponses = plan.actions.map((a) => a.text).filter((t) => t.length >= 20);
   const scrub = (value: unknown, max: number): string | null => {
     const cleaned = cleanText(value, max * 4);
     if (!cleaned.ok) return null;
-    const text = scrubHidden(cleaned.value, incident);
+    let text = scrubHidden(cleaned.value, incident, revealing);
+    for (const raw of rawResponses) text = text.split(raw).join("…");
     return [...text].length > max ? `${[...text].slice(0, max - 1).join("")}…` : text;
   };
   for (const forbidden of ["points", "score", "scores", "winner", "winners", "lives", "stats"]) {
@@ -378,29 +406,10 @@ export function validateDirectorOutput(raw: unknown, plan: StagePlan, incident: 
     reason: scrub(reasons.get(playerId), 140) || `${nameOf(playerId) ?? "An agent"} got caught up in it.`,
   }));
 
-  // Reveals: a budget earned by actions that went somewhere, and the identity has its own bar.
-  const progress = plan.actions.filter((a) => a.roll.outcome !== "failure" && a.roll.outcome !== "catastrophe").length;
-  let budget = Math.min(config.reveals.maxPerStage, progress * config.reveals.perSuccess + (incident.stats.information >= 75 ? 1 : 0));
-  const identityAllowed = identityRevealAllowed(plan, incident, config);
-  const reveals: string[] = [];
+  // New game-only facts the director made up.
   const generatedFacts: ValidatedOutput["generatedFacts"] = [];
-  const requests = asArray(input.newInformation);
-  if (input.revealEntity === true) requests.unshift({ factId: "f-identity" });
   for (const r of requests) {
-    const factId = str(r.factId);
-    if (factId) {
-      const fact = incident.facts.find((f) => f.id === factId);
-      if (!fact || fact.visibility === "known" || reveals.includes(factId) || budget <= 0) continue;
-      if (fact.about === "identity" && !identityAllowed) {
-        issues.push("refused identity reveal");
-        continue;
-      }
-      const holder = fact.heldBy ? incident.personnel.find((p) => p.id === fact.heldBy) : undefined;
-      if (holder && (holder.status === "dead" || holder.status === "missing")) continue;
-      reveals.push(factId);
-      budget -= 1;
-      continue;
-    }
+    if (str(r.factId)) continue;
     const label = scrub(r.label, 40);
     const text = scrub(r.text, config.narration.infoMax);
     if (label && text && generatedFacts.length < config.reveals.maxGeneratedPerStage) generatedFacts.push({ label, text });

@@ -4,6 +4,8 @@ import { createAuthVerifier } from "./auth.ts";
 import { CANON_REFRESH_MS, createCanonService } from "./canon.ts";
 import { loadConfig } from "./config.ts";
 import { PartyDb } from "./db.ts";
+import { CLAUDE_DIRECTOR_MODEL, CLAUDE_DIRECTOR_TIMEOUT_MS, ClaudeIncidentDirector } from "./games/mycob/claude.ts";
+import { gamesWith } from "./games/registry.ts";
 import { reconcilePromotions } from "./promotion.ts";
 
 const config = loadConfig();
@@ -26,7 +28,19 @@ const canon = config.canon
   ? createCanonService(config.canon)
   : createCanonService({ projectId: "" });
 
-const server = createPartyServer({ db, auth, authConfig: config.auth, canon, trustProxy: config.trustProxy });
+// My Cob Escaped's Incident Director. Claude needs a longer processing window than the built-in
+// one; a stage that still overruns it falls back to the built-in director.
+let games;
+if (config.incidentDirector === "claude") {
+  // The SDK only looks for credentials when it makes a call; without them every stage falls back.
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
+    console.warn("[corn-planet-party] MYCOB_DIRECTOR=claude but ANTHROPIC_API_KEY is not set: the built-in director will narrate.");
+  }
+  const director = new ClaudeIncidentDirector();
+  games = gamesWith({ director, config: { timing: { processingMaxMs: CLAUDE_DIRECTOR_TIMEOUT_MS + 1000 } } });
+}
+
+const server = createPartyServer({ db, auth, authConfig: config.auth, canon, trustProxy: config.trustProxy, games });
 
 // After every canon read, link Hall of Fame moments to any records filed from them.
 async function refreshCanon(): Promise<void> {
@@ -53,6 +67,7 @@ if (config.canon) {
 server.http.listen(config.port, config.host, () => {
   console.log("CORN PLANET PARTY SYSTEM INITIALIZING...");
   console.log(`  auth mode: ${config.auth.mode}   database: ${config.databasePath}`);
+  console.log(`  My Cob Escaped director: ${config.incidentDirector === "claude" ? CLAUDE_DIRECTOR_MODEL : "built-in"}`);
   console.log(`  host screen: http://localhost:${config.port}/host`);
   if (!config.production && (config.host === "0.0.0.0" || config.host === "::")) {
     for (const addresses of Object.values(networkInterfaces())) {
