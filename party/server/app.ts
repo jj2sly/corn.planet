@@ -121,6 +121,7 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
     effectLibrary: () => db.effectLibrary(),
     incrementUsage: (ids) => db.incrementUsage(ids),
     recordGame: (record) => db.recordGame(record),
+    recordAbortedGame: (record) => db.recordAbortedGame(record),
     random: options.random ?? Math.random,
     onChange: (room) => realtime?.onRoomChange(room),
     onClose: (room, reason) => realtime?.onRoomClose(room, reason),
@@ -137,7 +138,7 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
     async close() {
       clearInterval(cleanupTimer);
       realtime?.stop();
-      for (const room of [...rooms.rooms.values()]) rooms.close(room, "EXPIRED");
+      for (const room of [...rooms.rooms.values()]) rooms.close(room, "SERVER_SHUTDOWN");
       await io.close();
       if (http.listening) await new Promise<void>((resolve) => http.close(() => resolve()));
     },

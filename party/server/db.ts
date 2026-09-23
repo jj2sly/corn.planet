@@ -75,6 +75,23 @@ export interface GameRecord {
   details?: { kind: string; data: unknown };
 }
 
+/**
+ * A game that ended without finishing (sent back to the lobby, room closed or abandoned, server
+ * shutting down, a game error). Kept apart from `games` so it never counts towards player stats.
+ */
+export interface AbortedGameRecord {
+  gameId: string;
+  roomCode: string;
+  /** Why it ended, e.g. "RETURNED_TO_LOBBY", "ABANDONED", "SERVER_SHUTDOWN", "GAME_ERROR". */
+  reason: string;
+  startedAt: number;
+  endedAt: number;
+  players: { uid: string | null; name: string; score: number; left: boolean }[];
+  canonRefs: { round: number; ref: string }[];
+  /** The game's own record so far, if it keeps one. Generated content, never canon. */
+  details: { kind: string; data: unknown } | null;
+}
+
 export interface SavedMomentInput {
   text: string;
   context: string;
@@ -379,6 +396,28 @@ CREATE TABLE IF NOT EXISTS game_details (
 CREATE INDEX IF NOT EXISTS game_details_kind ON game_details(kind);
 `);
         this.db.exec("PRAGMA user_version = 6");
+      });
+    }
+    if (version < 7) {
+      // Games that ended without finishing, so an interrupted game's record isn't lost. Separate
+      // from `games`: an aborted game has no standings and must not count towards player stats.
+      this.transaction(() => {
+        this.db.exec(`
+CREATE TABLE IF NOT EXISTS aborted_games (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  game_id TEXT NOT NULL,
+  room_code TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  ended_at TEXT NOT NULL,
+  players TEXT NOT NULL,
+  canon_refs TEXT NOT NULL,
+  kind TEXT,
+  data TEXT
+);
+CREATE INDEX IF NOT EXISTS aborted_games_game ON aborted_games(game_id);
+`);
+        this.db.exec("PRAGMA user_version = 7");
       });
     }
   }
@@ -790,6 +829,44 @@ CREATE INDEX IF NOT EXISTS game_details_kind ON game_details(kind);
       )
       .all(kind, limit) as Row[];
     return rows.map((r) => ({ gameRowId: Number(r.game_row_id), gameId: String(r.game_id), endedAt: String(r.ended_at), data: JSON.parse(String(r.data)) as unknown }));
+  }
+
+  recordAbortedGame(record: AbortedGameRecord): void {
+    this.db
+      .prepare(
+        `INSERT INTO aborted_games (game_id, room_code, reason, started_at, ended_at, players, canon_refs, kind, data)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        record.gameId,
+        record.roomCode,
+        record.reason,
+        new Date(record.startedAt).toISOString(),
+        new Date(record.endedAt).toISOString(),
+        JSON.stringify(record.players),
+        JSON.stringify(record.canonRefs),
+        record.details?.kind ?? null,
+        record.details ? JSON.stringify(record.details.data) : null,
+      );
+  }
+
+  /** Games that ended without finishing, newest first. For review and tuning; never sent to players. */
+  listAbortedGames(gameId?: string, limit = 50) {
+    const rows = this.db
+      .prepare(`SELECT * FROM aborted_games ${gameId ? "WHERE game_id = ?" : ""} ORDER BY id DESC LIMIT ?`)
+      .all(...(gameId ? [gameId, limit] : [limit])) as Row[];
+    return rows.map((r) => ({
+      id: Number(r.id),
+      gameId: String(r.game_id),
+      roomCode: String(r.room_code),
+      reason: String(r.reason),
+      startedAt: String(r.started_at),
+      endedAt: String(r.ended_at),
+      players: JSON.parse(String(r.players)) as AbortedGameRecord["players"],
+      canonRefs: JSON.parse(String(r.canon_refs)) as AbortedGameRecord["canonRefs"],
+      kind: r.kind === null ? null : String(r.kind),
+      data: r.data === null ? null : (JSON.parse(String(r.data)) as unknown),
+    }));
   }
 
   // ---------------------------------------------------------------- hall of fame

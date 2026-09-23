@@ -157,8 +157,8 @@ describe("My Cob Escaped: incident generation", () => {
       assert.ok(new Set(i.personnel.map((p) => p.name)).size === i.personnel.length, "no duplicate names");
       for (const p of canon) assert.ok(i.canonRefs.includes(p.ref!));
     }
-    // A canon MIA file becomes a missing staff member; files tied to the entity's past are preferred.
-    const withYellow = many(20, (s) => generate(s, { entityRef: "CPE-005" }));
+    // A canon MIA file becomes a missing staff member; files tied to a known entity's past are preferred.
+    const withYellow = many(20, (s) => generate(s, { entityRef: "CPE-005", config: withConfig({ unknownEntity: { chance: 0 } }) }));
     assert.ok(withYellow.every((i) => i.personnel.some((p) => p.ref === "PER-003")), "related personnel preferred");
     assert.ok(withYellow.some((i) => i.personnel.find((p) => p.ref === "PER-003")?.status === "missing"));
     assert.ok(withYellow.every((i) => i.facts.some((f) => f.ref === "INC-001" && f.visibility === "discoverable")), "prior incidents are discoverable");

@@ -80,10 +80,15 @@ export interface BreachDef {
   problems?: string[];
   /** Makes an unknown-entity start more likely. */
   unknownBonus?: number;
-  /** Entity fields this breach puts in front of players from the start. */
+  /** Entity fields this breach puts in front of players from the start (once the entity is identified). */
   revealsFields?: string[];
   /** Set on entity-specific breach types. */
   entitySpecific?: boolean;
+  /**
+   * Entity-specific breaches only: the general breach (an id in BREACHES) players are shown while the
+   * entity is unidentified, so the breach can't give it away. Defaults to "unknown_breach".
+   */
+  cover?: string;
 }
 
 export const BREACHES: readonly BreachDef[] = [
@@ -332,6 +337,11 @@ export interface EntityRule {
   /** Chance the rule applies when it matches. */
   chance: number;
   breach?: BreachDef;
+  /**
+   * Shown to players from the start. When the rule matches by id, classification or containment
+   * level, the line would give an unidentified entity away, so it stays hidden until the entity is
+   * identified (its stat effects apply either way).
+   */
   environment?: { text: string; stats?: StatDeltas };
   unknownBonus?: number;
   difficulty?: number;
@@ -351,6 +361,7 @@ export const ENTITY_RULES: readonly EntityRule[] = [
       weight: 1,
       revealsFields: ["containmentProcedures"],
       entitySpecific: true,
+      cover: "standard_failure",
     },
   },
   {
@@ -365,6 +376,7 @@ export const ENTITY_RULES: readonly EntityRule[] = [
       stats: { containment: -10 },
       weight: 1,
       entitySpecific: true,
+      cover: "unknown_breach",
     },
   },
   {
@@ -379,6 +391,7 @@ export const ENTITY_RULES: readonly EntityRule[] = [
       stats: { information: -8 },
       weight: 1,
       entitySpecific: true,
+      cover: "unknown_breach",
     },
   },
   {
@@ -394,6 +407,7 @@ export const ENTITY_RULES: readonly EntityRule[] = [
       weight: 1,
       systems: { containment: "offline" },
       entitySpecific: true,
+      cover: "standard_failure",
     },
   },
   {
@@ -408,6 +422,7 @@ export const ENTITY_RULES: readonly EntityRule[] = [
       stats: { containment: -6 },
       weight: 1,
       entitySpecific: true,
+      cover: "unauthorized_access",
     },
   },
   { id: "cosmic_desync", match: { classifications: ["COSMIC"] }, chance: 0.5, environment: { text: "Local reality is running four seconds behind. Clocks disagree. So do people.", stats: { information: -6, time: -4 } } },

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { DEFAULT_MYCOB_CONFIG, resolveConfig, type ConfigOverrides, type MyCobConfig, type Outcome, type ResponseTag } from "../server/games/mycob/config.ts";
-import { buildDirectorContext, MockIncidentDirector, validateDirectorOutput } from "../server/games/mycob/director.ts";
+import { buildDirectorContext, MockIncidentDirector, readsAsKillAttempt, validateDirectorOutput } from "../server/games/mycob/director.ts";
 import { generateIncident, type Incident } from "../server/games/mycob/incident.ts";
 import {
   analyzeResponse,
@@ -402,5 +402,64 @@ describe("My Cob Escaped: scoring", () => {
     assert.equal(sacrifice("failure"), 0, "throwing yourself away for nothing earns nothing");
     assert.equal(sacrifice("success"), config.scoring.sacrifice.points);
     assert.equal(sacrifice("success"), 0, "and it can't be farmed");
+  });
+});
+
+describe("My Cob Escaped: the built-in director's reading of kill attempts", () => {
+  // setup() plays Thad Phelps.
+  const NOT_KILLS = [
+    "Execute the evacuation plan",
+    "Execute plan B and get everyone out",
+    "Draw up the evacuation plan and execute it",
+    "Executing the lockdown now",
+    "Shoot the lock off the door",
+    "Kill the lights so it can't see us",
+    "Kill the power to the wing",
+    "Terminate the call and reroute comms",
+    "Destroy the evidence before the audit",
+    "Eliminate the fire hazard in the cafeteria",
+    "Do not shoot it, whatever happens",
+    "Make sure nobody kills it",
+    "Investigate the termination misfire",
+    "Take a photo of it",
+  ];
+  const KILLS = [
+    "Kill it with fire",
+    "Shoot it",
+    "Shoot at it until it stops moving",
+    "Terminate the entity",
+    "Nuke it from orbit",
+    "Incinerate it",
+    "Execute the termination protocol",
+    "Initiate termination",
+    "Execute the entity",
+    "Use lethal force",
+    "Shoot Thad Phelps",
+    "Destroy the creature, then evacuate",
+  ];
+
+  it("doesn't read ordinary operational language as a kill attempt", () => {
+    for (const text of NOT_KILLS) assert.equal(readsAsKillAttempt(text, "Thad Phelps"), false, text);
+  });
+
+  it("still reads a real attempt to kill the entity as one", () => {
+    for (const text of KILLS) assert.equal(readsAsKillAttempt(text, "Thad Phelps"), true, text);
+  });
+
+  it("never terminates the entity over 'execute the evacuation plan', even when the roll allows it", () => {
+    const run = (text: string) => {
+      const { incident, config } = setup();
+      const plan = forcedPlan(incident, config, [input("a", "DEPLOY", text)], ["success"], 3);
+      plan.actions[0]!.roll.terminationPossible = true;
+      const ctx = buildDirectorContext(incident, plan, names(plan), [], config);
+      const out = validateDirectorOutput(new MockIncidentDirector().resolveSync(ctx), plan, incident, config)!;
+      applyStage(incident, plan, out, config, seededRandom(1));
+      return incident.entity.status;
+    };
+    assert.equal(run("Execute the evacuation plan"), "loose");
+    assert.equal(run("Draw up a plan and execute it"), "loose");
+    assert.equal(run("Kill the lights and run"), "loose");
+    assert.equal(run("Kill it with fire"), "terminated");
+    assert.equal(run("Execute the termination protocol"), "terminated");
   });
 });

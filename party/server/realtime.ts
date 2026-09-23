@@ -22,6 +22,7 @@ const CLOSE_MESSAGES: Record<string, string> = {
   CLOSED_BY_HOST: "The host ended this session.",
   ABANDONED: "This session closed after everyone disconnected.",
   EXPIRED: "This session expired.",
+  SERVER_SHUTDOWN: "The server is restarting. This session has ended.",
 };
 
 function sameSecret(a: unknown, b: string): boolean {

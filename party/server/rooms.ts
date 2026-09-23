@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { CanonService } from "./canon.ts";
-import { CONTENT_MODES, type ContentMode, type GameRecord, type PickedPrompt, type SavedMomentInput } from "./db.ts";
+import { CONTENT_MODES, type AbortedGameRecord, type ContentMode, type GameRecord, type PickedPrompt, type SavedMomentInput } from "./db.ts";
 import { PartyError } from "./errors.ts";
 import type { EffectLibrary } from "./games/auctioneffects.ts";
 import type { GameContext, GameDefinition, GameDetails, GameInstance, Highlight, Viewer } from "./games/types.ts";
@@ -62,6 +62,8 @@ export interface RoomDeps {
   effectLibrary(): EffectLibrary;
   incrementUsage(ids: number[]): void;
   recordGame(record: GameRecord): void;
+  /** A game that ended without finishing. Optional: without it, an interrupted game is simply dropped. */
+  recordAbortedGame?(record: AbortedGameRecord): void;
   random(): number;
   onChange(room: Room): void;
   onClose(room: Room, reason: string): void;
@@ -327,8 +329,8 @@ export class Room {
     this.changed();
   }
 
-  returnToLobby(): void {
-    this.endGame();
+  returnToLobby(reason = "RETURNED_TO_LOBBY"): void {
+    this.endGame(reason);
     this.status = "LOBBY";
     this.results = null;
     this.scores = new Map();
@@ -357,14 +359,16 @@ export class Room {
     this.game.hostAction(action, payload);
   }
 
-  close(): void {
-    this.endGame();
+  close(reason = "CLOSED"): void {
+    this.endGame(reason);
     this.closed = true;
   }
 
   // ---------------------------------------------------------------- game lifecycle
 
-  private endGame(): void {
+  /** `abortReason`: the game is being cut short, so its record so far is saved first. */
+  private endGame(abortReason?: string): void {
+    if (abortReason) this.recordAbort(abortReason);
     this.generation += 1;
     this.clearTimer();
     this.game?.dispose();
@@ -373,6 +377,34 @@ export class Room {
     // Players who left mid-game are only kept until the game is over.
     for (let i = this.players.length - 1; i >= 0; i--) {
       if (this.players[i]!.left) this.players.splice(i, 1);
+    }
+  }
+
+  /** A game that ends without finishing keeps what it had. It never counts as a played game. */
+  private recordAbort(reason: string): void {
+    const game = this.game;
+    if (!game || this.status !== "IN_GAME" || !this.deps.recordAbortedGame) return;
+    let details: GameDetails | null = null;
+    try {
+      details = game.abortDetails?.() ?? null;
+    } catch (err) {
+      console.error(`[corn-planet-party] could not build the record of an aborted game in room ${this.code}:`, err);
+    }
+    try {
+      this.deps.recordAbortedGame({
+        gameId: this.gameId,
+        roomCode: this.code,
+        reason,
+        startedAt: this.gameStartedAt,
+        endedAt: Date.now(),
+        players: this.players
+          .filter((p) => this.scores.has(p.id))
+          .map((p) => ({ uid: p.uid, name: p.name, score: this.scores.get(p.id) ?? 0, left: p.left })),
+        canonRefs: this.canonRefs,
+        details,
+      });
+    } catch (err) {
+      console.error("[corn-planet-party] failed to record an aborted game:", err);
     }
   }
 
@@ -440,7 +472,7 @@ export class Room {
       fn();
     } catch (err) {
       console.error(`[corn-planet-party] game error in room ${this.code}, returning to lobby:`, err);
-      this.returnToLobby();
+      this.returnToLobby("GAME_ERROR");
     }
   }
 
@@ -553,7 +585,7 @@ export class RoomManager {
 
   close(room: Room, reason: string): void {
     if (room.closed) return;
-    room.close();
+    room.close(reason);
     this.rooms.delete(room.code);
     this.deps.onClose(room, reason);
   }

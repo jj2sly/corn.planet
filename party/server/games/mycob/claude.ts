@@ -64,7 +64,7 @@ Rules:
 - Conflicting actions both happen. The interactions list says which ones collided and who came off worse or accidentally better.
 - Refer to agents by name. Nobody's gender is known: use their name or "they", never "he" or "she", for agents and staff alike. Paraphrase what agents did; never quote their words.
 - Never mention numbers, stats, rolls or probabilities.
-- Players only know facts whose visibility is "known". Mention a discoverable fact only if you reveal it this stage in newInformation by its factId. While the entity's identityKnown is false, never name it or give its id; call it "the entity", unless you set revealEntity (allowed only when limits.identityRevealAllowed is true).
+- Players only know facts whose visibility is "known". Mention a discoverable fact only if you reveal it this stage in newInformation by its factId. While the entity's identityKnown is false, never name it, give its id, or state or hint at its classification or containment level; call it "the entity", unless you set revealEntity (allowed only when limits.identityRevealAllowed is true).
 - lifeEvents: one short, specific reason for each agent with lifeAtRisk true or listed in hazards, and nobody else.
 - intent "terminate" only for an action that really tries to kill or destroy the entity. It succeeds only when that action's terminationPossible is true; narrate it either way.
 - Staff and facility changes need a cause in this stage. Staff only die after a catastrophe.

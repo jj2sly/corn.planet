@@ -17,7 +17,7 @@
 import { PartyError } from "../../errors.ts";
 import { cleanText } from "../../text.ts";
 import { AwardCeremony } from "../awards.ts";
-import type { GameContext, GameDefinition, GameInstance, Highlight, Viewer } from "../types.ts";
+import type { GameContext, GameDefinition, GameDetails, GameInstance, Highlight, Viewer } from "../types.ts";
 import {
   APPROACHES,
   DEFAULT_MYCOB_CONFIG,
@@ -55,6 +55,8 @@ import {
   locationName,
   OK_STATUSES,
   pick,
+  publicBreach,
+  publicEnvironment,
   scrubHidden,
   shuffle,
   type Fact,
@@ -263,6 +265,12 @@ class MyCobGame implements GameInstance {
     return scrubHidden(text, this.incident);
   }
 
+  /** A fact's text for players. Canon text gets the stricter scrub: it is the entity's own file. */
+  private factText(f: Fact): { label: string; text: string } {
+    const partialNames = f.source === "canon";
+    return { label: scrubHidden(f.label, this.incident, undefined, { partialNames }), text: scrubHidden(f.text, this.incident, undefined, { partialNames }) };
+  }
+
   // ------------------------------------------------------------------ start
 
   start(): void {
@@ -287,12 +295,14 @@ class MyCobGame implements GameInstance {
     for (const ref of this.incident.canonRefs) this.ctx.canon.used(1, ref);
 
     const inc = this.incident;
+    const breach = publicBreach(inc);
+    const environment = publicEnvironment(inc);
     this.narration.newBeat();
     this.narration.add(
       "incident_alert",
       0,
-      `INCIDENT ${inc.code}: ${inc.breach.name.toUpperCase()}. ${inc.breach.text} ${inc.problem.text}` +
-        (inc.environment.length ? ` ${inc.environment.map((e) => e.text).join(" ")}` : "") +
+      this.scrub(`INCIDENT ${inc.code}: ${breach.name.toUpperCase()}. ${breach.text} ${inc.problem.text}`) +
+        (environment.length ? ` ${environment.join(" ")}` : "") +
         (inc.entity.identityKnown ? ` Entity: ${inc.entity.title}.` : " Entity: UNKNOWN."),
     );
     this.phase = "ALERT";
@@ -337,15 +347,16 @@ class MyCobGame implements GameInstance {
 
   private openingContext(): Record<string, unknown> {
     const inc = this.incident;
+    const breach = publicBreach(inc);
     return {
       tone: toneFor(inc.stats),
       mode: modeById(inc.mode)?.name ?? inc.mode,
       incident: {
         code: inc.code,
-        breach: { name: inc.breach.name, text: inc.breach.text },
+        breach: { name: breach.name, text: this.scrub(breach.text) },
         location: inc.location.name,
         problem: inc.problem.text,
-        environment: inc.environment.map((e) => e.text),
+        environment: publicEnvironment(inc),
         // An unknown entity's identity is not sent at all: what the director does not know it cannot leak.
         entity: inc.entity.identityKnown
           ? { identityKnown: true, title: inc.entity.title, classification: inc.entity.classification, containment: inc.entity.containment }
@@ -540,7 +551,10 @@ class MyCobGame implements GameInstance {
       const named = event.text.toLowerCase().startsWith(event.name.toLowerCase());
       this.narration.add("special_event", this.stage, named ? event.text : `${event.name}: ${event.text}`);
     }
-    for (const fact of result.reveals) this.narration.add("discovery", this.stage, `Discovered — ${fact.label}: ${this.scrub(fact.text)}`);
+    for (const fact of result.reveals) {
+      const { label, text } = this.factText(fact);
+      this.narration.add("discovery", this.stage, `Discovered — ${label}: ${text}`);
+    }
     for (const change of result.objectiveChanges) this.narration.add("objective_update", this.stage, `Objective ${change.to}: ${this.scrub(change.text)}`);
     for (const o of result.objectivesAdded) this.narration.add("objective_update", this.stage, `New objective: ${this.scrub(o.text)}`);
 
@@ -799,6 +813,8 @@ class MyCobGame implements GameInstance {
         name: m.name,
         startRole: m.startRoleId,
         finalRole: m.roleId,
+        lives: m.lives,
+        down: m.down,
         livesLost: m.livesLost,
         downs: m.downs,
         identity: m.identity,
@@ -845,6 +861,26 @@ class MyCobGame implements GameInstance {
       ending: this.ending,
       scores: { team: this.team, totals: Object.fromEntries(this.totals) },
       awards: this.awards.record(),
+    };
+  }
+
+  /**
+   * The record so far, when the game ends without finishing (the room saves it apart from finished
+   * games). Adds where it stopped and the current stage's responses if they were never processed.
+   * Server-side only, like record().
+   */
+  abortDetails(): GameDetails {
+    const unprocessed = !this.records.some((r) => r.stage === this.stage);
+    return {
+      kind: "mycob.v1",
+      data: {
+        ...(this.record() as Record<string, unknown>),
+        aborted: {
+          phase: this.phase,
+          stage: this.stage,
+          pendingResponses: unprocessed ? [...this.responses].map(([playerId, r]) => ({ playerId, ...r })) : [],
+        },
+      },
     };
   }
 
@@ -984,6 +1020,7 @@ class MyCobGame implements GameInstance {
     const inc = this.incident;
     const known = inc.entity.identityKnown;
     const present = new Map(this.ctx.players().map((p) => [p.id, p.connected]));
+    const breach = publicBreach(inc);
     return {
       code: inc.code,
       mode: (({ id, name, emoji }) => ({ id, name, emoji }))(modeById(inc.mode) ?? MODES[0]!),
@@ -992,10 +1029,10 @@ class MyCobGame implements GameInstance {
       entity: known
         ? { known: true, ref: inc.entity.ref, title: inc.entity.title, classification: inc.entity.classification, containment: inc.entity.containment }
         : { known: false },
-      breach: { name: inc.breach.name, text: this.scrub(inc.breach.text), entitySpecific: !!inc.breach.entitySpecific },
+      breach: { name: breach.name, text: this.scrub(breach.text), entitySpecific: breach.entitySpecific },
       location: { name: inc.location.name, description: inc.location.description },
       problem: this.scrub(inc.problem.text),
-      environment: inc.environment.map((e) => e.text),
+      environment: publicEnvironment(inc),
       statuses: STAT_IDS.map((id) => describeStat(id, inc.stats[id], this.config)),
       systems: SYSTEM_IDS.map((id) => ({ id, name: SYSTEMS[id].name, condition: inc.systems[id] })),
       objectives: inc.objectives.map((o) => ({ id: o.id, kind: o.kind, text: this.scrub(o.text), status: o.status })),
@@ -1007,8 +1044,9 @@ class MyCobGame implements GameInstance {
         location: locationName(inc, p.location),
         relationship: p.relationship,
         source: p.source,
-        ref: p.ref,
-        url: p.url,
+        // No database links until the entity is identified: nothing public points back at it.
+        ref: known ? p.ref : null,
+        url: known ? p.url : null,
         controlledBy: p.controlledBy ? (this.crew.get(p.controlledBy)?.name ?? null) : null,
       })),
       facts: inc.facts.filter((f) => f.visibility === "known").map((f) => this.publicFact(f)),
@@ -1031,10 +1069,10 @@ class MyCobGame implements GameInstance {
   private publicFact(f: Fact) {
     return {
       id: f.id,
-      label: this.scrub(f.label),
-      text: this.scrub(f.text),
+      ...this.factText(f),
       source: f.source,
-      ref: f.about === "identity" || this.incident.entity.identityKnown || f.about !== "entity" ? f.ref : null,
+      // Database ids only once the entity is identified: until then any of them could lead to it.
+      ref: this.incident.entity.identityKnown ? f.ref : null,
       redacted: f.redacted,
       revealedStage: f.revealedStage,
     };

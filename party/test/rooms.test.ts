@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 import { PartyError } from "../server/errors.ts";
+import type { GameDefinition } from "../server/games/types.ts";
 import { ROOM_LIMITS } from "../server/rooms.ts";
 import { makeRooms, roomWithPlayers } from "./helpers.ts";
 
@@ -263,5 +264,55 @@ describe("cleanup", () => {
     mock.timers.tick(ROOM_LIMITS.maxAgeMs);
     manager.cleanup();
     assert.deepEqual(closed, [{ code: room.code, reason: "EXPIRED" }]);
+  });
+});
+
+describe("games that end without finishing", () => {
+  const broken: GameDefinition = {
+    id: "broken",
+    name: "Broken",
+    tagline: "",
+    description: "",
+    minPlayers: 1,
+    maxPlayers: 8,
+    defaultSettings: {},
+    parseSettings: () => ({}),
+    create: () => ({
+      start() {
+        throw new Error("boom");
+      },
+      handleInput() {},
+      hostAction() {},
+      viewFor: () => null,
+      playerLeft() {},
+      dispose() {},
+    }),
+  };
+
+  it("keeps a record of a game that errors out, without counting it as played", () => {
+    const error = mock.method(console, "error", () => {});
+    try {
+      const { manager, db, records } = makeRooms({ games: new Map([["broken", broken]]) });
+      const { room } = roomWithPlayers(manager, ["A", "B", "C"], ["u1", null, null]);
+      room.startGame();
+      assert.equal(room.status, "LOBBY", "the room goes back to the lobby");
+      const saved = db.listAbortedGames();
+      assert.equal(saved.length, 1);
+      assert.equal(saved[0]!.reason, "GAME_ERROR");
+      assert.equal(saved[0]!.gameId, "broken");
+      assert.deepEqual(saved[0]!.players.map((p) => [p.uid, p.name]), [["u1", "A"], [null, "B"], [null, "C"]]);
+      assert.equal(saved[0]!.data, null, "a game without its own record still gets the basics");
+      assert.equal(records.length, 0);
+      assert.equal(db.getUserStats("u1").gamesPlayed, 0, "not in anyone's stats");
+    } finally {
+      error.mock.restore();
+    }
+  });
+
+  it("records nothing for a room that closes in the lobby or after the results", () => {
+    const { manager, db } = makeRooms();
+    const { room } = roomWithPlayers(manager, ["A", "B", "C"]);
+    manager.close(room, "ABANDONED");
+    assert.deepEqual(db.listAbortedGames(), []);
   });
 });

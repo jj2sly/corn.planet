@@ -17,8 +17,8 @@ export function seededRandom(seed = 42): () => number {
 
 // ------------------------------------------------------------------ canon
 
-function canonRecord(ref: string, kind: CanonKind, title: string, fields: Record<string, string>): CanonRecord {
-  return { ref, kind, title, fields, links: {}, url: `https://example.test/${ref}` };
+function canonRecord(ref: string, kind: CanonKind, title: string, fields: Record<string, string>, links: Record<string, string[]> = {}): CanonRecord {
+  return { ref, kind, title, fields, links, url: `https://example.test/${ref}` };
 }
 
 /** A small, stable canon so game tests are deterministic and do not touch the network. */
@@ -52,6 +52,51 @@ export const TEST_CANON: CanonRecord[] = [
     clearance: "LEVEL 3",
     designation: "Field Agent",
   }),
+];
+
+/**
+ * Canon built to give an unidentified entity away every way it can: entity-specific breaches
+ * (NEUTRALIZED, TERMINATION, a file that mentions a gate), classification-keyed environment lines
+ * (COSMIC), procedures a breach would quote, a description that names it and its id, a prior
+ * incident, and a staff member tied to it. My Cob's secrecy tests play unknown-entity games on it.
+ */
+export const SECRET_CANON = {
+  gatekeeper: canonRecord("CPE-013", "entity", "The Spooky Gatekeeper", {
+    classification: "NEUTRALIZED",
+    containment: "TERMINATION",
+    containmentProcedures: "Keep the gate shut at all times. Never let it near water, never feed it after midnight, and avoid eye contact.",
+    description: "The Spooky Gatekeeper guards a door that is not there and whispers its designation, CPE-013, to anyone nearby.",
+  }),
+  howler: canonRecord("CPE-014", "entity", "Starhowler", {
+    classification: "COSMIC",
+    containment: "MAXIMUM",
+    containmentProcedures: "Keep it in the dark and sing to it on the hour, every hour.",
+    description: "Starhowler howls at stars that are not in the sky.",
+  }),
+  handler: canonRecord("PER-013", "personnel", "Agent Mallory Birch", { status: "ACTIVE", designation: "Handler", description: "Has handled it for years." }, { notableIncidents: ["INC-013"] }),
+  bystander: canonRecord("PER-001", "personnel", "Agent Kernel", { status: "ACTIVE", designation: "Field Agent" }),
+  priorGatekeeper: canonRecord("INC-013", "incident", "The Night Shift Incident", { summary: "The Spooky Gatekeeper got out and sat in the cafeteria." }, { entitiesInvolved: ["CPE-013"], personnelInvolved: ["PER-013"] }),
+  priorHowler: canonRecord("INC-014", "incident", "Howling at Noon", { summary: "Starhowler howled at noon." }, { entitiesInvolved: ["CPE-014"] }),
+};
+
+/** SECRET_CANON around one of its two entities (the handler and the Night Shift Incident belong to the Gatekeeper). */
+export function secretCanon(entity: "gatekeeper" | "howler"): CanonRecord[] {
+  const c = SECRET_CANON;
+  return entity === "gatekeeper" ? [c.gatekeeper, c.handler, c.bystander, c.priorGatekeeper, c.priorHowler] : [c.howler, c.bystander, c.priorHowler];
+}
+
+/**
+ * Everything that would identify a SECRET_CANON entity if players saw it before it is identified.
+ * Its own canon text is left out: that may be discovered in play (check it against known facts).
+ */
+export const UNKNOWN_ENTITY_LEAKS: { label: string; pattern: RegExp }[] = [
+  { label: "entity name", pattern: /spooky|gatekeeper|starhowler/i },
+  { label: "entity or related id", pattern: /\b(?:CPE|INC)[\s\-_.]*0*1[34]\b|\bPER[\s\-_.]*0*13\b/i },
+  { label: "database link", pattern: /example\.test/i },
+  { label: "staff tied to the entity", pattern: /Mallory|Birch|has dealt with this entity/i },
+  { label: "entity-specific breach", pattern: /Procedure Violation|Termination Protocol|Neutraliz|Cascade Failure|Gate Left Open|"entitySpecific":true/i },
+  { label: "classification or containment", pattern: /NEUTRALIZED|TERMINATION|COSMIC|MAXIMUM/ },
+  { label: "classification-keyed environment", pattern: /four seconds behind|Clocks disagree/i },
 ];
 
 /** An offline CanonService over a fixed record set. */
@@ -98,6 +143,7 @@ export function makeRooms(overrides: Partial<RoomDeps> = {}): TestRooms {
       records.push(record);
       db.recordGame(record);
     },
+    recordAbortedGame: (record) => db.recordAbortedGame(record),
     random: seededRandom(),
     onChange: (room) => changes.push(room),
     onClose: (room, reason) => closed.push({ code: room.code, reason }),

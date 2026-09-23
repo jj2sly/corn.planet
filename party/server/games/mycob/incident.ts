@@ -128,7 +128,8 @@ export interface Incident {
   /** Where the entity is believed to be, or null when nobody knows. Field Operatives see this. */
   threatLocation: string | null;
   problem: { id: string; text: string };
-  environment: { ruleId: string; text: string }[];
+  /** identifying: the rule matched on something that would give an unidentified entity away. */
+  environment: { ruleId: string; text: string; identifying: boolean }[];
   systems: Record<SystemId, Condition>;
   personnel: Npc[];
   objectives: Objective[];
@@ -214,25 +215,127 @@ export function locationName(incident: Incident, id: string | null): string {
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const UNIDENTIFIED = "[UNIDENTIFIED ENTITY]";
+const WITHHELD = "[DATA WITHHELD]";
+/** Whatever may sit between the words of a name or the parts of an id: "Big-Yellow", "CPE 005". */
+const GAP = "[\\s\\-_.,'’]*";
+const wordsOf = (text: string) => text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+
+/** Words too common, or too much a part of this game's world, to give a name away on their own. */
+const COMMON_NAME_WORDS = new Set([
+  "the", "a", "an", "of", "and", "or", "in", "on", "at", "to", "for", "with", "from", "by",
+  "big", "small", "little", "large", "great", "old", "new", "mr", "mrs", "ms", "dr", "doctor", "mister", "sir", "agent",
+  "entity", "thing", "creature", "corn", "cob", "cobs", "kernel", "husk", "maize", "stalk", "planet",
+]);
+
+/** The distinctive words of an entity's name, e.g. "The Evil Jik" -> ["evil", "jik"]. */
+export function nameWords(title: string): string[] {
+  return [...new Set(wordsOf(title))].filter((w) => w.length >= 3 && !/^\d+$/.test(w) && !COMMON_NAME_WORDS.has(w));
+}
+
+/** Matches an id however it's written: "CPE-005", "cpe 005", "CPE5". */
+function refPattern(ref: string): RegExp | null {
+  const parts = ref.match(/[A-Za-z]+|\d+/g);
+  if (!parts || ref.trim().length < 3) return null;
+  const body = parts.map((p) => (/^\d+$/.test(p) ? `0*${p.replace(/^0+(?=\d)/, "")}` : escapeRegExp(p))).join(GAP);
+  return new RegExp(`\\b${body}\\b`, "gi");
+}
+
 /**
- * Removes anything players may not know yet from text the engine didn't write itself (the
- * director's narration): the entity's name and id while it is unidentified, and verbatim copies
- * of undiscovered facts.
+ * Cuts every run of `n` words it shares with a hidden text (any case or punctuation), so a
+ * near-quote of an undiscovered fact goes the same way as an exact one. Texts shorter than `n`
+ * words must appear whole; one- and two-word texts are left to the exact check.
  */
-export function scrubHidden(text: string, incident: Incident, revealing: ReadonlySet<string> = new Set()): string {
+function cutQuotes(text: string, hidden: string, n = 5): string {
+  const secret = wordsOf(hidden);
+  const size = Math.min(n, secret.length);
+  if (size < 3) return text;
+  const grams = new Set<string>();
+  for (let i = 0; i + size <= secret.length; i++) grams.add(secret.slice(i, i + size).join(" "));
+  const tokens = [...text.matchAll(/[\p{L}\p{N}]+/gu)];
+  const spans: [number, number][] = [];
+  for (let i = 0; i + size <= tokens.length; i++) {
+    if (!grams.has(tokens.slice(i, i + size).map((t) => t[0].toLowerCase()).join(" "))) continue;
+    const start = tokens[i]!.index!;
+    const last = tokens[i + size - 1]!;
+    const end = last.index! + last[0].length;
+    const previous = spans.at(-1);
+    if (previous && start <= previous[1] + 2) previous[1] = end;
+    else spans.push([start, end]);
+  }
   let out = text;
-  // Facts being revealed in this same stage count as known: the narration may name them.
-  if (!incident.entity.identityKnown && !revealing.has("f-identity")) {
-    for (const token of [incident.entity.title, incident.entity.ref]) {
-      if (token.trim().length >= 3) out = out.replace(new RegExp(escapeRegExp(token.trim()), "gi"), "[UNIDENTIFIED ENTITY]");
+  for (const [start, end] of spans.reverse()) out = out.slice(0, start) + WITHHELD + out.slice(end);
+  return out;
+}
+
+/**
+ * Removes anything players may not know yet: while the entity is unidentified, its name (any case,
+ * spacing or punctuation, with or without "The"), its id however it's written, its database link
+ * and the ids of records tied to it; and, always, exact or near-exact quotes of undiscovered facts.
+ *
+ * `partialNames` also cuts the distinctive single words of the name ("Yellow" from "Big Yellow")
+ * and the entity's undiscovered classification and containment labels written as the database
+ * writes them (NEUTRALIZED). Use it for the director's text and canon text, never for the engine's
+ * own templates: a template word that happens to be in the name would be cut, and the cut itself
+ * would give the name away.
+ */
+export function scrubHidden(text: string, incident: Incident, revealing: ReadonlySet<string> = new Set(), options: { partialNames?: boolean } = {}): string {
+  let out = text;
+  // Facts being revealed in this same stage count as known: the text may name them.
+  const identifying = revealing.has("f-identity");
+  if (!incident.entity.identityKnown && !identifying) {
+    const entity = incident.entity;
+    if (entity.url) out = out.split(entity.url).join(UNIDENTIFIED);
+    const title = wordsOf(entity.title).filter((w, i) => i > 0 || !["the", "a", "an"].includes(w));
+    if (title.join("").length >= 3) {
+      out = out.replace(new RegExp(`\\b(?:(?:the|a|an)[\\s\\-_]+)?${title.map(escapeRegExp).join(GAP)}\\b`, "giu"), UNIDENTIFIED);
+    }
+    const idPattern = refPattern(entity.ref);
+    if (idPattern) out = out.replace(idPattern, UNIDENTIFIED);
+    // Records tied to it (prior incidents) would lead straight to it in the database.
+    for (const fact of incident.facts) {
+      const pattern = fact.about === "record" && fact.ref ? refPattern(fact.ref) : null;
+      if (pattern) out = out.replace(pattern, WITHHELD);
+    }
+    if (options.partialNames) {
+      // Words this incident uses for its own people and places stay: cutting them would mangle them.
+      const ours = new Set(wordsOf([...incident.personnel.map((p) => p.name), ...incident.locations.map((l) => l.name)].join(" ")));
+      for (const word of nameWords(entity.title).filter((w) => !ours.has(w))) {
+        out = out.replace(new RegExp(`\\b${escapeRegExp(word)}(?:['’]?s)?\\b`, "giu"), UNIDENTIFIED);
+      }
+    }
+  }
+  if (options.partialNames) {
+    for (const id of ["f-classification", "f-containment"]) {
+      const fact = incident.facts.find((f) => f.id === id);
+      if (!fact || fact.visibility === "known" || revealing.has(id) || identifying) continue;
+      const label = fact.text.trim();
+      if (label.length >= 5 && !["UNKNOWN", "UNCLASSIFIED"].includes(label)) out = out.replace(new RegExp(`\\b${escapeRegExp(label)}\\b`, "g"), WITHHELD);
     }
   }
   for (const fact of incident.facts) {
-    if (fact.visibility !== "known" && !revealing.has(fact.id) && fact.text.length >= 10 && out.includes(fact.text)) {
-      out = out.split(fact.text).join("[DATA WITHHELD]");
-    }
+    if (fact.visibility === "known" || revealing.has(fact.id)) continue;
+    if (fact.text.length >= 10 && out.includes(fact.text)) out = out.split(fact.text).join(WITHHELD);
+    out = cutQuotes(out, fact.text);
   }
   return out;
+}
+
+/**
+ * The breach as players see it. An entity-specific breach would give an unidentified entity away
+ * (a "Termination Protocol Misfire" says TERMINATION containment), so until it is identified it
+ * shows as the general breach it passes for.
+ */
+export function publicBreach(incident: Incident): { name: string; text: string; entitySpecific: boolean } {
+  const breach = incident.breach;
+  if (!breach.entitySpecific || incident.entity.identityKnown) return { name: breach.name, text: breach.text, entitySpecific: !!breach.entitySpecific };
+  const cover = BREACHES.find((b) => b.id === (breach.cover ?? "unknown_breach")) ?? BREACHES.find((b) => b.id === "unknown_breach")!;
+  return { name: cover.name, text: fill(cover.description, { location: incident.location.name }), entitySpecific: false };
+}
+
+/** The environment lines players may see: the ones that would identify the entity wait until it is identified. */
+export function publicEnvironment(incident: Incident): string[] {
+  return incident.environment.filter((e) => incident.entity.identityKnown || !e.identifying).map((e) => e.text);
 }
 
 // ------------------------------------------------------------------ reveals
@@ -245,7 +348,9 @@ export function revealFact(incident: Incident, factId: string, stage: number): F
   if (fact.about === "identity") {
     incident.entity.identityKnown = true;
     incident.entity.revealedStage = stage;
-    revealed.push(...incident.facts.filter((f) => (f.id === "f-classification" || f.id === "f-containment") && f.visibility !== "known"));
+    // The file header, and whatever the breach quotes from the file.
+    const header = ["f-classification", "f-containment", ...(incident.breach.revealsFields ?? []).map((key) => `f-${key}`)];
+    revealed.push(...incident.facts.filter((f) => header.includes(f.id) && f.visibility !== "known"));
   }
   for (const f of revealed) {
     f.visibility = "known";
@@ -512,7 +617,9 @@ export function generateIncident(sources: IncidentSources, config: MyCobConfig, 
     location,
     threatLocation: problemDef.id === "location_unknown" ? null : location.id,
     problem: { id: problemDef.id, text: "" },
-    environment: rules.filter((r) => r.environment).map((r) => ({ ruleId: r.id, text: r.environment!.text })),
+    environment: rules
+      .filter((r) => r.environment)
+      .map((r) => ({ ruleId: r.id, text: r.environment!.text, identifying: !!(r.match.refs || r.match.classifications || r.match.containment) })),
     systems,
     personnel: [],
     objectives: [],
@@ -591,16 +698,19 @@ function addFacts(incident: Incident, record: CanonRecord, canonIncidents: reado
       source: "canon",
       ref: record.ref,
       about: "entity",
-      visibility: breach.revealsFields?.includes(key) ? "known" : "discoverable",
+      // A breach that quotes the file only puts it in front of players once they know whose file it is.
+      visibility: known && breach.revealsFields?.includes(key) ? "known" : "discoverable",
     });
   }
 
   // Prior incidents on file for this entity: something to dig up.
-  for (const prior of canonIncidents.filter((i) => i.links.entitiesInvolved?.includes(record.ref)).slice(0, 3)) {
+  // Fact ids go to players, so they never carry a database id (the ref field holds it, shown once identified).
+  const priors = canonIncidents.filter((i) => i.links.entitiesInvolved?.includes(record.ref)).slice(0, 3);
+  priors.forEach((prior, n) => {
     const summary = prior.fields.summary ?? prior.fields.description ?? "";
     add({
-      id: `f-${prior.ref}`,
-      label: `Prior incident ${prior.ref}`,
+      id: `f-prior-${n + 1}`,
+      label: "Prior incident on file",
       text: `${prior.title}${summary ? `: ${summary}` : ""}`.slice(0, 300),
       source: "canon",
       ref: prior.ref,
@@ -608,7 +718,7 @@ function addFacts(incident: Incident, record: CanonRecord, canonIncidents: reado
       visibility: "discoverable",
     });
     incident.canonRefs.push(prior.ref);
-  }
+  });
 }
 
 const CANON_STATUS: Record<string, PersonnelStatus> = {
@@ -629,7 +739,11 @@ function addPersonnel(incident: Incident, sources: IncidentSources, config: MyCo
     for (const ref of i.links.personnelInvolved ?? []) related.add(ref);
     for (const p of sources.personnel ?? []) if (p.links.notableIncidents?.includes(i.ref)) related.add(p.ref);
   }
-  const usable = (sources.personnel ?? []).filter((p) => CANON_STATUS[upper(p.fields.status)] !== undefined || !p.fields.status);
+  // While the entity is unidentified, nobody tied to it is on the scene: their public file would lead
+  // straight to it.
+  const usable = (sources.personnel ?? []).filter(
+    (p) => (CANON_STATUS[upper(p.fields.status)] !== undefined || !p.fields.status) && (incident.entity.identityKnown || !related.has(p.ref)),
+  );
   const ordered = [...shuffle(usable.filter((p) => related.has(p.ref)), random), ...shuffle(usable.filter((p) => !related.has(p.ref)), random)];
   for (const p of ordered.slice(0, config.personnel.canonMax)) {
     const npc: Npc = {
@@ -647,10 +761,10 @@ function addPersonnel(incident: Incident, sources: IncidentSources, config: MyCo
       controlledBy: null,
     };
     if (p.fields.description) {
-      const factId = `f-${p.ref}`;
+      const factId = `f-file-${npc.id}`;
       incident.facts.push({
         id: factId,
-        label: `Personnel file ${p.ref}`,
+        label: `Personnel file: ${p.title}`,
         text: p.fields.description.slice(0, 300),
         source: "canon",
         ref: p.ref,

@@ -105,6 +105,11 @@ export interface GameInstance {
   /** What one viewer may see right now. Never include hidden information for that viewer. */
   viewFor(viewer: Viewer): unknown;
   playerLeft(playerId: string): void;
+  /**
+   * Optional: the game's structured record so far, saved when it ends without finishing (sent back
+   * to the lobby, room closed or abandoned, server shutting down, a game error). Server-side only.
+   */
+  abortDetails?(): GameDetails | null;
   dispose(): void;
 }
 

@@ -342,6 +342,40 @@ describe("database: structured game records", () => {
     assert.deepEqual(db.listGameDetails("mycob.v1"), []);
   });
 
+  it("keeps games that ended without finishing apart, and adds their table to a version-6 database", () => {
+    const dir = mkdtempSync(join(tmpdir(), "cpst-party-"));
+    try {
+      const path = join(dir, "party.db");
+      new PartyDb(path).close();
+      const raw = new DatabaseSync(path);
+      raw.exec("DROP TABLE aborted_games; PRAGMA user_version = 6");
+      raw.close();
+      const db = new PartyDb(path);
+      const aborted = (reason: string, details: { kind: string; data: unknown } | null) => ({
+        gameId: "mycob",
+        roomCode: "BCDF",
+        reason,
+        startedAt: Date.now() - 60_000,
+        endedAt: Date.now(),
+        players: [{ uid: "u1", name: "u1", score: 0, left: false }],
+        canonRefs: [{ round: 1, ref: "CPE-002" }],
+        details,
+      });
+      db.recordAbortedGame(aborted("ABANDONED", null));
+      db.recordAbortedGame(aborted("SERVER_SHUTDOWN", { kind: "mycob.v1", data: { aborted: { stage: 2 } } }));
+      const saved = db.listAbortedGames("mycob");
+      assert.deepEqual(saved.map((a) => a.reason), ["SERVER_SHUTDOWN", "ABANDONED"]);
+      assert.deepEqual(saved[0]!.data, { aborted: { stage: 2 } });
+      assert.equal(saved[1]!.data, null);
+      assert.deepEqual(saved[0]!.canonRefs, [{ round: 1, ref: "CPE-002" }]);
+      assert.deepEqual(db.listAbortedGames("chaos"), []);
+      assert.equal(db.getUserStats("u1").gamesPlayed, 0, "never counted as a played game");
+      db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("adds the table to an existing version-5 database", () => {
     const dir = mkdtempSync(join(tmpdir(), "cpst-party-"));
     try {

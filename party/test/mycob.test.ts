@@ -489,6 +489,57 @@ describe("My Cob Escaped: room lifecycle", () => {
     assert.equal(view(room, a).you.response.text, "Fix the power");
   });
 
+  it("saves the record so far when a game is cut short, apart from finished games", async () => {
+    const { room, ids, db, records } = start();
+    await until(room, "RESPONSE");
+    for (const id of ids) room.gameInput(id, "respond", { tag: "CONTAIN", text: "Lock it" });
+    await until(room, "UPDATE");
+    await until(room, "RESPONSE");
+    room.gameInput(ids[0]!, "respond", { tag: "INVESTIGATE", text: "Half-finished thought" });
+    const code = view(room).incident.code;
+    room.returnToLobby();
+    assert.equal(room.status, "LOBBY");
+
+    const [aborted, ...more] = db.listAbortedGames("mycob");
+    assert.equal(more.length, 0);
+    assert.equal(aborted!.reason, "RETURNED_TO_LOBBY");
+    assert.equal(aborted!.roomCode, room.code);
+    assert.deepEqual(aborted!.players.map((p) => p.name).sort(), ["Ann", "Bo", "Cy"]);
+    assert.ok(aborted!.canonRefs.length > 0 && aborted!.canonRefs.every((r) => TEST_CANON.some((c) => c.ref === r.ref)));
+    assert.equal(aborted!.kind, "mycob.v1");
+    const data = aborted!.data as View;
+    assert.equal(data.canon, false);
+    assert.equal(data.incident.code, code);
+    assert.deepEqual(data.aborted, {
+      phase: "RESPONSE",
+      stage: 2,
+      pendingResponses: [{ playerId: ids[0], tag: "INVESTIGATE", text: "Half-finished thought", approach: "standard", sacrifice: false }],
+    });
+    assert.equal(data.stages.length, 1, "the finished stage, in full");
+    assert.equal(data.stages[0].responses.length, 3);
+    assert.ok(data.players.every((p: View) => p.finalRole && typeof p.lives === "number"));
+    assert.equal(data.ending, null);
+    // Never counted as a played game.
+    assert.equal(records.length, 0);
+    assert.deepEqual(db.listGameDetails("mycob.v1"), []);
+  });
+
+  it("records why a game was cut short, and nothing for a game that finished", async () => {
+    for (const reason of ["CLOSED_BY_HOST", "ABANDONED", "SERVER_SHUTDOWN"]) {
+      const { room, manager, db } = start();
+      await until(room, "PROCESSING");
+      manager.close(room, reason);
+      const saved = db.listAbortedGames();
+      assert.deepEqual(saved.map((a) => a.reason), [reason]);
+      assert.equal((saved[0]!.data as View).aborted.phase, "PROCESSING");
+    }
+    const { room, ids, db } = start();
+    await playThrough(room, ids);
+    room.returnToLobby();
+    assert.deepEqual(db.listAbortedGames(), []);
+    assert.equal(db.listGameDetails("mycob.v1").length, 1);
+  });
+
   it("refuses to start without any entity in canon and leaves the room in the lobby", () => {
     const rooms = makeRooms({ games: new Map([["mycob", createMyCobGame() as GameDefinition]]), canon: stubCanon(TEST_CANON.filter((r) => r.kind !== "entity")) });
     const { room } = roomWithPlayers(rooms.manager, ["Ann", "Bo", "Cy"]);

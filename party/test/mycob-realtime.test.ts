@@ -5,7 +5,8 @@ import { io as connect, type Socket } from "socket.io-client";
 import { createPartyServer, type PartyServer } from "../server/app.ts";
 import { createAuthVerifier } from "../server/auth.ts";
 import { PartyDb } from "../server/db.ts";
-import { stubCanon } from "./helpers.ts";
+import { gamesWith } from "../server/games/registry.ts";
+import { secretCanon, stubCanon, UNKNOWN_ENTITY_LEAKS } from "./helpers.ts";
 
 /** Views are plain JSON; tests read them loosely. */
 type State = { status: string; paused: boolean; step: number; game: any; you: { playerId?: string } };
@@ -13,10 +14,13 @@ type State = { status: string; paused: boolean; step: number; game: any; you: { 
 class Client {
   readonly socket: Socket;
   readonly states: State[] = [];
+  /** Every event this socket received, in order. */
+  readonly events: { event: string; args: unknown[] }[] = [];
   private waiters: { test: (s: State) => boolean; resolve: (s: State) => void }[] = [];
 
   constructor(url: string) {
     this.socket = connect(url, { transports: ["websocket"], forceNew: true, reconnection: false });
+    this.socket.onAny((event: string, ...args: unknown[]) => this.events.push({ event, args }));
     this.socket.on("state", (state: State) => {
       this.states.push(state);
       this.waiters = this.waiters.filter((w) => (w.test(state) ? (w.resolve(state), false) : true));
@@ -151,5 +155,78 @@ describe("My Cob Escaped over sockets", () => {
       const json = JSON.stringify(s);
       for (const p of players) assert.ok(!json.includes(p.secret), "the host screen never shows raw responses");
     }
+  });
+});
+
+describe("My Cob Escaped over sockets: an unknown entity", () => {
+  let server: PartyServer;
+  let url: string;
+  const clients: Client[] = [];
+
+  before(async () => {
+    server = createPartyServer({
+      db: new PartyDb(":memory:"),
+      auth: createAuthVerifier({ mode: "dev" }),
+      authConfig: { mode: "dev" },
+      canon: stubCanon(secretCanon("gatekeeper")),
+      games: gamesWith({ config: { unknownEntity: { chance: 1, identifyInformationAt: 101, identifyOnCritical: false, autoIdentifyAt: 101 } } }),
+    });
+    await new Promise<void>((resolve) => server.http.listen(0, "127.0.0.1", resolve));
+    url = `http://127.0.0.1:${(server.http.address() as AddressInfo).port}`;
+  });
+
+  after(async () => {
+    for (const c of clients) c.close();
+    await server.close();
+  });
+
+  it("never sends any screen anything that identifies it until the incident is over", async () => {
+    const client = async () => {
+      const c = new Client(url);
+      clients.push(c);
+      await c.connected();
+      return c;
+    };
+    const host = await client();
+    const created = await host.emit("host:create");
+    const players: Client[] = [];
+    for (const name of ["Ann", "Bo", "Cy"]) {
+      const c = await client();
+      await c.emit("player:join", { code: created.code, name });
+      players.push(c);
+    }
+    await host.emit("room:configure", { gameId: "mycob", settings: { length: "short" } });
+    assert.equal((await host.emit("room:start")).ok, true);
+    await host.waitFor((s) => s.game?.phase === "ALERT", "the alert");
+
+    const over = (s: State) => s.status === "FINAL_RESULTS" || ["OUTCOME", "AWARD_SUBMIT", "AWARD_VOTE", "AWARD_RESULTS"].includes(s.game?.phase);
+    for (let guard = 0; guard < 60 && !over(host.state); guard++) {
+      const step = host.state.step;
+      if (host.state.game.phase === "RESPONSE") {
+        for (const p of players) await p.emit("game:input", { action: "respond", payload: { tag: "INVESTIGATE", text: "Read the file and ask around" } });
+      } else {
+        await host.emit("game:host", { action: "skip", step });
+      }
+      await host.waitFor((s) => s.step !== step, "the next phase");
+    }
+    assert.ok(over(host.state), "played to the end of the incident");
+
+    let checked = 0;
+    for (const c of [host, ...players]) {
+      for (const { event, args } of c.events) {
+        const state = event === "state" ? (args[0] as State) : null;
+        if (state && over(state)) break;
+        // Discovered facts may be shown (a discovered classification, say); nothing else may.
+        let json = JSON.stringify(args);
+        for (const f of state?.game?.incident.facts ?? []) json = json.split(JSON.stringify(f.text).slice(1, -1)).join("");
+        for (const { label, pattern } of UNKNOWN_ENTITY_LEAKS) assert.doesNotMatch(json, pattern, `${label} in "${event}"`);
+        if (state?.game) assert.deepEqual(state.game.incident.entity, { known: false });
+        checked++;
+      }
+    }
+    assert.ok(checked > 40, `checked ${checked} events`);
+    // It is revealed at the end, on purpose.
+    await host.waitFor((s) => s.game?.phase === "OUTCOME", "the outcome");
+    assert.equal(host.state.game.outcome.entity.title, "The Spooky Gatekeeper");
   });
 });

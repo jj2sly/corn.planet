@@ -20,7 +20,10 @@ import { SYSTEM_IDS, SYSTEMS, TAG_REPAIRS, type Condition, type SystemId } from 
 import {
   describeStat,
   fill,
+  nameWords,
   PERSONNEL_STATUSES,
+  publicBreach,
+  publicEnvironment,
   scrubHidden,
   type Incident,
   type PersonnelStatus,
@@ -54,7 +57,7 @@ export interface NarrationRequest {
 export function validateNarration(raw: unknown, incident: Incident, max: number, revealing?: ReadonlySet<string>): string | null {
   const cleaned = cleanText(raw, max * 4);
   if (!cleaned.ok) return null;
-  const text = scrubHidden(cleaned.value, incident, revealing);
+  const text = scrubHidden(cleaned.value, incident, revealing, { partialNames: true });
   return [...text].length > max ? `${[...text].slice(0, max - 1).join("")}…` : text;
 }
 
@@ -162,6 +165,9 @@ export function buildDirectorContext(
   config: MyCobConfig,
 ): DirectorContext {
   const name = (id: string) => names.get(id) ?? "An agent";
+  // The breach and environment as players know them: while the entity is unidentified the director
+  // narrates the cover, not what would give it away. It still has the entity and every fact.
+  const breach = publicBreach(incident);
   return {
     stage: plan.stage,
     totalStages: plan.totalStages,
@@ -170,12 +176,12 @@ export function buildDirectorContext(
     incident: {
       code: incident.code,
       entity: incident.entity,
-      breach: { name: incident.breach.name, text: incident.breach.text, entitySpecific: !!incident.breach.entitySpecific },
+      breach,
       location: { id: incident.location.id, name: incident.location.name, description: incident.location.description },
       threatLocation: incident.threatLocation,
       locations: incident.locations.map((l) => ({ id: l.id, name: l.name })),
       problem: incident.problem.text,
-      environment: incident.environment.map((e) => e.text),
+      environment: publicEnvironment(incident),
       systems: incident.systems,
       personnel: incident.personnel,
       objectives: incident.objectives,
@@ -301,7 +307,7 @@ export function validateDirectorOutput(raw: unknown, plan: StagePlan, incident: 
   const scrub = (value: unknown, max: number): string | null => {
     const cleaned = cleanText(value, max * 4);
     if (!cleaned.ok) return null;
-    let text = scrubHidden(cleaned.value, incident, revealing);
+    let text = scrubHidden(cleaned.value, incident, revealing, { partialNames: true });
     for (const raw of rawResponses) text = text.split(raw).join("…");
     return [...text].length > max ? `${[...text].slice(0, max - 1).join("")}…` : text;
   };
@@ -543,7 +549,41 @@ const SACRIFICE = ["{name} put themselves between everyone else and the problem.
 const TWIST = ["There was a side effect.", "Something else happened too.", "Nobody saw the side effect coming."];
 const HURT = ["{name} got too close.", "{name} was in the wrong place at the worst time.", "{name} took the hit.", "{name} slipped on the corn."];
 const HURT_SACRIFICE = ["{name} took the hit so nobody else had to."];
-const TERMINATE = /\b(kill|terminate|destroy|eliminate|incinerate|shoot|obliterate|execute|nuke)\w*/i;
+
+// Reading a response as an attempt to kill the entity. A template can't understand text, so it is
+// conservative: a killing word has to be aimed at the entity, in the same clause, and not negated.
+// "Execute the evacuation plan" and "kill the lights" are not kill attempts; "shoot it" is.
+const KILL_WORDS =
+  /^(?:kill\w*|shoot\w*|shot|terminat(?:e|es|ed|ing)|destroy\w*|incinerat\w*|obliterat\w*|nuk(?:e|es|ed|ing)|annihilat\w*|exterminat\w*|vaporiz\w*|murder\w*|slay\w*|slain|slew|execut(?:e|es|ed|ing)|eliminat(?:e|es|ed|ing))$/;
+/** These also mean "carry out" and "get rid of": only an explicit target counts, never "it". */
+const WEAK_KILL_WORDS = /^(?:execut|eliminat)/;
+const TARGET_WORDS = new Set(["entity", "creature", "monster", "thing", "anomaly", "beast", "specimen"]);
+const PRONOUNS = new Set(["it", "him", "her"]);
+const NEGATIONS = new Set(["not", "no", "never", "nobody", "without", "avoid", "stop", "instead", "cannot", "dont", "don't", "doesn't", "didn't", "won't", "can't", "shouldn't", "mustn't"]);
+/** "Execute the termination protocol", "initiate termination". */
+const TERMINATION_STARTERS = /^(?:initiat|begin|start|authori[sz]|order|run|trigger|execut|activat|call|approv|launch|enact)/;
+const TERMINATION_NOUNS = new Set(["protocol", "order", "sequence", "procedure"]);
+
+/** Whether a response reads as an attempt to kill or destroy the entity (named by `entityTitle`). */
+export function readsAsKillAttempt(text: string, entityTitle = ""): boolean {
+  const names = new Set(nameWords(entityTitle));
+  for (const clause of text.toLowerCase().replace(/’/g, "'").split(/[,.;:!?\n]+|\b(?:and then|then|but)\b/)) {
+    const words = (clause.match(/[a-z0-9]+(?:'[a-z]+)?/g) ?? []).map((w) => w.replace(/'s$/, ""));
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i]!;
+      if (words.slice(Math.max(0, i - 3), i).some((w) => NEGATIONS.has(w))) continue;
+      const next = words.slice(i + 1, i + 5);
+      if (word === "lethal" && next[0] === "force") return true;
+      if (word === "termination" && (TERMINATION_NOUNS.has(next[0] ?? "") || words.slice(Math.max(0, i - 2), i).some((w) => TERMINATION_STARTERS.test(w)))) return true;
+      if (!KILL_WORDS.test(word)) continue;
+      if (next.some((w) => TARGET_WORDS.has(w) || names.has(w))) return true;
+      if (WEAK_KILL_WORDS.test(word)) continue;
+      // "shoot it", "shoot at it"; not "kill the lights so it can't see".
+      if (PRONOUNS.has(next[0] ?? "") || (["at", "down", "off"].includes(next[0] ?? "") && PRONOUNS.has(next[1] ?? ""))) return true;
+    }
+  }
+  return false;
+}
 
 export class MockIncidentDirector implements IncidentDirector {
   readonly id = "mock";
@@ -604,7 +644,7 @@ export class MockIncidentDirector implements IncidentDirector {
         summary: `${a.playerName} (${a.role}) ${doing}. ${fresh(RESULT[a.outcome])}`,
         usesRole: a.usesRoleTags.includes(a.tag),
         novelty: wild ? "wild" : inventive ? "inventive" : "standard",
-        intent: TERMINATE.test(a.text) ? "terminate" : null,
+        intent: readsAsKillAttempt(a.text, inc.entity.title) ? "terminate" : null,
       });
 
       if (a.twist) {
