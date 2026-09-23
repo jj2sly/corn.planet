@@ -161,7 +161,9 @@ interface GameInstance {
 The room gives the game a `GameContext`: player list, a single pausable phase timer, scoring
 (`addPoints`), per-player stat counters, the prompt source, a `changed()` signal to push new views,
 and `finish()` which records results (plus, optionally, a structured JSON record of the game saved
-to `game_details`) and moves the room to `FINAL_RESULTS`. A definition may also publish a `catalog`
+to `game_details`) and moves the room to `FINAL_RESULTS`. A game cut short (back to the lobby, room
+closed or abandoned, server shutdown, game error) is saved to `aborted_games` instead, with the
+game's `abortDetails()` record if it has one, and never counts towards stats. A definition may also publish a `catalog`
 of lobby choices (My Cob Escaped's modes and lengths) through `/api/config`. Rooms, networking,
 reconnects, pausing, scoreboards and stats persistence are all generic — a new game only
 implements its own phases and views, plus host/phone renderers in `public/js/games/<id>-*.js`.
@@ -288,7 +290,8 @@ this server: the filed record carries `promotedFrom: "cpp-moment-<id>"`, and aft
 ## 9. Statistics
 
 `games` + `game_players` (score, placement, per-game counters as JSON), and `game_details` (one JSON
-record per game, for games that keep a structured history). A user's stats are
+record per game, for games that keep a structured history). Games that ended without finishing go to
+`aborted_games`, which no stat reads. A user's stats are
 aggregated from their rows: games played, wins, rounds, answers submitted, votes cast/received,
 total points, best placement, prompts created and how often they were used, favourite categories,
 and recent history. Stats are only returned to their owner. Emails are never stored by Corn Planet Party.

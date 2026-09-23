@@ -76,7 +76,10 @@ and ends when fewer than 2 agents remain.
    for TERMINATION containment, *Procedure Violation* that quotes the entity's own procedures), an
    **environmental effect** ("The sprinkler system is armed and twitchy" for anything that mustn't
    get wet), a difficulty bump, or a higher chance of starting unknown. No entity is hard-coded in
-   the engine; rules are data.
+   the engine; rules are data. While the entity is unknown, an entity-specific breach shows as the
+   general breach named by its `cover` (a *Termination Protocol Misfire* would say TERMINATION), and
+   an environment line from a rule that matched by id, classification or containment level waits
+   until it is identified (its stat effects apply either way).
 3. **Breach type**: general types (standard failure, security, power, unauthorized access, transport,
    malfunction, unknown) plus the fired rules' own, weighted.
 4. **Unknown entity**: `unknownEntity.chance` (25%), nudged by the breach and rules; 0 and 1 are absolute.
@@ -89,7 +92,8 @@ and ends when fewer than 2 agents remain.
    forced by the breach/problem, otherwise damaged more often the harder it is.
 9. **Personnel**: up to 2 real personnel files (ones linked to the entity's past incidents first;
    DECEASED/REDACTED skipped; MIA → missing) plus 2–4 generated, game-only staff, each with a public
-   relationship to the incident and one private piece of knowledge.
+   relationship to the incident and one private piece of knowledge. While the entity is unknown,
+   staff linked to it are left out: their public file would lead straight to it.
 10. **Starting stats** (hidden, 0–100): containment, facility, personnel, resources, information,
     time, chaos — defaults, noise, difficulty, and every generated effect.
 11. **Objectives**: one primary (contain / identify-and-contain / survive) and 1–3 secondaries that fit
@@ -110,11 +114,24 @@ Every piece of information is a `Fact` with `visibility` `known` or `discoverabl
   the `[REDACTED]` markers the database site shows at low clearance.
 - **Revealed during play**: a validated director reveal (budget: one per action that went somewhere,
   max 3 per stage). The **unknown entity's identity** needs information ≥ 40 plus a successful
-  investigation, a critical inquiry, or information ≥ 75. Each discovery adds information.
+  investigation, a critical inquiry, or information ≥ 75. Each discovery adds information. Revealing
+  the identity also reveals the file header (classification, containment level) and anything the
+  breach quotes from the file; the real breach name and environment lines then show too.
+- **Database ids**: no canon id or link reaches players while the entity is unknown — not the
+  entity's, not a staff member's, not a prior incident's — and fact ids and labels never contain one
+  (`f-prior-1`, "Personnel file: Agent Kernel"). They appear once it is identified.
 
-`scrubHidden()` removes the unidentified entity's name/id and any verbatim undiscovered fact from all
-director text before it is stored, so even a careless language model can't leak them. Research leads
-name *what* can be found, never its content or canon id.
+`scrubHidden()` (`incident.ts`) is deterministic and runs on everything players see. While the
+entity is unidentified it cuts its name (any case, spacing or punctuation, with or without "The"), its
+id however it's written ("cpe 5", "CPE005"), its database link and the ids of prior incidents tied to
+it; always, it cuts exact or near-exact quotes (any 5 words in a row, or a whole short text) of
+undiscovered facts. With `{ partialNames: true }` — used for director text and canon text, never the
+engine's own templates, where a cut would itself give the name away — it also cuts single distinctive
+words of the name ("Yellow" from "Big Yellow", minus common and in-world words and words this
+incident's staff and places use) and an undiscovered classification or containment label written as
+the database writes it (NEUTRALIZED). Research leads name *what* can be found, never its content or
+canon id. Canon text discovered in play is shown (name and ids cut); searching the public CPI Database
+for it is the intended way to work the entity out.
 
 ## 6. Responses, rolls and consequences
 
@@ -181,7 +198,13 @@ Expected output (every field optional; anything else is ignored):
   for the whole stage. A late answer is discarded.
 - **Built-in director** (`MockIncidentDirector`): deterministic per stage, templates only, no network.
   It reads the engine's references to aim actions (a rescue targets the staff member you named) and
-  never quotes raw responses.
+  never quotes raw responses. It reads a response as a kill attempt (`readsAsKillAttempt()`) only when
+  a killing word is aimed at the entity in the same clause and isn't negated: "shoot it", "terminate
+  the entity", "execute the termination protocol", "use lethal force", the entity's name; not
+  "execute the evacuation plan", "kill the lights", "don't shoot it". "Execute" and "eliminate" need
+  an explicit target, never just "it".
+- While the entity is unknown, every director gets the breach and environment players were shown, not
+  the real ones; it still gets the entity and every fact.
 - **Claude director** (`claude.ts`, `MYCOB_DIRECTOR=claude` + `ANTHROPIC_API_KEY`): one call per stage
   to `claude-opus-5` through the official SDK, with the answer bound to `DIRECTOR_SCHEMA` by structured
   outputs, `effort: "low"` for speed, the system prompt cached (stages are ~90 s apart, well inside the
@@ -227,7 +250,24 @@ Scored per stage after the vote, kept hidden, committed at the end (breakdown sh
 | Sacrifice | 30 once per game, only if you lost a life on an action that didn't fail |
 | Team | everyone: ending (contained 120 / terminated 100 / escaped 30 / everyone dies 0) + primary 50 + 20 per secondary |
 
-Chaos Mode adds an optional flat bonus for ending a stage in high chaos. No part of the score reads
+Chaos Mode adds an optional flat bonus for ending a stage in high chaos.
+
+**Where the director still has influence** (documented 2026-09-23; not yet redesigned). The engine
+owns every roll, cap and formula, but these inputs come from the director (the Claude director when
+enabled, otherwise the built-in one's templates and guesses):
+
+| Director output | What it moves | Bound |
+|---|---|---|
+| `novelty` (standard / inventive / wild) | Creativity points | 0/10/18 per stage, halved per repeat, ≤ 60 per game |
+| `usesRole` | Role points | 2–15 by the engine's outcome; ≤ 15 per stage |
+| Size of `primaryEffects` / `secondaryEffects` | Hidden stats, so Impact points and whether Chaos points count | Within the rolled outcome's envelope; ±30 per stat per stage; Impact ≤ 45 per stage |
+| `chaosEffects` | Chaos, so Chaos points | ±8 per action; Chaos ≤ 20 per stage |
+| `intent: "terminate"` | The *terminated* ending (team score 100) | Only on an action whose engine pre-roll allows it |
+| `newObjectives` / `objectiveUpdates` | Its own narrative objectives, which count as secondaries (+20 team each) | ≤ 1 new per stage; completion needs a success this stage |
+| `personnelEffects` / `facilityEffects` / reveals | Staff and systems (so objectives and stats), discoveries (+information) | Each needs a mechanical basis this stage; reveal budget |
+
+In the simulator's averages that is roughly 40% of an agent's individual points (impact, role and
+creativity). The director never sets points, lives, winners, timers, roles or phases. No part of the score reads
 the response text; long or keyword-stuffed responses gain nothing. The simulator (§11) checks that
 careful, standard and reckless play finish within a fraction of a place of each other.
 
@@ -264,9 +304,18 @@ usual `games`/`game_players` rows, `game_canon_refs` (the entity, canon personne
 drawn on, all at round 1) and at most one Hall of Fame moment (the most-voted move, promotable by a
 moderator like any other). `PartyDb.listGameDetails("mycob.v1")` reads them back.
 
+A game cut short — the host sends the room back to the lobby, the room is closed or abandoned, the
+server shuts down or redeploys, or the game errors — is saved instead to `aborted_games` (migration
+7): game id, room, reason (`RETURNED_TO_LOBBY`, `CLOSED_BY_HOST`, `ABANDONED`, `SERVER_SHUTDOWN`,
+`GAME_ERROR`), times, players (uid, name, score, left), canon refs, and the same `mycob.v1` record so
+far plus `aborted: { phase, stage, pendingResponses }` (the current stage's responses if they were
+never processed). It never becomes a `games` row, so it doesn't count in anyone's stats, and no moment
+is saved. `PartyDb.listAbortedGames(gameId?)` reads them back; no API serves either table. A hard
+crash (OOM, kill -9) still loses the game in progress.
+
 `data` holds (`canon: false`): mode, length, stages, director id, the effective config, the incident
 at start and end (entity, unknown/identified stage, breach, location, problem, environment, rules,
-difficulty, notes, stats, systems, personnel, objectives, facts), players (roles, lives lost, downs,
+difficulty, notes, stats, systems, personnel, objectives, facts), players (roles, current lives, lives lost, downs,
 reassignments), trades, and per stage: raw responses with analysis and rolls, interactions, special
 event, new problem, director id / fallback / validation issues, interpretations, applied effects,
 life losses, personnel and system changes, reveals, objectives, narration, ballots and the score
@@ -306,5 +355,7 @@ entity rules and content in `content.ts`, entity-specific fields once canon stor
 - The Claude director's prompt was tuned on a few scripted test games, not real play; `claude.ts`
   holds both prompts.
 - Redacted canon text is stripped before the server sees it, so the director can't use it either.
+- Hidden-information scrubbing is deterministic: it catches the name, its words, ids, links and
+  near-quotes, not a genuinely reworded description of an undiscovered fact.
 - No per-stage feedback from players beyond votes and awards.
 - Balance numbers come from simulated agents, not real playtests.

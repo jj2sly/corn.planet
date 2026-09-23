@@ -260,7 +260,8 @@ Only games that finish save their moments; a game ended early keeps nothing, the
 SQLite at `DATABASE_PATH`, created and migrated automatically on startup (`PRAGMA user_version`).
 Tables: `profiles`, `prompts`, `packs`, `categories`, `reports`, `settings`, `games`, `game_players`,
 `game_canon_refs`, `moments`, `auction_effects`, `game_details` (one JSON record per game for games
-that keep more than scores, e.g. My Cob Escaped's full incident history).
+that keep more than scores, e.g. My Cob Escaped's full incident history), `aborted_games` (games cut
+short: reason, players and the record so far; never counted in stats).
 
 **Migrations**: add a new `if (version < N)` block in `PartyDb.migrate()` (`server/db.ts`) that runs
 the schema change and sets `PRAGMA user_version = N`. They run in a transaction on startup.

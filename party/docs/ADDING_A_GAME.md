@@ -51,6 +51,7 @@ Use the `GameContext` instead of your own infrastructure:
 | `ctx.random()` | Randomness (seeded in tests) |
 | `ctx.changed()` | Push fresh views to every screen |
 | `ctx.finish({ rounds, highlights, details? })` | End the game: rank, record stats, show the final debrief. `details: { kind, data }` saves a structured JSON record of the game to `game_details` (read back with `PartyDb.listGameDetails(kind)`) |
+| `abortDetails()` (optional, on the instance) | The record so far, if the game is cut short (back to lobby, room closed, server shutdown, game error). The room saves it to `aborted_games` (read back with `PartyDb.listAbortedGames(gameId)`), apart from finished games and stats. Without it an aborted game still gets a row with players and reason |
 
 If the game uses canon, read [CANON.md](CANON.md) first. In short: canon is read-only, anything the
 game invents is generated content and never becomes canon, redacted fields are skipped, and the

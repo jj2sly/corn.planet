@@ -1,7 +1,7 @@
 # Project state — corn.planet
 
 Read this first in a fresh session, then `party/docs/ARCHITECTURE.md` if you need detail.
-Last updated: 2026-09-18 (My Cob Escaped).
+Last updated: 2026-09-23 (My Cob Escaped priority fix pass).
 
 > **Naming (decided and applied 2026-09-17):** **CPI — Corn Planet Institution** is the umbrella org.
 > **CPST — Corn Planet Strike Team** is the team inside it (still used for role labels like "Strike
@@ -125,8 +125,10 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
   data-driven breach/location/facility/problem/personnel/objectives, entity-specific rules, hidden
   0–100 stats shown as qualitative statuses, roles with trades and private intel, 3 lives with
   reassignment at 0, chaos, stage votes, hidden stage scoring, player-created awards, text narration
-  with a voice hook, one `game_details` JSON record per game (migration 6). The Incident Director is an
-  interface; the only implementation is the built-in template director (no LLM, no API key). Modes:
+  with a voice hook, one `game_details` JSON record per game (migration 6), and since 2026-09-23 an
+  `aborted_games` record for a game cut short (migration 7). Two Incident Directors: the built-in
+  template director (default, no API key) and the Claude director (`MYCOB_DIRECTOR=claude`, see
+  known issue 14). Modes:
   Incident Response and Chaos Mode playable; four more listed as coming later. Played end to end in
   the browser (host + phone tab + bots, fixture canon), not on real phones or live canon. See
   `party/docs/MYCOB.md`.
@@ -134,9 +136,9 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
   Railway serves Cornlashing and Corn or Shit and loaded 21 canon records in production.
 - The CPI Database site on `main` (GitHub Pages) has the rename plus the incident and personnel
   pages, cherry-picked from `cpst-party` (`9dfd76b`, `1b9aae5`). Verified live.
-- Tests: **250 passing** (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
+- Tests: **285 passing** (2026-09-23; 99 of them My Cob) (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
   promotion, db, api, realtime, framework, mycob, mycob-incident, mycob-rules, mycob-realtime,
-  awards). `tsc --noEmit` clean.
+  mycob-secrecy, awards). `tsc --noEmit` clean.
 - **Entity Auction** (built 2026-09-18, on `origin/cpst-party` by 2026-09-18; live deploy not checked): agents bid Kernels on sealed
   containment bays, each hiding a real entity; doors open when the server's timer ends; hidden
   modifiers and random global events in the Action Round; highest net worth wins. Moderators manage
@@ -192,9 +194,22 @@ mirrored in the file.
     trigger modifiers. Transfer, swap and protect are not built; add them to `EFFECT_TYPES` in
     `party/server/games/auctioneffects.ts` when a modifier needs them.
 14. My Cob Escaped's built-in director can't read free text, so narration is template-driven. The Claude
-    director (`MYCOB_DIRECTOR=claude`) reads it and works locally; to go live, set `MYCOB_DIRECTOR` and
-    `ANTHROPIC_API_KEY` in Railway's Variables (done 2026-09-19). Claude also writes the opening and the
-    closing report; all three fall back to the built-in director / templates on any failure.
+    director (`MYCOB_DIRECTOR=claude` + `ANTHROPIC_API_KEY`) reads it; it was tested locally on
+    2026-09-19 and its request shape was re-checked against the API reference on 2026-09-23. Claude
+    also writes the opening and the closing report; all three fall back to the built-in director /
+    templates on any failure. **Whether production uses it is unverified.** This file used to say both
+    "set in Railway (done 2026-09-19)" and "not yet enabled on Railway"; neither was checked against
+    Railway. Nothing the server exposes says which director is running. To check: Railway → the party
+    service → Variables (`MYCOB_DIRECTOR`, `ANTHROPIC_API_KEY` present), or the deploy log's startup
+    line `My Cob Escaped director: claude-opus-5` (vs `built-in`).
+15. My Cob Escaped saves an `aborted_games` row when a game is cut short (back to lobby, room closed
+    or abandoned, server shutdown/redeploy, game error), but a hard process crash (OOM, kill -9)
+    still loses the game in progress: nothing is checkpointed during play. Nothing reads
+    `aborted_games` or `game_details` except `PartyDb.listAbortedGames()` / `listGameDetails()`.
+16. My Cob Escaped with an unknown entity: canon text players *discover* in play (the entity's
+    description, a prior incident) is shown with the name and every database id cut out, but the
+    text itself can still be searched for on the public CPI Database. That is the intended discovery
+    path, not a leak; the undiscovered entity is never identifiable from what players are sent.
 
 ## 9. Decisions
 
@@ -230,8 +245,8 @@ mirrored in the file.
     `claude-opus-5` (official SDK, structured outputs, low effort, cached system prompt, server-side
     refusal fallbacks, 20 s timeout) narrate each stage; the default stays the free built-in director.
     Tested live 2026-09-19 with the user's key in `party/.env`: 11.6–16.4 s and ~$0.05 per stage,
-    no fallbacks, no leaks of an unknown entity. **Not yet enabled on Railway.** This is the first
-    LLM call in the app (see the OmniRoute note in §6).
+    no fallbacks, no leaks of an unknown entity. Production status: see known issue 14 (unverified).
+    This is the first LLM call in the app (see the OmniRoute note in §6).
 20. **Engine rolls first, director narrates within the rolls**; directors can't award points or take
     lives. Invalid, failing or late (>10 s) directors fall back to the built-in one.
 21. **Responses get an optional approach (careful/standard/reckless) and "put myself in harm's way"**,
@@ -239,6 +254,16 @@ mirrored in the file.
 22. **Awards**: players invent one award each, then vote on who receives each (no self-votes); no points.
 23. **Persistence**: one generic `game_details` JSON row per game rather than per-game tables.
 24. **Redacted canon stays stripped**: the director never sees `/r…/r` content either.
+
+**2026-09-23 (My Cob priority fixes)**
+25. **An unknown entity is never identifiable from what players are sent.** Entity-specific breaches
+    show as a general breach until it's identified; classification-keyed environment lines wait;
+    staff tied to it aren't put on the scene; no database id or link (entity, staff, prior incident,
+    fact id) is sent until it's identified; the director gets the same cover breach/environment.
+26. **Aborted games go in their own `aborted_games` table**, never `games`, so they don't count as
+    played games in anyone's stats. The server-shutdown close reason is now `SERVER_SHUTDOWN`.
+27. **The built-in director only reads a kill attempt when a killing word is aimed at the entity**
+    (same clause, not negated); "execute the evacuation plan" isn't one.
 
 **2026-09-18 (Entity Auction)**
 14. **Unbid bays** go free to an agent with the emptiest collection, so every agent ends the auction
@@ -264,7 +289,8 @@ mirrored in the file.
    bay and 5 events feel right.
 5. Play My Cob Escaped with real people on real phones (it has only been played from browser tabs
    with bots). Tune `party/server/games/mycob/config.ts` from what feels off and re-run
-   `node scripts/mycob-sim.ts`. Decide whether to add a model-backed Incident Director.
+   `node scripts/mycob-sim.ts`. Confirm in Railway which Incident Director production runs (known
+   issue 14). Then decide how much the director may influence scoring (`party/docs/MYCOB.md` §9).
 
 Optional later: renaming the internal game id `chaos` → `cornlashing` would mean renaming 3 files,
 the registry entry, and a SQLite migration for existing `games.game_id` rows. Not worth it unless asked.
