@@ -2,7 +2,25 @@
 // Views are keyed by phase and stage so typing survives the live updates streaming in.
 
 import { el, notice, plural, store, timerEl } from "../common.js";
-import { APPROACH_INFO, factsList, liveNarration, livesEl, narrationEl, outcomeStamp, PENDING_REPORT, stampEl, TAG_INFO } from "./mycob-shared.js";
+import {
+  APPROACH_INFO,
+  bestMoveEl,
+  factsList,
+  leaderboard,
+  liveNarration,
+  livesEl,
+  outcomeStamp,
+  PENDING_REPORT,
+  recapCard,
+  roleCard,
+  shortReport,
+  stampEl,
+  standings,
+  statChips,
+  summaryTiles,
+  TAG_INFO,
+} from "./mycob-shared.js";
+import { playCue } from "./mycob-sound.js";
 
 const DRAFT_KEY = "cpst-party:mycob-draft";
 const seenNotices = new Set();
@@ -36,7 +54,10 @@ function youStrip(g) {
   for (const n of you.notices) {
     if (seenNotices.has(n.id)) continue;
     seenNotices.add(n.id);
-    if ((n.kind === "life" || n.kind === "down") && navigator.userActivation?.hasBeenActive) navigator.vibrate?.([200, 100, 200]);
+    if (n.kind === "life" && navigator.userActivation?.hasBeenActive) {
+      navigator.vibrate?.([200, 100, 200]);
+      playCue("life_lost");
+    }
   }
   return el(
     "div",
@@ -48,18 +69,6 @@ function youStrip(g) {
       you.down ? stampEl("down", "danger") : livesEl(you.lives, you.maxLives),
     ),
     ...notices,
-  );
-}
-
-function roleIntel(g) {
-  const you = g.you;
-  return el(
-    "details",
-    { class: "mc-intel" },
-    el("summary", { text: "Role intel" }),
-    el("p", { class: "muted", text: you.role.blurb }),
-    el("p", { class: "hint", text: `Your strengths: ${you.role.strongTags.map((t) => TAG_INFO[t].label).join(", ")}. Anything else is allowed, just less reliable.` }),
-    you.context.map((section) => el("section", {}, el("h3", { text: section.title }), el("ul", { class: "list" }, section.lines.map((line) => el("li", { text: line }))))),
   );
 }
 
@@ -81,15 +90,18 @@ function screen(s, nodes, onUpdate) {
 function buildBriefing(s) {
   const g = s.game;
   const t = timerRow(s.timer, stageLabel(g));
-  const intel = el("div", { dataset: { role: g.you.role.id } }, roleIntel(g));
+  // Your role card is open while there's time to read it.
+  const intel = el("div", { dataset: { role: g.you.role.id } }, roleCard(g, { open: true }));
   const narration = liveNarration(g.narration);
+  const alert = g.phase === "ALERT";
   return screen(
     s,
     [
       t.node,
-      g.phase === "ALERT" ? el("div", { class: "warning", text: "Containment breach" }) : null,
-      narration.node,
-      el("p", { class: "phone-prompt", text: g.incident.problem }),
+      alert ? el("div", { class: "warning", text: "Containment breach" }) : null,
+      alert ? narration.node : null,
+      alert ? el("p", { class: "phone-prompt", text: g.incident.problem }) : null,
+      !alert && g.recap ? recapCard(g.recap) : null,
       intel,
     ],
     (next) => {
@@ -98,7 +110,7 @@ function buildBriefing(s) {
       // Only changes when you were reassigned after going down.
       if (next.game.you.role.id !== intel.dataset.role) {
         intel.dataset.role = next.game.you.role.id;
-        intel.replaceChildren(roleIntel(next.game));
+        intel.replaceChildren(roleCard(next.game, { open: true }));
       }
     },
   );
@@ -185,6 +197,7 @@ function buildResponse(s, tools) {
         submit.disabled = false;
         if (!result.ok) return notice(note, result.message, "error");
         notice(note, "");
+        playCue("response_in");
       },
     },
     el("p", { class: "phone-prompt", text: g.incident.problem }),
@@ -206,7 +219,7 @@ function buildResponse(s, tools) {
   };
   setFiled(s);
 
-  return screen(s, [t.node, form, roleIntel(g)], (next) => {
+  return screen(s, [t.node, form, roleCard(g)], (next) => {
     t.set(next.timer);
     setFiled(next);
   });
@@ -222,17 +235,25 @@ function buildProcessing(s) {
 
 function buildConsequence(s) {
   const g = s.game;
+  const c = g.consequence;
   const t = timerRow(s.timer, stageLabel(g));
   const a = g.you.action;
   const lost = g.you.lostLife;
+  const others = c.actions.filter((x) => x.playerId !== g.you.playerId);
+  const found = c.discoveries;
   return screen(
     s,
     [
       t.node,
       lost ? el("div", { class: "mc-life-alert", role: "alert" }, el("strong", { text: g.you.down ? "YOU'RE DOWN" : "YOU LOST A LIFE" }), el("p", { text: g.you.down ? "You'll be back as someone else next stage." : "Keep going. You're still in this." })) : null,
       a ? el("section", { class: "panel stack" }, el("p", {}, outcomeStamp(a.outcome, a.outcomeLabel)), el("p", { text: a.summary })) : statusCard("–", "NO RESPONSE FILED", "The incident didn't wait for you."),
-      narrationEl(g.narration.filter((n) => n.type === "consequence" || n.type === "special_event")),
-      g.consequence.discoveries.length ? el("section", {}, el("h3", { text: "Discovered" }), factsList(g.consequence.discoveries)) : null,
+      others.length
+        ? el("ul", { class: "mc-quick", "aria-label": "Everyone else" }, others.map((x) => el("li", {}, el("span", { class: "grow", text: x.name }), outcomeStamp(x.outcome, x.outcomeLabel))))
+        : null,
+      c.terminated ? el("div", { class: "warning", text: "Entity terminated" }) : null,
+      statChips(c.statusChanges),
+      found.length ? el("section", {}, el("h3", { text: "Discovered" }), factsList(found.slice(0, 2)), found.length > 2 ? el("p", { class: "muted", text: `+${found.length - 2} more on the host screen` }) : null) : null,
+      shortReport(g.narration.filter((n) => n.type === "consequence" || n.type === "special_event")),
     ],
     (next) => t.set(next.timer),
   );
@@ -290,18 +311,24 @@ function buildVote(s, tools) {
 
 // ------------------------------------------------------------------ ending and awards
 
+const ENDING_ICON = { contained: "🏆", terminated: "💥", escaped: "🏃", everyone_dies: "💀" };
+
 function buildOutcome(s) {
   const g = s.game;
   const o = g.outcome;
   const t = timerRow(s.timer, "Operation complete");
   const mine = o.breakdown.find((b) => b.playerId === g.you.playerId);
+  const place = standings(o).find((r) => r.playerId === g.you.playerId);
   const report = el("p", { class: "muted", text: o.narration ?? PENDING_REPORT });
-  const card = statusCard(o.id === "contained" || o.id === "terminated" ? "★" : "⚠", o.title, null, report);
+  const card = statusCard(ENDING_ICON[o.id] ?? "⚠", o.title, null, report);
   return screen(
     s,
     [
       t.node,
-      card,
+      el("div", { class: `mc-finale e-${o.id}` }, card),
+      place ? el("p", { class: "mc-place" }, el("span", { class: "eyebrow", text: "You placed" }), el("strong", { text: `#${place.place} of ${o.breakdown.length}` }), el("span", { class: "mono", text: `${place.total} pts` })) : null,
+      summaryTiles(o),
+      bestMoveEl(o),
       el(
         "div",
         { class: "reference" },
@@ -310,18 +337,23 @@ function buildOutcome(s) {
       ),
       mine
         ? el(
-            "ul",
-            { class: "list" },
-            [
-              ["Impact", mine.impact],
-              ["Chaos", mine.chaos],
-              ["Creativity", mine.creativity],
-              ["Role", mine.role],
-              ["Votes", mine.votes],
-              ["Sacrifice", mine.sacrifice],
-              ["Team", mine.team],
-              ["Total", mine.total],
-            ].map(([label, value]) => el("li", {}, el("span", { class: "grow", text: label }), el("strong", { class: "mono", text: String(value) }))),
+            "details",
+            {},
+            el("summary", { text: "Your score, point by point" }),
+            el(
+              "ul",
+              { class: "list" },
+              [
+                ["Impact", mine.impact],
+                ["Chaos", mine.chaos],
+                ["Creativity", mine.creativity],
+                ["Role", mine.role],
+                ["Votes", mine.votes],
+                ["Sacrifice", mine.sacrifice],
+                ["Team", mine.team],
+                ["Total", mine.total],
+              ].map(([label, value]) => el("li", {}, el("span", { class: "grow", text: label }), el("strong", { class: "mono", text: String(value) }))),
+            ),
           )
         : null,
     ],
@@ -428,10 +460,12 @@ function buildAwardVote(s, tools) {
 function buildAwardResults(s) {
   const g = s.game;
   const t = timerRow(s.timer, "The awards");
+  const won = g.awards.results.filter((a) => a.winners.some((w) => w.playerId === g.you.playerId));
   return screen(
     s,
     [
       t.node,
+      won.length ? el("div", { class: "mc-you-won", role: "status" }, el("span", { "aria-hidden": "true", text: "🏆 " }), `You won ${won.map((a) => `“${a.name}”`).join(" and ")}`) : null,
       el(
         "ul",
         { class: "list" },
@@ -439,6 +473,8 @@ function buildAwardResults(s) {
           el("li", {}, el("span", { class: "grow" }, el("strong", { text: a.name })), el("span", { text: a.winners.length ? a.winners.map((w) => w.name).join(" & ") : "—" })),
         ),
       ),
+      el("h3", { text: "Final scores" }),
+      leaderboard(g.outcome, { you: g.you.playerId }),
     ],
     (next) => t.set(next.timer),
   );

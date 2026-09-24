@@ -107,6 +107,34 @@ export const OUTCOME_LABELS: Record<Outcome, string> = {
   catastrophe: "CATASTROPHIC",
 };
 
+/**
+ * Sound cues for the screens (public/js/games/mycob-sound.js turns them into sounds). Each is only
+ * ever about something every screen is already being shown.
+ */
+export type SoundCue =
+  | "game_start"
+  | "response_in"
+  | "major_failure"
+  | "success"
+  | "chaos_up"
+  | "discovery"
+  | "life_lost"
+  | "vote_start"
+  | "vote_result"
+  | "escaped"
+  | "contained"
+  | "terminated"
+  | "everyone_dies"
+  | "game_end";
+
+/** "INCIDENT STATUS" at the start of a stage: what just happened, what matters now, what changed. */
+interface Recap {
+  stage: number;
+  happened: string[];
+  now: string;
+  changes: string[];
+}
+
 interface Notice {
   id: string;
   stage: number;
@@ -220,6 +248,9 @@ class MyCobGame implements GameInstance {
   private nextStep: (() => void) | null = null;
   private disposed = false;
   private noticeSeq = 0;
+  private recap: Recap | null = null;
+  private cues: { id: number; cue: SoundCue }[] = [];
+  private cueSeq = 0;
 
   constructor(ctx: GameContext, settings: MyCobSettings, config: MyCobConfig, director: IncidentDirector) {
     this.ctx = ctx;
@@ -260,6 +291,12 @@ class MyCobGame implements GameInstance {
 
   private scrub(text: string): string {
     return scrubHidden(text, this.incident);
+  }
+
+  private cue(...names: SoundCue[]): void {
+    for (const cue of names) this.cues.push({ id: ++this.cueSeq, cue });
+    // Screens play each cue once by id; only the recent ones matter.
+    this.cues.splice(0, Math.max(0, this.cues.length - 12));
   }
 
   /** A fact's text for players. Canon text gets the stricter scrub: it is the entity's own file. */
@@ -303,6 +340,7 @@ class MyCobGame implements GameInstance {
         (inc.entity.identityKnown ? ` Entity: ${inc.entity.title}.` : " Entity: UNKNOWN."),
     );
     this.phase = "ALERT";
+    this.cue("game_start");
     this.schedule(this.config.timing.alertMs, () => this.beginStage());
     this.ctx.changed();
 
@@ -383,6 +421,7 @@ class MyCobGame implements GameInstance {
   private beginStage(): void {
     if (this.activeCrew().length < this.config.players.minToContinue) return this.endEarly();
     this.stage += 1;
+    this.recap = this.buildRecap();
     this.responses = new Map();
     this.plan = null;
     this.context = null;
@@ -406,6 +445,55 @@ class MyCobGame implements GameInstance {
     this.phase = "UPDATE";
     this.schedule(this.config.timing.updateMs, () => this.openResponses());
     this.ctx.changed();
+  }
+
+  /** Built only from what the last consequence showed everyone, kept short enough for a phone. */
+  private buildRecap(): Recap {
+    const inc = this.incident;
+    const short = (text: string, max = 150) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
+    const last = this.records.at(-1);
+    if (!last) {
+      const breach = publicBreach(inc);
+      return { stage: this.stage, happened: [`${breach.name} in the ${inc.location.name}.`], now: short(this.scrub(inc.problem.text)), changes: [] };
+    }
+    const { plan, output, result } = last;
+    const outcomes = plan.actions.map((a) => a.roll.outcome);
+    const count = (of: Outcome[]) => outcomes.filter((o) => of.includes(o)).length;
+    const tally = (
+      [
+        [count(["critical", "success"]), "worked"],
+        [count(["partial"]), "half worked"],
+        [count(["failure", "catastrophe"]), "went badly"],
+      ] as const
+    )
+      .filter(([n]) => n > 0)
+      .map(([n, what]) => `${n} ${what}`);
+    const happened = [plan.actions.length ? `Stage ${last.stage}: ${tally.join(" · ")}.` : `Stage ${last.stage}: nobody acted.`];
+    const drama: Record<Outcome, number> = { catastrophe: 4, critical: 3, failure: 2, success: 1, partial: 0 };
+    const top = [...plan.actions].sort((a, b) => drama[b.roll.outcome] - drama[a.roll.outcome])[0];
+    if (top) happened.push(short(output.interpretations.find((i) => i.actionId === top.id)!.summary));
+    const hurt = result.lifeLosses.map((l) => this.crew.get(l.playerId)?.name).filter((n): n is string => !!n);
+    if (hurt.length) happened.push(`${hurt.join(", ")} lost a life.`);
+
+    const worst = STAT_IDS.filter((id) => id !== "chaos")
+      .map((id) => describeStat(id, inc.stats[id], this.config))
+      .find((st) => st.tone === "danger");
+    const now = result.newProblem ?? (worst ? `${worst.name} is ${worst.value}.` : inc.problem.text);
+
+    const identified = inc.entity.initiallyUnknown && inc.entity.revealedStage === last.stage ? [`Entity identified: ${inc.entity.title}`] : [];
+    const discoveries = result.reveals
+      .filter((f) => f.about !== "identity")
+      .map((f) => {
+        const { label, text } = this.factText(f);
+        return `Discovered — ${label}: ${short(text, 60)}`;
+      });
+    const stats = STAT_IDS.map((id) => ({ was: describeStat(id, result.statsBefore[id], this.config), is: describeStat(id, result.statsAfter[id], this.config) }))
+      .filter(({ was, is }) => was.value !== is.value)
+      .map(({ was, is }) => `${is.name}: ${was.value} → ${is.value}`);
+    const objectives = result.objectiveChanges.map((c) => `Objective ${c.to}: ${this.scrub(c.text)}`);
+    const event = result.specialEvent ? [result.specialEvent.name] : [];
+    const changes = [...identified, ...discoveries.slice(0, 1), ...stats.slice(0, 2), ...objectives, ...event].slice(0, 3).map((c) => short(c, 90));
+    return { stage: this.stage, happened: happened.slice(0, 3), now: short(this.scrub(now)), changes };
   }
 
   /** A down agent comes back as somebody else: a new role, and a staff member to play. */
@@ -556,9 +644,11 @@ class MyCobGame implements GameInstance {
 
     // Lives: told to everyone at once, and to the agent on their own phone.
     const amount = this.config.lives.maxLossPerConsequence;
+    let livesLost = 0;
     for (const loss of result.lifeLosses) {
       const member = this.crew.get(loss.playerId);
       if (!member || member.left || member.lives <= 0) continue;
+      livesLost++;
       member.lives = Math.max(0, member.lives - amount);
       member.livesLost += 1;
       this.ctx.countStat(member.playerId, "livesLost");
@@ -586,6 +676,16 @@ class MyCobGame implements GameInstance {
       narration: output.narration,
     });
 
+    const outcomes = plan.actions.map((a) => a.roll.outcome);
+    const chaosLabels = this.config.stats.labels.chaos.map((l) => l.label);
+    const chaosRank = (value: number) => chaosLabels.indexOf(describeStat("chaos", value, this.config).value);
+    if (outcomes.some((o) => o === "critical" || o === "success")) this.cue("success");
+    if (outcomes.includes("catastrophe") || (outcomes.length > 0 && outcomes.every((o) => o === "failure"))) this.cue("major_failure");
+    if (result.reveals.length) this.cue("discovery");
+    // Labels run highest first, so a lower index is more chaos.
+    if (chaosRank(result.statsAfter.chaos) < chaosRank(result.statsBefore.chaos)) this.cue("chaos_up");
+    if (livesLost) this.cue("life_lost");
+
     this.phase = "CONSEQUENCE";
     this.schedule(this.config.timing.consequenceMs, () => this.openVote());
     this.ctx.changed();
@@ -604,6 +704,7 @@ class MyCobGame implements GameInstance {
       .filter((id) => candidates.some((c) => c !== id));
     if (!this.config.voting.enabled || this.voters.length === 0) return this.closeVote();
     this.phase = "STAGE_VOTE";
+    this.cue("vote_start");
     this.schedule(this.config.timing.voteMs, () => this.closeVote());
     this.ctx.changed();
   }
@@ -622,7 +723,10 @@ class MyCobGame implements GameInstance {
     }
     for (const [id, n] of counts) this.ctx.countStat(id, "votesReceived", n);
     const top = Math.max(0, ...counts.values());
-    if (top > 0) this.mvps.push({ stage: this.stage, playerIds: [...counts].filter(([, n]) => n === top).map(([id]) => id), votes: top });
+    if (top > 0) {
+      this.mvps.push({ stage: this.stage, playerIds: [...counts].filter(([, n]) => n === top).map(([id]) => id), votes: top });
+      this.cue("vote_result");
+    }
 
     // Stage scoring happens here, after the consequence and the vote. It isn't shown until the end.
     const everyone = [...this.crew.keys()];
@@ -685,6 +789,8 @@ class MyCobGame implements GameInstance {
 
     this.phase = "OUTCOME";
     const awardsPossible = this.config.awards.enabled && this.activeCrew().length >= 2;
+    this.cue(ending);
+    if (!awardsPossible) this.cue("game_end");
     this.schedule(this.config.timing.outcomeMs, () => (awardsPossible ? this.openAwardSubmit() : this.finish()));
     this.ctx.changed();
     // After the phase change, so a template settled at once still reaches the screens.
@@ -723,6 +829,7 @@ class MyCobGame implements GameInstance {
       for (const w of r.winners) this.ctx.countStat(w.playerId, "awardsWon");
     }
     this.phase = "AWARD_RESULTS";
+    this.cue("game_end");
     this.schedule(this.config.timing.awardResultsMs, () => this.finish());
     this.ctx.changed();
   }
@@ -752,10 +859,8 @@ class MyCobGame implements GameInstance {
     }
 
     // The stage's best-voted move goes to the Hall of Fame, where a moderator may promote it.
-    const best = this.records
-      .flatMap((r) => r.plan.actions.map((a) => ({ record: r, action: a, votes: r.ballots.filter((b) => b.target === a.playerId).length })))
-      .sort((x, y) => y.votes - x.votes)[0];
-    if (best && best.votes > 0) {
+    const best = this.bestMove();
+    if (best) {
       this.ctx.saveMoment({
         authorId: best.action.playerId,
         text: best.record.output.interpretations.find((i) => i.actionId === best.action.id)!.summary,
@@ -766,6 +871,14 @@ class MyCobGame implements GameInstance {
     }
 
     this.ctx.finish({ rounds: this.stage, highlights, details: { kind: "mycob.v1", data: this.record() } });
+  }
+
+  /** The most-voted move of the incident, if anyone got a vote. */
+  private bestMove() {
+    const best = this.records
+      .flatMap((r) => r.plan.actions.map((a) => ({ record: r, action: a, votes: r.ballots.filter((b) => b.target === a.playerId).length })))
+      .sort((x, y) => y.votes - x.votes)[0];
+    return best && best.votes > 0 ? best : null;
   }
 
   /** The structured game record for tuning and review. Server-side only; generated content, never canon. */
@@ -908,7 +1021,10 @@ class MyCobGame implements GameInstance {
     const text = cleanText(payload.text, this.config.response.textMax);
     if (!text.ok) throw new PartyError(text.reason === "TOO_LONG" ? "ANSWER_TOO_LONG" : "ANSWER_EMPTY");
 
-    if (!this.responses.has(member.playerId)) this.ctx.countStat(member.playerId, "answersSubmitted");
+    if (!this.responses.has(member.playerId)) {
+      this.ctx.countStat(member.playerId, "answersSubmitted");
+      this.cue("response_in");
+    }
     this.responses.set(member.playerId, {
       tag: tag as ResponseTag,
       text: text.value,
@@ -1063,7 +1179,12 @@ class MyCobGame implements GameInstance {
       objectivesAdded: result.objectivesAdded.map((o) => ({ text: this.scrub(o.text) })),
       specialEvent: result.specialEvent,
       newProblem: result.newProblem,
-      statusChanges: STAT_IDS.map((id) => ({ ...describeStat(id, result.statsAfter[id], this.config), from: before(id).value })).filter((s) => s.from !== s.value),
+      statusChanges: STAT_IDS.map((id) => ({
+        ...describeStat(id, result.statsAfter[id], this.config),
+        from: before(id).value,
+        // Labels are ordered, so which way it moved is public once the label changed. More chaos is worse.
+        better: id === "chaos" ? result.statsAfter[id] < result.statsBefore[id] : result.statsAfter[id] > result.statsBefore[id],
+      })).filter((s) => s.from !== s.value),
       terminated: result.terminated,
     };
   }
@@ -1071,6 +1192,7 @@ class MyCobGame implements GameInstance {
   private outcomeView() {
     const inc = this.incident;
     const ending = this.ending!;
+    const best = this.bestMove();
     return {
       id: ending.id,
       title: ENDING_TEXT[ending.id].title,
@@ -1080,6 +1202,19 @@ class MyCobGame implements GameInstance {
       entity: { ref: inc.entity.ref, title: inc.entity.title, classification: inc.entity.classification, containment: inc.entity.containment, url: inc.entity.url },
       initiallyUnknown: inc.entity.initiallyUnknown,
       mvps: this.mvps.map((m) => ({ stage: m.stage, names: m.playerIds.map((id) => this.crew.get(id)?.name ?? "?"), votes: m.votes })),
+      bestMove: best
+        ? { stage: best.record.stage, name: best.action.playerName, summary: best.record.output.interpretations.find((i) => i.actionId === best.action.id)!.summary, votes: best.votes }
+        : null,
+      summary: {
+        objectives: { completed: inc.objectives.filter((o) => o.status === "completed").length, total: inc.objectives.length },
+        discoveries: inc.facts.filter((f) => f.revealedStage !== null).length,
+        livesLost: [...this.crew.values()].reduce((n, m) => n + m.livesLost, 0),
+        downs: [...this.crew.values()].reduce((n, m) => n + m.downs, 0),
+        staffEvacuated: inc.personnel.filter((p) => p.status === "evacuated").length,
+        staffLost: inc.personnel.filter((p) => p.status === "dead").length,
+        identifiedAt: inc.entity.initiallyUnknown ? inc.entity.revealedStage : null,
+        chaos: describeStat("chaos", inc.stats.chaos, this.config).value,
+      },
       team: this.team,
       breakdown: [...this.crew.values()].map((m) => {
         const t = this.totals.get(m.playerId) ?? emptyScore();
@@ -1184,6 +1319,7 @@ class MyCobGame implements GameInstance {
       totalStages: this.totalStages,
       incident: this.publicIncident(),
       narration: this.narration.current(playerId).map(({ id, type, text }) => ({ id, type, text })),
+      cues: this.cues.map((c) => ({ ...c })),
       tags: RESPONSE_TAGS,
       approaches: APPROACHES,
       maxLives: this.config.lives.start,
@@ -1191,6 +1327,7 @@ class MyCobGame implements GameInstance {
     };
 
     const phaseView: Record<string, unknown> = {};
+    if (this.phase === "UPDATE" && this.recap) phaseView.recap = this.recap;
     if (this.phase === "RESPONSE") {
       phaseView.progress = { submitted: this.activeCrew().filter((m) => this.responses.has(m.playerId)).length, needed: this.activeCrew().length };
     }
@@ -1224,13 +1361,14 @@ class MyCobGame implements GameInstance {
     const action = this.plan?.actions.find((a) => a.playerId === member.playerId);
     const you = {
       playerId: member.playerId,
-      role: { id: role.id, name: role.name, blurb: role.blurb, strongTags: role.strongTags },
+      role: { id: role.id, name: role.name, blurb: role.blurb, strongTags: role.strongTags, goodAt: role.goodAt, onlyYou: role.onlyYou, tryThis: role.tryThis },
       lives: member.lives,
       maxLives: this.config.lives.start,
       down: member.down,
       identity: member.identity,
       context: this.roleContext(member),
-      notices: member.notices.filter((n) => n.stage === this.stage).map(({ id, kind, text }) => ({ id, kind, text })),
+      // This stage's notices; the ending screens start clean.
+      notices: STAGE_PHASES.includes(this.phase) ? member.notices.filter((n) => n.stage === this.stage).map(({ id, kind, text }) => ({ id, kind, text })) : [],
       response,
       action:
         action && this.output && (this.phase === "CONSEQUENCE" || this.phase === "STAGE_VOTE")

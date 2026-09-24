@@ -160,11 +160,14 @@ describe("My Cob Escaped: a whole incident", () => {
     assert.equal(view(room).stage, 2);
   });
 
-  it("gives agents 45 s to respond, 30 s to read the consequence and 20 s to vote", async () => {
-    assert.deepEqual([T.responseMs, T.consequenceMs, T.voteMs], [45_000, 30_000, 20_000]);
+  it("times the stage 20 s alert, 25 s update, 45 s response, 30 s consequence, 20 s vote", async () => {
+    assert.deepEqual([T.alertMs, T.updateMs, T.responseMs, T.consequenceMs, T.voteMs], [20_000, 25_000, 45_000, 30_000, 20_000]);
     const { room, ids } = start({ settings: { length: "standard" } });
     // The server's deadline, as the host screen and every phone receive it.
     const deadlines = () => [room.viewFor({ kind: "host" }), ...ids.map((id) => room.viewFor({ kind: "player", playerId: id }))].map((v) => v.timer!.totalMs);
+    assert.deepEqual(new Set(deadlines()), new Set([20_000]));
+    await until(room, "UPDATE");
+    assert.deepEqual(new Set(deadlines()), new Set([25_000]));
     await until(room, "RESPONSE");
     assert.deepEqual(new Set(deadlines()), new Set([45_000]));
     for (const id of ids) room.gameInput(id, "respond", { tag: "CONTAIN", text: "Lock it" });
@@ -296,6 +299,95 @@ describe("My Cob Escaped: roles and lives", () => {
     await playThrough(room, ids);
     assert.equal((db.listGameDetails("mycob.v1")[0]!.data as View).ending.id, "everyone_dies");
     assert.equal(room.results!.highlights[0]!.title, "NO SURVIVORS");
+  });
+});
+
+describe("My Cob Escaped: stage recap, role cards, sound cues and the finale", () => {
+  it("opens every stage with a short INCIDENT STATUS recap of what everyone saw", async () => {
+    const { room, ids } = start();
+    await until(room, "UPDATE");
+    const first = view(room).recap;
+    assert.equal(first.stage, 1);
+    assert.equal(first.happened.length, 1, "stage 1: just what broke out");
+    assert.deepEqual(view(room, ids[0]).recap, first, "phones get the same recap");
+
+    await until(room, "RESPONSE");
+    assert.equal(view(room).recap, undefined, "only while the stage opens");
+    for (const id of ids) room.gameInput(id, "respond", { tag: "INVESTIGATE", text: "Read everything" });
+    await until(room, "CONSEQUENCE");
+    const c = view(room).consequence;
+    await until(room, "UPDATE");
+    const r = view(room).recap;
+    assert.equal(r.stage, 2);
+    const worked = c.actions.filter((a: View) => a.outcome === "critical" || a.outcome === "success").length;
+    assert.match(r.happened[0], /^Stage 1: /);
+    if (worked) assert.ok(r.happened[0].includes(`${worked} worked`), r.happened[0]);
+    if (c.lifeLosses.length) assert.ok(r.happened.some((h: string) => h.endsWith("lost a life.")));
+    assert.ok(r.now.length > 0);
+    assert.ok(r.changes.length <= 3 && r.happened.length <= 3, "short");
+    for (const line of [...r.happened, r.now, ...r.changes]) assert.ok(line.length <= 150, line);
+  });
+
+  it("gives every role a card: what it's good at, what only it sees, what to try", () => {
+    for (const role of DEFAULT_MYCOB_CONFIG.roles) {
+      assert.ok(role.goodAt && role.onlyYou, role.id);
+      assert.ok(role.tryThis.length >= 2 && role.tryThis.length <= 3, role.id);
+    }
+    const { room, ids } = start();
+    const you = view(room, ids[0]).you;
+    const def = DEFAULT_MYCOB_CONFIG.roles.find((r) => r.id === you.role.id)!;
+    assert.deepEqual([you.role.goodAt, you.role.onlyYou, you.role.tryThis], [def.goodAt, def.onlyYou, def.tryThis]);
+    assert.ok(you.context.length > 0, "and the intel itself");
+  });
+
+  it("cues sounds only for what every screen is being shown, each once", async () => {
+    const { room, ids } = start();
+    const cues = (v = view(room)) => v.cues.map((c: View) => c.cue);
+    assert.deepEqual(cues(), ["game_start"]);
+    await until(room, "RESPONSE");
+    room.gameInput(ids[0]!, "respond", { tag: "CONTAIN", text: "First" });
+    room.gameInput(ids[0]!, "respond", { tag: "CONTAIN", text: "Edited" });
+    assert.equal(cues().filter((c: string) => c === "response_in").length, 1, "an edit isn't a new response");
+    assert.deepEqual(view(room, ids[1]).cues, view(room).cues, "every screen gets the same cues");
+    for (const id of ids.slice(1)) room.gameInput(id, "respond", { tag: "INVESTIGATE", text: "Look" });
+    await until(room, "CONSEQUENCE");
+    const c = view(room).consequence;
+    const now = cues();
+    assert.equal(now.includes("success"), c.actions.some((a: View) => a.outcome === "critical" || a.outcome === "success"));
+    assert.equal(now.includes("discovery"), c.discoveries.length > 0);
+    assert.equal(now.includes("life_lost"), c.lifeLosses.length > 0);
+    assert.equal(now.includes("chaos_up"), c.statusChanges.some((x: View) => x.id === "chaos" && !x.better));
+    await until(room, "STAGE_VOTE");
+    assert.equal(cues().at(-1), "vote_start");
+
+    const ending: string[] = [];
+    let last = 0;
+    await playThrough(room, ids, (v, viewer) => {
+      if (!v || viewer) return;
+      for (const c of v.cues as { id: number; cue: string }[]) {
+        assert.ok(c.id > 0);
+        if (c.id <= last) continue;
+        last = c.id;
+        if (v.phase === "OUTCOME" || v.phase === "AWARD_RESULTS") ending.push(c.cue);
+      }
+      if (v.phase === "OUTCOME") assert.ok(cues(v).includes(v.outcome.id), "the ending has its own cue");
+    });
+    assert.ok(ending.includes("game_end"));
+  });
+
+  it("ends on a finale: the outcome, the incident in numbers, the move of the incident, final scores", async () => {
+    const { room, ids } = start();
+    let outcome: View = null;
+    await playThrough(room, ids, (v, viewer) => {
+      if (v?.phase === "OUTCOME" && !viewer) outcome = v.outcome;
+    });
+    assert.ok(outcome);
+    const s = outcome.summary;
+    assert.ok(s.objectives.completed <= s.objectives.total && s.objectives.total > 0);
+    for (const key of ["discoveries", "livesLost", "downs", "staffEvacuated", "staffLost"]) assert.equal(typeof s[key], "number", key);
+    assert.equal(typeof s.chaos, "string", "a label, never the number");
+    assert.ok(outcome.bestMove && outcome.bestMove.votes >= 1 && outcome.bestMove.summary, "everyone voted, so there is one");
+    assert.equal(outcome.breakdown.length, 3);
   });
 });
 

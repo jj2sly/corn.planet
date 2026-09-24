@@ -152,3 +152,123 @@ export function narrationEl(events) {
 export function outcomeStamp(outcome, label) {
   return el("span", { class: `mc-outcome o-${outcome}`, text: label });
 }
+
+/** The first sentence or two of `text`, at most `max` characters. */
+export function shortText(text, max = 160) {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
+  return end > max / 3 ? cut.slice(0, end + 1) : `${cut.slice(0, max - 1).trimEnd()}…`;
+}
+
+/** Narration kept short on a phone, with the rest a tap away. */
+export function shortReport(events) {
+  const text = events.map((n) => n.text).join(" ");
+  if (!text) return null;
+  const short = shortText(text);
+  return el(
+    "section",
+    { class: "mc-report" },
+    el("p", { class: "mc-report-short", text: short }),
+    short.length < text.length ? el("details", {}, el("summary", { text: "Full report" }), el("p", { class: "muted", text })) : null,
+  );
+}
+
+/** INCIDENT STATUS: what just happened, what matters now, what changed. */
+export function recapCard(recap) {
+  return el(
+    "section",
+    { class: "mc-recap", "aria-label": "Incident status" },
+    el("p", { class: "eyebrow", text: `Incident status · stage ${recap.stage}` }),
+    el("ul", { class: "mc-recap-happened" }, recap.happened.map((t) => el("li", { text: t }))),
+    el("p", { class: "mc-recap-now" }, el("strong", { text: "Now: " }), recap.now),
+    recap.changes.length ? el("ul", { class: "mc-recap-changes" }, recap.changes.map((t) => el("li", { text: t }))) : null,
+  );
+}
+
+/** Status changes as chips: which way each went, and where it is now. */
+export function statChips(changes) {
+  if (!changes.length) return null;
+  return el(
+    "ul",
+    { class: "mc-chips", "aria-label": "Status changes" },
+    changes.map((c) =>
+      el("li", { class: c.better ? "better" : "worse" }, el("span", { "aria-hidden": "true", text: c.better ? "▲ " : "▼ " }), `${c.name} `, el("strong", { text: c.value })),
+    ),
+  );
+}
+
+/** What your role is for, what only you see, and what to try. `open` on the reading phases. */
+export function roleCard(g, { open = false } = {}) {
+  const role = g.you.role;
+  return el(
+    "details",
+    { class: "mc-intel", open },
+    el("summary", {}, "Your role: ", el("strong", { text: role.name })),
+    el("p", { class: "mc-role-good" }, el("strong", { text: "Good at: " }), role.goodAt),
+    el("p", { class: "hint", text: `★ Strongest with ${role.strongTags.map((t) => `${TAG_INFO[t].icon} ${TAG_INFO[t].label}`).join(", ")}. Anything else works, just less reliably.` }),
+    el("p", { class: "mc-role-only" }, el("strong", { text: "Only you see: " }), role.onlyYou),
+    g.you.context.map((section) => el("section", { class: "mc-role-intel" }, el("h3", { text: section.title }), el("ul", { class: "list" }, section.lines.map((line) => el("li", { text: line }))))),
+    el("p", { class: "mc-role-try-label", text: "Try something like" }),
+    el("ul", { class: "mc-role-try" }, role.tryThis.map((t) => el("li", { text: t }))),
+    el("p", { class: "muted", text: role.blurb }),
+  );
+}
+
+/** The incident in numbers, for the final screen. */
+export function summaryTiles(o) {
+  const s = o.summary;
+  const tiles = [
+    ["Stages", String(o.stagesPlayed)],
+    ["Objectives", `${s.objectives.completed}/${s.objectives.total}`],
+    ["Discoveries", String(s.discoveries)],
+    ["Lives lost", String(s.livesLost)],
+    ["Staff evacuated", String(s.staffEvacuated)],
+    ["Staff lost", String(s.staffLost)],
+    ["Final chaos", s.chaos],
+  ];
+  if (o.initiallyUnknown) tiles.splice(2, 0, ["Identified", s.identifiedAt ? `Stage ${s.identifiedAt}` : "Never"]);
+  return el(
+    "ul",
+    { class: "mc-tiles", "aria-label": "Incident summary" },
+    tiles.map(([label, value]) => el("li", {}, el("span", { class: "value", text: value }), el("span", { class: "label", text: label }))),
+  );
+}
+
+const MEDALS = ["🥇", "🥈", "🥉"];
+
+/** Final scores, best first; tied totals share a place. */
+export function standings(o) {
+  const rows = [...o.breakdown].sort((a, b) => b.total - a.total);
+  return rows.map((r) => ({ ...r, place: 1 + rows.filter((x) => x.total > r.total).length }));
+}
+
+export function leaderboard(o, { limit = Infinity, you = null } = {}) {
+  return el(
+    "ol",
+    { class: "mc-leaderboard" },
+    standings(o)
+      .slice(0, limit)
+      .map((r) =>
+        el(
+          "li",
+          { class: r.playerId === you ? "you" : "" },
+          el("span", { class: "place", text: MEDALS[r.place - 1] ?? `#${r.place}` }),
+          el("span", { class: "grow", text: r.name }),
+          el("strong", { class: "mono", text: String(r.total) }),
+        ),
+      ),
+  );
+}
+
+/** The most-voted move of the incident. */
+export function bestMoveEl(o) {
+  if (!o.bestMove) return null;
+  const b = o.bestMove;
+  return el(
+    "blockquote",
+    { class: "mc-bestmove" },
+    el("p", { class: "eyebrow", text: `Move of the incident · stage ${b.stage} · ${b.votes} vote${b.votes === 1 ? "" : "s"}` }),
+    el("p", { text: b.summary }),
+  );
+}

@@ -41,6 +41,10 @@ export interface RoleDef {
   context: RoleContextKey[];
   /** Wider spread of outcomes: more brilliant, more disastrous. */
   wildcard?: boolean;
+  /** The role card on the agent's phone: what it's for, what only it sees, what to try. */
+  goodAt: string;
+  onlyYou: string;
+  tryThis: string[];
 }
 
 export interface StatLabel {
@@ -58,6 +62,9 @@ const ROLES: RoleDef[] = [
     strongTags: ["STRATEGIZE", "COMMUNICATE"],
     weakTags: ["EQUIPMENT"],
     context: ["objectives"],
+    goodAt: "Setting priorities and getting everyone pulling the same way.",
+    onlyYou: "Every open objective in priority order, with its deadline.",
+    tryThis: ["Name the one thing the team does this stage", "Send two agents at the primary objective", "Call off whatever is wasting time"],
   },
   {
     id: "containment",
@@ -66,6 +73,9 @@ const ROLES: RoleDef[] = [
     strongTags: ["CONTAIN", "EQUIPMENT"],
     weakTags: ["COMMUNICATE"],
     context: ["containment"],
+    goodAt: "Doors, fields and restraints: putting it back and keeping it there.",
+    onlyYou: "The entity's containment class, and how the containment systems and doors are holding.",
+    tryThis: ["Seal the doors between it and the staff", "Reroute the containment field", "Rig a restraint from whatever is nearby"],
   },
   {
     id: "research",
@@ -74,6 +84,9 @@ const ROLES: RoleDef[] = [
     strongTags: ["INVESTIGATE", "STRATEGIZE"],
     weakTags: ["DEPLOY"],
     context: ["leads"],
+    goodAt: "Working out what the entity is and how it works.",
+    onlyYou: "Research leads: what's still in the files waiting to be found.",
+    tryThis: ["Chase one of your leads", "Question whoever has dealt with it before", "Test a theory about what it wants"],
   },
   {
     id: "technician",
@@ -82,6 +95,9 @@ const ROLES: RoleDef[] = [
     strongTags: ["EQUIPMENT", "INVESTIGATE"],
     weakTags: ["EVACUATE"],
     context: ["systems"],
+    goodAt: "Fixing, rigging and improvising equipment.",
+    onlyYou: "Diagnostics: which systems are failing, and which to fix first.",
+    tryThis: ["Fix the system at the top of your diagnostics", "Improvise a trap from spare parts", "Get power back to the containment wing"],
   },
   {
     id: "comms",
@@ -90,6 +106,9 @@ const ROLES: RoleDef[] = [
     strongTags: ["COMMUNICATE", "EVACUATE"],
     weakTags: ["CONTAIN"],
     context: ["personnel"],
+    goodAt: "Coordinating people and getting them out alive.",
+    onlyYou: "The staff tracker: where everyone is, and who knows something.",
+    tryThis: ["Radio a trapped staff member and talk them out", "Clear an evacuation route", "Ask whoever 'knows something' what they know"],
   },
   {
     id: "field",
@@ -98,6 +117,9 @@ const ROLES: RoleDef[] = [
     strongTags: ["DEPLOY", "CONTAIN", "EVACUATE"],
     weakTags: ["STRATEGIZE"],
     context: ["threat"],
+    goodAt: "Going in person: deploying, containing and rescuing up close.",
+    onlyYou: "Where the entity was last tracked.",
+    tryThis: ["Go where it was last seen and cut it off", "Escort staff out of the danger zone", "Get close enough to contain it by hand"],
   },
   {
     id: "recorder",
@@ -106,6 +128,9 @@ const ROLES: RoleDef[] = [
     strongTags: ["INVESTIGATE", "COMMUNICATE"],
     weakTags: ["DEPLOY"],
     context: ["log"],
+    goodAt: "Investigating and keeping everyone's story straight.",
+    onlyYou: "The incident log: what happened in the last few stages.",
+    tryThis: ["Point out what keeps going wrong", "Interview a witness for the report", "Remind the team what worked last time"],
   },
   {
     id: "intern",
@@ -115,6 +140,9 @@ const ROLES: RoleDef[] = [
     weakTags: [],
     context: ["rumor"],
     wildcard: true,
+    goodAt: "Things nobody else would try. Results vary wildly.",
+    onlyYou: "A rumor. Unverified. Possibly nonsense.",
+    tryThis: ["Follow the rumor and see what happens", "Do something no procedure covers", "Volunteer for the job nobody wants"],
   },
 ];
 
@@ -132,7 +160,8 @@ export const DEFAULT_MYCOB_CONFIG = {
   /** Phase durations. Response, consequence and update are scaled by the length's timerScale. */
   timing: {
     alertMs: 20_000,
-    updateMs: 20_000,
+    /** Read the incident status recap and your intel before responses open. */
+    updateMs: 25_000,
     /** Long enough to read the update and your intel, talk it over, and type something meaningful. */
     responseMs: 45_000,
     /** The director gets at least this long (so the screen doesn't flash) and at most the max. */

@@ -4,8 +4,10 @@
 
 import { el, plural, timerEl } from "../common.js";
 import {
+  bestMoveEl,
   entityCard,
   factsList,
+  leaderboard,
   liveNarration,
   livesEl,
   narrationEl,
@@ -13,11 +15,15 @@ import {
   objectivesList,
   outcomeStamp,
   personnelList,
+  recapCard,
   stampEl,
+  statChips,
   statusGrid,
+  summaryTiles,
   systemsList,
   TAG_INFO,
 } from "./mycob-shared.js";
+import { playNewCues, soundToggle } from "./mycob-sound.js";
 import { speakNew } from "./mycob-voice.js";
 
 function header(eyebrow, title, timer) {
@@ -56,6 +62,7 @@ function board(g) {
         ),
       ),
     ),
+    soundToggle(),
   );
 }
 
@@ -64,11 +71,14 @@ function layout(s, mainNodes, onUpdate) {
   const side = el("div", {}, board(s.game));
   const node = el("div", { class: "mc-layout" }, el("div", { class: "mc-main stack" }, ...mainNodes), side);
   speakNew(s.game.incident.code, s.game.narration);
+  // A screen that opens on a fresh incident plays its opening klaxon; one that joins later plays nothing old.
+  playNewCues(s.game.incident.code, s.game.cues, { fresh: s.game.phase === "ALERT" });
   return {
     node,
     update(next) {
       side.replaceChildren(board(next.game));
       speakNew(next.game.incident.code, next.game.narration);
+      playNewCues(next.game.incident.code, next.game.cues);
       onUpdate?.(next);
     },
   };
@@ -123,6 +133,7 @@ function buildUpdate(s) {
     s,
     [
       head.node,
+      g.recap ? recapCard(g.recap) : null,
       narrationEl(g.narration),
       situation(g.incident),
       facts.length ? el("section", {}, el("h2", { text: "What we know" }), factsList(facts)) : null,
@@ -200,7 +211,6 @@ function actionCards(consequence) {
 
 function changesPanel(c) {
   const items = [
-    ...c.statusChanges.map((x) => `${x.name}: ${x.from} → ${x.value}`),
     ...c.systemChanges.map((x) => `${x.name}: ${x.to.toUpperCase()}`),
     ...c.personnelChanges.map((x) => `${x.name}: ${x.to.toUpperCase()}`),
     ...c.objectiveChanges.map((x) => `Objective ${x.to}: ${x.text}`),
@@ -225,6 +235,7 @@ function buildConsequence(s) {
             c.lifeLosses.map((l) => el("p", {}, el("strong", { text: l.down ? `${l.name} IS DOWN` : `${l.name} LOST A LIFE` }), ` — ${l.reason}`)),
           )
         : null,
+      statChips(c.statusChanges),
       // Lives, discoveries and objective changes have their own panels below.
       narrationEl(g.narration.filter((n) => n.type === "consequence" || n.type === "special_event")),
       actionCards(c),
@@ -318,9 +329,21 @@ function buildOutcome(s) {
     [
       head.node,
       ending.node,
-      g.outcome.mvps.length
-        ? el("p", {}, el("strong", { text: "Stage commendations: " }), g.outcome.mvps.map((m) => `S${m.stage} ${m.names.join(" & ")}`).join(" · "))
-        : null,
+      summaryTiles(g.outcome),
+      el(
+        "div",
+        { class: "mc-finale-grid" },
+        el("section", {}, el("h2", { text: "Final scores" }), leaderboard(g.outcome)),
+        el(
+          "section",
+          { class: "stack" },
+          el("h2", { text: "Highlights" }),
+          bestMoveEl(g.outcome),
+          g.outcome.mvps.length
+            ? el("p", {}, el("strong", { text: "Stage commendations: " }), g.outcome.mvps.map((m) => `S${m.stage} ${m.names.join(" & ")}`).join(" · "))
+            : el("p", { class: "muted", text: "No commendations. Nobody could agree on anything." }),
+        ),
+      ),
       el("h2", { text: "Debrief" }),
       breakdownTable(g.outcome),
       el("p", { class: "muted", text: "Everything that happened in this incident is game-only. The CPI Database is unchanged." }),
@@ -379,18 +402,20 @@ function buildAwardVote(s) {
 
 function buildAwardResults(s) {
   const g = s.game;
-  const head = header("End of incident", "THE AWARDS", s.timer);
+  const o = g.outcome;
+  const head = header(`End of incident · ${o.title}`, "THE AWARDS", s.timer);
   return layout(
     s,
     [
       head.node,
       el(
         "ul",
-        { class: "mc-awards" },
+        { class: "mc-awards mc-trophies" },
         g.awards.results.map((a) =>
           el(
             "li",
             {},
+            el("span", { class: "mc-trophy", "aria-hidden": "true", text: "🏆" }),
             el("p", { class: "mc-award-name", text: a.name }),
             a.description ? el("p", { class: "muted", text: a.description }) : null,
             el("p", { class: "mc-award-winner", text: a.winners.length ? a.winners.map((w) => w.name).join(" & ") : "No votes" }),
@@ -398,6 +423,7 @@ function buildAwardResults(s) {
           ),
         ),
       ),
+      el("section", {}, el("h2", { text: "Final scores" }), leaderboard(o)),
     ],
     (next) => head.setTimer(next.timer),
   );

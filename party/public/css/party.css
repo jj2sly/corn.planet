@@ -2551,3 +2551,239 @@ a.stamp:focus-visible {
     position: static;
   }
 }
+
+/* My Cob Escaped: incident status recap, quick consequences, role card, finale, sound switch. */
+
+.mc-recap {
+  border: 2px solid var(--yellow);
+  background: var(--panel-2);
+  padding: 12px 14px;
+}
+
+.mc-recap .eyebrow {
+  color: var(--yellow);
+}
+
+.mc-recap ul {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+}
+
+.mc-recap-happened li + li {
+  margin-top: 4px;
+}
+
+.mc-recap-happened li:first-child {
+  font-weight: 700;
+}
+
+.mc-recap-now {
+  margin: 8px 0;
+}
+
+.mc-recap-changes li {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.mc-recap-changes li::before {
+  content: "› ";
+  color: var(--yellow);
+}
+
+.mc-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mc-chips li {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+
+.mc-chips li.better {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.mc-chips li.worse {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.mc-quick {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mc-quick li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.mc-report-short {
+  margin: 0;
+}
+
+.mc-report summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mc-intel summary strong {
+  color: var(--yellow);
+}
+
+.mc-role-try-label {
+  margin: 10px 0 4px;
+  font-family: var(--head);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mc-role-try {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.mc-role-try li + li {
+  margin-top: 4px;
+}
+
+.mc-tiles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+  gap: 8px;
+}
+
+.mc-tiles li {
+  padding: 10px 6px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  text-align: center;
+}
+
+.mc-tiles .value {
+  display: block;
+  font-family: var(--head);
+  font-size: 1.5rem;
+  color: var(--yellow);
+}
+
+.mc-tiles .label {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mc-leaderboard {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mc-leaderboard li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 1.1rem;
+}
+
+.mc-leaderboard li:first-child {
+  font-size: 1.35rem;
+}
+
+.mc-leaderboard .place {
+  width: 2.2em;
+  text-align: center;
+}
+
+.mc-leaderboard li.you {
+  color: var(--yellow);
+}
+
+.mc-bestmove {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 4px solid var(--yellow);
+  background: var(--panel-2);
+}
+
+.mc-bestmove p {
+  margin: 0;
+}
+
+.mc-bestmove p + p {
+  margin-top: 4px;
+  font-size: 1.05rem;
+}
+
+.mc-finale-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.mc-finale.e-contained h2,
+.mc-finale.e-terminated h2 {
+  color: var(--ok);
+}
+
+.mc-finale.e-escaped h2,
+.mc-finale.e-everyone_dies h2 {
+  color: var(--danger);
+}
+
+.mc-place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+
+.mc-place strong {
+  font-family: var(--head);
+  font-size: 1.8rem;
+  color: var(--yellow);
+}
+
+.mc-trophy {
+  font-size: 1.6rem;
+}
+
+.mc-you-won {
+  padding: 10px 12px;
+  border: 2px solid var(--yellow);
+  font-weight: 700;
+  color: var(--yellow);
+}
+
+.mc-sound {
+  margin-top: 12px;
+}

@@ -35,7 +35,7 @@ OUTCOME (ending, entity revealed, score breakdown) → AWARD_SUBMIT → AWARD_VO
 | Phase | Default | Closes early when |
 |---|---|---|
 | ALERT | 20 s | — (host/leader skip) |
-| UPDATE | 20 s × length scale | — |
+| UPDATE | 25 s × length scale | — |
 | RESPONSE | 45 s × length scale | every agent has filed (editable until then) |
 | PROCESSING | 4–10 s (Claude: 4–21 s) | director answered and 4 s passed; falls back to the built-in director at the limit |
 | CONSEQUENCE | 30 s × length scale | — |
@@ -45,9 +45,18 @@ OUTCOME (ending, entity revealed, score breakdown) → AWARD_SUBMIT → AWARD_VO
 Lengths: **Short** 3 stages, **Standard** 5, **Long** 7 (timers × 0.9 / 1 / 1.15); the host can
 also pick any 3–7 stages. So a Standard game gives 45 s to respond, 30 s for the consequence and
 20 s to vote; a Short one 40.5 s / 27 s / 20 s and a Long one about 52 s / 35 s / 20 s (the vote isn't
-scaled). Standard is about 13 minutes at full timers including awards, less when everyone files and
+scaled). Standard is about 13.5 minutes at full timers including awards, less when everyone files and
 votes quickly (tune `timing` in `config.ts`). All timers are the
 room's single pausable server timer; they freeze while the host display is away.
+
+Each UPDATE opens with an **INCIDENT STATUS** recap (`recap` in the view, host and phones): what
+happened last stage (a tally of outcomes, the most dramatic move, who lost a life), what matters now
+(a new problem, else the worst status), and up to three changes (identification, a discovery, status
+changes, objectives, a special event). It is built only from what the last consequence showed everyone.
+
+On phones the consequence reads in order: your own outcome, everyone else's outcome, status changes as
+▲/▼ chips, at most two discoveries, then the narration cut to a sentence or two with the full report a
+tap away. The host screen keeps the full narration.
 
 The incident can end early — contained or terminated (from stage 3), or everyone dead (any time) —
 and ends when fewer than 2 agents remain.
@@ -230,8 +239,10 @@ Eight configurable roles (`config.roles`): each has strong tags (more reliable; 
 role*), weak tags, and **role intel** only its holder's phone shows — command priorities, containment
 readout, research leads, diagnostics, staff tracker, entity tracking, the incident log, or an
 unverified rumor (the Intern, who also has the widest outcome spread). Roles are shuffled at the start
-and **each agent keeps theirs for the whole incident**, so they can learn it and use it; there is no
-trading. The only role change is reassignment after going down (below).
+and **each agent keeps theirs for the whole incident**. Each role has a card on its phone (open in
+ALERT and UPDATE): what it's good at (`goodAt`), what only it sees (`onlyYou`, then the intel
+itself), its strongest response types and two or three things to try (`tryThis`), all in `config.ts`.
+Keeping the role lets agents learn it and use it; there is no trading. The only role change is reassignment after going down (below).
 
 Everyone starts with **3 lives**. A consequence takes **at most one**, and the agent's phone says so
 immediately (red alert, vibration, private narration line). At 0 an agent is **down**; next stage they
@@ -325,6 +336,15 @@ life losses, personnel and system changes, reveals, objectives, narration, ballo
 breakdown; then MVPs, the ending, totals and the awards with their ballots. This is the dataset for
 tuning prompts, probabilities and balance later. Nothing learns from it automatically.
 
+## 13a. The finale
+
+OUTCOME shows the ending, the incident in numbers (`outcome.summary`: stages, objectives completed,
+identification stage for an unknown entity, discoveries, lives lost, staff evacuated and lost, the final
+chaos label), final scores with medals, the move of the incident (`outcome.bestMove`, the most-voted
+action) and the stage commendations, then the full debrief table. Phones show your placement, the same
+numbers and the move, with your own score breakdown a tap away. AWARD_RESULTS shows the player-created
+awards as trophies with the final scores; a phone that won one says so. Scoring is unchanged.
+
 ## 13. Narration and voice
 
 Every narrator line is a `NarrationEvent { id, type, stage, text, playerId }` (types: incident_alert,
@@ -333,6 +353,16 @@ Views send the current beat; private lines (your life loss) only to you. On the 
 `public/js/games/mycob-voice.js` hands each new event, once, to a voice provider registered with
 `setVoiceProvider({ speak(event) })`. None is registered: the game is text-first, and a slow or broken
 provider can only skip lines, never hold up play.
+
+**Sound effects** are separate from the voice. The engine adds a cue (`game.cues`: `{ id, cue }`, the
+last 12) when something happens that every screen is already shown: `game_start`, `response_in` (a
+first filing, not an edit), `success`, `major_failure` (a catastrophe, or every action failed),
+`discovery`, `chaos_up` (the chaos label rose), `life_lost`, `vote_start`, `vote_result`, the ending
+(`contained`, `terminated`, `escaped`, `everyone_dies`) and `game_end`. The host screen plays each
+cue once (`public/js/games/mycob-sound.js`; a screen that joins mid-game plays nothing old) and has a
+sound on/off switch; phones only play your own response filed and life lost. Every cue has an original,
+deliberately goofy placeholder synthesized with Web Audio (klaxon, slide whistles, sad trombone, kazoo,
+boing); to use a real sound, add the file under `public/sounds/mycob/` and name it in `SOUND_FILES`.
 
 ## 14. Modes and extension points
 
