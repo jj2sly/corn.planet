@@ -94,7 +94,14 @@ Always create elements with `el()` from `public/js/common.js`, which uses `textC
 in `public/css/party.css`.
 
 If a game needs new input types (for example Corn Planet Draw's canvas strokes), keep payloads small and
-validate them server-side; Socket.IO messages are capped at 64 KB.
+validate them server-side; Socket.IO messages are capped at 64 KB. For drawings, use the CPI Drawing
+System (`public/js/drawing.js`: validated compact strokes, per-tool interpretation rules; see
+`docs/STEAMDECK.md`) rather than a new format.
+
+**Realtime games** (movement, tilt): send frequent input with `tools.stream(payload)`, which emits
+`game:stream` (no ack, dropped while offline, 30/s per socket) and reaches `handleInput` as the `stream`
+action. Send on change plus a heartbeat, validate leniently (ignore bad values), run your own
+`setInterval` tick, stop simulating while `ctx.paused()`, and call `ctx.changed()` once per tick.
 
 ## 4. Test it
 

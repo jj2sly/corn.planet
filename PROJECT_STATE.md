@@ -19,7 +19,7 @@ Two things in one repository:
 | Part | Where | What |
 |---|---|---|
 | **CPI Database** site | repo root (`*.html`, `style.css`, `roles.js`, `nav-auth.js`, …) | Static site on GitHub Pages (`jj2sly.github.io/corn.planet`, served from `main`). Vanilla JS, no build step. Firebase Auth + Firestore (project `cpo-9af17`, Spark plan — no Cloud Functions). Collections: `entities` (`CPE-001`…), `artifacts` (`ART-001`…), `incidents` (`INC-001`…), `personnel` (`PER-001`…), `classifications`, `users/{uid}`. Roles: VIEWER(0) → CPI_EMPLOYEE(1) → CORRESPONDENT(2) → OVERSEER(3) → EXEC(4), enforced by Firestore rules (configured in the Firebase console, **not** in this repo). Admin: `admin.html` (EXEC assigns roles), `records.html` (CORRESPONDENT+ creates records). |
-| **Corn Planet Party** | `party/` | Phone-controlled multiplayer party-game server. Node 24 + TypeScript run directly (no bundler, no compile step), Express 5, Socket.IO 4, SQLite via built-in `node:sqlite`. One long-running process, rooms in memory. Games: **Cornlashing**, and the canon-driven **Corn or Shit**, **Entity Auction** and **My Cob Escaped, What Do I Do Now???**. |
+| **Corn Planet Party** | `party/` | Phone-controlled multiplayer party-game server. Node 24 + TypeScript run directly (no bundler, no compile step), Express 5, Socket.IO 4, SQLite via built-in `node:sqlite`. One long-running process, rooms in memory. Games: **Cornlashing**, and the canon-driven **Corn or Shit**, **Entity Auction** and **My Cob Escaped, What Do I Do Now???**, and the realtime platformer **Escape Thad's Steam Deck**. |
 
 The database site does **not** depend on `party/`. `index.html` links to Corn Planet Party.
 
@@ -110,9 +110,10 @@ verification (jose + Google JWKS) and role lookup · `api.ts` REST · `rooms.ts`
 · `realtime.ts` socket handlers · `text.ts` input cleaning · `ratelimit.ts` ·
 `canon.ts` read-only CPI Database access (warm snapshot, redactions stripped) ·
 `games/{types,registry,chaos,claims,cornorshit,entityauction,auctioneffects,awards}.ts`,
-`games/mycob/{config,content,incident,rules,director,narration,game}.ts`. Browser code in `public/`
+`games/mycob/{config,content,incident,rules,director,narration,game}.ts`, `games/steamdeck/{levels,physics,game}.ts`.
+Shared browser/server drawing system: `public/js/drawing.js` (+ `drawing-canvas.js`). Browser code in `public/`
 (vanilla ES modules, `el()` helper, `games/<id>-{host,play}.js`). Adding a game:
-`party/docs/ADDING_A_GAME.md`. Canon rules: `party/docs/CANON.md`. My Cob Escaped: `party/docs/MYCOB.md`.
+`party/docs/ADDING_A_GAME.md`. Canon rules: `party/docs/CANON.md`. My Cob Escaped: `party/docs/MYCOB.md`. Escape Thad's Steam Deck: `party/docs/STEAMDECK.md`.
 
 Server is authoritative for state, timers, scores, votes and authorship. All user text is cleaned
 server-side and rendered with `textContent`. CSP allows no inline scripts.

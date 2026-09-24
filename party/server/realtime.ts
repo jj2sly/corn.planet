@@ -43,8 +43,9 @@ export function createRealtime({ io, rooms, auth, db, trustProxy }: RealtimeDeps
   const createLimiter = new RateLimiter(10, 10 * 60_000); // rooms per IP
   const joinLimiter = new RateLimiter(40, 60_000); // join/resume attempts per IP (limits code guessing)
   const eventLimiter = new RateLimiter(40, 10_000); // any event per socket
+  const streamLimiter = new RateLimiter(300, 10_000); // realtime game input per socket (30/s)
   const pruneTimer = setInterval(() => {
-    for (const limiter of [connectLimiter, createLimiter, joinLimiter, eventLimiter]) limiter.prune();
+    for (const limiter of [connectLimiter, createLimiter, joinLimiter, eventLimiter, streamLimiter]) limiter.prune();
   }, 60_000);
   pruneTimer.unref();
 
@@ -269,6 +270,17 @@ export function createRealtime({ io, rooms, auth, db, trustProxy }: RealtimeDeps
       const room = currentRoom(socket);
       if (socket.data.role !== "player" || !socket.data.playerId) throw new PartyError("NOT_ALLOWED");
       room.gameInput(socket.data.playerId, action, payload);
+    });
+
+    // Realtime game input (buttons, tilt): frequent, fire-and-forget, best-effort. It reaches the game
+    // as the "stream" action only, so it can't be used to send other actions at this rate.
+    socket.on("game:stream", (payload: unknown) => {
+      try {
+        if (!streamLimiter.take(socket.id) || socket.data.role !== "player" || !socket.data.playerId) return;
+        currentRoom(socket).gameInput(socket.data.playerId, "stream", payload);
+      } catch {
+        // Dropped, like a lost packet: the next one carries the current state anyway.
+      }
     });
 
     on("state:request", () => {

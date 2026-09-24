@@ -6,8 +6,9 @@ import * as chaos from "./games/chaos-host.js";
 import * as cornorshit from "./games/cornorshit-host.js";
 import * as entityauction from "./games/entityauction-host.js";
 import * as mycob from "./games/mycob-host.js";
+import * as steamdeck from "./games/steamdeck-host.js";
 
-const RENDERERS = { chaos, cornorshit, entityauction, mycob };
+const RENDERERS = { chaos, cornorshit, entityauction, mycob, steamdeck };
 const SESSION_KEY = "cpst-party:host";
 
 const stage = $("#stage");
@@ -349,6 +350,12 @@ const SETTINGS_FORMS = {
         class: "hint",
         text: "The escaped entity is a real CPI Database record. Everything that happens to it, the facility and the staff is game-only; nothing is written back.",
       }),
+    ];
+  },
+  steamdeck(settings, configure) {
+    return [
+      choiceGroup("Rounds", "rounds", [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (v) => configure({ settings: { rounds: v } })),
+      el("p", { class: "hint", text: "The session leader is Thad first (bring the Steam Deck), then Thad rotates each round." }),
     ];
   },
 };

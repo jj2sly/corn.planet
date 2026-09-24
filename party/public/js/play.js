@@ -6,8 +6,9 @@ import * as chaos from "./games/chaos-play.js";
 import * as cornorshit from "./games/cornorshit-play.js";
 import * as entityauction from "./games/entityauction-play.js";
 import * as mycob from "./games/mycob-play.js";
+import * as steamdeck from "./games/steamdeck-play.js";
 
-const RENDERERS = { chaos, cornorshit, entityauction, mycob };
+const RENDERERS = { chaos, cornorshit, entityauction, mycob, steamdeck };
 const SESSION_KEY = "cpst-party:player"; // { code, token, name }
 const NAME_KEY = "cpst-party:last-name";
 
@@ -270,7 +271,7 @@ function render() {
   if (state.status === "LOBBY") return mount(`lobby:${isLeader()}`, buildLobby, state);
   if (state.status === "FINAL_RESULTS") return mount(`results:${isLeader()}`, buildResults, state);
   const renderer = RENDERERS[state.config.gameId];
-  if (renderer && state.game) renderer.render(mount, state, { request: conn.request, leaveButton });
+  if (renderer && state.game) renderer.render(mount, state, { request: conn.request, stream: conn.stream, leaveButton });
 }
 
 function leaveButton() {

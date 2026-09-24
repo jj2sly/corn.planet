@@ -90,6 +90,8 @@ export interface GameContext {
   saveMoment(moment: MomentInput): void;
   /** Uniform random in [0, 1). Injectable so tests are deterministic. */
   random(): number;
+  /** True while the room is paused (the host display is away): realtime games stop simulating. */
+  paused(): boolean;
   /** Tell the room the game's state changed so every viewer gets a fresh view. */
   changed(): void;
   /** End the game: the room ranks players by score, records stats and shows final results. */

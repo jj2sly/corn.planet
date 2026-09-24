@@ -45,5 +45,8 @@ export async function connect({ onState, onEnded, onStatus, onAuthFallback, onHe
     }
   };
 
-  return { socket, request };
+  /** Realtime game input: no ack, and dropped rather than queued while disconnected. */
+  const stream = (payload) => socket.volatile.emit("game:stream", payload);
+
+  return { socket, request, stream };
 }

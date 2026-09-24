@@ -307,6 +307,7 @@ export class Room {
         });
       },
       random: () => this.deps.random(),
+      paused: () => this.paused,
       changed: () => live() && this.changed(),
       finish: (summary) => live() && this.finishGame(summary.rounds, summary.highlights, summary.details),
     };
