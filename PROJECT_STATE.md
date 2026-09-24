@@ -136,7 +136,7 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
   Railway serves Cornlashing and Corn or Shit and loaded 21 canon records in production.
 - The CPI Database site on `main` (GitHub Pages) has the rename plus the incident and personnel
   pages, cherry-picked from `cpst-party` (`9dfd76b`, `1b9aae5`). Verified live.
-- Tests: **286 passing** (2026-09-23; 100 of them My Cob) (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
+- Tests: **295 passing** (2026-09-23; 109 of them My Cob) (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
   promotion, db, api, realtime, framework, mycob, mycob-incident, mycob-rules, mycob-realtime,
   mycob-secrecy, awards). `tsc --noEmit` clean.
 - **Entity Auction** (built 2026-09-18, on `origin/cpst-party` by 2026-09-18; live deploy not checked): agents bid Kernels on sealed
@@ -262,6 +262,12 @@ mirrored in the file.
     fact id) is sent until it's identified; the director gets the same cover breach/environment.
 26. **Aborted games go in their own `aborted_games` table**, never `games`, so they don't count as
     played games in anyone's stats. The server-shutdown close reason is now `SERVER_SHUTDOWN`.
+28. **Repetition bug fixed (2026-09-23)**: `closeResponses()` passed `member.tags` by reference and pushed
+    the current tag before `planStage` read it, so every action counted as a repeat of itself (repetition
+    penalty on every action, creativity always halved). Now a copy. Simulator (300 games) before → after:
+    contained 27→32%, escaped 60→52%, terminated 13→15%; failures 21→18%; agents down per game 0.21→0.14;
+    unknown entities identified 65→74%; creativity points 6→11; placements careful/standard/reckless
+    2.93/2.95/2.74.
 27. **The built-in director only reads a kill attempt when a killing word is aimed at the entity**
     (same clause, not negated); "execute the evacuation plan" isn't one.
 

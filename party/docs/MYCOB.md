@@ -52,11 +52,17 @@ room's single pausable server timer; they freeze while the host display is away.
 Each UPDATE opens with an **INCIDENT STATUS** recap (`recap` in the view, host and phones): what
 happened last stage (a tally of outcomes, the most dramatic move, who lost a life), what matters now
 (a new problem, else the worst status), and up to three changes (identification, a discovery, status
-changes, objectives, a special event). It is built only from what the last consequence showed everyone.
+changes, objectives, a special event), known risks (danger statuses, systems offline, staff in trouble,
+anomalies), the team's lives and anyone back after going down, and objective progress (done/total, the
+primary's status, the nearest deadline). It is built only from what everyone has already been shown.
 
-On phones the consequence reads in order: your own outcome, everyone else's outcome, status changes as
-▲/▼ chips, at most two discoveries, then the narration cut to a sentence or two with the full report a
-tap away. The host screen keeps the full narration.
+On phones the consequence reads in order: your own outcome with **why** (the engine's reasons in words:
+your role's strength, careful/reckless, harm's way, cramming, repeating, aiming at something, a clash or
+team-up, a twist, high chaos) and **what you caused** (▲/▼ per status, doubled when big, never a number),
+everyone else's outcome, the team's life losses, status chips, other changes, at most two discoveries,
+the narration cut short with the full report a tap away, and **what's next** (`consequence.next`). The
+why and what-you-caused lines go only to your phone. The host screen keeps the full narration and shows
+who each move clashed or teamed up with.
 
 The incident can end early — contained or terminated (from stage 3), or everyone dead (any time) —
 and ends when fewer than 2 agents remain.
@@ -239,7 +245,14 @@ Eight configurable roles (`config.roles`): each has strong tags (more reliable; 
 role*), weak tags, and **role intel** only its holder's phone shows — command priorities, containment
 readout, research leads, diagnostics, staff tracker, entity tracking, the incident log, or an
 unverified rumor (the Intern, who also has the widest outcome spread). Roles are shuffled at the start
-and **each agent keeps theirs for the whole incident**. Each role has a card on its phone (open in
+and **each agent keeps theirs for the whole incident**. Each role has an icon, and its phone leads with the role's
+**read** (`you.read`): the one line from its intel that matters most right now — the Commander's most
+fragile status, the Containment Specialist's containment trend and goal, the Research Specialist's
+identification readiness or unread files, the Technician's system to fix first and what it drags down,
+Communications' staff member most in danger and where, the Field Operative's last tracking and who is
+there, the Recorder's what's-been-working tally or repetition warning, and the Intern's rumor (true about
+half the time). Some of these come from hidden state, always as words, and only to that agent. No role
+changes the odds beyond its existing strong and weak tags. Below the read is the card (open in
 ALERT and UPDATE): what it's good at (`goodAt`), what only it sees (`onlyYou`, then the intel
 itself), its strongest response types and two or three things to try (`tryThis`), all in `config.ts`.
 Keeping the role lets agents learn it and use it; there is no trading. The only role change is reassignment after going down (below).
@@ -306,9 +319,9 @@ node scripts/mycob-sim.ts 300
 
 It prints ending shares, outcome shares, lives lost per agent-stage, unknown-entity identification,
 chaos by stage, good endings by classification, average placement by playstyle and average points per
-component. Defaults at time of writing: contained 26% · escaped 62% · terminated 13% · everyone dies
-<1%; 0.17 lives lost per agent per stage; 65% of unknown entities identified; placements careful
-2.91 · standard 3.02 · reckless 2.68.
+component. Defaults at time of writing (2026-09-23, after the repetition fix): contained 32% · escaped 52% ·
+terminated 15% · everyone dies 1%; 0.16 lives lost per agent per stage; 74% of unknown entities
+identified; placements careful 2.93 · standard 2.95 · reckless 2.74.
 
 ## 12. Persistence
 
