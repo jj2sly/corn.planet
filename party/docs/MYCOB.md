@@ -53,7 +53,7 @@ Each UPDATE opens with an **INCIDENT STATUS** recap (`recap` in the view, host a
 happened last stage (a tally of outcomes, the most dramatic move, who lost a life), what matters now
 (a new problem, else the worst status), and up to three changes (identification, a discovery, status
 changes, objectives, a special event), known risks (danger statuses, systems offline, staff in trouble,
-anomalies), the team's lives and anyone back after going down, and objective progress (done/total, the
+anomalies), the team's lives, who is on their last life and anyone back after going down, and objective progress (done/total, the
 primary's status, the nearest deadline). It is built only from what everyone has already been shown.
 
 On phones the consequence reads in order: your own outcome with **why** (the engine's reasons in words:
@@ -247,7 +247,7 @@ readout, research leads, diagnostics, staff tracker, entity tracking, the incide
 unverified rumor (the Intern, who also has the widest outcome spread). Roles are shuffled at the start
 and **each agent keeps theirs for the whole incident**. Each role has an icon, and its phone leads with the role's
 **read** (`you.read`): the one line from its intel that matters most right now — the Commander's most
-fragile status, the Containment Specialist's containment trend and goal, the Research Specialist's
+fragile status and how close each objective is to done, the Containment Specialist's containment trend and goal, the Research Specialist's
 identification readiness or unread files, the Technician's system to fix first and what it drags down,
 Communications' staff member most in danger and where, the Field Operative's last tracking and who is
 there, the Recorder's what's-been-working tally or repetition warning, and the Intern's rumor (true about
