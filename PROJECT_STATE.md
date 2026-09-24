@@ -123,8 +123,8 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
   live on Railway 2026-09-18** — `/api/config` lists `mycob`, `/healthz` ok with 21 canon records; not
   yet played on the live site): incident-response game on a shared incident engine. Random canon entity (sometimes unknown),
   data-driven breach/location/facility/problem/personnel/objectives, entity-specific rules, hidden
-  0–100 stats shown as qualitative statuses, roles with trades and private intel, 3 lives with
-  reassignment at 0, chaos, stage votes, hidden stage scoring, player-created awards, text narration
+  0–100 stats shown as qualitative statuses, roles kept for the whole incident (no trading since 2026-09-23) with private intel, 3 lives with
+  reassignment at 0, response/consequence/vote 45/30/20 s (Standard), chaos, stage votes, hidden stage scoring, player-created awards, text narration
   with a voice hook, one `game_details` JSON record per game (migration 6), and since 2026-09-23 an
   `aborted_games` record for a game cut short (migration 7). Two Incident Directors: the built-in
   template director (default, no API key) and the Claude director (`MYCOB_DIRECTOR=claude`, see
@@ -136,7 +136,7 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
   Railway serves Cornlashing and Corn or Shit and loaded 21 canon records in production.
 - The CPI Database site on `main` (GitHub Pages) has the rename plus the incident and personnel
   pages, cherry-picked from `cpst-party` (`9dfd76b`, `1b9aae5`). Verified live.
-- Tests: **285 passing** (2026-09-23; 99 of them My Cob) (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
+- Tests: **286 passing** (2026-09-23; 100 of them My Cob) (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
   promotion, db, api, realtime, framework, mycob, mycob-incident, mycob-rules, mycob-realtime,
   mycob-secrecy, awards). `tsc --noEmit` clean.
 - **Entity Auction** (built 2026-09-18, on `origin/cpst-party` by 2026-09-18; live deploy not checked): agents bid Kernels on sealed

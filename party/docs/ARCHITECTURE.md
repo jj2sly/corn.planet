@@ -139,7 +139,7 @@ Every client event is `socket.emit(event, payload, ack)` and gets `{ ok: true, .
 | `room:kick` | host/leader | `playerId` | Remove a player |
 | `room:close` | host | – | Close the session for everyone |
 | `game:host` | host/leader | `action`, `payload?`, `step?` | Game host action (e.g. `skip`), ignored if `step` is stale |
-| `game:input` | player | `action`, `payload` | Game input (Chaos: `answer`, `vote`; My Cob Escaped: `respond`, `vote`, `trade:offer/accept/cancel/decline`, `award:submit`, `award:vote`) |
+| `game:input` | player | `action`, `payload` | Game input (Chaos: `answer`, `vote`; My Cob Escaped: `respond`, `vote`, `award:submit`, `award:vote`) |
 | `state:request` | either | – | Resend current state |
 
 ## 6. Minigame framework

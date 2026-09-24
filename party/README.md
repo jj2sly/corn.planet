@@ -188,7 +188,7 @@ balance numbers (endings, lives lost, chaos, playstyle placements) — run it af
 - A random CPI Database entity has escaped — sometimes nobody knows which one yet. Each incident is
   generated fresh: breach type (some are specific to the entity's file), location, facility damage,
   starting problem, real and made-up staff, and objectives.
-- Everyone gets a temporary **role** (trade them on your phone before a stage), private role intel and
+- Everyone gets a temporary **role** for the whole incident, private role intel and
   **3 lives**. Each stage: read the update, pick a response type and type what you do (anything), then
   watch the combined consequence and vote anonymously for the best move.
 - Outcomes are rolled by the server: roles, the entity, the facility's state, chaos and luck all

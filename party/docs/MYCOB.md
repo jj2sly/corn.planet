@@ -26,8 +26,8 @@ Game id `mycob`. Code in `server/games/mycob/` and `server/games/awards.ts`; scr
 ## 2. Flow
 
 ```
-ALERT (roles, trades)
-  └─ per stage: UPDATE (trades) → RESPONSE → PROCESSING → CONSEQUENCE → STAGE_VOTE → [scoring]
+ALERT (roles dealt)
+  └─ per stage: UPDATE → RESPONSE → PROCESSING → CONSEQUENCE → STAGE_VOTE → [scoring]
 OUTCOME (ending, entity revealed, score breakdown) → AWARD_SUBMIT → AWARD_VOTE → AWARD_RESULTS
 → room FINAL_RESULTS
 ```
@@ -36,15 +36,17 @@ OUTCOME (ending, entity revealed, score breakdown) → AWARD_SUBMIT → AWARD_VO
 |---|---|---|
 | ALERT | 20 s | — (host/leader skip) |
 | UPDATE | 20 s × length scale | — |
-| RESPONSE | 30 s × length scale | every agent has filed (editable until then) |
+| RESPONSE | 45 s × length scale | every agent has filed (editable until then) |
 | PROCESSING | 4–10 s (Claude: 4–21 s) | director answered and 4 s passed; falls back to the built-in director at the limit |
-| CONSEQUENCE | 20 s × length scale | — |
-| STAGE_VOTE | 15 s | every eligible agent voted; skipped if nobody acted |
+| CONSEQUENCE | 30 s × length scale | — |
+| STAGE_VOTE | 20 s | every eligible agent voted; skipped if nobody acted |
 | OUTCOME / AWARDS | 20 / 45 / 40 / 15 s | everyone has submitted / voted |
 
 Lengths: **Short** 3 stages, **Standard** 5, **Long** 7 (timers × 0.9 / 1 / 1.15); the host can
-also pick any 3–7 stages. Standard is about 10 minutes at full timers including awards, less when
-everyone files and votes quickly (tune `timing` to lengthen it). All timers are the
+also pick any 3–7 stages. So a Standard game gives 45 s to respond, 30 s for the consequence and
+20 s to vote; a Short one 40.5 s / 27 s / 20 s and a Long one about 52 s / 35 s / 20 s (the vote isn't
+scaled). Standard is about 13 minutes at full timers including awards, less when everyone files and
+votes quickly (tune `timing` in `config.ts`). All timers are the
 room's single pausable server timer; they freeze while the host display is away.
 
 The incident can end early — contained or terminated (from stage 3), or everyone dead (any time) —
@@ -227,8 +229,9 @@ Expected output (every field optional; anything else is ignored):
 Eight configurable roles (`config.roles`): each has strong tags (more reliable; counts as *using the
 role*), weak tags, and **role intel** only its holder's phone shows — command priorities, containment
 readout, research leads, diagnostics, staff tracker, entity tracking, the incident log, or an
-unverified rumor (the Intern, who also has the widest outcome spread). Roles are shuffled at the start;
-agents can offer and accept **swaps** during ALERT and UPDATE.
+unverified rumor (the Intern, who also has the widest outcome spread). Roles are shuffled at the start
+and **each agent keeps theirs for the whole incident**, so they can learn it and use it; there is no
+trading. The only role change is reassignment after going down (below).
 
 Everyone starts with **3 lives**. A consequence takes **at most one**, and the agent's phone says so
 immediately (red alert, vibration, private narration line). At 0 an agent is **down**; next stage they
@@ -316,7 +319,7 @@ crash (OOM, kill -9) still loses the game in progress.
 `data` holds (`canon: false`): mode, length, stages, director id, the effective config, the incident
 at start and end (entity, unknown/identified stage, breach, location, problem, environment, rules,
 difficulty, notes, stats, systems, personnel, objectives, facts), players (roles, current lives, lives lost, downs,
-reassignments), trades, and per stage: raw responses with analysis and rolls, interactions, special
+reassignments), and per stage: raw responses with analysis and rolls, interactions, special
 event, new problem, director id / fallback / validation issues, interpretations, applied effects,
 life losses, personnel and system changes, reveals, objectives, narration, ballots and the score
 breakdown; then MVPs, the ending, totals and the awards with their ballots. This is the dataset for
