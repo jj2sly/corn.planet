@@ -5,11 +5,12 @@ import { io as connect, type Socket } from "socket.io-client";
 import { createPartyServer, type PartyServer } from "../server/app.ts";
 import { createAuthVerifier } from "../server/auth.ts";
 import { PartyDb } from "../server/db.ts";
+import { DEFAULT_MYCOB_CONFIG } from "../server/games/mycob/config.ts";
 import { gamesWith } from "../server/games/registry.ts";
 import { secretCanon, stubCanon, UNKNOWN_ENTITY_LEAKS } from "./helpers.ts";
 
 /** Views are plain JSON; tests read them loosely. */
-type State = { status: string; paused: boolean; step: number; game: any; you: { playerId?: string } };
+type State = { status: string; paused: boolean; step: number; timer: { totalMs: number } | null; game: any; you: { playerId?: string } };
 
 class Client {
   readonly socket: Socket;
@@ -108,7 +109,10 @@ describe("My Cob Escaped over sockets", () => {
 
     await skip();
     await skip();
-    await everyoneAt("RESPONSE");
+    const responding = await everyoneAt("RESPONSE");
+    // Every screen gets the server's own deadline: the configured response time, scaled for a short game.
+    const responseMs = Math.round(DEFAULT_MYCOB_CONFIG.timing.responseMs * DEFAULT_MYCOB_CONFIG.lengths.short.timerScale);
+    assert.ok(responding.every((s) => s.timer?.totalMs === responseMs), "one server deadline on every screen");
     // A phone that is not the leader cannot move the game on.
     assert.equal((await players[1]!.c.emit("game:host", { action: "skip" })).error, "NOT_ALLOWED", "only the host or leader skips");
     for (const p of players) {

@@ -76,59 +76,13 @@ function screen(s, nodes, onUpdate) {
   };
 }
 
-// ------------------------------------------------------------------ briefing and trades
+// ------------------------------------------------------------------ briefing
 
-function tradePanel(tools) {
-  const box = el("section", { class: "panel quiet stack" });
-  const note = el("p", { class: "notice" });
-  const send = async (action, payload) => {
-    const result = await tools.request("game:input", { action, payload });
-    if (!result.ok) notice(note, result.message, "error");
-  };
-  const render = (g) => {
-    const crew = g.incident.crew;
-    const nameOf = (id) => crew.find((c) => c.playerId === id)?.name ?? "someone";
-    const t = g.you.trades;
-    if (!t) return box.replaceChildren();
-    const others = crew.filter((c) => c.playerId !== g.you.playerId);
-    box.replaceChildren(
-      ...[
-        el("h3", { text: "Trade roles" }),
-        ...t.incoming.map((from) =>
-          el(
-            "div",
-            { class: "row spread" },
-            el("span", { text: `${nameOf(from)} wants to swap roles with you.` }),
-            el("span", {}, el("button", { class: "btn small", type: "button", text: "Accept", onclick: () => send("trade:accept", { from }) }), " ", el("button", { class: "btn subtle small", type: "button", text: "Decline", onclick: () => send("trade:decline", { from }) })),
-          ),
-        ),
-        t.outgoing ? el("div", { class: "row spread" }, el("span", { text: `Offer sent to ${nameOf(t.outgoing)}.` }), el("button", { class: "btn subtle small", type: "button", text: "Cancel", onclick: () => send("trade:cancel", {}) })) : null,
-        el(
-          "ul",
-          { class: "list" },
-          others.map((c) =>
-            el(
-              "li",
-              {},
-              el("span", { class: "grow" }, el("strong", { text: c.name }), el("span", { class: "muted", text: ` · ${c.role}` })),
-              c.role === g.you.role.name ? null : el("button", { class: "btn ghost small", type: "button", text: "Offer swap", disabled: t.outgoing === c.playerId, onclick: () => send("trade:offer", { to: c.playerId }) }),
-            ),
-          ),
-        ),
-        note,
-      ].filter(Boolean),
-    );
-  };
-  return { node: box, render };
-}
-
-function buildBriefing(s, tools) {
+function buildBriefing(s) {
   const g = s.game;
   const t = timerRow(s.timer, stageLabel(g));
-  const trades = tradePanel(tools);
   const intel = el("div", { dataset: { role: g.you.role.id } }, roleIntel(g));
   const narration = liveNarration(g.narration);
-  trades.render(g);
   return screen(
     s,
     [
@@ -137,12 +91,11 @@ function buildBriefing(s, tools) {
       narration.node,
       el("p", { class: "phone-prompt", text: g.incident.problem }),
       intel,
-      trades.node,
     ],
     (next) => {
       t.set(next.timer);
       narration.set(next.game.narration);
-      trades.render(next.game);
+      // Only changes when you were reassigned after going down.
       if (next.game.you.role.id !== intel.dataset.role) {
         intel.dataset.role = next.game.you.role.id;
         intel.replaceChildren(roleIntel(next.game));
@@ -497,7 +450,7 @@ export function render(mount, state, tools) {
   switch (g.phase) {
     case "ALERT":
     case "UPDATE":
-      return mount(key, (s) => buildBriefing(s, tools), state);
+      return mount(key, (s) => buildBriefing(s), state);
     case "RESPONSE":
       return mount(key, (s) => buildResponse(s, tools), state);
     case "PROCESSING":

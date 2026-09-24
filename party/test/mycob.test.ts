@@ -160,6 +160,20 @@ describe("My Cob Escaped: a whole incident", () => {
     assert.equal(view(room).stage, 2);
   });
 
+  it("gives agents 45 s to respond, 30 s to read the consequence and 20 s to vote", async () => {
+    assert.deepEqual([T.responseMs, T.consequenceMs, T.voteMs], [45_000, 30_000, 20_000]);
+    const { room, ids } = start({ settings: { length: "standard" } });
+    // The server's deadline, as the host screen and every phone receive it.
+    const deadlines = () => [room.viewFor({ kind: "host" }), ...ids.map((id) => room.viewFor({ kind: "player", playerId: id }))].map((v) => v.timer!.totalMs);
+    await until(room, "RESPONSE");
+    assert.deepEqual(new Set(deadlines()), new Set([45_000]));
+    for (const id of ids) room.gameInput(id, "respond", { tag: "CONTAIN", text: "Lock it" });
+    await until(room, "CONSEQUENCE");
+    assert.deepEqual(new Set(deadlines()), new Set([30_000]));
+    await until(room, "STAGE_VOTE");
+    assert.deepEqual(new Set(deadlines()), new Set([20_000]));
+  });
+
   it("closes responses once everyone has filed, and keeps them editable until then", async () => {
     const { room, ids, records, db } = start();
     await until(room, "RESPONSE");
@@ -195,7 +209,7 @@ describe("My Cob Escaped: a whole incident", () => {
 });
 
 describe("My Cob Escaped: roles and lives", () => {
-  it("assigns roles at random and lets agents trade them before a stage", async () => {
+  it("assigns roles at random and keeps each agent's role for the whole incident", async () => {
     const firstRoles = new Set<string>();
     for (let seed = 1; seed <= 8; seed++) {
       const { room, ids } = start({ seed });
@@ -203,21 +217,37 @@ describe("My Cob Escaped: roles and lives", () => {
     }
     assert.ok(firstRoles.size > 2, "roles are random");
 
-    const { room, ids } = start();
-    const [a, b, c] = ids as [string, string, string];
-    const roleA = view(room, a).you.role.id;
-    const roleB = view(room, b).you.role.id;
-    expectError(() => room.gameInput(a, "trade:offer", { to: a }), "TRADE_UNAVAILABLE");
-    expectError(() => room.gameInput(b, "trade:accept", { from: a }), "TRADE_UNAVAILABLE");
-    room.gameInput(a, "trade:offer", { to: b });
-    assert.deepEqual(view(room, b).you.trades.incoming, [a]);
-    assert.equal(view(room, c).you.trades.incoming.length, 0, "offers are private");
-    room.gameInput(b, "trade:accept", { from: a });
-    assert.equal(view(room, a).you.role.id, roleB);
-    assert.equal(view(room, b).you.role.id, roleA);
-    assert.ok(view(room, a).you.notices.some((n: View) => n.kind === "trade"));
-    await until(room, "RESPONSE");
-    expectError(() => room.gameInput(a, "trade:offer", { to: c }), "PHASE_CLOSED");
+    // Nobody goes down and nothing ends it early, so every stage is a normal one.
+    const noLosses = { critical: 0, success: 0, partial: 0, failure: 0, catastrophe: 0, hazardBase: 0, hazardPersonnel: 0, hazardChaos: 0, idleExtra: 0 };
+    const { room, ids } = start({ names: ["A1", "B2", "C3", "D4", "E5", "F6", "G7", "H8"], config: { lifeRisk: noLosses, endings: { minStage: 99 } } });
+    const roleId = (id: string) => view(room, id).you.role.id;
+    const dealt = new Map(ids.map((id) => [id, roleId(id)]));
+    const commander = ids.find((id) => roleId(id) === "commander");
+    assert.ok(commander, "eight agents: every role is dealt");
+    // There is no way to swap roles.
+    for (const action of ["trade:offer", "trade:accept", "trade:cancel", "trade:decline"]) {
+      expectError(() => room.gameInput(ids[0]!, action, { to: ids[1], from: ids[1] }), "INVALID_ACTION");
+    }
+
+    const stages = new Set<number>();
+    for (let guard = 0; guard < 300 && room.status === "IN_GAME" && view(room).phase !== "OUTCOME"; guard++) {
+      const v = view(room);
+      stages.add(v.stage);
+      for (const id of ids) {
+        const you = view(room, id).you;
+        assert.equal(you.role.id, dealt.get(id), `${id} changed role in stage ${v.stage} (${v.phase})`);
+        assert.equal(you.trades, undefined, "no trade offers on the phone");
+      }
+      assert.equal(view(room, commander).you.role.name, "Incident Commander");
+      assert.ok(v.incident.crew.every((c: View) => c.role === view(room, c.playerId).you.role.name), "the host screen shows the same roles");
+      if (v.phase === "RESPONSE") {
+        for (const id of ids) if (phase(room) === "RESPONSE") room.gameInput(id, "respond", { tag: "CONTAIN", text: "Hold the line" });
+        await settle();
+        continue;
+      }
+      await step(room);
+    }
+    assert.deepEqual([...stages].filter((s) => s > 0), [1, 2, 3, 4, 5], "all five stages, same roles throughout");
   });
 
   it("starts at 3 lives, tells an agent at once when they lose one, and takes at most one per consequence", async () => {

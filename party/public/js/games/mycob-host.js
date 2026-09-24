@@ -105,7 +105,7 @@ function buildAlert(s) {
       situation(g.incident),
       el("h2", { text: "Temporary assignments" }),
       crew,
-      el("p", { class: "muted", text: "Roles are for this incident only. Trade them from your phone before the first stage." }),
+      el("p", { class: "muted", text: "Roles are for this incident only, and everyone keeps theirs until the end." }),
     ],
     (next) => {
       head.setTimer(next.timer);

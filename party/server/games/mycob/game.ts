@@ -1,7 +1,7 @@
 // MY COB ESCAPED, WHAT DO I DO NOW??? — an incident-response party game.
 //
-// A random CPI Database entity gets out. Agents are handed temporary roles and three lives, and
-// every stage each one files an open-ended response (a tag plus free text) from their phone. The
+// A random CPI Database entity gets out. Agents are handed temporary roles (kept for the whole
+// incident, unless they go down and come back as someone else) and three lives, and every stage each one files an open-ended response (a tag plus free text) from their phone. The
 // Incident Director interprets them all together; the engine rolls, validates and applies what
 // actually happens; the room sees one narrated consequence and votes anonymously for the stage's
 // best move. After the last stage (or a decisive ending), agents invent the awards and vote on who
@@ -97,7 +97,6 @@ type Phase =
   | "AWARD_VOTE"
   | "AWARD_RESULTS";
 
-const TRADE_PHASES: readonly Phase[] = ["ALERT", "UPDATE"];
 const STAGE_PHASES: readonly Phase[] = ["ALERT", "UPDATE", "RESPONSE", "PROCESSING", "CONSEQUENCE", "STAGE_VOTE"];
 
 export const OUTCOME_LABELS: Record<Outcome, string> = {
@@ -111,7 +110,7 @@ export const OUTCOME_LABELS: Record<Outcome, string> = {
 interface Notice {
   id: string;
   stage: number;
-  kind: "life" | "down" | "reassigned" | "trade";
+  kind: "life" | "down" | "reassigned";
   text: string;
 }
 
@@ -211,8 +210,6 @@ class MyCobGame implements GameInstance {
   private processingToken = 0;
   private votes = new Map<string, string>();
   private voters: string[] = [];
-  private offers = new Map<string, string>();
-  private readonly trades: { stage: number; a: string; b: string }[] = [];
   private readonly history: string[] = [];
   private readonly records: StageRecord[] = [];
   private readonly mvps: { stage: number; playerIds: string[]; votes: number }[] = [];
@@ -447,7 +444,6 @@ class MyCobGame implements GameInstance {
   }
 
   private openResponses(): void {
-    this.offers.clear();
     this.phase = "RESPONSE";
     this.schedule(this.config.timing.responseMs, () => this.closeResponses());
     this.ctx.changed();
@@ -820,7 +816,6 @@ class MyCobGame implements GameInstance {
         identity: m.identity,
         left: m.left,
       })),
-      trades: this.trades,
       stages: this.records.map((r) => ({
         stage: r.stage,
         statsBefore: r.result.statsBefore,
@@ -894,18 +889,6 @@ class MyCobGame implements GameInstance {
         return this.respond(member, asRecord(payload));
       case "vote":
         return this.vote(member, asRecord(payload));
-      case "trade:offer":
-        return this.tradeOffer(member, asRecord(payload));
-      case "trade:accept":
-        return this.tradeAccept(member, asRecord(payload));
-      case "trade:cancel":
-        this.offers.delete(member.playerId);
-        return this.ctx.changed();
-      case "trade:decline": {
-        const from = asRecord(payload).from;
-        if (typeof from === "string" && this.offers.get(from) === member.playerId) this.offers.delete(from);
-        return this.ctx.changed();
-      }
       case "award:submit":
         return this.submitAward(member, asRecord(payload));
       case "award:vote":
@@ -948,28 +931,6 @@ class MyCobGame implements GameInstance {
     this.ctx.changed();
   }
 
-  private tradeOffer(member: CrewMember, payload: Record<string, unknown>): void {
-    if (!TRADE_PHASES.includes(this.phase)) throw new PartyError("PHASE_CLOSED");
-    const to = this.crew.get(String(payload.to));
-    if (!to || to.left || to.playerId === member.playerId || to.roleId === member.roleId) throw new PartyError("TRADE_UNAVAILABLE");
-    this.offers.set(member.playerId, to.playerId);
-    this.ctx.changed();
-  }
-
-  private tradeAccept(member: CrewMember, payload: Record<string, unknown>): void {
-    if (!TRADE_PHASES.includes(this.phase)) throw new PartyError("PHASE_CLOSED");
-    const from = this.crew.get(String(payload.from));
-    if (!from || from.left || this.offers.get(from.playerId) !== member.playerId) throw new PartyError("TRADE_UNAVAILABLE");
-    [from.roleId, member.roleId] = [member.roleId, from.roleId];
-    for (const [a, b] of [...this.offers]) {
-      if ([a, b].some((id) => id === from.playerId || id === member.playerId)) this.offers.delete(a);
-    }
-    this.trades.push({ stage: this.stage, a: from.playerId, b: member.playerId });
-    this.notify(from, "trade", `${member.name} took your offer. You're now ${roleOf(this.config, from.roleId).name}.`);
-    this.notify(member, "trade", `Trade done. You're now ${roleOf(this.config, member.roleId).name}.`);
-    this.ctx.changed();
-  }
-
   private submitAward(member: CrewMember, payload: Record<string, unknown>): void {
     if (this.phase !== "AWARD_SUBMIT") throw new PartyError("PHASE_CLOSED");
     this.awards.submit(member.playerId, { awardId: payload.awardId, name: payload.name, description: payload.description });
@@ -995,7 +956,6 @@ class MyCobGame implements GameInstance {
   playerLeft(playerId: string): void {
     const member = this.crew.get(playerId);
     if (member) member.left = true;
-    for (const [a, b] of [...this.offers]) if (a === playerId || b === playerId) this.offers.delete(a);
     this.awards.forget(playerId);
 
     const enough = this.activeCrew().length >= this.config.players.minToContinue;
@@ -1281,12 +1241,6 @@ class MyCobGame implements GameInstance {
             }
           : null,
       lostLife: this.phase === "CONSEQUENCE" || this.phase === "STAGE_VOTE" ? (this.result?.lifeLosses.some((l) => l.playerId === member.playerId) ?? false) : false,
-      trades: TRADE_PHASES.includes(this.phase)
-        ? {
-            outgoing: this.offers.get(member.playerId) ?? null,
-            incoming: [...this.offers].filter(([, to]) => to === member.playerId).map(([from]) => from),
-          }
-        : null,
       yourVote: this.phase === "STAGE_VOTE" ? (this.votes.get(member.playerId) ?? null) : null,
       canVote: this.phase === "STAGE_VOTE" ? this.voters.includes(member.playerId) : false,
       awards:
