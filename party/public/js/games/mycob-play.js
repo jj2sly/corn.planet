@@ -22,7 +22,7 @@ import {
   TAG_INFO,
   whyAndCaused,
 } from "./mycob-shared.js";
-import { playCue } from "./mycob-sound.js";
+import { playCue, preloadSounds, soundControl, timerWarning } from "./mycob-sound.js";
 
 const DRAFT_KEY = "cpst-party:mycob-draft";
 const seenNotices = new Set();
@@ -76,14 +76,22 @@ function youStrip(g) {
   );
 }
 
+/** Your own countdowns: a response you haven't filed, a vote you haven't cast. */
+function warnKey(g) {
+  const due = (g.phase === "RESPONSE" && !g.you.response) || (g.phase === "STAGE_VOTE" && g.you.canVote && !g.you.yourVote);
+  return due ? `${g.incident.code}:${g.phase}:${g.stage}` : null;
+}
+
 /** Wraps a phase view with the you-strip on top; the strip refreshes on every update. */
 function screen(s, nodes, onUpdate) {
   const strip = el("div", {}, youStrip(s.game));
-  const node = el("div", { class: "stack" }, strip, ...nodes);
+  const node = el("div", { class: "stack" }, strip, ...nodes, soundControl());
+  timerWarning(warnKey(s.game), s.timer);
   return {
     node,
     update(next) {
       strip.replaceChildren(youStrip(next.game));
+      timerWarning(warnKey(next.game), next.timer);
       onUpdate?.(next);
     },
   };
@@ -515,6 +523,7 @@ function buildAwardResults(s) {
 
 export function render(mount, state, tools) {
   const g = state.game;
+  preloadSounds(["response_in", "life_lost", "timer_warning"]);
   const key = `mycob:${g.incident.code}:${g.phase}:${g.stage}`;
   switch (g.phase) {
     case "ALERT":

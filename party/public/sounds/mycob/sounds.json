@@ -1,0 +1,19 @@
+{
+  "_readme": "Cue -> file(s) under /sounds/mycob/. A list picks one at random each time. An empty list plays the built-in placeholder, or nothing. See README.md.",
+  "game_start": [],
+  "alert": [],
+  "timer_warning": [],
+  "response_in": [],
+  "success": [],
+  "major_failure": [],
+  "discovery": [],
+  "chaos_up": [],
+  "life_lost": [],
+  "vote_start": [],
+  "vote_result": [],
+  "contained": [],
+  "terminated": [],
+  "escaped": [],
+  "everyone_dies": [],
+  "game_end": []
+}

@@ -1,21 +1,54 @@
-// My Cob Escaped sound effects. The server sends cues (`game.cues`: [{ id, cue }]) only for things
-// every screen is already being shown; the host screen plays each new one once, and phones play
-// their own few (your response filed, your life lost).
+// My Cob Escaped sound manager. Every sound in the game goes through here: lookup, playback, volume,
+// mute, the browser's autoplay rules and keeping sounds from piling up.
 //
-// Every cue has an original placeholder synthesized right here with Web Audio: deliberately goofy
-// (klaxons, slide whistles, a sad trombone, kazoo buzzes, boings). To swap one for a real sound, put
-// the file under public/sounds/mycob/ and name it in SOUND_FILES, e.g.
+// The server sends cues (`game.cues`: [{ id, cue }]) only for things every screen is already shown;
+// the host plays each new one once, phones play their own few (your response filed, your life lost,
+// your timer running out). Real sounds are mapped to cues in /sounds/mycob/sounds.json (see the
+// README next to it): changing a sound never touches game code. A cue with no file mapped uses its
+// synthesized placeholder below, if it has one, and is silent otherwise.
 //
-//   life_lost: "/sounds/mycob/life_lost.mp3",
-//
-// Nothing waits for audio: a missing file or a browser that hasn't allowed sound yet is just silence.
+// Nothing waits for audio: a missing file, a browser that hasn't allowed sound yet or no Web Audio is
+// just silence.
 
 import { el, store } from "../common.js";
 
-/** cue -> URL of a real sound file. Empty: every cue uses its placeholder. */
-export const SOUND_FILES = {};
-
+const BASE = "/sounds/mycob/";
+const MANIFEST = `${BASE}sounds.json`;
 const MUTE_KEY = "cpst-party:mycob-muted";
+const VOLUME_KEY = "cpst-party:mycob-volume";
+
+/** Every cue a screen can play: the engine's, plus `timer_warning` from the screens themselves. */
+export const CUES = [
+  "game_start",
+  "alert",
+  "timer_warning",
+  "response_in",
+  "success",
+  "major_failure",
+  "discovery",
+  "chaos_up",
+  "life_lost",
+  "vote_start",
+  "vote_result",
+  "contained",
+  "terminated",
+  "escaped",
+  "everyone_dies",
+  "game_end",
+];
+
+/** Never dropped to make room for something else. */
+const IMPORTANT = new Set(["game_start", "life_lost", "contained", "terminated", "escaped", "everyone_dies", "game_end"]);
+/** The same cue again within this many seconds is dropped: four agents filing at once is one bloop. */
+const SAME_CUE_GAP = 0.35;
+/** Cues play one after another; the next may start this many seconds into a long one. */
+const MAX_SLOT = 1.5;
+/** A cue that would have to wait longer than this is dropped, unless important. */
+const MAX_BACKLOG = 3;
+/** At most this many sounds at once. */
+const MAX_VOICES = 3;
+/** When the timer warning sounds. */
+const WARN_AT_MS = 10_000;
 
 // A tone glides from `from` to `to` Hz; `vib` wobbles it (rate Hz, depth Hz). Noise is a hiss burst.
 const tone = (at, dur, from, to = from, wave = "square", gain = 0.14, vib = null) => ({ at, dur, from, to, wave, gain, vib });
@@ -23,8 +56,8 @@ const hiss = (at, dur, gain = 0.12) => ({ at, dur, noise: true, gain });
 const trombone = (notes, step, last) =>
   notes.map((f, i) => tone(i * step, i === notes.length - 1 ? last : step * 0.9, f, i === notes.length - 1 ? f * 0.97 : f, "sawtooth", 0.13, { rate: 6, depth: i === notes.length - 1 ? 9 : 4 }));
 
-/** The placeholders. */
-export const SYNTH = {
+/** The placeholders, used until a file is mapped. */
+const SYNTH = {
   game_start: [tone(0, 0.22, 700), tone(0.25, 0.22, 470), tone(0.5, 0.22, 700), tone(0.75, 0.3, 470)], // wee-woo wee-woo
   response_in: [tone(0, 0.12, 320, 900, "sine", 0.22)], // bloop
   major_failure: trombone([392, 370, 349, 330], 0.32, 1.1), // wah wah wah wahhh
@@ -41,29 +74,135 @@ export const SYNTH = {
   game_end: [392, 523, 659, 784, 659].map((f, i) => tone(i * 0.11, 0.1, f, f, "triangle", 0.18)).concat(tone(0.58, 0.6, 1047, 1047, "triangle", 0.18)), // silly flourish
 };
 
+// ------------------------------------------------------------------ settings (this device only)
+
 export const isMuted = () => store.get("localStorage", MUTE_KEY) === true;
+export const getVolume = () => {
+  const v = store.get("localStorage", VOLUME_KEY);
+  return typeof v === "number" && v >= 0 && v <= 1 ? v : 0.8;
+};
+export function setMuted(muted) {
+  store.set("localStorage", MUTE_KEY, muted);
+  applyVolume();
+}
+export function setVolume(volume) {
+  store.set("localStorage", VOLUME_KEY, Math.min(1, Math.max(0, volume)));
+  applyVolume();
+}
+
+// ------------------------------------------------------------------ the sound map
+
+let manifest = null;
+
+/** sounds.json: cue -> "file" | ["file", ...] | { files, volume }. Paths are relative to /sounds/mycob/. */
+function loadManifest() {
+  manifest ??= fetch(MANIFEST)
+    .then((r) => (r.ok ? r.json() : {}))
+    .catch(() => ({}))
+    .then((raw) => {
+      const map = new Map();
+      for (const [cue, value] of Object.entries(raw ?? {})) {
+        if (cue.startsWith("_")) continue;
+        if (!CUES.includes(cue)) console.warn(`[mycob-sound] sounds.json: unknown cue "${cue}"`);
+        const entry = typeof value === "string" || Array.isArray(value) ? { files: value } : (value ?? {});
+        const files = [entry.files ?? []].flat().filter((f) => typeof f === "string" && f);
+        const volume = typeof entry.volume === "number" ? Math.min(2, Math.max(0, entry.volume)) : 1;
+        if (files.length) map.set(cue, { files: files.map((f) => (f.startsWith("/") ? f : BASE + f)), volume });
+      }
+      return map;
+    });
+  return manifest;
+}
+
+const bytes = new Map(); // url -> Promise<ArrayBuffer | null>
+const decoded = new Map(); // url -> Promise<AudioBuffer | null>
+
+function fetchBytes(url) {
+  if (!bytes.has(url)) {
+    bytes.set(
+      url,
+      fetch(url)
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`HTTP ${r.status}`))))
+        .catch((err) => (console.warn(`[mycob-sound] couldn't load ${url}: ${err.message}`), null)),
+    );
+  }
+  return bytes.get(url);
+}
+
+function decode(ac, url) {
+  if (!decoded.has(url)) {
+    decoded.set(
+      url,
+      fetchBytes(url).then((data) => (data ? ac.decodeAudioData(data).catch(() => (console.warn(`[mycob-sound] couldn't decode ${url}`), null)) : null)),
+    );
+  }
+  return decoded.get(url);
+}
+
+/** Downloads the mapped files for these cues ahead of time (no decoding, no audio needed yet). */
+export function preloadSounds(cues = CUES) {
+  loadManifest().then((map) => {
+    for (const cue of cues) for (const url of map.get(cue)?.files ?? []) fetchBytes(url);
+  });
+}
+
+// ------------------------------------------------------------------ playback
 
 let ctx = null;
-let nextFree = 0;
+let master = null;
 
-function audio() {
+function context() {
   const AC = globalThis.AudioContext ?? globalThis.webkitAudioContext;
   if (!AC) return null;
-  ctx ??= new AC();
-  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+  if (!ctx) {
+    ctx = new AC();
+    master = ctx.createGain();
+    master.connect(ctx.destination);
+    applyVolume();
+  }
   return ctx;
 }
 
-// Browsers only allow sound after a tap or click on the page; wake the audio on each one.
-globalThis.addEventListener?.("pointerdown", () => ctx?.state === "suspended" && ctx.resume().catch(() => {}), { passive: true });
+function applyVolume() {
+  if (master) master.gain.value = isMuted() ? 0 : getVolume();
+}
 
-function synth(parts) {
-  const ac = audio();
-  if (!ac) return;
-  // Cues that arrive together play one after another, not on top of each other.
-  const start = Math.max(ac.currentTime + 0.02, nextFree);
-  const length = Math.max(...parts.map((p) => p.at + p.dur));
-  nextFree = start + length + 0.12;
+// Browsers only allow sound once the page has been tapped, clicked or typed on: start or wake the
+// audio then. Cues that arrive before that are skipped, not saved up to all play at once.
+const unlock = () => {
+  const ac = context();
+  if (ac?.state === "suspended") ac.resume().catch(() => {});
+};
+for (const type of ["pointerdown", "keydown", "touchend"]) globalThis.addEventListener?.(type, unlock, { passive: true, capture: true });
+
+let nextFree = 0;
+let playing = []; // end times of the sounds scheduled so far
+const lastStart = new Map(); // cue -> start time
+
+/** When this cue may start, or null to drop it. */
+function slot(ac, cue, length) {
+  const now = ac.currentTime;
+  const important = IMPORTANT.has(cue);
+  const start = Math.max(now + 0.02, nextFree);
+  if (start - (lastStart.get(cue) ?? -Infinity) < SAME_CUE_GAP) return null;
+  playing = playing.filter((end) => end > start);
+  if (!important && (start - now > MAX_BACKLOG || playing.length >= MAX_VOICES)) return null;
+  playing.push(start + length);
+  lastStart.set(cue, start);
+  nextFree = start + Math.min(length, MAX_SLOT) + 0.1;
+  return start;
+}
+
+function playBuffer(ac, buffer, volume, start) {
+  const source = ac.createBufferSource();
+  source.buffer = buffer;
+  const gain = ac.createGain();
+  gain.gain.value = volume;
+  source.connect(gain).connect(master);
+  source.start(start);
+}
+
+function synth(ac, parts, start) {
   for (const p of parts) {
     const t0 = start + p.at;
     const t1 = t0 + p.dur;
@@ -71,7 +210,7 @@ function synth(parts) {
     gain.gain.setValueAtTime(0.0001, t0);
     gain.gain.exponentialRampToValueAtTime(p.gain, t0 + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, t1);
-    gain.connect(ac.destination);
+    gain.connect(master);
     let source;
     if (p.noise) {
       const buffer = ac.createBuffer(1, Math.ceil(ac.sampleRate * p.dur), ac.sampleRate);
@@ -100,16 +239,33 @@ function synth(parts) {
   }
 }
 
-/** Plays one cue now (or right after the one before it). */
-export function playCue(cue) {
+async function play(cue) {
   if (isMuted()) return;
-  try {
-    const file = SOUND_FILES[cue];
-    if (file) new Audio(file).play().catch(() => {});
-    else if (SYNTH[cue]) synth(SYNTH[cue]);
-  } catch {
-    // Sound is decoration: never let it break a screen.
+  const ac = context();
+  if (!ac) return;
+  if (ac.state !== "running") return unlock();
+  const entry = (await loadManifest()).get(cue);
+  if (entry) {
+    const url = entry.files[Math.floor(Math.random() * entry.files.length)];
+    const buffer = await decode(ac, url);
+    if (buffer) {
+      const start = slot(ac, cue, buffer.duration);
+      if (start !== null) playBuffer(ac, buffer, entry.volume, start);
+      return;
+    }
   }
+  const parts = SYNTH[cue];
+  if (!parts) return;
+  const start = slot(ac, cue, Math.max(...parts.map((p) => p.at + p.dur)));
+  if (start !== null) synth(ac, parts, start);
+}
+
+let queue = Promise.resolve();
+
+/** Plays one cue now, or right after the ones before it. Never throws. */
+export function playCue(cue) {
+  // Chained so cues keep their order even while a file is still loading.
+  queue = queue.then(() => play(cue)).catch(() => {});
 }
 
 const seen = new Map();
@@ -131,18 +287,45 @@ export function playNewCues(scope, cues, { fresh = false } = {}) {
   }
 }
 
-/** A small sound on/off switch, remembered on this device. */
-export function soundToggle() {
-  const button = el("button", { class: "btn subtle small mc-sound", type: "button" });
+const warned = new Set();
+let warning = 0;
+
+/**
+ * Sounds `timer_warning` once when `timer` gets to its last few seconds. Call it with every update:
+ * `key` names the countdown (null when this screen shouldn't warn), and a new key or null cancels.
+ */
+export function timerWarning(key, timer) {
+  clearTimeout(warning);
+  if (!key || !timer || timer.paused || warned.has(key)) return;
+  const wait = timer.remainingMs - WARN_AT_MS;
+  // Already inside the warning window (a reload, a late join): stay quiet.
+  if (wait < 0) return;
+  warning = setTimeout(() => {
+    warned.add(key);
+    playCue("timer_warning");
+  }, wait);
+}
+
+/** Mute button and volume slider, remembered on this device. */
+export function soundControl() {
+  const button = el("button", { class: "btn subtle small", type: "button", "aria-label": "Mute sound" });
+  const slider = el("input", { type: "range", min: "0", max: "100", step: "5", "aria-label": "Sound volume" });
   const paint = () => {
-    button.textContent = isMuted() ? "🔇 Sound off" : "🔊 Sound on";
-    button.setAttribute("aria-pressed", String(!isMuted()));
+    button.textContent = isMuted() ? "🔇" : "🔊";
+    button.setAttribute("aria-pressed", String(isMuted()));
+    slider.value = String(Math.round(getVolume() * 100));
   };
   button.addEventListener("click", () => {
-    store.set("localStorage", MUTE_KEY, !isMuted());
+    setMuted(!isMuted());
     paint();
     if (!isMuted()) playCue("response_in");
   });
+  slider.addEventListener("input", () => {
+    setVolume(Number(slider.value) / 100);
+    if (isMuted()) setMuted(false);
+    paint();
+  });
+  slider.addEventListener("change", () => playCue("response_in"));
   paint();
-  return button;
+  return el("div", { class: "mc-sound", role: "group", "aria-label": "Sound" }, button, slider);
 }

@@ -117,6 +117,7 @@ export const OUTCOME_LABELS: Record<Outcome, string> = {
  */
 export type SoundCue =
   | "game_start"
+  | "alert"
   | "response_in"
   | "major_failure"
   | "success"
@@ -737,6 +738,7 @@ class MyCobGame implements GameInstance {
     if (outcomes.some((o) => o === "critical" || o === "success")) this.cue("success");
     if (outcomes.includes("catastrophe") || (outcomes.length > 0 && outcomes.every((o) => o === "failure"))) this.cue("major_failure");
     if (result.reveals.length) this.cue("discovery");
+    if (result.newProblem || result.specialEvent) this.cue("alert");
     // Labels run highest first, so a lower index is more chaos.
     if (chaosRank(result.statsAfter.chaos) < chaosRank(result.statsBefore.chaos)) this.cue("chaos_up");
     if (livesLost) this.cue("life_lost");

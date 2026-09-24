@@ -445,6 +445,7 @@ describe("My Cob Escaped: stage recap, role cards, sound cues and the finale", (
     const now = cues();
     assert.equal(now.includes("success"), c.actions.some((a: View) => a.outcome === "critical" || a.outcome === "success"));
     assert.equal(now.includes("discovery"), c.discoveries.length > 0);
+    assert.equal(now.includes("alert"), !!(c.newProblem || c.specialEvent), "a new problem or special event sounds the alarm");
     assert.equal(now.includes("life_lost"), c.lifeLosses.length > 0);
     assert.equal(now.includes("chaos_up"), c.statusChanges.some((x: View) => x.id === "chaos" && !x.better));
     await until(room, "STAGE_VOTE");

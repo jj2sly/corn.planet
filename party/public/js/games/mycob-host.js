@@ -23,7 +23,7 @@ import {
   systemsList,
   TAG_INFO,
 } from "./mycob-shared.js";
-import { playNewCues, soundToggle } from "./mycob-sound.js";
+import { playNewCues, preloadSounds, soundControl, timerWarning } from "./mycob-sound.js";
 import { speakNew } from "./mycob-voice.js";
 
 function header(eyebrow, title, timer) {
@@ -62,23 +62,29 @@ function board(g) {
         ),
       ),
     ),
-    soundToggle(),
   );
 }
+
+/** The countdowns worth a warning on the big screen: responses and the vote. */
+const warnKey = (g) => (g.phase === "RESPONSE" || g.phase === "STAGE_VOTE" ? `${g.incident.code}:${g.phase}:${g.stage}` : null);
 
 /** Main column + board. `main` is rebuilt per phase; the board refreshes on every update. */
 function layout(s, mainNodes, onUpdate) {
   const side = el("div", {}, board(s.game));
-  const node = el("div", { class: "mc-layout" }, el("div", { class: "mc-main stack" }, ...mainNodes), side);
+  // Outside the board, which is rebuilt on every update: a slider being dragged must survive it.
+  const node = el("div", { class: "mc-layout" }, el("div", { class: "mc-main stack" }, ...mainNodes), el("div", {}, side, soundControl()));
   speakNew(s.game.incident.code, s.game.narration);
+  preloadSounds();
   // A screen that opens on a fresh incident plays its opening klaxon; one that joins later plays nothing old.
   playNewCues(s.game.incident.code, s.game.cues, { fresh: s.game.phase === "ALERT" });
+  timerWarning(warnKey(s.game), s.timer);
   return {
     node,
     update(next) {
       side.replaceChildren(board(next.game));
       speakNew(next.game.incident.code, next.game.narration);
       playNewCues(next.game.incident.code, next.game.cues);
+      timerWarning(warnKey(next.game), next.timer);
       onUpdate?.(next);
     },
   };

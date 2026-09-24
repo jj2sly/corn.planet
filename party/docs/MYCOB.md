@@ -368,14 +368,20 @@ Views send the current beat; private lines (your life loss) only to you. On the 
 provider can only skip lines, never hold up play.
 
 **Sound effects** are separate from the voice. The engine adds a cue (`game.cues`: `{ id, cue }`, the
-last 12) when something happens that every screen is already shown: `game_start`, `response_in` (a
-first filing, not an edit), `success`, `major_failure` (a catastrophe, or every action failed),
-`discovery`, `chaos_up` (the chaos label rose), `life_lost`, `vote_start`, `vote_result`, the ending
-(`contained`, `terminated`, `escaped`, `everyone_dies`) and `game_end`. The host screen plays each
-cue once (`public/js/games/mycob-sound.js`; a screen that joins mid-game plays nothing old) and has a
-sound on/off switch; phones only play your own response filed and life lost. Every cue has an original,
-deliberately goofy placeholder synthesized with Web Audio (klaxon, slide whistles, sad trombone, kazoo,
-boing); to use a real sound, add the file under `public/sounds/mycob/` and name it in `SOUND_FILES`.
+last 12) when something happens that every screen is already shown: `game_start`, `alert` (a new
+problem or special event), `response_in` (a first filing, not an edit), `success`, `major_failure` (a
+catastrophe, or every action failed), `discovery`, `chaos_up` (the chaos label rose), `life_lost`,
+`vote_start`, `vote_result`, the ending (`contained`, `terminated`, `escaped`, `everyone_dies`) and
+`game_end`; screens add `timer_warning` themselves at 10 s left. All playback goes through one
+manager, `public/js/games/mycob-sound.js`: the host plays each cue once (a screen that joins mid-game
+plays nothing old), phones only your own response filed, life lost and timer warning (while you
+haven't filed or voted). Mute and volume are per device (`localStorage`), on the host board and at the
+bottom of each phone screen. Sounds queue instead of stacking (at most 3 at once, repeats within
+0.35 s and anything waiting over 3 s dropped, except game start, life lost and the endings), and
+nothing plays before the page has been tapped. Real sounds are mapped to cues in
+`public/sounds/mycob/sounds.json`; the folder layout and naming are in the README there. Unmapped cues
+use an original synthesized placeholder (klaxon, slide whistles, sad trombone, kazoo, boing), or stay
+silent (`alert`, `timer_warning`).
 
 ## 14. Modes and extension points
 
