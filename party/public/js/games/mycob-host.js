@@ -55,7 +55,7 @@ function board(g) {
           el(
             "li",
             { class: [c.connected ? "" : "offline", c.down ? "down" : ""].join(" ").trim() },
-            el("span", { class: "grow" }, el("strong", { text: c.name }), el("span", { class: "muted", text: ` · ${c.role}` }), c.identity ? el("span", { class: "muted", text: ` (as ${c.identity})` }) : null),
+            el("span", { class: "grow" }, el("strong", { text: c.name }), el("span", { class: "muted", text: ` · ${c.roleIcon} ${c.role}` }), c.identity ? el("span", { class: "muted", text: ` (as ${c.identity})` }) : null),
             c.submitted === true ? stampEl("filed", "ok") : null,
             c.down ? stampEl("down", "danger") : livesEl(c.lives, g.maxLives),
           ),
@@ -103,7 +103,7 @@ function buildAlert(s) {
   const crew = el(
     "ul",
     { class: "mc-roles" },
-    g.incident.crew.map((c) => el("li", {}, el("strong", { text: c.name }), el("span", { text: c.role }))),
+    g.incident.crew.map((c) => el("li", {}, el("strong", { text: c.name }), el("span", { text: `${c.roleIcon} ${c.role}` }))),
   );
   const narration = liveNarration(g.narration);
   return layout(
@@ -120,7 +120,7 @@ function buildAlert(s) {
     (next) => {
       head.setTimer(next.timer);
       narration.set(next.game.narration);
-      crew.replaceChildren(...next.game.incident.crew.map((c) => el("li", {}, el("strong", { text: c.name }), el("span", { text: c.role }))));
+      crew.replaceChildren(...next.game.incident.crew.map((c) => el("li", {}, el("strong", { text: c.name }), el("span", { text: `${c.roleIcon} ${c.role}` }))));
     },
   );
 }
@@ -200,10 +200,11 @@ function actionCards(consequence) {
         el(
           "div",
           { class: "row spread" },
-          el("span", {}, el("strong", { text: a.name }), el("span", { class: "muted", text: ` · ${a.role} · ${TAG_INFO[a.tag].icon} ${TAG_INFO[a.tag].label}` })),
+          el("span", {}, el("strong", { text: a.name }), el("span", { class: "muted", text: ` · ${a.roleIcon} ${a.role} · ${TAG_INFO[a.tag].icon} ${TAG_INFO[a.tag].label}` })),
           outcomeStamp(a.outcome, a.outcomeLabel),
         ),
         el("p", { text: a.summary }),
+        a.with.length ? el("ul", { class: "mc-why" }, a.with.map((w) => el("li", { text: w }))) : null,
       ),
     ),
   );
@@ -241,6 +242,7 @@ function buildConsequence(s) {
       actionCards(c),
       c.discoveries.length ? el("section", {}, el("h2", { text: "Discovered" }), factsList(c.discoveries)) : null,
       changesPanel(c),
+      el("p", { class: "mc-next", text: c.next }),
     ],
     (next) => head.setTimer(next.timer),
   );

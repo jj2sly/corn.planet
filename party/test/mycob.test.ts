@@ -177,6 +177,23 @@ describe("My Cob Escaped: a whole incident", () => {
     assert.deepEqual(new Set(deadlines()), new Set([20_000]));
   });
 
+  it("only counts a move as repeated when the agent really used it last stage", async () => {
+    const { room, ids, db } = start();
+    await until(room, "RESPONSE");
+    for (const id of ids) room.gameInput(id, "respond", { tag: "CONTAIN", text: "Lock it" });
+    await until(room, "UPDATE");
+    await until(room, "RESPONSE");
+    room.gameInput(ids[0]!, "respond", { tag: "CONTAIN", text: "Lock it again" });
+    room.gameInput(ids[1]!, "respond", { tag: "EVACUATE", text: "Get out" });
+    room.gameInput(ids[2]!, "respond", { tag: "INVESTIGATE", text: "Look" });
+    await until(room, "CONSEQUENCE");
+    room.returnToLobby();
+    const stages = (db.listAbortedGames("mycob")[0]!.data as View).stages;
+    const repeated = (stage: number, id: string) => stages[stage].responses.find((r: View) => r.playerId === id).repeated;
+    assert.deepEqual(ids.map((id) => repeated(0, id)), [0, 0, 0], "nothing to repeat in stage 1");
+    assert.deepEqual(ids.map((id) => repeated(1, id)), [1, 0, 0], "only the agent who used the same move again");
+  });
+
   it("closes responses once everyone has filed, and keeps them editable until then", async () => {
     const { room, ids, records, db } = start();
     await until(room, "RESPONSE");
@@ -326,6 +343,16 @@ describe("My Cob Escaped: stage recap, role cards, sound cues and the finale", (
     assert.ok(r.now.length > 0);
     assert.ok(r.changes.length <= 3 && r.happened.length <= 3, "short");
     for (const line of [...r.happened, r.now, ...r.changes]) assert.ok(line.length <= 150, line);
+
+    // Risks, the team and objective progress, as every screen already shows them.
+    const inc = view(room).incident;
+    assert.ok(r.risks.length <= 3);
+    assert.equal(r.team.lives, inc.crew.reduce((n: number, c: View) => n + c.lives, 0));
+    assert.equal(r.team.maxLives, inc.crew.length * DEFAULT_MYCOB_CONFIG.lives.start);
+    assert.equal(r.objectives.total, inc.objectives.length);
+    assert.equal(r.objectives.done, inc.objectives.filter((o: View) => o.status === "completed").length);
+    assert.equal(r.objectives.primaryStatus, inc.objectives.find((o: View) => o.kind === "primary").status);
+    for (const risk of r.risks) assert.doesNotMatch(risk, /\b\d{2,}\b/, "labels, never numbers");
   });
 
   it("gives every role a card: what it's good at, what only it sees, what to try", () => {
@@ -338,6 +365,66 @@ describe("My Cob Escaped: stage recap, role cards, sound cues and the finale", (
     const def = DEFAULT_MYCOB_CONFIG.roles.find((r) => r.id === you.role.id)!;
     assert.deepEqual([you.role.goodAt, you.role.onlyYou, you.role.tryThis], [def.goodAt, def.onlyYou, def.tryThis]);
     assert.ok(you.context.length > 0, "and the intel itself");
+  });
+
+  it("gives each role its own icon and its own read of the incident, on that agent's phone only", async () => {
+    const icons = DEFAULT_MYCOB_CONFIG.roles.map((r) => r.icon);
+    assert.equal(new Set(icons).size, icons.length, "one icon per role");
+    const { room, ids } = start({ names: ["A1", "B2", "C3", "D4", "E5", "F6", "G7", "H8"] });
+    await until(room, "UPDATE");
+    const reads = new Map(ids.map((id) => [id, view(room, id).you.read as string]));
+    assert.equal(new Set(reads.values()).size, 8, "every role reads something different");
+    const host = JSON.stringify(view(room));
+    for (const [id, read] of reads) {
+      assert.ok(read.length > 0 && read.length <= 200, read);
+      assert.doesNotMatch(read, /\b\d{2,}\b/, "never a number from the hidden state");
+      assert.ok(!host.includes(read), "not on the host screen");
+      for (const other of ids) if (other !== id) assert.ok(!JSON.stringify(view(room, other)).includes(read), "not on anyone else's phone");
+    }
+    assert.ok(view(room).incident.crew.every((c: View) => icons.includes(c.roleIcon)));
+
+    const readOf = (roleId: string) => [...reads].find(([id]) => view(room, id).you.role.id === roleId)![1];
+    assert.match(readOf("commander"), /^Most fragile right now: (Containment|Facility|Personnel|Resources|Information|Time) \(/);
+    assert.match(readOf("containment"), /^Containment is [A-Z]+\. It's contained at SECURE/, "no trend before the first stage");
+    const broken = view(room).incident.systems.some((x: View) => x.condition !== "nominal");
+    assert.match(readOf("technician"), broken ? /^Fix first: .* it's dragging down / : /^Every system is running/);
+  });
+
+  it("tells the research specialist when an unknown entity can be identified", async () => {
+    const { room, ids } = start({ names: ["A1", "B2", "C3", "D4", "E5", "F6", "G7", "H8"], config: { unknownEntity: { chance: 1, identifyInformationAt: 0 } } });
+    const researcher = ids.find((id) => view(room, id).you.role.id === "research")!;
+    assert.match(view(room, researcher).you.read, /could identify the entity now/);
+  });
+
+  it("makes the intern's rumor true about half the time", async () => {
+    const rumors: string[] = [];
+    for (let seed = 1; seed <= 12; seed++) {
+      const { room, ids } = start({ seed, names: ["A1", "B2", "C3", "D4", "E5", "F6", "G7", "H8"] });
+      rumors.push(view(room, ids.find((id) => view(room, id).you.role.id === "intern")!).you.read);
+    }
+    const truths = rumors.filter((r) => /look into this|is the real problem|is about to give/.test(r)).length;
+    assert.ok(truths > 0 && truths < rumors.length, `${truths} true of ${rumors.length}`);
+  });
+
+  it("explains each consequence: why, what your move caused, who it ran into, what's next", async () => {
+    const { room, ids } = start();
+    await until(room, "RESPONSE");
+    const strong = view(room, ids[0]).you.role.strongTags[0];
+    room.gameInput(ids[0]!, "respond", { tag: strong, text: "Do my job", approach: "reckless" });
+    for (const id of ids.slice(1)) room.gameInput(id, "respond", { tag: "CONTAIN", text: "Seal the Cafeteria doors, then call it in" });
+    await until(room, "CONSEQUENCE");
+    const mine = view(room, ids[0]).you.action;
+    assert.ok(mine.why.includes("★ Your role's strength"));
+    assert.ok(mine.why.includes("Reckless: bigger swing"));
+    assert.ok(mine.why.length <= 4);
+    assert.ok(!mine.why.includes("Same move as last stage"), "nothing to repeat in stage 1");
+    for (const c of mine.caused) assert.deepEqual(Object.keys(c).sort(), ["big", "name", "up"], "a direction, never a number");
+    const theirs = view(room, ids[1]).you.action;
+    assert.ok(theirs.why.some((w: string) => /^Teamed up with /.test(w)), "two agents sealing doors together");
+    const c = view(room).consequence;
+    assert.ok(c.actions.every((a: View) => Array.isArray(a.with) && a.roleIcon));
+    assert.match(c.next, /^(Vote for the best move, then stage 2\.|Next: stage 2\.)$/);
+    assert.equal(view(room).you, undefined, "the host screen has no why");
   });
 
   it("cues sounds only for what every screen is being shown, each once", async () => {

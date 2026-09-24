@@ -32,6 +32,8 @@ export type RoleContextKey = "objectives" | "containment" | "leads" | "systems" 
 export interface RoleDef {
   id: string;
   name: string;
+  /** Shown next to the role everywhere, so it reads at a glance. */
+  icon: string;
   blurb: string;
   /** Tags this role is good at. Using one counts as using the role. */
   strongTags: ResponseTag[];
@@ -58,6 +60,7 @@ const ROLES: RoleDef[] = [
   {
     id: "commander",
     name: "Incident Commander",
+    icon: "🎖️",
     blurb: "You set priorities. Everyone else ignores them at their own risk.",
     strongTags: ["STRATEGIZE", "COMMUNICATE"],
     weakTags: ["EQUIPMENT"],
@@ -69,6 +72,7 @@ const ROLES: RoleDef[] = [
   {
     id: "containment",
     name: "Containment Specialist",
+    icon: "🔒",
     blurb: "Doors, fields, restraints. Putting things back where they belong.",
     strongTags: ["CONTAIN", "EQUIPMENT"],
     weakTags: ["COMMUNICATE"],
@@ -80,6 +84,7 @@ const ROLES: RoleDef[] = [
   {
     id: "research",
     name: "Research Specialist",
+    icon: "🔬",
     blurb: "You have read the file. Parts of it, anyway.",
     strongTags: ["INVESTIGATE", "STRATEGIZE"],
     weakTags: ["DEPLOY"],
@@ -91,6 +96,7 @@ const ROLES: RoleDef[] = [
   {
     id: "technician",
     name: "Technician",
+    icon: "🔧",
     blurb: "If it has a panel, you can open it. Closing it is a separate skill.",
     strongTags: ["EQUIPMENT", "INVESTIGATE"],
     weakTags: ["EVACUATE"],
@@ -102,6 +108,7 @@ const ROLES: RoleDef[] = [
   {
     id: "comms",
     name: "Communications",
+    icon: "📻",
     blurb: "Radios, intercoms, and telling people to calm down.",
     strongTags: ["COMMUNICATE", "EVACUATE"],
     weakTags: ["CONTAIN"],
@@ -113,6 +120,7 @@ const ROLES: RoleDef[] = [
   {
     id: "field",
     name: "Field Operative",
+    icon: "🥾",
     blurb: "You go where the entity is. On purpose.",
     strongTags: ["DEPLOY", "CONTAIN", "EVACUATE"],
     weakTags: ["STRATEGIZE"],
@@ -124,6 +132,7 @@ const ROLES: RoleDef[] = [
   {
     id: "recorder",
     name: "Incident Recorder",
+    icon: "📋",
     blurb: "Everything that happens here goes in the report. Everything.",
     strongTags: ["INVESTIGATE", "COMMUNICATE"],
     weakTags: ["DEPLOY"],
@@ -135,6 +144,7 @@ const ROLES: RoleDef[] = [
   {
     id: "intern",
     name: "Intern",
+    icon: "☕",
     blurb: "Nobody told you anything. Anything could happen.",
     strongTags: ["OTHER"],
     weakTags: [],

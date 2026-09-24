@@ -174,8 +174,9 @@ export function shortReport(events) {
   );
 }
 
-/** INCIDENT STATUS: what just happened, what matters now, what changed. */
+/** INCIDENT STATUS: what just happened, what matters now, what changed, risks, the team, objectives. */
 export function recapCard(recap) {
+  const o = recap.objectives;
   return el(
     "section",
     { class: "mc-recap", "aria-label": "Incident status" },
@@ -183,6 +184,16 @@ export function recapCard(recap) {
     el("ul", { class: "mc-recap-happened" }, recap.happened.map((t) => el("li", { text: t }))),
     el("p", { class: "mc-recap-now" }, el("strong", { text: "Now: " }), recap.now),
     recap.changes.length ? el("ul", { class: "mc-recap-changes" }, recap.changes.map((t) => el("li", { text: t }))) : null,
+    recap.risks.length ? el("p", { class: "mc-recap-risks" }, el("strong", { text: "⚠ Risks: " }), recap.risks.join(" · ")) : null,
+    el(
+      "p",
+      { class: "mc-recap-meta" },
+      el("span", { text: `♥ ${recap.team.lives}/${recap.team.maxLives} lives` }),
+      el("span", { text: `▢ ${o.done}/${o.total} objectives` }),
+      el("span", { text: `Primary: ${o.primaryStatus === "active" ? "open" : o.primaryStatus}` }),
+    ),
+    o.deadline ? el("p", { class: "mc-recap-deadline", text: `⏱ ${o.deadline}` }) : null,
+    recap.team.back.length ? el("p", { class: "muted", text: recap.team.back.join(" · ") }) : null,
   );
 }
 
@@ -198,13 +209,23 @@ export function statChips(changes) {
   );
 }
 
-/** What your role is for, what only you see, and what to try. `open` on the reading phases. */
+/** Your role's one line that matters most right now, then the card: what it's for, what only you see, what to try. */
 export function roleCard(g, { open = false } = {}) {
+  const role = g.you.role;
+  return el(
+    "div",
+    { class: "mc-rolebox" },
+    g.you.read ? el("p", { class: "mc-read" }, el("span", { class: "mc-read-label", text: `${role.icon} Your read` }), g.you.read) : null,
+    roleDetails(g, open),
+  );
+}
+
+function roleDetails(g, open) {
   const role = g.you.role;
   return el(
     "details",
     { class: "mc-intel", open },
-    el("summary", {}, "Your role: ", el("strong", { text: role.name })),
+    el("summary", {}, `${role.icon} Your role: `, el("strong", { text: role.name })),
     el("p", { class: "mc-role-good" }, el("strong", { text: "Good at: " }), role.goodAt),
     el("p", { class: "hint", text: `★ Strongest with ${role.strongTags.map((t) => `${TAG_INFO[t].icon} ${TAG_INFO[t].label}`).join(", ")}. Anything else works, just less reliably.` }),
     el("p", { class: "mc-role-only" }, el("strong", { text: "Only you see: " }), role.onlyYou),
@@ -213,6 +234,23 @@ export function roleCard(g, { open = false } = {}) {
     el("ul", { class: "mc-role-try" }, role.tryThis.map((t) => el("li", { text: t }))),
     el("p", { class: "muted", text: role.blurb }),
   );
+}
+
+/** Why your move went the way it did, and which way it pushed things. */
+export function whyAndCaused(action) {
+  const why = action.why ?? [];
+  const caused = action.caused ?? [];
+  return [
+    why.length ? el("ul", { class: "mc-why", "aria-label": "Why" }, why.map((w) => el("li", { text: w }))) : null,
+    caused.length
+      ? el(
+          "p",
+          { class: "mc-caused" },
+          el("strong", { text: "You caused: " }),
+          caused.map((c, i) => el("span", { class: c.up === (c.name === "Chaos") ? "worse" : "better" }, `${i ? " · " : ""}${c.name} ${(c.up ? "▲" : "▼").repeat(c.big ? 2 : 1)}`)),
+        )
+      : null,
+  ];
 }
 
 /** The incident in numbers, for the final screen. */

@@ -2787,3 +2787,94 @@ a.stamp:focus-visible {
 .mc-sound {
   margin-top: 12px;
 }
+
+/* My Cob Escaped: role read, why/caused, recap extras, what's next. */
+
+.mc-read {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 4px solid var(--yellow);
+  background: var(--panel-2);
+  font-weight: 700;
+}
+
+.mc-read-label {
+  display: block;
+  margin-bottom: 2px;
+  font-family: var(--head);
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yellow);
+}
+
+.mc-rolebox > * + * {
+  margin-top: 8px;
+}
+
+.mc-why {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mc-why li {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.mc-caused {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+}
+
+.mc-caused .better {
+  color: var(--ok);
+}
+
+.mc-caused .worse {
+  color: var(--danger);
+}
+
+.mc-team-losses {
+  margin: 0;
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.mc-recap-risks {
+  margin: 6px 0;
+  color: var(--danger);
+}
+
+.mc-recap-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 6px 0 0;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+
+.mc-recap-deadline {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+}
+
+.mc-next {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+  font-family: var(--head);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--yellow);
+}

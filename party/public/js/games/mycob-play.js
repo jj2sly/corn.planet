@@ -19,6 +19,7 @@ import {
   statChips,
   summaryTiles,
   TAG_INFO,
+  whyAndCaused,
 } from "./mycob-shared.js";
 import { playCue } from "./mycob-sound.js";
 
@@ -65,7 +66,7 @@ function youStrip(g) {
     el(
       "div",
       { class: `mc-you ${you.down ? "down" : ""}`.trim() },
-      el("div", { class: "grow" }, el("p", { class: "eyebrow", text: you.identity ? `Playing as ${you.identity}` : "Your assignment" }), el("strong", { class: "mc-you-role", text: you.role.name })),
+      el("div", { class: "grow" }, el("p", { class: "eyebrow", text: you.identity ? `Playing as ${you.identity}` : "Your assignment" }), el("strong", { class: "mc-you-role", text: `${you.role.icon} ${you.role.name}` })),
       you.down ? stampEl("down", "danger") : livesEl(you.lives, you.maxLives),
     ),
     ...notices,
@@ -241,19 +242,31 @@ function buildConsequence(s) {
   const lost = g.you.lostLife;
   const others = c.actions.filter((x) => x.playerId !== g.you.playerId);
   const found = c.discoveries;
+  const teamLosses = c.lifeLosses.filter((l) => l.playerId !== g.you.playerId).map((l) => `♡ ${l.name} ${l.down ? "is down" : "lost a life"}`);
+  const otherChanges = [
+    ...c.systemChanges.map((x) => `${x.name}: ${x.to.toUpperCase()}`),
+    ...c.personnelChanges.map((x) => `${x.name}: ${x.to.toUpperCase()}`),
+    ...c.objectiveChanges.map((x) => `Objective ${x.to}: ${x.text}`),
+    ...c.objectivesAdded.map((x) => `New objective: ${x.text}`),
+  ].slice(0, 3);
   return screen(
     s,
     [
       t.node,
       lost ? el("div", { class: "mc-life-alert", role: "alert" }, el("strong", { text: g.you.down ? "YOU'RE DOWN" : "YOU LOST A LIFE" }), el("p", { text: g.you.down ? "You'll be back as someone else next stage." : "Keep going. You're still in this." })) : null,
-      a ? el("section", { class: "panel stack" }, el("p", {}, outcomeStamp(a.outcome, a.outcomeLabel)), el("p", { text: a.summary })) : statusCard("–", "NO RESPONSE FILED", "The incident didn't wait for you."),
+      a
+        ? el("section", { class: "panel stack" }, el("p", {}, outcomeStamp(a.outcome, a.outcomeLabel)), el("p", { text: a.summary }), ...whyAndCaused(a))
+        : statusCard("–", "NO RESPONSE FILED", "The incident didn't wait for you."),
       others.length
-        ? el("ul", { class: "mc-quick", "aria-label": "Everyone else" }, others.map((x) => el("li", {}, el("span", { class: "grow", text: x.name }), outcomeStamp(x.outcome, x.outcomeLabel))))
+        ? el("ul", { class: "mc-quick", "aria-label": "Everyone else" }, others.map((x) => el("li", {}, el("span", { class: "grow", text: `${x.roleIcon} ${x.name}` }), outcomeStamp(x.outcome, x.outcomeLabel))))
         : null,
+      teamLosses.length ? el("p", { class: "mc-team-losses", role: "status", text: teamLosses.join(" · ") }) : null,
       c.terminated ? el("div", { class: "warning", text: "Entity terminated" }) : null,
       statChips(c.statusChanges),
+      otherChanges.length ? el("ul", { class: "mc-recap-changes" }, otherChanges.map((t) => el("li", { text: t }))) : null,
       found.length ? el("section", {}, el("h3", { text: "Discovered" }), factsList(found.slice(0, 2)), found.length > 2 ? el("p", { class: "muted", text: `+${found.length - 2} more on the host screen` }) : null) : null,
       shortReport(g.narration.filter((n) => n.type === "consequence" || n.type === "special_event")),
+      c.next ? el("p", { class: "mc-next", text: `Next: ${c.next.replace(/^Next: /, "")}` }) : null,
     ],
     (next) => t.set(next.timer),
   );

@@ -27,6 +27,7 @@ import {
   RESPONSE_TAGS,
   resolveConfig,
   STAT_IDS,
+  TEAM_STATS,
   type Approach,
   type ConfigOverrides,
   type EndingId,
@@ -35,8 +36,9 @@ import {
   type MyCobConfig,
   type Outcome,
   type ResponseTag,
+  type StatId,
 } from "./config.ts";
-import { DEPARTMENTS, ENDING_TEXT, NPC_FIRST, NPC_LAST, SYSTEM_IDS, SYSTEMS } from "./content.ts";
+import { DEPARTMENTS, ENDING_TEXT, NPC_FIRST, NPC_LAST, SYSTEM_IDS, SYSTEMS, type SystemId } from "./content.ts";
 import {
   buildDirectorContext,
   MockIncidentDirector,
@@ -59,6 +61,7 @@ import {
   publicEnvironment,
   scrubHidden,
   shuffle,
+  STAT_NAMES,
   type Fact,
   type Incident,
 } from "./incident.ts";
@@ -73,6 +76,7 @@ import {
   teamScore,
   toneFor,
   type ActionInput,
+  type ActionPlan,
   type ScoreLine,
   type ScoringMemory,
   type StagePlan,
@@ -133,7 +137,13 @@ interface Recap {
   happened: string[];
   now: string;
   changes: string[];
+  /** Known risks: danger statuses, systems down, staff in trouble. */
+  risks: string[];
+  team: { lives: number; maxLives: number; back: string[] };
+  objectives: { done: number; total: number; primary: string; primaryStatus: string; deadline: string | null };
 }
+
+const IN_DANGER = ["critical", "trapped", "injured", "missing"];
 
 interface Notice {
   id: string;
@@ -421,7 +431,6 @@ class MyCobGame implements GameInstance {
   private beginStage(): void {
     if (this.activeCrew().length < this.config.players.minToContinue) return this.endEarly();
     this.stage += 1;
-    this.recap = this.buildRecap();
     this.responses = new Map();
     this.plan = null;
     this.context = null;
@@ -440,7 +449,14 @@ class MyCobGame implements GameInstance {
     lines.push(`${open} objective${open === 1 ? "" : "s"} still open.`);
     this.narration.add("stage_transition", this.stage, lines.join(" "));
 
-    for (const member of this.crew.values()) if (member.down && !member.left) this.reassign(member);
+    const back: string[] = [];
+    for (const member of this.crew.values()) {
+      if (member.down && !member.left) {
+        this.reassign(member);
+        back.push(`${member.name} is back as ${member.identity}`);
+      }
+    }
+    this.recap = this.buildRecap(back);
 
     this.phase = "UPDATE";
     this.schedule(this.config.timing.updateMs, () => this.openResponses());
@@ -448,13 +464,14 @@ class MyCobGame implements GameInstance {
   }
 
   /** Built only from what the last consequence showed everyone, kept short enough for a phone. */
-  private buildRecap(): Recap {
+  private buildRecap(back: string[] = []): Recap {
     const inc = this.incident;
+    const extra = this.recapStatus(back);
     const short = (text: string, max = 150) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
     const last = this.records.at(-1);
     if (!last) {
       const breach = publicBreach(inc);
-      return { stage: this.stage, happened: [`${breach.name} in the ${inc.location.name}.`], now: short(this.scrub(inc.problem.text)), changes: [] };
+      return { stage: this.stage, happened: [`${breach.name} in the ${inc.location.name}.`], now: short(this.scrub(inc.problem.text)), changes: [], ...extra };
     }
     const { plan, output, result } = last;
     const outcomes = plan.actions.map((a) => a.roll.outcome);
@@ -493,7 +510,39 @@ class MyCobGame implements GameInstance {
     const objectives = result.objectiveChanges.map((c) => `Objective ${c.to}: ${this.scrub(c.text)}`);
     const event = result.specialEvent ? [result.specialEvent.name] : [];
     const changes = [...identified, ...discoveries.slice(0, 1), ...stats.slice(0, 2), ...objectives, ...event].slice(0, 3).map((c) => short(c, 90));
-    return { stage: this.stage, happened: happened.slice(0, 3), now: short(this.scrub(now)), changes };
+    return { stage: this.stage, happened: happened.slice(0, 3), now: short(this.scrub(now)), changes, ...extra };
+  }
+
+  /** The standing parts of the recap: known risks, the team, objective progress. All already public. */
+  private recapStatus(back: string[]): Pick<Recap, "risks" | "team" | "objectives"> {
+    const inc = this.incident;
+    const danger = STAT_IDS.map((id) => describeStat(id, inc.stats[id], this.config))
+      .filter((st) => st.tone === "danger")
+      .map((st) => `${st.name} ${st.value}`);
+    const offline = SYSTEM_IDS.filter((id) => inc.systems[id] === "offline").map((id) => SYSTEMS[id].name);
+    const hurt = inc.personnel.filter((p) => IN_DANGER.includes(p.status) && !p.controlledBy);
+    const risks = [
+      ...danger.slice(0, 2),
+      ...(offline.length ? [`Offline: ${offline.slice(0, 2).join(", ")}${offline.length > 2 ? ` +${offline.length - 2}` : ""}`] : []),
+      ...(hurt.length ? [`${hurt.length} staff in trouble`] : []),
+      ...inc.anomalies.map((a) => a.name),
+    ].slice(0, 3);
+    const crew = this.activeCrew();
+    const primary = inc.objectives.find((o) => o.kind === "primary")!;
+    const due = inc.objectives
+      .filter((o) => o.status === "active" && o.goal.type === "stat" && o.goal.byStage !== null)
+      .sort((a, b) => ((a.goal as { byStage: number }).byStage ?? 0) - ((b.goal as { byStage: number }).byStage ?? 0))[0];
+    return {
+      risks,
+      team: { lives: crew.reduce((n, m) => n + m.lives, 0), maxLives: crew.length * this.config.lives.start, back },
+      objectives: {
+        done: inc.objectives.filter((o) => o.status === "completed").length,
+        total: inc.objectives.length,
+        primary: this.scrub(primary.text),
+        primaryStatus: primary.status,
+        deadline: due ? `${this.scrub(due.text)} — by stage ${(due.goal as { byStage: number }).byStage}` : null,
+      },
+    };
   }
 
   /** A down agent comes back as somebody else: a new role, and a staff member to play. */
@@ -557,7 +606,8 @@ class MyCobGame implements GameInstance {
         approach: r.approach,
         sacrifice: r.sacrifice,
         text: r.text,
-        previousTags: member.tags,
+        // A copy: this stage's tag is pushed next and must not count as a repeat of itself.
+        previousTags: [...member.tags],
       });
       member.tags.push(r.tag);
     }
@@ -1133,6 +1183,7 @@ class MyCobGame implements GameInstance {
           playerId: m.playerId,
           name: m.name,
           role: roleOf(this.config, m.roleId).name,
+          roleIcon: roleOf(this.config, m.roleId).icon,
           lives: m.lives,
           down: m.down,
           identity: m.identity,
@@ -1164,6 +1215,14 @@ class MyCobGame implements GameInstance {
         playerId: a.playerId,
         name: a.playerName,
         role: a.roleName,
+        roleIcon: roleOf(this.config, a.roleId).icon,
+        // Who this move ran into or worked with. The narration tells it too.
+        with: plan.interactions
+          .filter((i) => i.a === a.id || i.b === a.id)
+          .map((i) => {
+            const other = plan.actions.find((x) => x.id === (i.a === a.id ? i.b : i.a))?.playerName ?? "someone";
+            return i.kind === "synergy" ? `teamed up with ${other}` : `clashed with ${other}`;
+          }),
         tag: a.tag,
         outcome: a.roll.outcome,
         outcomeLabel: OUTCOME_LABELS[a.roll.outcome],
@@ -1186,7 +1245,55 @@ class MyCobGame implements GameInstance {
         better: id === "chaos" ? result.statsAfter[id] < result.statsBefore[id] : result.statsAfter[id] > result.statsBefore[id],
       })).filter((s) => s.from !== s.value),
       terminated: result.terminated,
+      next: this.nextStepText(),
     };
+  }
+
+  /** What happens after the consequence, in one line. */
+  private nextStepText(): string {
+    const candidates = this.candidates();
+    const vote = this.config.voting.enabled && this.activeCrew().some((m) => candidates.some((c) => c !== m.playerId));
+    const last = this.stage >= this.totalStages || this.result?.terminated;
+    const after = last ? "the final report" : `stage ${this.stage + 1}${this.stage >= this.config.endings.minStage ? " (unless it's over)" : ""}`;
+    return vote ? `Vote for the best move, then ${after}.` : `Next: ${after}.`;
+  }
+
+  /** Why your move went the way it did: the engine's reasons, in words, never numbers. Yours only. */
+  private whyFor(action: ActionPlan): string[] {
+    const plan = this.plan!;
+    const role = roleOf(this.config, action.roleId);
+    const nameOf = (id: string) => plan.actions.find((a) => a.id === id)?.playerName ?? "someone";
+    const out: string[] = [];
+    for (const i of plan.interactions.filter((x) => x.a === action.id || x.b === action.id)) {
+      const other = nameOf(i.a === action.id ? i.b : i.a);
+      if (i.kind === "synergy") out.push(`Teamed up with ${other}`);
+      else if (i.affected === action.id) out.push(i.kind === "sabotage" ? `${other}'s move got in your way` : `${other}'s move accidentally helped`);
+      else out.push(`Clashed with ${other}`);
+    }
+    if (role.strongTags.includes(action.tag)) out.push("★ Your role's strength");
+    else if (role.weakTags.includes(action.tag)) out.push("Not your role's strength");
+    if (action.approach === "careful") out.push("Careful: steadier, smaller");
+    if (action.approach === "reckless") out.push("Reckless: bigger swing");
+    if (action.sacrifice) out.push("You put yourself in harm's way");
+    if (action.analysis.actionCount > 1) out.push(`Tried ${action.analysis.actionCount} things at once`);
+    // From the agent's own history (this stage's tag is already its last entry), not action.repeated.
+    if (this.crew.get(action.playerId)?.tags.at(-2) === action.tag) out.push("Same move as last stage");
+    if (action.analysis.references.length) out.push("Aimed at something specific");
+    if (action.roll.twist) out.push("Something unexpected happened");
+    if ((this.result?.statsBefore.chaos ?? 0) >= 60) out.push("Chaos made it unpredictable");
+    return out.slice(0, 4);
+  }
+
+  /** Which way your move pushed each part of the incident: direction and roughly how hard. */
+  private causedBy(action: ActionPlan): { name: string; up: boolean; big: boolean }[] {
+    const applied = this.result?.applied.find((a) => a.actionId === action.id);
+    if (!applied) return [];
+    const moved = STAT_IDS.filter((id) => id !== "chaos" && Math.round(applied.deltas[id] ?? 0) !== 0).map((id) => {
+      const d = applied.deltas[id]!;
+      return { name: STAT_NAMES[id], up: d > 0, big: Math.abs(d) >= 8 };
+    });
+    if (applied.chaos >= 3 || applied.chaos <= -3) moved.push({ name: STAT_NAMES.chaos, up: applied.chaos > 0, big: Math.abs(applied.chaos) >= 8 });
+    return moved;
   }
 
   private outcomeView() {
@@ -1236,78 +1343,149 @@ class MyCobGame implements GameInstance {
     };
   }
 
-  /** The extra information a role gives its holder. Built only from what that role may know. */
-  private roleContext(member: CrewMember): { title: string; lines: string[] }[] {
+  /**
+   * What a role gives its holder: `read`, the one line that matters most right now, and `context`,
+   * the fuller intel. Only this agent's phone gets it. Each role reads a different part of the incident
+   * (some from hidden state, always as words), so every role has something nobody else has.
+   */
+  private roleIntel(member: CrewMember): { read: string; context: { title: string; lines: string[] }[] } {
     const inc = this.incident;
     const role = roleOf(this.config, member.roleId);
-    const out: { title: string; lines: string[] }[] = [];
-    for (const key of role.context) {
-      switch (key) {
-        case "objectives":
-          out.push({
-            title: "Command priorities",
-            lines: inc.objectives
-              .filter((o) => o.status === "active")
-              .map((o) => `${o.kind === "primary" ? "PRIMARY" : "Secondary"}: ${this.scrub(o.text)}${o.goal.type === "stat" && o.goal.byStage ? ` (by stage ${o.goal.byStage})` : ""}`),
-          });
-          break;
-        case "containment":
-          out.push({
-            title: "Containment readout",
-            lines: [
-              `Entity containment class: ${inc.entity.identityKnown ? inc.entity.containment : "UNKNOWN"}`,
-              `Containment systems: ${inc.systems.containment.toUpperCase()}`,
-              `Doors: ${inc.systems.doors.toUpperCase()}`,
-            ],
-          });
-          break;
-        case "leads": {
-          const leads = inc.facts.filter((f) => f.visibility !== "known").slice(0, 3);
-          out.push({
-            title: "Research leads",
-            lines: leads.length
-              ? leads.map((f) => (f.about === "record" ? "A prior incident file mentions this" : f.about === "identity" ? "The entity's identity is on file somewhere" : this.scrub(f.label)))
-              : ["Nothing left in the files. You've read it all."],
-          });
-          break;
+    const where = (id: string | null) => locationName(inc, id);
+    const fragile = () => {
+      const weakest = TEAM_STATS.reduce((a, b) => (inc.stats[b] < inc.stats[a] ? b : a));
+      return `${STAT_NAMES[weakest]} (${describeStat(weakest, inc.stats[weakest], this.config).value})`;
+    };
+    const leadLine = (f: Fact) => (f.about === "record" ? "A prior incident file mentions this" : f.about === "identity" ? "The entity's identity is on file somewhere" : this.scrub(f.label));
+    const leads = inc.facts.filter((f) => f.visibility !== "known");
+    const broken = SYSTEM_IDS.filter((id) => inc.systems[id] !== "nominal").sort((a, b) => (inc.systems[b] === "offline" ? 1 : 0) - (inc.systems[a] === "offline" ? 1 : 0));
+    const drags = (id: SystemId) => {
+      const effects = SYSTEMS[id].effects[inc.systems[id] as "degraded" | "offline"] ?? {};
+      return Object.keys(effects).map((k) => STAT_NAMES[k as StatId].toLowerCase()).join(" and ");
+    };
+    const inDanger = inc.personnel
+      .filter((p) => IN_DANGER.includes(p.status) && !p.controlledBy)
+      .sort((a, b) => IN_DANGER.indexOf(a.status) - IN_DANGER.indexOf(b.status));
+    const last = this.records.at(-1);
+
+    switch (role.context[0]) {
+      case "objectives": {
+        const active = inc.objectives.filter((o) => o.status === "active");
+        const byDeadline = (o: (typeof active)[number]) => (o.kind === "primary" ? -1 : o.goal.type === "stat" && o.goal.byStage ? o.goal.byStage : 99);
+        return {
+          read: `Most fragile right now: ${fragile()}. Put someone on it.`,
+          context: [
+            {
+              title: "Command priorities",
+              lines: [...active]
+                .sort((a, b) => byDeadline(a) - byDeadline(b))
+                .map((o) => `${o.kind === "primary" ? "PRIMARY" : "Secondary"}: ${this.scrub(o.text)}${o.goal.type === "stat" && o.goal.byStage ? ` (by stage ${o.goal.byStage})` : ""}`),
+            },
+          ],
+        };
+      }
+      case "containment": {
+        const d = last ? last.result.statsAfter.containment - last.result.statsBefore.containment : 0;
+        const trend = Math.abs(d) < 2 ? "steady" : d > 0 ? "improving" : "slipping";
+        const goal = describeStat("containment", this.config.endings.containedAt, this.config).value;
+        const early = this.stage < this.config.endings.minStage ? `, from stage ${this.config.endings.minStage}` : "";
+        return {
+          read: `Containment is ${last ? `${trend} (${describeStat("containment", inc.stats.containment, this.config).value})` : describeStat("containment", inc.stats.containment, this.config).value}. It's contained at ${goal}${early}.`,
+          context: [
+            {
+              title: "Containment readout",
+              lines: [
+                `Entity containment class: ${inc.entity.identityKnown ? inc.entity.containment : "UNKNOWN"}`,
+                `Containment systems: ${inc.systems.containment.toUpperCase()}`,
+                `Doors: ${inc.systems.doors.toUpperCase()}`,
+              ],
+            },
+          ],
+        };
+      }
+      case "leads": {
+        const read = !inc.entity.identityKnown
+          ? inc.stats.information >= this.config.unknownEntity.identifyInformationAt
+            ? "Enough is known: a successful investigation could identify the entity now."
+            : "Not enough to identify the entity yet. Work the leads."
+          : leads.length
+            ? `${leads.length} file${leads.length === 1 ? "" : "s"} still unread. Investigating finds them.`
+            : "You've read everything on file.";
+        return { read, context: [{ title: "Research leads", lines: leads.length ? leads.slice(0, 3).map(leadLine) : ["Nothing left in the files."] }] };
+      }
+      case "systems": {
+        const first = broken[0];
+        return {
+          read: first ? `Fix first: ${SYSTEMS[first].name} (${inc.systems[first].toUpperCase()}) — it's dragging down ${drags(first)}.` : "Every system is running. Keep it that way.",
+          context: [{ title: "Diagnostics", lines: broken.length ? broken.map((id) => `${SYSTEMS[id].name}: ${inc.systems[id].toUpperCase()} · hurts ${drags(id)}`) : ["All systems nominal."] }],
+        };
+      }
+      case "personnel": {
+        const worst = inDanger[0];
+        return {
+          read: worst ? `${worst.name} is ${worst.status.toUpperCase()} in the ${where(worst.location)}. Get them out.` : "Nobody is in danger right now.",
+          context: [
+            {
+              title: "Staff tracker",
+              lines: inc.personnel
+                .filter((p) => p.status !== "dead")
+                .map((p) => `${p.name}: ${p.status.toUpperCase()} · ${where(p.location)}${p.knowledgeFactId && inc.facts.find((f) => f.id === p.knowledgeFactId)?.visibility !== "known" ? " · knows something" : ""}`),
+            },
+          ],
+        };
+      }
+      case "threat": {
+        const near = inc.threatLocation ? inc.personnel.filter((p) => p.location === inc.threatLocation && p.status !== "dead" && p.status !== "evacuated") : [];
+        return {
+          read: inc.threatLocation
+            ? `It was last tracked in the ${where(inc.threatLocation)}.${near.length ? ` ${near.map((p) => p.name).join(", ")} ${near.length === 1 ? "is" : "are"} there.` : ""}`
+            : "Nobody knows where it is. Go and find it.",
+          context: [{ title: "Tracking", lines: [`Entity last tracked: ${inc.threatLocation ? where(inc.threatLocation) : "UNKNOWN"}`, ...near.map((p) => `Nearby: ${p.name} (${p.status.toUpperCase()})`)] }],
+        };
+      }
+      case "log": {
+        const tally = new Map<string, { worked: number; total: number }>();
+        for (const r of this.records) {
+          for (const a of r.plan.actions) {
+            const t = tally.get(a.tag) ?? { worked: 0, total: 0 };
+            t.total++;
+            if (a.roll.outcome === "critical" || a.roll.outcome === "success") t.worked++;
+            tally.set(a.tag, t);
+          }
         }
-        case "systems": {
-          const broken = SYSTEM_IDS.filter((s) => inc.systems[s] !== "nominal").sort((a, b) => (inc.systems[b] === "offline" ? 1 : 0) - (inc.systems[a] === "offline" ? 1 : 0));
-          out.push({
-            title: "Diagnostics",
-            lines: broken.length ? [`Fix first: ${SYSTEMS[broken[0]!].name} (${inc.systems[broken[0]!].toUpperCase()})`, ...broken.slice(1).map((s) => `${SYSTEMS[s].name}: ${inc.systems[s].toUpperCase()}`)] : ["All systems nominal."],
-          });
-          break;
-        }
-        case "personnel":
-          out.push({
-            title: "Staff tracker",
-            lines: inc.personnel
-              .filter((p) => p.status !== "dead")
-              .map((p) => `${p.name}: ${p.status.toUpperCase()}${p.knowledgeFactId && inc.facts.find((f) => f.id === p.knowledgeFactId)?.visibility !== "known" ? " · knows something" : ""}`),
-          });
-          break;
-        case "threat":
-          out.push({ title: "Tracking", lines: [`Entity last tracked: ${inc.threatLocation ? locationName(inc, inc.threatLocation) : "UNKNOWN"}`] });
-          break;
-        case "log":
-          out.push({ title: "Incident log", lines: this.history.slice(-3).map((h, i, all) => `Stage ${this.records.length - all.length + i + 1}: ${h.slice(0, 160)}${h.length > 160 ? "…" : ""}`) });
-          break;
-        case "rumor": {
-          const broken = SYSTEM_IDS.find((s) => inc.systems[s] !== "nominal");
-          const rumors = [
-            broken ? `Someone said the ${SYSTEMS[broken].name.toLowerCase()} is the real problem.` : "Someone said the facility is fine, actually.",
-            "Someone said the entity is afraid of spreadsheets.",
-            "Someone said there's a second exit behind the vending machine.",
-            `Someone said ${pickDeterministic(inc.personnel.map((p) => p.name), member.playerId, this.stage) ?? "the custodian"} knows more than they're letting on.`,
-            "Someone said the corn is listening.",
-          ];
-          out.push({ title: "Rumor (unverified)", lines: [pickDeterministic(rumors, member.playerId, this.stage)!] });
-          break;
-        }
+        const ranked = [...tally].sort(([, a], [, b]) => b.worked / b.total - a.worked / a.total || b.total - a.total);
+        const repeating = this.activeCrew().filter((m) => m.tags.length >= 2 && m.tags.at(-1) === m.tags.at(-2));
+        const read = repeating.length
+          ? `${repeating[0]!.name} keeps going ${repeating[0]!.tags.at(-1)} — doing the same thing again works less well.`
+          : ranked.length
+            ? `${ranked[0]![0]} has worked ${ranked[0]![1].worked} of ${ranked[0]![1].total} times so far.`
+            : "Nothing on record yet. Watch what works.";
+        return {
+          read,
+          context: [
+            { title: "What's been working", lines: ranked.length ? ranked.map(([tag, t]) => `${tag}: worked ${t.worked} of ${t.total}`) : ["No record yet."] },
+            { title: "Incident log", lines: this.history.slice(-2).map((h, i, all) => `Stage ${this.records.length - all.length + i + 1}: ${h.slice(0, 120)}${h.length > 120 ? "…" : ""}`) },
+          ],
+        };
+      }
+      case "rumor":
+      default: {
+        // About half the time the rumor is true: a real lead, the real weakest system, the real weak spot.
+        const truths = [
+          leads[0] ? `Someone said to look into this: ${leadLine(leads[0])}.` : null,
+          broken[0] ? `Someone said the ${SYSTEMS[broken[0]].name.toLowerCase()} is the real problem.` : null,
+          `Someone said ${fragile().split(" (")[0]!.toLowerCase()} is about to give.`,
+        ].filter((t): t is string => !!t);
+        const nonsense = [
+          "Someone said the entity is afraid of spreadsheets.",
+          "Someone said there's a second exit behind the vending machine.",
+          `Someone said ${pickDeterministic(inc.personnel.map((p) => p.name), member.playerId, this.stage) ?? "the custodian"} knows more than they're letting on.`,
+          "Someone said the corn is listening.",
+        ];
+        const rumor = pickDeterministic([...truths, ...nonsense.slice(0, truths.length)], member.playerId, this.stage)!;
+        return { read: rumor, context: [{ title: "Rumor (unverified)", lines: [rumor] }] };
       }
     }
-    return out;
   }
 
   viewFor(viewer: Viewer): unknown {
@@ -1361,12 +1539,12 @@ class MyCobGame implements GameInstance {
     const action = this.plan?.actions.find((a) => a.playerId === member.playerId);
     const you = {
       playerId: member.playerId,
-      role: { id: role.id, name: role.name, blurb: role.blurb, strongTags: role.strongTags, goodAt: role.goodAt, onlyYou: role.onlyYou, tryThis: role.tryThis },
+      role: { id: role.id, name: role.name, icon: role.icon, blurb: role.blurb, strongTags: role.strongTags, goodAt: role.goodAt, onlyYou: role.onlyYou, tryThis: role.tryThis },
       lives: member.lives,
       maxLives: this.config.lives.start,
       down: member.down,
       identity: member.identity,
-      context: this.roleContext(member),
+      ...this.roleIntel(member),
       // This stage's notices; the ending screens start clean.
       notices: STAGE_PHASES.includes(this.phase) ? member.notices.filter((n) => n.stage === this.stage).map(({ id, kind, text }) => ({ id, kind, text })) : [],
       response,
@@ -1376,6 +1554,8 @@ class MyCobGame implements GameInstance {
               outcome: action.roll.outcome,
               outcomeLabel: OUTCOME_LABELS[action.roll.outcome],
               summary: this.output.interpretations.find((i) => i.actionId === action.id)!.summary,
+              why: this.whyFor(action),
+              caused: this.causedBy(action),
             }
           : null,
       lostLife: this.phase === "CONSEQUENCE" || this.phase === "STAGE_VOTE" ? (this.result?.lifeLosses.some((l) => l.playerId === member.playerId) ?? false) : false,
