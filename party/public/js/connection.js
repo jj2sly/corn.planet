@@ -45,8 +45,14 @@ export async function connect({ onState, onEnded, onStatus, onAuthFallback, onHe
     }
   };
 
-  /** Realtime game input: no ack, and dropped rather than queued while disconnected. */
-  const stream = (payload) => socket.volatile.emit("game:stream", payload);
+  /**
+   * Realtime game input: no ack, and dropped rather than queued while disconnected (stale button
+   * presses shouldn't replay on reconnect). Not socket.io's `volatile`: that also drops a packet while
+   * the previous one is still being written, which loses a jump pressed right after a release.
+   */
+  const stream = (payload) => {
+    if (socket.connected) socket.emit("game:stream", payload);
+  };
 
   return { socket, request, stream };
 }

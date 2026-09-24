@@ -355,7 +355,7 @@ const SETTINGS_FORMS = {
   steamdeck(settings, configure) {
     return [
       choiceGroup("Rounds", "rounds", [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (v) => configure({ settings: { rounds: v } })),
-      el("p", { class: "hint", text: "The session leader is Thad first (bring the Steam Deck), then Thad rotates each round." }),
+      el("p", { class: "hint", text: "The session leader is Thad first, then Thad rotates each round. No special hardware: keyboard, mouse or touch." }),
     ];
   },
 };

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { addPoint, clear, createDrawing, createStroke, deserialize, DrawingError, interpret, pointCount, serialize, strokeBounds, undo } from "../public/js/drawing.js";
-import { plankFromStroke } from "../public/js/games/steamdeck-rules.js";
+import { plankFromStroke, strokeAhead } from "../public/js/games/steamdeck-rules.js";
 
 function sample() {
   const d = createDrawing("p1", 390, 219);
@@ -90,6 +90,21 @@ describe("Escape Thad's Steam Deck: plank rule", () => {
     addPoint(long, 1, 0.5);
     const p = plankFromStroke(long, world)!;
     assert.equal(p.x2 - p.x1, 320, "capped");
+  });
+
+  it("gives keyboard players an ordinary stroke just ahead of them, which becomes the same kind of plank", () => {
+    const runner = { x: 400, y: 700, facing: 1, width: 28, height: 36 };
+    const ahead = plankFromStroke(strokeAhead(runner, world), world)!;
+    assert.deepEqual(ahead, { x1: 438, x2: 638, y: 736 }, "to the right, at the feet");
+    const behind = plankFromStroke(strokeAhead({ ...runner, facing: -1 }, world), world)!;
+    assert.ok(behind.x2 <= runner.x, "to the left when facing left");
+    const nudged = plankFromStroke(strokeAhead(runner, world, [40, -60]), world)!;
+    assert.deepEqual([nudged.x1 - ahead.x1, nudged.y - ahead.y], [40, -60]);
+    // It survives the wire like a drawn stroke.
+    const d = createDrawing("p1", 390, 219);
+    d.strokes.push(strokeAhead(runner, world));
+    const back = deserialize(serialize(d), { limits: { tools: ["plank"] } });
+    assert.deepEqual(plankFromStroke(back.strokes[0]!, world), ahead);
   });
 
   it("refuses a stroke that isn't sideways enough to be a plank", () => {

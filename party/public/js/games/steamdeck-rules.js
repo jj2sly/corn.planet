@@ -21,3 +21,27 @@ export function plankFromStroke(stroke, { width, height, minLength, maxLength })
   const left = Math.max(0, Math.min(width - length, (x1 + x2) / 2 - length / 2));
   return { x1: Math.round(left), x2: Math.round(left + length), y: Math.round(Math.max(60, Math.min(height - 40, y))) };
 }
+
+/** Plank length, in world units, that the keyboard suggests. */
+export const SUGGESTED_PLANK = 200;
+
+/**
+ * For keyboard players: a plank stroke just ahead of a runner at their feet, shifted by `offset`
+ * (world units). It's an ordinary stroke, so it goes through plankFromStroke like a drawn one.
+ */
+export function strokeAhead(runner, world, offset = [0, 0]) {
+  const { x, y, facing, width: rw, height: rh } = runner;
+  const x1 = (facing > 0 ? x + rw + 10 : x - 10 - SUGGESTED_PLANK) + offset[0];
+  const feet = y + rh + offset[1];
+  const n = (v, size) => Math.round(Math.min(1, Math.max(0, v / size)) * 10000) / 10000;
+  return {
+    points: [
+      [n(x1, world.width), n(feet, world.height)],
+      [n(x1 + SUGGESTED_PLANK, world.width), n(feet, world.height)],
+    ],
+    width: 0.01,
+    tool: "plank",
+    layer: 0,
+    timestamp: 0,
+  };
+}

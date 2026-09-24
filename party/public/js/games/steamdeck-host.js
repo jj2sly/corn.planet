@@ -73,8 +73,8 @@ function buildAssignment(s) {
       el(
         "ul",
         { class: "sd-howto" },
-        el("li", { text: "Runners: ◀ ▶ to move, JUMP to jump, ✏️ to draw a plank across a gap." }),
-        el("li", { text: "Thad: tilt the Deck. The whole level leans. It gets worse every phase." }),
+        el("li", { text: "Runners: ◀ ▶ / ← → to move, JUMP / Space to jump, ✏️ / E for a plank across a gap." }),
+        el("li", { text: "Thad: lean the whole level with ← → or the slider. It gets worse every phase." }),
         el("li", { text: "Red spikes kill. Dashed red boxes are spikes that haven't arrived yet." }),
       ),
     ],

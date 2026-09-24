@@ -3422,7 +3422,35 @@ a.stamp:focus-visible {
 }
 
 .sd-panel-buttons .btn {
-  min-height: 44px;
+  flex: 1;
+  min-height: 52px;
+  font-size: 0.95rem;
+}
+
+.sd-keys {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.sd-keys[hidden] {
+  display: none;
+}
+
+.sd-motion {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.sd-motion.ok {
+  color: var(--ok);
+}
+
+.sd-motion.warn {
+  color: var(--yellow);
 }
 
 /* The Deck (1280×800) and other landscape screens: the level beside the panel. */

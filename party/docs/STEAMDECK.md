@@ -1,9 +1,20 @@
 # Escape Thad's Steam Deck
 
-Game id `steamdeck`, 2–8 agents. One agent is **Thad** and holds the Steam Deck (or any phone); everyone
-else is a **runner** trapped inside it, platforming to the EXIT while Thad tilts the whole world.
-Runners can draw planks to bridge gaps. Thad rotates every round, starting with the session leader
-(whoever joined first, so bring the Deck and join first). 1–3 rounds (lobby setting, default 2).
+Game id `steamdeck`, 2–8 agents. One agent is **Thad** and "holds the Steam Deck"; everyone else is a
+**runner** trapped inside it, platforming to the EXIT while Thad tilts the whole world. Runners can draw
+planks to bridge gaps. Thad rotates every round, starting with the session leader (whoever joined first).
+1–3 rounds (lobby setting, default 2).
+
+The Steam Deck is the theme, not the hardware: every role plays fully on a keyboard, with a mouse, or by
+touch, on any device. Motion sensors are an optional extra and never required.
+
+| | Keyboard | Mouse / touch |
+|---|---|---|
+| Runner | ← → or A D move · Space ↑ W jump · E suggests a plank ahead (arrows nudge it, Enter places, Esc cancels) | ◀ ▶ JUMP buttons · ✏️ then draw a line, Place |
+| Thad | ← → or A D lean (hold for more) · ↓ S Space level | the slider · Level |
+
+Every input sends the same packets (`game:stream` buttons/tilt, `game:input` planks), so the game plays the
+same whichever you use.
 
 Code: `server/games/steamdeck/{levels,physics,game}.ts`; screens `public/js/games/steamdeck-*.js`.
 
@@ -35,16 +46,23 @@ A disconnected runner stops moving and keeps their place; a disconnected Thad's 
 
 ## Tilt (Thad)
 
-`steamdeck-tilt.js` turns whatever the device has into one number -1..1, best source first:
+`steamdeck-tilt.js` turns whatever the device has into one number -1..1:
 
-1. **Motion** (opt-in "Use motion": asks for permission on iOS, then waits for a reading; the Deck's and
-   desktops' browsers usually have none and say so). Calibrate sets the current angle as level; ±30°
-   is full tilt.
-2. **Gamepad stick** (the Steam Deck's left stick appears as a gamepad).
-3. **Arrow keys** (or A/D).
-4. **The slider**, which always works, with a Level button.
+- **Gamepad stick** (the Steam Deck's left stick appears as a gamepad) and **arrow keys** (or A/D) win
+  while you're using them.
+- Otherwise **motion**, if Thad turned it on ("Use motion": asks for permission on iOS, then waits for
+  a reading; the Deck's and desktops' browsers usually have none and say so). Turning it on sets the
+  current angle as level; Calibrate does it again; ±30° is full tilt. If the sensor goes quiet, the
+  slider takes over and the panel says so.
+- Otherwise **the slider**, which always works (Level resets it). Dragging it turns motion off.
 
-Every source gets the same dead zone, clamp and smoothing; the server smooths again and clamps.
+The panel always shows the reading, the active input and the motion state (off, on ✓, blocked, no
+sensor, no signal). Every source gets the same dead zone, clamp and smoothing (read at 30 Hz, also in a
+hidden tab); the server smooths again and clamps. On landscape screens (the Deck) the level and the
+panel sit side by side.
+
+Measured with 8 agents: about 0.4 ms of server work per tick and 2.6 KB per view (about 470 KB/s out
+for a full room at 20 Hz).
 
 ## Planks and the CPI Drawing System
 

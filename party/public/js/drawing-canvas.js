@@ -61,8 +61,9 @@ export function createDrawingPad(canvas, { playerId = null, tool = "pen", width 
 
   const redraw = () => {
     const { width: w, height: h, dpr } = fitCanvas(canvas);
-    drawing.canvasWidth = Math.round(w);
-    drawing.canvasHeight = Math.round(h);
+    // Never 0 (a canvas that hasn't been laid out yet): the size is metadata, the points are normalized.
+    drawing.canvasWidth = Math.max(1, Math.round(w));
+    drawing.canvasHeight = Math.max(1, Math.round(h));
     const ctx = canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);

@@ -409,7 +409,7 @@ export const steamDeckGame: GameDefinition<SteamDeckSettings> = {
   name: "Escape Thad's Steam Deck",
   tagline: "You live in the Deck now. Thad is holding it.",
   description:
-    "One agent is Thad and holds the Steam Deck (or any phone). Everyone else is trapped inside it and has to " +
+    "One agent is Thad and holds the Steam Deck (in spirit: keyboard, mouse or touch all work). Everyone else is trapped inside it and has to " +
     "platform their way to the exit while Thad tilts the whole world. Draw planks to help each other across. " +
     "Thad rotates every round.",
   minPlayers: 2,

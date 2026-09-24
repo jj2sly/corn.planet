@@ -4,7 +4,7 @@
 
 import { el, notice, timerEl } from "../common.js";
 import { createDrawingPad } from "../drawing-canvas.js";
-import { plankFromStroke } from "./steamdeck-rules.js";
+import { plankFromStroke, strokeAhead } from "./steamdeck-rules.js";
 import { createTiltInput } from "./steamdeck-tilt.js";
 import { createWorldView } from "./steamdeck-world.js";
 
@@ -76,25 +76,43 @@ function thadPanel(g, { stream } = {}) {
   const meter = el("div", { class: "sd-meter", role: "meter", "aria-label": "Tilt", "aria-valuemin": "-100", "aria-valuemax": "100" }, needle);
   const reading = el("p", { class: "sd-reading" });
   const sourceLine = el("p", { class: "muted sd-source" });
+  const motionLine = el("p", { class: "sd-motion" });
   const slider = el("input", { type: "range", min: "-100", max: "100", step: "1", value: "0", "aria-label": "Manual tilt", class: "sd-slider" });
   const note = el("p", { class: "notice" });
   const motionBtn = el("button", { class: "btn ghost small", type: "button" });
 
-  slider.addEventListener("input", () => input.setManual(Number(slider.value) / 100));
+  // Dragging the slider means "use the slider": it takes over from motion.
+  slider.addEventListener("input", () => {
+    if (input.motion === "on") {
+      input.disableMotion();
+      notice(note, "Motion off: you're on the slider now. Tap Use motion to switch back.", "ok");
+    }
+    input.setManual(Number(slider.value) / 100);
+  });
   const level = el("button", { class: "btn ghost small", type: "button", text: "Level", onclick: () => ((slider.value = "0"), input.setManual(0)) });
-  const calibrate = el("button", { class: "btn ghost small", type: "button", text: "Calibrate", onclick: () => (input.calibrate(), notice(note, "Calibrated: this angle is level now.", "ok")) });
+  const calibrate = el("button", {
+    class: "btn ghost small",
+    type: "button",
+    text: "Calibrate",
+    onclick: () => {
+      slider.value = "0";
+      const motion = input.calibrate();
+      notice(note, motion ? "Calibrated ✓ Hold the Deck like this for no tilt." : "Slider back to level. (Calibrate sets level for motion: turn motion on first.)", "ok");
+    },
+  });
   motionBtn.addEventListener("click", async () => {
     if (input.motion === "on") return input.disableMotion();
     const status = await input.enableMotion();
-    if (status === "denied") notice(note, "Motion permission denied. Use the stick, arrow keys or the slider.", "error");
-    else if (status === "unavailable") notice(note, "No motion sensor here. Use the stick, arrow keys or the slider.", "error");
+    if (status === "denied") notice(note, "No motion permission. That's fine: use ← → or the slider.", "ok");
+    else if (status === "unavailable") notice(note, "No motion sensor here. That's fine: use ← → or the slider.", "ok");
     else notice(note, "");
   });
 
   const SOURCE = { motion: "MOTION ✓", stick: "STICK 🎮", keys: "ARROW KEYS ⌨", manual: "SLIDER" };
+  const MOTION = { off: "Motion: off (optional)", asking: "Motion: asking…", denied: "Motion: blocked (optional, carry on)", unavailable: "Motion: no sensor (optional, carry on)" };
   let sentAt = 0;
   let sent = null;
-  const off = input.onChange(({ value, source, motion }) => {
+  const off = input.onChange(({ value, source, motion, live }) => {
     if (!needle.isConnected && sent !== null) return off();
     needle.style.setProperty("left", `${50 + value * 50}%`);
     meter.setAttribute("aria-valuenow", String(Math.round(value * 100)));
@@ -102,8 +120,11 @@ function thadPanel(g, { stream } = {}) {
     reading.textContent = pct < 3 ? "LEVEL" : `${value < 0 ? "◀ LEFT" : "RIGHT ▶"} ${pct}%`;
     reading.classList.toggle("hot", pct > 50);
     sourceLine.textContent = `Input: ${SOURCE[source] ?? source}`;
+    motionLine.textContent = motion === "on" ? (live ? "Motion: on ✓" : "Motion: on, no signal (using the slider)") : MOTION[motion];
+    motionLine.className = `sd-motion ${motion === "on" && live ? "ok" : motion === "denied" || motion === "unavailable" || motion === "on" ? "warn" : ""}`.trim();
     motionBtn.textContent = motion === "on" ? "Motion off" : motion === "asking" ? "Asking…" : "Use motion";
-    if (source !== "manual" && document.activeElement !== slider) slider.value = String(Math.round(value * 100));
+    // The slider shows the keys' and slider's shared value; a stick or motion shows what it's doing.
+    if (document.activeElement !== slider) slider.value = String(Math.round((source === "keys" || source === "manual" ? input.manual : value) * 100));
     // Throttled: the server smooths anyway, and the socket has a rate budget.
     const now = performance.now();
     if (stream && (sent === null || (Math.abs(value - sent) > 0.01 && now - sentAt > 80))) {
@@ -126,7 +147,9 @@ function thadPanel(g, { stream } = {}) {
     el("div", { class: "row spread" }, reading, sourceLine),
     meter,
     slider,
+    el("p", { class: "sd-keys", text: "Keys: ← → lean (hold for more) · ↓ or Space: level" }),
     el("div", { class: "row sd-panel-buttons" }, motionBtn, calibrate, level),
+    motionLine,
     note,
   );
   return { node };
@@ -145,7 +168,7 @@ function buildThad(s, tools) {
     const phase = next.game.phase;
     status.textContent =
       phase === "ASSIGNMENT"
-        ? "🎮 You're Thad. Try your tilt now: motion, the Deck's stick, arrow keys or the slider."
+        ? "🎮 You're Thad. Lean the world with ← → or the slider (a gamepad stick works too). Try it now."
         : phase === "INTRO"
           ? "🎮 Get ready to tilt."
           : `🏃 ${out}/${next.game.roster.length} escaped · 💀 ${next.game.roster.reduce((n, r) => n + r.deaths, 0)}`;
@@ -210,17 +233,6 @@ function buildRunner(s, tools) {
   const drawBtn = el("button", { class: "sd-btn draw", type: "button", "aria-label": "Draw a plank", text: "✏️" });
   const controls = el("div", { class: "sd-controls" }, left, right, drawBtn, jumpBtn);
 
-  const onKey = (e) => {
-    if (!controls.isConnected) return window.removeEventListener("keydown", onKey), window.removeEventListener("keyup", onKey);
-    const down = e.type === "keydown";
-    if (e.key === "ArrowLeft" || e.key === "a") (input.l = down ? 1 : 0), send();
-    else if (e.key === "ArrowRight" || e.key === "d") (input.r = down ? 1 : 0), send();
-    else if ((e.key === " " || e.key === "ArrowUp" || e.key === "w") && down && !e.repeat) jump();
-    else return;
-    e.preventDefault();
-  };
-  window.addEventListener("keydown", onKey);
-  window.addEventListener("keyup", onKey);
   const beat = setInterval(() => (controls.isConnected ? send() : clearInterval(beat)), 300);
 
   // Drawing a plank: a preview of the exact plank you'll get, then place it.
@@ -249,6 +261,7 @@ function buildRunner(s, tools) {
     }
   };
   const place = el("button", { class: "btn big", type: "button", text: "Place plank" });
+  const drawHint = el("p", { class: "sd-keys", hidden: true, text: "Drag to draw, or nudge with the arrow keys. Enter places · Esc cancels." });
   const drawBar = el(
     "div",
     { class: "sd-drawbar", hidden: true },
@@ -259,6 +272,7 @@ function buildRunner(s, tools) {
   const setDrawing = (on) => {
     overlay.hidden = !on;
     drawBar.hidden = !on;
+    drawHint.hidden = !on;
     controls.hidden = on;
     pad?.destroy();
     pad = on ? createDrawingPad(overlay, { playerId: me, tool: "plank", width: 0.01, maxStrokes: 1, color: "rgba(255, 255, 255, 0.7)", decorate: preview }) : null;
@@ -276,6 +290,60 @@ function buildRunner(s, tools) {
     notice(note, "");
     setDrawing(false);
   });
+
+  // Keyboard, a complete alternative to the buttons and the pen: ← → (A D) move, Space ↑ W jump, E
+  // suggests a plank just ahead of you (the arrows nudge it, Enter places it, Esc cancels). Same packets,
+  // same plank rule.
+  let nudge = [0, 0];
+  const suggest = () => {
+    const r = game.world.runners.find((x) => x[0] === me);
+    if (!r || !pad) return;
+    const [rw, rh] = game.world.size;
+    pad.drawing.strokes.length = 0;
+    pad.drawing.strokes.push(strokeAhead({ x: r[1], y: r[2], facing: r[3], width: rw, height: rh }, game.level, nudge));
+    pad.redraw();
+  };
+  const STEP = { ArrowLeft: [-20, 0], a: [-20, 0], ArrowRight: [20, 0], d: [20, 0], ArrowUp: [0, -20], w: [0, -20], ArrowDown: [0, 20], s: [0, 20] };
+  const onKey = (e) => {
+    if (!controls.isConnected) {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+      return;
+    }
+    if (e.target?.closest?.("input, textarea, select")) return;
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    const down = e.type === "keydown";
+    if (pad) {
+      if (!down) return;
+      const step = STEP[k];
+      if (step) {
+        nudge = [nudge[0] + step[0], nudge[1] + step[1]];
+        suggest();
+      } else if ((k === "Enter" || k === "e") && !e.repeat) place.click();
+      else if (k === "Escape") setDrawing(false);
+      else if (k === "Backspace" || k === "z") pad.undo();
+      else return;
+      return e.preventDefault();
+    }
+    if (k === "ArrowLeft" || k === "a" || k === "ArrowRight" || k === "d") {
+      if (!e.repeat) {
+        input[k === "ArrowLeft" || k === "a" ? "l" : "r"] = down ? 1 : 0;
+        send();
+      }
+    } else if (k === " " || k === "ArrowUp" || k === "w") {
+      if (down && !e.repeat) jump();
+    } else if (k === "e") {
+      if (down && !e.repeat && !drawBtn.disabled) {
+        setDrawing(true);
+        nudge = [0, 0];
+        suggest();
+      }
+    } else return;
+    e.preventDefault();
+  };
+  window.addEventListener("keydown", onKey);
+  window.addEventListener("keyup", onKey);
+  const keys = el("p", { class: "sd-keys", text: "Keys: ← → move · Space jump · E plank" });
 
   const setStatus = (next) => {
     const g2 = next.game;
@@ -300,7 +368,7 @@ function buildRunner(s, tools) {
 
   let lastDeaths = g.roster.find((x) => x.id === me)?.deaths ?? 0;
   return {
-    node: el("div", { class: "stack sd-phone sd-runner" }, bar.node, el("div", { class: "sd-stage" }, canvas, overlay), status, controls, drawBar, note),
+    node: el("div", { class: "stack sd-phone sd-runner" }, bar.node, el("div", { class: "sd-stage" }, canvas, overlay), status, controls, drawBar, drawHint, keys, note),
     update(next) {
       game = next.game;
       bar.set(next);
