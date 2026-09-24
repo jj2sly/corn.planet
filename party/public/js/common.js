@@ -133,13 +133,14 @@ export function startCountdowns() {
       if (node.dataset.paused === "true") {
         value.textContent = "--";
         unit.textContent = "PAUSED";
-        node.classList.remove("low");
+        node.classList.remove("low", "warn");
         continue;
       }
       const seconds = Math.max(0, Math.ceil((Number(node.dataset.deadline) - Date.now()) / 1000));
       value.textContent = String(seconds);
       unit.textContent = "SEC";
       node.classList.toggle("low", seconds <= 5);
+      node.classList.toggle("warn", seconds > 5 && seconds <= 10);
     }
   };
   tick();

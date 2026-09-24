@@ -19,7 +19,6 @@ import {
   recapCard,
   reveal,
   roleCard,
-  shortReport,
   stampEl,
   standings,
   statChips,
@@ -75,7 +74,7 @@ function youStrip(g) {
     el(
       "div",
       { class: `mc-you ${you.down ? "down" : ""}`.trim() },
-      el("div", { class: "grow" }, el("p", { class: "eyebrow", text: you.identity ? `Playing as ${you.identity}` : "Your assignment" }), el("strong", { class: "mc-you-role", text: `${you.role.icon} ${you.role.name}` })),
+      el("div", { class: "grow" }, you.identity ? el("p", { class: "eyebrow", text: `Playing as ${you.identity}` }) : null, el("strong", { class: "mc-you-role", text: `${you.role.icon} ${you.role.name}` })),
       you.down ? stampEl("down", "danger") : livesEl(you.lives, you.maxLives),
     ),
     ...notices,
@@ -105,24 +104,36 @@ function screen(s, nodes, onUpdate) {
 
 // ------------------------------------------------------------------ briefing
 
+/** The alert's facts at a glance: what broke, where, what it is, anything hazardous. */
+function alertFacts(inc) {
+  return el(
+    "ul",
+    { class: "mc-alert-facts" },
+    el("li", {}, el("strong", { text: "Breach: " }), inc.breach.name),
+    el("li", {}, el("strong", { text: "Where: " }), inc.location.name),
+    el("li", {}, el("strong", { text: "Entity: " }), inc.entity.known ? `${inc.entity.title} (${inc.entity.classification})` : "UNKNOWN"),
+    inc.environment.map((e) => el("li", { class: "warn" }, `⚠ ${e}`)),
+  );
+}
+
 function buildBriefing(s) {
   const g = s.game;
   const t = timerRow(s.timer, stageLabel(g));
-  // Your role card is open while there's time to read it.
-  const intel = el("div", { dataset: { role: g.you.role.id } }, roleCard(g, { open: true }));
-  const narration = liveNarration(g.narration);
   const alert = g.phase === "ALERT";
+  // The role card is open when the role is new (the alert, or after a reassignment); after that your read says what matters.
+  const intel = el("div", { dataset: { role: g.you.role.id } }, roleCard(g, { open: alert }));
+  const narration = liveNarration(g.narration);
   return screen(
     s,
     [
       t.node,
-      el("p", { class: "hint", text: alert ? "Learn your role. Stage 1 starts when the timer runs out." : "Read up. You respond when the timer runs out." }),
+      el("p", { class: "hint", text: alert ? "Learn your role. Stage 1 starts when the timer hits 0." : "Read up. Responses open when the timer hits 0." }),
       alert ? el("div", { class: "warning", text: "Containment breach" }) : null,
-      alert ? narration.node : null,
-      // The opening narration usually says it already.
-      alert && !g.narration.some((n) => n.text.includes(g.incident.problem)) ? el("p", { class: "phone-prompt", text: g.incident.problem }) : null,
+      alert ? el("p", { class: "phone-prompt", text: g.incident.problem }) : null,
+      alert ? alertFacts(g.incident) : null,
       !alert && g.recap ? recapCard(g.recap) : null,
       intel,
+      alert ? el("details", { class: "mc-more" }, el("summary", { text: "Full alert" }), narration.node) : null,
     ],
     (next) => {
       t.set(next.timer);
@@ -176,7 +187,7 @@ function buildResponse(s, tools) {
     );
   });
 
-  const textarea = el("textarea", { id: "mcText", maxlength: String(g.limits.textMax), rows: "4", autocomplete: "off", "aria-describedby": "mcCount", placeholder: "Anything at all. Be specific." });
+  const textarea = el("textarea", { id: "mcText", maxlength: String(g.limits.textMax), rows: "3", autocomplete: "off", "aria-describedby": "mcCount", placeholder: "Anything at all. Be specific." });
   textarea.value = prior?.text ?? "";
   const counter = el("p", { class: "counter", id: "mcCount", "aria-live": "polite" });
   const updateCounter = () => {
@@ -220,14 +231,13 @@ function buildResponse(s, tools) {
         playCue("response_in");
       },
     },
-    el("p", { class: "phone-prompt", text: g.recap?.now ?? g.incident.problem }),
     el("p", { class: "label", id: "mcTagLabel", text: "What kind of response?" }),
     el("div", { class: "mc-tags", role: "group", "aria-labelledby": "mcTagLabel" }, tagButtons),
     el("label", { for: "mcText", text: "What do you do?" }),
     textarea,
     counter,
-    el("fieldset", {}, el("legend", { text: "Approach" }), approaches, el("p", { class: "hint", text: "Careful is steadier. Reckless swings harder and stirs up chaos." })),
-    el("label", { class: "mc-check", for: "mcSacrifice" }, sacrifice, el("span", { text: " Put myself in harm's way — more likely to work, more likely to cost me a life" })),
+    el("fieldset", {}, el("legend", { text: "Approach" }), approaches, el("p", { class: "hint", text: "Careful: steadier. Reckless: bigger swing, more chaos." })),
+    el("label", { class: "mc-check", for: "mcSacrifice" }, sacrifice, el("span", { text: " Put myself in harm's way (better odds, might cost a life)" })),
     submit,
     filed,
     note,
@@ -252,11 +262,23 @@ function buildResponse(s, tools) {
   };
   setFiled(s);
 
-  // Your read first: it's what your role knows about this decision.
-  return screen(s, [t.node, readLine(g), form, roleCard(g, { read: false })], (next) => {
-    t.set(next.timer);
-    setFiled(next);
-  });
+  // What's happening, what's dangerous, what your role knows, then the form. The rest of the card is below.
+  const risks = g.recap?.risks ?? [];
+  return screen(
+    s,
+    [
+      t.node,
+      el("p", { class: "phone-prompt", text: g.recap?.now ?? g.incident.problem }),
+      risks.length ? el("p", { class: "mc-recap-risks", text: `⚠ ${risks.join(" · ")}` }) : null,
+      readLine(g),
+      form,
+      roleCard(g, { read: false }),
+    ],
+    (next) => {
+      t.set(next.timer);
+      setFiled(next);
+    },
+  );
 }
 
 // ------------------------------------------------------------------ consequences and votes
@@ -283,10 +305,15 @@ function buildConsequence(s) {
     ...c.objectivesAdded.map((x) => `New objective: ${x.text}`),
   ].slice(0, 3);
   const left = g.you.lives;
+  const report = g.narration.filter((n) => n.type === "consequence" || n.type === "special_event").map((n) => n.text).join(" ");
+  // Most important first: your result, lives, what changed, what's next. The details sit below.
   return screen(
     s,
     [
       t.node,
+      a
+        ? el("section", { class: "mc-result" }, outcomeStamp(a.outcome, a.outcomeLabel), el("p", { class: "mc-result-summary", text: a.summary }))
+        : el("section", { class: "mc-result" }, el("p", { class: "mc-result-summary", text: "You didn't file a response. The incident didn't wait." })),
       mine
         ? el(
             "div",
@@ -296,27 +323,23 @@ function buildConsequence(s) {
             el("p", { text: g.you.down ? "Next stage you're back as someone else, with a new role and 1 life." : `${left} ${left === 1 ? "life" : "lives"} left.` }),
           )
         : null,
-      block(
-        "What happened",
-        a ? [el("p", {}, outcomeStamp(a.outcome, a.outcomeLabel)), el("p", { text: a.summary })] : el("p", { class: "muted", text: "You didn't file a response. The incident didn't wait for you." }),
-        shortReport(g.narration.filter((n) => n.type === "consequence" || n.type === "special_event")),
-      ),
+      teamLosses.length ? el("p", { class: "mc-team-losses", role: "status", text: teamLosses.join(" · ") }) : null,
+      c.terminated ? el("div", { class: "warning", text: "Entity terminated" }) : null,
+      statChips(c.statusChanges),
+      c.next ? el("p", { class: "mc-next", text: `Next: ${c.next.replace(/^Next: /, "")}` }) : null,
       ...(a ? whyAndCaused(a) : []),
       block(
-        "The incident now",
-        c.terminated ? el("div", { class: "warning", text: "Entity terminated" }) : null,
-        statChips(c.statusChanges),
-        otherChanges.length ? el("ul", { class: "mc-recap-changes" }, otherChanges.map((t) => el("li", { text: t }))) : null,
-        found.length ? [factsList(found.slice(0, 2)), found.length > 2 ? el("p", { class: "muted", text: `+${found.length - 2} more on the host screen` }) : null] : null,
-      ),
-      block(
-        "The team",
+        "Everyone else",
         others.length
           ? el("ul", { class: "mc-quick", "aria-label": "Everyone else" }, others.map((x) => el("li", {}, el("span", { class: "grow", text: `${x.roleIcon} ${x.name}` }), outcomeStamp(x.outcome, x.outcomeLabel))))
           : null,
-        teamLosses.length ? el("p", { class: "mc-team-losses", role: "status", text: teamLosses.join(" · ") }) : null,
       ),
-      c.next ? el("p", { class: "mc-next", text: `Next: ${c.next.replace(/^Next: /, "")}` }) : null,
+      block(
+        "Also changed",
+        otherChanges.length ? el("ul", { class: "mc-recap-changes" }, otherChanges.map((t) => el("li", { text: t }))) : null,
+        found.length ? [factsList(found.slice(0, 2)), found.length > 2 ? el("p", { class: "muted", text: `+${found.length - 2} more on the host screen` }) : null] : null,
+      ),
+      report ? el("details", { class: "mc-more" }, el("summary", { text: "Full report" }), el("p", { class: "muted", text: report })) : null,
     ],
     (next) => t.set(next.timer),
   );

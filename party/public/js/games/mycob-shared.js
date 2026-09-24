@@ -153,27 +153,6 @@ export function outcomeStamp(outcome, label) {
   return el("span", { class: `mc-outcome o-${outcome}`, text: label });
 }
 
-/** The first sentence or two of `text`, at most `max` characters. */
-export function shortText(text, max = 160) {
-  if (text.length <= max) return text;
-  const cut = text.slice(0, max);
-  const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
-  return end > max / 3 ? cut.slice(0, end + 1) : `${cut.slice(0, max - 1).trimEnd()}…`;
-}
-
-/** Narration kept short on a phone, with the rest a tap away. */
-export function shortReport(events) {
-  const text = events.map((n) => n.text).join(" ");
-  if (!text) return null;
-  const short = shortText(text);
-  return el(
-    "section",
-    { class: "mc-report" },
-    el("p", { class: "mc-report-short", text: short }),
-    short.length < text.length ? el("details", {}, el("summary", { text: "Full report" }), el("p", { class: "muted", text })) : null,
-  );
-}
-
 /** A labelled block for phone screens: a small heading, then its lines. Nothing when empty. */
 export function block(label, ...nodes) {
   const body = nodes.flat().filter(Boolean);
@@ -200,14 +179,17 @@ export function recapCard(recap) {
         ),
     recap.risks.length ? block("⚠ Risks", el("p", { class: "mc-recap-risks", text: recap.risks.join(" · ") })) : null,
     block(
-      "Team",
-      el("p", { class: "mc-recap-meta" }, el("span", { text: `♥ ${team.lives}/${team.maxLives} lives` }), team.lastLife?.length ? el("span", { class: "mc-recap-lastlife", text: `Last life: ${team.lastLife.join(", ")}` }) : null),
-      team.back.length ? el("p", { class: "muted", text: team.back.join(" · ") }) : null,
-    ),
-    block(
-      "Objectives",
-      el("p", { class: "mc-recap-meta" }, el("span", { text: `▢ ${o.done}/${o.total} done` }), el("span", { text: `Primary: ${o.primaryStatus === "active" ? "open" : o.primaryStatus}` })),
+      "Team & objectives",
+      el(
+        "p",
+        { class: "mc-recap-meta" },
+        el("span", { text: `♥ ${team.lives}/${team.maxLives} lives` }),
+        el("span", { text: `▢ ${o.done}/${o.total} objectives` }),
+        el("span", { text: `Primary: ${o.primaryStatus === "active" ? "open" : o.primaryStatus}` }),
+      ),
+      team.lastLife?.length ? el("p", { class: "mc-recap-lastlife", text: `Last life: ${team.lastLife.join(", ")}` }) : null,
       o.deadline ? el("p", { class: "mc-recap-deadline", text: `⏱ ${o.deadline}` }) : null,
+      team.back.length ? el("p", { class: "muted", text: team.back.join(" · ") }) : null,
     ),
   );
 }
@@ -241,12 +223,11 @@ function roleDetails(g, open) {
     { class: "mc-intel", open },
     el("summary", {}, `${role.icon} Your role: `, el("strong", { text: role.name })),
     el("p", { class: "mc-role-good" }, el("strong", { text: "Good at: " }), role.goodAt),
-    el("p", { class: "hint", text: `★ Strongest with ${role.strongTags.map((t) => `${TAG_INFO[t].icon} ${TAG_INFO[t].label}`).join(", ")}. Anything else works, just less reliably.` }),
-    el("p", { class: "mc-role-only" }, el("strong", { text: "Only you see: " }), role.onlyYou),
-    g.you.context.map((section) => el("section", { class: "mc-role-intel" }, el("h3", { text: section.title }), el("ul", { class: "list" }, section.lines.map((line) => el("li", { text: line }))))),
-    el("p", { class: "mc-role-try-label", text: "Try something like" }),
+    el("p", { class: "hint", text: `★ Best with ${role.strongTags.map((t) => `${TAG_INFO[t].icon} ${TAG_INFO[t].label}`).join(", ")}` }),
+    g.you.context.filter((section) => section.lines.length).map((section) => el("section", { class: "mc-role-intel" }, el("h3", { text: `${section.title} · only you` }), el("ul", { class: "list" }, section.lines.map((line) => el("li", { text: line }))))),
+    el("p", { class: "mc-role-try-label", text: "Try" }),
     el("ul", { class: "mc-role-try" }, role.tryThis.map((t) => el("li", { text: t }))),
-    el("p", { class: "muted", text: `${role.blurb} This role is yours for the whole incident; it only changes if you go down.` }),
+    el("p", { class: "muted", text: `${role.blurb} Yours all game.` }),
   );
 }
 

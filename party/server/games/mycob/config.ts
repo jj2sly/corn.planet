@@ -169,17 +169,18 @@ export const DEFAULT_MYCOB_CONFIG = {
 
   /** Phase durations. Response, consequence and update are scaled by the length's timerScale. */
   timing: {
-    alertMs: 20_000,
+    /** Read the situation and learn your role. */
+    alertMs: 25_000,
     /** Read the incident status recap and your intel before responses open. */
-    updateMs: 25_000,
-    /** Long enough to read the update and your intel, talk it over, and type something meaningful. */
-    responseMs: 45_000,
+    updateMs: 30_000,
+    /** Long enough to reread the situation, talk it over, and type something meaningful on a phone. */
+    responseMs: 60_000,
     /** The director gets at least this long (so the screen doesn't flash) and at most the max. */
     processingMinMs: 4_000,
     processingMaxMs: 10_000,
     /** Long enough to read the narration, every action's outcome, status changes and discoveries. */
-    consequenceMs: 30_000,
-    voteMs: 20_000,
+    consequenceMs: 35_000,
+    voteMs: 25_000,
     outcomeMs: 20_000,
     awardSubmitMs: 45_000,
     awardVoteMs: 40_000,

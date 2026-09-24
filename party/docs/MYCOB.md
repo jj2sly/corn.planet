@@ -34,18 +34,19 @@ OUTCOME (ending, entity revealed, score breakdown) → AWARD_SUBMIT → AWARD_VO
 
 | Phase | Default | Closes early when |
 |---|---|---|
-| ALERT | 20 s | — (host/leader skip) |
-| UPDATE | 25 s × length scale | — |
-| RESPONSE | 45 s × length scale | every agent has filed (editable until then) |
+| ALERT | 25 s | — (host/leader skip) |
+| UPDATE | 30 s × length scale | — |
+| RESPONSE | 60 s × length scale | every agent has filed (editable until then) |
 | PROCESSING | 4–10 s (Claude: 4–21 s) | director answered and 4 s passed; falls back to the built-in director at the limit |
-| CONSEQUENCE | 30 s × length scale | — |
-| STAGE_VOTE | 20 s | every eligible agent voted; skipped if nobody acted |
+| CONSEQUENCE | 35 s × length scale | — |
+| STAGE_VOTE | 25 s | every eligible agent voted; skipped if nobody acted |
 | OUTCOME / AWARDS | 20 / 45 / 40 / 15 s | everyone has submitted / voted |
 
 Lengths: **Short** 3 stages, **Standard** 5, **Long** 7 (timers × 0.9 / 1 / 1.15); the host can
-also pick any 3–7 stages. So a Standard game gives 45 s to respond, 30 s for the consequence and
-20 s to vote; a Short one 40.5 s / 27 s / 20 s and a Long one about 52 s / 35 s / 20 s (the vote isn't
-scaled). Standard is about 13.5 minutes at full timers including awards, less when everyone files and
+also pick any 3–7 stages. So a Standard game gives 60 s to respond, 35 s for the consequence and
+25 s to vote; a Short one 54 s / 31.5 s / 25 s and a Long one 69 s / about 40 s / 25 s (the vote isn't
+scaled). Timers were raised on 2026-09-24 after a phone playtest: reading the recap and your role, then
+typing on a phone, didn't fit in 45 s. Standard is about 15.5 minutes at full timers including awards, less when everyone files and
 votes quickly (tune `timing` in `config.ts`). All timers are the
 room's single pausable server timer; they freeze while the host display is away.
 
@@ -59,13 +60,16 @@ primary's status, the nearest deadline). It is built only from what everyone has
 countdown pinned while you scroll; a response typed but never filed is filed 2 s before time runs out
 (if it has a type).
 
-On phones the consequence reads in order: your own outcome with **why** (the engine's reasons in words:
-your role's strength, careful/reckless, harm's way, cramming, repeating, aiming at something, a clash or
-team-up, a twist, high chaos) and **what you caused** (▲/▼ per status, doubled when big, never a number),
-everyone else's outcome, the team's life losses, status chips, other changes, at most two discoveries,
-the narration cut short with the full report a tap away, and **what's next** (`consequence.next`). The
-why and what-you-caused lines go only to your phone. The host screen keeps the full narration and shows
-who each move clashed or teamed up with.
+On phones the consequence leads with what matters: your outcome stamp and one-line summary, your life
+loss (with the reason and lives left) and the team's, the status chips, and **what's next**
+(`consequence.next`). Below that: **why** (the engine's reasons in words: your role's strength,
+careful/reckless, harm's way, cramming, repeating, aiming at something, a clash or team-up, a twist,
+high chaos), **what you caused** (▲/▼ per status, doubled when big, never a number), everyone else's
+outcome, other changes, at most two discoveries, and the full report collapsed. The why and
+what-you-caused lines go only to your phone. The host screen keeps the full narration and shows who
+each move clashed or teamed up with. The phone alert is a headline (the problem) and three facts
+(breach, where, entity, plus any hazards), with the full alert text collapsed; the role card is open
+only when the role is new. The phone countdown pulses in the last 10 s and turns red in the last 5.
 
 The incident can end early — contained or terminated (from stage 3), or everyone dead (any time) —
 and ends when fewer than 2 agents remain.

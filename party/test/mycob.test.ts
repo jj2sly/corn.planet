@@ -160,21 +160,21 @@ describe("My Cob Escaped: a whole incident", () => {
     assert.equal(view(room).stage, 2);
   });
 
-  it("times the stage 20 s alert, 25 s update, 45 s response, 30 s consequence, 20 s vote", async () => {
-    assert.deepEqual([T.alertMs, T.updateMs, T.responseMs, T.consequenceMs, T.voteMs], [20_000, 25_000, 45_000, 30_000, 20_000]);
+  it("times the stage 25 s alert, 30 s update, 60 s response, 35 s consequence, 25 s vote", async () => {
+    assert.deepEqual([T.alertMs, T.updateMs, T.responseMs, T.consequenceMs, T.voteMs], [25_000, 30_000, 60_000, 35_000, 25_000]);
     const { room, ids } = start({ settings: { length: "standard" } });
     // The server's deadline, as the host screen and every phone receive it.
     const deadlines = () => [room.viewFor({ kind: "host" }), ...ids.map((id) => room.viewFor({ kind: "player", playerId: id }))].map((v) => v.timer!.totalMs);
-    assert.deepEqual(new Set(deadlines()), new Set([20_000]));
-    await until(room, "UPDATE");
     assert.deepEqual(new Set(deadlines()), new Set([25_000]));
+    await until(room, "UPDATE");
+    assert.deepEqual(new Set(deadlines()), new Set([30_000]));
     await until(room, "RESPONSE");
-    assert.deepEqual(new Set(deadlines()), new Set([45_000]));
+    assert.deepEqual(new Set(deadlines()), new Set([60_000]));
     for (const id of ids) room.gameInput(id, "respond", { tag: "CONTAIN", text: "Lock it" });
     await until(room, "CONSEQUENCE");
-    assert.deepEqual(new Set(deadlines()), new Set([30_000]));
+    assert.deepEqual(new Set(deadlines()), new Set([35_000]));
     await until(room, "STAGE_VOTE");
-    assert.deepEqual(new Set(deadlines()), new Set([20_000]));
+    assert.deepEqual(new Set(deadlines()), new Set([25_000]));
   });
 
   it("only counts a move as repeated when the agent really used it last stage", async () => {

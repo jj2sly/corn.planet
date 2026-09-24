@@ -2641,11 +2641,8 @@ a.stamp:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 
-.mc-report-short {
-  margin: 0;
-}
-
-.mc-report summary {
+/* Collapsed extras on phones: the full alert, the full report. */
+.mc-more summary {
   display: flex;
   align-items: center;
   min-height: 44px;
@@ -3126,4 +3123,60 @@ a.stamp:focus-visible {
 .mc-recap-vote {
   margin: 6px 0;
   font-weight: 700;
+}
+
+/* My Cob Escaped on phones, at a glance: the result first, the alert as a few facts, a calmer form. */
+
+.mc-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.mc-result .mc-outcome {
+  font-size: 1.3rem;
+  padding: 4px 12px;
+}
+
+.mc-result-summary {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.mc-alert-facts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mc-alert-facts li + li {
+  margin-top: 4px;
+}
+
+.mc-alert-facts .warn {
+  color: var(--yellow);
+}
+
+.phone .mc-tag {
+  min-height: 44px;
+  padding-block: 6px;
+}
+
+.phone .mc-tags {
+  gap: 6px;
+}
+
+/* The last ten seconds: the countdown pulses, then turns red at five (.low). */
+.mc-timer-row .timer.warn .value,
+.mc-timer-row .timer.low .value {
+  animation: mc-tick 1s steps(2, jump-none) infinite;
+}
+
+@keyframes mc-tick {
+  50% {
+    opacity: 0.45;
+  }
 }
