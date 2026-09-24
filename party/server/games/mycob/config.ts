@@ -66,7 +66,7 @@ const ROLES: RoleDef[] = [
     weakTags: ["EQUIPMENT"],
     context: ["objectives"],
     goodAt: "Setting priorities and getting everyone pulling the same way.",
-    onlyYou: "Every open objective in priority order, with its deadline.",
+    onlyYou: "Every open objective in priority order, with its deadline and how close it is to done.",
     tryThis: ["Name the one thing the team does this stage", "Send two agents at the primary objective", "Call off whatever is wasting time"],
   },
   {

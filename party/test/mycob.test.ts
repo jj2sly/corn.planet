@@ -349,6 +349,7 @@ describe("My Cob Escaped: stage recap, role cards, sound cues and the finale", (
     assert.ok(r.risks.length <= 3);
     assert.equal(r.team.lives, inc.crew.reduce((n: number, c: View) => n + c.lives, 0));
     assert.equal(r.team.maxLives, inc.crew.length * DEFAULT_MYCOB_CONFIG.lives.start);
+    assert.deepEqual(r.team.lastLife, inc.crew.filter((c: View) => c.lives === 1).map((c: View) => c.name));
     assert.equal(r.objectives.total, inc.objectives.length);
     assert.equal(r.objectives.done, inc.objectives.filter((o: View) => o.status === "completed").length);
     assert.equal(r.objectives.primaryStatus, inc.objectives.find((o: View) => o.kind === "primary").status);
@@ -384,7 +385,9 @@ describe("My Cob Escaped: stage recap, role cards, sound cues and the finale", (
     assert.ok(view(room).incident.crew.every((c: View) => icons.includes(c.roleIcon)));
 
     const readOf = (roleId: string) => [...reads].find(([id]) => view(room, id).you.role.id === roleId)![1];
-    assert.match(readOf("commander"), /^Most fragile right now: (Containment|Facility|Personnel|Resources|Information|Time) \(/);
+    assert.match(readOf("commander"), /^Most fragile right now: (Containment|Facility|Personnel|Resources|Information|Time) \(.*Primary objective: (identify it first|holding|at risk|within reach|a way off|far off)\.$/);
+    const commander = ids.find((id) => view(room, id).you.role.id === "commander")!;
+    assert.match(view(room, commander).you.context[0].lines[0], /^PRIMARY: .* · (identify it first|holding|at risk|within reach|a way off|far off)$/, "how close, in words");
     assert.match(readOf("containment"), /^Containment is [A-Z]+\. It's contained at SECURE/, "no trend before the first stage");
     const broken = view(room).incident.systems.some((x: View) => x.condition !== "nominal");
     assert.match(readOf("technician"), broken ? /^Fix first: .* it's dragging down / : /^Every system is running/);

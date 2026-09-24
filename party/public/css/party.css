@@ -2582,6 +2582,11 @@ a.stamp:focus-visible {
   margin: 8px 0;
 }
 
+.mc-recap-changes {
+  list-style: none;
+  padding: 0;
+}
+
 .mc-recap-changes li {
   font-family: var(--mono);
   font-size: 0.85rem;
@@ -2867,6 +2872,30 @@ a.stamp:focus-visible {
 .mc-recap-deadline {
   margin: 4px 0 0;
   font-size: 0.9rem;
+}
+
+.mc-block > * {
+  margin: 0;
+}
+
+.mc-block > * + * {
+  margin-top: 6px;
+}
+
+.mc-block-label {
+  font-family: var(--head);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mc-recap .mc-block {
+  margin-top: 10px;
+}
+
+.mc-recap-lastlife {
+  color: var(--danger);
 }
 
 .mc-next {

@@ -5,6 +5,7 @@ import { el, notice, plural, store, timerEl } from "../common.js";
 import {
   APPROACH_INFO,
   bestMoveEl,
+  block,
   factsList,
   leaderboard,
   liveNarration,
@@ -48,7 +49,9 @@ const stageLabel = (g) => (g.stage ? `Stage ${g.stage} of ${g.totalStages}` : `I
 /** Your role, lives and anything that just happened to you. Rebuilt on every update. */
 function youStrip(g) {
   const you = g.you;
-  const notices = you.notices.map((n) =>
+  // The consequence's own alert already says it; don't say it twice.
+  const shown = g.phase === "CONSEQUENCE" && you.lostLife ? you.notices.filter((n) => n.kind !== "life" && n.kind !== "down") : you.notices;
+  const notices = shown.map((n) =>
     el("p", { class: `mc-notice k-${n.kind}`, role: n.kind === "life" || n.kind === "down" ? "alert" : "status", text: n.text }),
   );
   // Buzz once per new life-loss notice.
@@ -239,7 +242,7 @@ function buildConsequence(s) {
   const c = g.consequence;
   const t = timerRow(s.timer, stageLabel(g));
   const a = g.you.action;
-  const lost = g.you.lostLife;
+  const mine = g.you.lostLife ? c.lifeLosses.find((l) => l.playerId === g.you.playerId) : null;
   const others = c.actions.filter((x) => x.playerId !== g.you.playerId);
   const found = c.discoveries;
   const teamLosses = c.lifeLosses.filter((l) => l.playerId !== g.you.playerId).map((l) => `♡ ${l.name} ${l.down ? "is down" : "lost a life"}`);
@@ -249,23 +252,40 @@ function buildConsequence(s) {
     ...c.objectiveChanges.map((x) => `Objective ${x.to}: ${x.text}`),
     ...c.objectivesAdded.map((x) => `New objective: ${x.text}`),
   ].slice(0, 3);
+  const left = g.you.lives;
   return screen(
     s,
     [
       t.node,
-      lost ? el("div", { class: "mc-life-alert", role: "alert" }, el("strong", { text: g.you.down ? "YOU'RE DOWN" : "YOU LOST A LIFE" }), el("p", { text: g.you.down ? "You'll be back as someone else next stage." : "Keep going. You're still in this." })) : null,
-      a
-        ? el("section", { class: "panel stack" }, el("p", {}, outcomeStamp(a.outcome, a.outcomeLabel)), el("p", { text: a.summary }), ...whyAndCaused(a))
-        : statusCard("–", "NO RESPONSE FILED", "The incident didn't wait for you."),
-      others.length
-        ? el("ul", { class: "mc-quick", "aria-label": "Everyone else" }, others.map((x) => el("li", {}, el("span", { class: "grow", text: `${x.roleIcon} ${x.name}` }), outcomeStamp(x.outcome, x.outcomeLabel))))
+      mine
+        ? el(
+            "div",
+            { class: "mc-life-alert", role: "alert" },
+            el("strong", { text: g.you.down ? "YOU'RE DOWN" : "YOU LOST A LIFE" }),
+            mine.reason ? el("p", { text: mine.reason }) : null,
+            el("p", { text: g.you.down ? "Next stage you're back as someone else, with a new role and 1 life." : `${left} ${left === 1 ? "life" : "lives"} left.` }),
+          )
         : null,
-      teamLosses.length ? el("p", { class: "mc-team-losses", role: "status", text: teamLosses.join(" · ") }) : null,
-      c.terminated ? el("div", { class: "warning", text: "Entity terminated" }) : null,
-      statChips(c.statusChanges),
-      otherChanges.length ? el("ul", { class: "mc-recap-changes" }, otherChanges.map((t) => el("li", { text: t }))) : null,
-      found.length ? el("section", {}, el("h3", { text: "Discovered" }), factsList(found.slice(0, 2)), found.length > 2 ? el("p", { class: "muted", text: `+${found.length - 2} more on the host screen` }) : null) : null,
-      shortReport(g.narration.filter((n) => n.type === "consequence" || n.type === "special_event")),
+      block(
+        "What happened",
+        a ? [el("p", {}, outcomeStamp(a.outcome, a.outcomeLabel)), el("p", { text: a.summary })] : el("p", { class: "muted", text: "You didn't file a response. The incident didn't wait for you." }),
+        shortReport(g.narration.filter((n) => n.type === "consequence" || n.type === "special_event")),
+      ),
+      ...(a ? whyAndCaused(a) : []),
+      block(
+        "The incident now",
+        c.terminated ? el("div", { class: "warning", text: "Entity terminated" }) : null,
+        statChips(c.statusChanges),
+        otherChanges.length ? el("ul", { class: "mc-recap-changes" }, otherChanges.map((t) => el("li", { text: t }))) : null,
+        found.length ? [factsList(found.slice(0, 2)), found.length > 2 ? el("p", { class: "muted", text: `+${found.length - 2} more on the host screen` }) : null] : null,
+      ),
+      block(
+        "The team",
+        others.length
+          ? el("ul", { class: "mc-quick", "aria-label": "Everyone else" }, others.map((x) => el("li", {}, el("span", { class: "grow", text: `${x.roleIcon} ${x.name}` }), outcomeStamp(x.outcome, x.outcomeLabel))))
+          : null,
+        teamLosses.length ? el("p", { class: "mc-team-losses", role: "status", text: teamLosses.join(" · ") }) : null,
+      ),
       c.next ? el("p", { class: "mc-next", text: `Next: ${c.next.replace(/^Next: /, "")}` }) : null,
     ],
     (next) => t.set(next.timer),

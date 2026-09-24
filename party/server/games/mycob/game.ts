@@ -139,7 +139,7 @@ interface Recap {
   changes: string[];
   /** Known risks: danger statuses, systems down, staff in trouble. */
   risks: string[];
-  team: { lives: number; maxLives: number; back: string[] };
+  team: { lives: number; maxLives: number; back: string[]; lastLife: string[] };
   objectives: { done: number; total: number; primary: string; primaryStatus: string; deadline: string | null };
 }
 
@@ -534,7 +534,12 @@ class MyCobGame implements GameInstance {
       .sort((a, b) => ((a.goal as { byStage: number }).byStage ?? 0) - ((b.goal as { byStage: number }).byStage ?? 0))[0];
     return {
       risks,
-      team: { lives: crew.reduce((n, m) => n + m.lives, 0), maxLives: crew.length * this.config.lives.start, back },
+      team: {
+        lives: crew.reduce((n, m) => n + m.lives, 0),
+        maxLives: crew.length * this.config.lives.start,
+        back,
+        lastLife: crew.filter((m) => m.lives === 1).map((m) => m.name),
+      },
       objectives: {
         done: inc.objectives.filter((o) => o.status === "completed").length,
         total: inc.objectives.length,
@@ -1264,12 +1269,15 @@ class MyCobGame implements GameInstance {
     const role = roleOf(this.config, action.roleId);
     const nameOf = (id: string) => plan.actions.find((a) => a.id === id)?.playerName ?? "someone";
     const out: string[] = [];
+    const team: string[] = [];
     for (const i of plan.interactions.filter((x) => x.a === action.id || x.b === action.id)) {
       const other = nameOf(i.a === action.id ? i.b : i.a);
-      if (i.kind === "synergy") out.push(`Teamed up with ${other}`);
+      if (i.kind === "synergy") team.push(other);
       else if (i.affected === action.id) out.push(i.kind === "sabotage" ? `${other}'s move got in your way` : `${other}'s move accidentally helped`);
       else out.push(`Clashed with ${other}`);
     }
+    // One line however many joined in, so the rest of the reasons still fit.
+    if (team.length) out.unshift(`Teamed up with ${team.length > 2 ? `${team.slice(0, -1).join(", ")} and ${team.at(-1)}` : team.join(" and ")}`);
     if (role.strongTags.includes(action.tag)) out.push("★ Your role's strength");
     else if (role.weakTags.includes(action.tag)) out.push("Not your role's strength");
     if (action.approach === "careful") out.push("Careful: steadier, smaller");
@@ -1372,14 +1380,27 @@ class MyCobGame implements GameInstance {
       case "objectives": {
         const active = inc.objectives.filter((o) => o.status === "active");
         const byDeadline = (o: (typeof active)[number]) => (o.kind === "primary" ? -1 : o.goal.type === "stat" && o.goal.byStage ? o.goal.byStage : 99);
+        // The Commander's own edge: how far each measurable objective is from done, from hidden state, in words.
+        const distance = (o: (typeof active)[number]): string | null => {
+          const g = o.goal;
+          if (g.type === "contain" && g.identify && !inc.entity.identityKnown) return "identify it first";
+          const gap = g.type === "contain" ? g.atLeast - inc.stats.containment : g.type === "stat" ? g.atLeast - inc.stats[g.stat] : null;
+          if (g.type === "survive") return inc.stats.personnel - g.atLeast > 15 ? "holding" : "at risk";
+          return gap === null ? null : gap <= 10 ? "within reach" : gap <= 25 ? "a way off" : "far off";
+        };
+        const primary = active.find((o) => o.kind === "primary");
+        const primaryDistance = primary ? distance(primary) : null;
         return {
-          read: `Most fragile right now: ${fragile()}. Put someone on it.`,
+          read: `Most fragile right now: ${fragile()}. ${primaryDistance ? `Primary objective: ${primaryDistance}.` : "Put someone on it."}`,
           context: [
             {
               title: "Command priorities",
               lines: [...active]
                 .sort((a, b) => byDeadline(a) - byDeadline(b))
-                .map((o) => `${o.kind === "primary" ? "PRIMARY" : "Secondary"}: ${this.scrub(o.text)}${o.goal.type === "stat" && o.goal.byStage ? ` (by stage ${o.goal.byStage})` : ""}`),
+                .map((o) => {
+                  const d = distance(o);
+                  return `${o.kind === "primary" ? "PRIMARY" : "Secondary"}: ${this.scrub(o.text)}${o.goal.type === "stat" && o.goal.byStage ? ` (by stage ${o.goal.byStage})` : ""}${d ? ` · ${d}` : ""}`;
+                }),
             },
           ],
         };

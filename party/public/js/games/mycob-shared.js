@@ -174,26 +174,34 @@ export function shortReport(events) {
   );
 }
 
-/** INCIDENT STATUS: what just happened, what matters now, what changed, risks, the team, objectives. */
+/** A labelled block for phone screens: a small heading, then its lines. Nothing when empty. */
+export function block(label, ...nodes) {
+  const body = nodes.flat().filter(Boolean);
+  return body.length ? el("section", { class: "mc-block" }, el("p", { class: "mc-block-label", text: label }), ...body) : null;
+}
+
+/** INCIDENT STATUS: situation, what changed, risks, the team, objectives. */
 export function recapCard(recap) {
   const o = recap.objectives;
+  const team = recap.team;
+  const first = recap.stage === 1;
   return el(
     "section",
     { class: "mc-recap", "aria-label": "Incident status" },
     el("p", { class: "eyebrow", text: `Incident status · stage ${recap.stage}` }),
-    el("ul", { class: "mc-recap-happened" }, recap.happened.map((t) => el("li", { text: t }))),
-    el("p", { class: "mc-recap-now" }, el("strong", { text: "Now: " }), recap.now),
-    recap.changes.length ? el("ul", { class: "mc-recap-changes" }, recap.changes.map((t) => el("li", { text: t }))) : null,
-    recap.risks.length ? el("p", { class: "mc-recap-risks" }, el("strong", { text: "⚠ Risks: " }), recap.risks.join(" · ")) : null,
-    el(
-      "p",
-      { class: "mc-recap-meta" },
-      el("span", { text: `♥ ${recap.team.lives}/${recap.team.maxLives} lives` }),
-      el("span", { text: `▢ ${o.done}/${o.total} objectives` }),
-      el("span", { text: `Primary: ${o.primaryStatus === "active" ? "open" : o.primaryStatus}` }),
+    block("Situation", el("p", { class: "mc-recap-now", text: recap.now }), first ? el("p", { class: "muted", text: recap.happened.join(" ") }) : null),
+    first ? null : block("Since last stage", el("ul", { class: "mc-recap-happened" }, recap.happened.map((t) => el("li", { text: t }))), recap.changes.length ? el("ul", { class: "mc-recap-changes" }, recap.changes.map((t) => el("li", { text: t }))) : null),
+    recap.risks.length ? block("⚠ Risks", el("p", { class: "mc-recap-risks", text: recap.risks.join(" · ") })) : null,
+    block(
+      "Team",
+      el("p", { class: "mc-recap-meta" }, el("span", { text: `♥ ${team.lives}/${team.maxLives} lives` }), team.lastLife?.length ? el("span", { class: "mc-recap-lastlife", text: `Last life: ${team.lastLife.join(", ")}` }) : null),
+      team.back.length ? el("p", { class: "muted", text: team.back.join(" · ") }) : null,
     ),
-    o.deadline ? el("p", { class: "mc-recap-deadline", text: `⏱ ${o.deadline}` }) : null,
-    recap.team.back.length ? el("p", { class: "muted", text: recap.team.back.join(" · ") }) : null,
+    block(
+      "Objectives",
+      el("p", { class: "mc-recap-meta" }, el("span", { text: `▢ ${o.done}/${o.total} done` }), el("span", { text: `Primary: ${o.primaryStatus === "active" ? "open" : o.primaryStatus}` })),
+      o.deadline ? el("p", { class: "mc-recap-deadline", text: `⏱ ${o.deadline}` }) : null,
+    ),
   );
 }
 
@@ -232,7 +240,7 @@ function roleDetails(g, open) {
     g.you.context.map((section) => el("section", { class: "mc-role-intel" }, el("h3", { text: section.title }), el("ul", { class: "list" }, section.lines.map((line) => el("li", { text: line }))))),
     el("p", { class: "mc-role-try-label", text: "Try something like" }),
     el("ul", { class: "mc-role-try" }, role.tryThis.map((t) => el("li", { text: t }))),
-    el("p", { class: "muted", text: role.blurb }),
+    el("p", { class: "muted", text: `${role.blurb} This role is yours for the whole incident; it only changes if you go down.` }),
   );
 }
 
@@ -241,15 +249,17 @@ export function whyAndCaused(action) {
   const why = action.why ?? [];
   const caused = action.caused ?? [];
   return [
-    why.length ? el("ul", { class: "mc-why", "aria-label": "Why" }, why.map((w) => el("li", { text: w }))) : null,
-    caused.length
-      ? el(
-          "p",
-          { class: "mc-caused" },
-          el("strong", { text: "You caused: " }),
-          caused.map((c, i) => el("span", { class: c.up === (c.name === "Chaos") ? "worse" : "better" }, `${i ? " · " : ""}${c.name} ${(c.up ? "▲" : "▼").repeat(c.big ? 2 : 1)}`)),
-        )
-      : null,
+    block("Why", why.length ? el("ul", { class: "mc-why" }, why.map((w) => el("li", { text: w }))) : null),
+    block(
+      "You caused",
+      el(
+        "p",
+        { class: "mc-caused" },
+        caused.length
+          ? caused.map((c, i) => el("span", { class: c.up === (c.name === "Chaos") ? "worse" : "better" }, `${i ? " · " : ""}${c.name} ${(c.up ? "▲" : "▼").repeat(c.big ? 2 : 1)}`))
+          : el("span", { class: "muted", text: "No lasting change." }),
+      ),
+    ),
   ];
 }
 
