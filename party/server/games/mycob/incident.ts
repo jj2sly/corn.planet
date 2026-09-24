@@ -469,7 +469,7 @@ export function makeSecondary(
       return make(fill(tpl.text, { npc: holder.name }), { type: "discover", factId: fact.id });
     }
     case "protect": {
-      const target = (hint.npcId && alive.find((p) => p.id === hint.npcId)) || shuffle(alive, random).find((p) => !taken("protect", p.id));
+      const target = (hint.npcId && alive.find((p) => p.id === hint.npcId)) || shuffle(alive, random).find((p) => !taken("protect", p.id) && !taken("rescue", p.id));
       if (!target) return null;
       return make(fill(tpl.text, { npc: target.name }), { type: "protect", npcId: target.id });
     }

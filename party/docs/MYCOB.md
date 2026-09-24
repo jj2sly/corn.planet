@@ -50,11 +50,14 @@ votes quickly (tune `timing` in `config.ts`). All timers are the
 room's single pausable server timer; they freeze while the host display is away.
 
 Each UPDATE opens with an **INCIDENT STATUS** recap (`recap` in the view, host and phones): what
-happened last stage (a tally of outcomes, the most dramatic move, who lost a life), what matters now
+happened last stage (a tally of outcomes, the most dramatic move, who lost a life, who won the vote), what matters now
 (a new problem, else the worst status), and up to three changes (identification, a discovery, status
 changes, objectives, a special event), known risks (danger statuses, systems offline, staff in trouble,
 anomalies), the team's lives, who is on their last life and anyone back after going down, and objective progress (done/total, the
-primary's status, the nearest deadline). It is built only from what everyone has already been shown.
+primary's status, the nearest deadline). It is built only from what everyone has already been shown, and stays up through RESPONSE, where its
+"now" is the prompt players respond to. Phones label every phase ("Stage 2/3 · Your move") and keep the
+countdown pinned while you scroll; a response typed but never filed is filed 2 s before time runs out
+(if it has a type).
 
 On phones the consequence reads in order: your own outcome with **why** (the engine's reasons in words:
 your role's strength, careful/reckless, harm's way, cramming, repeating, aiming at something, a clash or
@@ -249,7 +252,7 @@ and **each agent keeps theirs for the whole incident**. Each role has an icon, a
 **read** (`you.read`): the one line from its intel that matters most right now — the Commander's most
 fragile status and how close each objective is to done, the Containment Specialist's containment trend and goal, the Research Specialist's
 identification readiness or unread files, the Technician's system to fix first and what it drags down,
-Communications' staff member most in danger and where, the Field Operative's last tracking and who is
+Communications' staff member most in danger and where (or, with nobody in danger, who knows something), the Field Operative's last tracking and who is
 there, the Recorder's what's-been-working tally or repetition warning, and the Intern's rumor (true about
 half the time). Some of these come from hidden state, always as words, and only to that agent. No role
 changes the odds beyond its existing strong and weak tags. Below the read is the card (open in
@@ -379,7 +382,7 @@ catastrophe, or every action failed), `discovery`, `chaos_up` (the chaos label r
 `game_end`; screens add `timer_warning` themselves at 10 s left. All playback goes through one
 manager, `public/js/games/mycob-sound.js`: the host plays each cue once (a screen that joins mid-game
 plays nothing old), phones only your own response filed, life lost and timer warning (while you
-haven't filed or voted). Mute and volume are per device (`localStorage`), on the host board and at the
+haven't filed or voted; the host warns only for responses). Mute and volume are per device (`localStorage`), on the host board and at the
 bottom of each phone screen. Sounds queue instead of stacking (at most 3 at once, repeats within
 0.35 s and anything waiting over 3 s dropped, except game start, life lost and the endings), and
 nothing plays before the page has been tapped. Real sounds are mapped to cues in

@@ -138,6 +138,8 @@ interface Recap {
   happened: string[];
   now: string;
   changes: string[];
+  /** Who won last stage's vote, if anyone did. */
+  vote: string | null;
   /** Known risks: danger statuses, systems down, staff in trouble. */
   risks: string[];
   team: { lives: number; maxLives: number; back: string[]; lastLife: string[] };
@@ -472,7 +474,7 @@ class MyCobGame implements GameInstance {
     const last = this.records.at(-1);
     if (!last) {
       const breach = publicBreach(inc);
-      return { stage: this.stage, happened: [`${breach.name} in the ${inc.location.name}.`], now: short(this.scrub(inc.problem.text)), changes: [], ...extra };
+      return { stage: this.stage, happened: [`${breach.name} in the ${inc.location.name}.`], now: short(this.scrub(inc.problem.text)), changes: [], vote: null, ...extra };
     }
     const { plan, output, result } = last;
     const outcomes = plan.actions.map((a) => a.roll.outcome);
@@ -511,7 +513,9 @@ class MyCobGame implements GameInstance {
     const objectives = result.objectiveChanges.map((c) => `Objective ${c.to}: ${this.scrub(c.text)}`);
     const event = result.specialEvent ? [result.specialEvent.name] : [];
     const changes = [...identified, ...discoveries.slice(0, 1), ...stats.slice(0, 2), ...objectives, ...event].slice(0, 3).map((c) => short(c, 90));
-    return { stage: this.stage, happened: happened.slice(0, 3), now: short(this.scrub(now)), changes, ...extra };
+    const mvp = this.mvps.find((m) => m.stage === last.stage);
+    const vote = mvp ? `Best move, by vote: ${mvp.playerIds.map((id) => this.crew.get(id)?.name ?? "?").join(" & ")} (${mvp.votes})` : null;
+    return { stage: this.stage, happened: happened.slice(0, 3), now: short(this.scrub(now)), changes, vote, ...extra };
   }
 
   /** The standing parts of the recap: known risks, the team, objective progress. All already public. */
@@ -1445,8 +1449,14 @@ class MyCobGame implements GameInstance {
       }
       case "personnel": {
         const worst = inDanger[0];
+        // Nobody to save yet: point at someone worth talking to instead (the tracker already flags them).
+        const knower = inc.personnel.find((p) => p.status !== "dead" && p.knowledgeFactId && inc.facts.find((f) => f.id === p.knowledgeFactId)?.visibility !== "known");
         return {
-          read: worst ? `${worst.name} is ${worst.status.toUpperCase()} in the ${where(worst.location)}. Get them out.` : "Nobody is in danger right now.",
+          read: worst
+            ? `${worst.name} is ${worst.status.toUpperCase()} in the ${where(worst.location)}. Get them out.`
+            : knower
+              ? `Nobody is in danger yet. ${knower.name} (${where(knower.location)}) knows something. Get them talking.`
+              : "Nobody is in danger right now.",
           context: [
             {
               title: "Staff tracker",
@@ -1496,7 +1506,7 @@ class MyCobGame implements GameInstance {
         // About half the time the rumor is true: a real lead, the real weakest system, the real weak spot.
         const truths = [
           leads[0] ? `Someone said to look into this: ${leadLine(leads[0])}.` : null,
-          broken[0] ? `Someone said the ${SYSTEMS[broken[0]].name.toLowerCase()} is the real problem.` : null,
+          broken[0] ? `Someone said the real problem is the ${SYSTEMS[broken[0]].name.toLowerCase()}.` : null,
           `Someone said ${fragile().split(" (")[0]!.toLowerCase()} is about to give.`,
         ].filter((t): t is string => !!t);
         const nonsense = [
@@ -1528,7 +1538,8 @@ class MyCobGame implements GameInstance {
     };
 
     const phaseView: Record<string, unknown> = {};
-    if (this.phase === "UPDATE" && this.recap) phaseView.recap = this.recap;
+    // Kept through the responses: `now` is what players are responding to.
+    if ((this.phase === "UPDATE" || this.phase === "RESPONSE") && this.recap) phaseView.recap = this.recap;
     if (this.phase === "RESPONSE") {
       phaseView.progress = { submitted: this.activeCrew().filter((m) => this.responses.has(m.playerId)).length, needed: this.activeCrew().length };
     }

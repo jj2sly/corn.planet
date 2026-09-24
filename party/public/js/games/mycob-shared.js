@@ -190,7 +190,14 @@ export function recapCard(recap) {
     { class: "mc-recap", "aria-label": "Incident status" },
     el("p", { class: "eyebrow", text: `Incident status · stage ${recap.stage}` }),
     block("Situation", el("p", { class: "mc-recap-now", text: recap.now }), first ? el("p", { class: "muted", text: recap.happened.join(" ") }) : null),
-    first ? null : block("Since last stage", el("ul", { class: "mc-recap-happened" }, recap.happened.map((t) => el("li", { text: t }))), recap.changes.length ? el("ul", { class: "mc-recap-changes" }, recap.changes.map((t) => el("li", { text: t }))) : null),
+    first
+      ? null
+      : block(
+          "Since last stage",
+          el("ul", { class: "mc-recap-happened" }, recap.happened.map((t) => el("li", { text: t }))),
+          recap.vote ? el("p", { class: "mc-recap-vote", text: `🗳 ${recap.vote}` }) : null,
+          recap.changes.length ? el("ul", { class: "mc-recap-changes" }, recap.changes.map((t) => el("li", { text: t }))) : null,
+        ),
     recap.risks.length ? block("⚠ Risks", el("p", { class: "mc-recap-risks", text: recap.risks.join(" · ") })) : null,
     block(
       "Team",
@@ -217,15 +224,14 @@ export function statChips(changes) {
   );
 }
 
-/** Your role's one line that matters most right now, then the card: what it's for, what only you see, what to try. */
-export function roleCard(g, { open = false } = {}) {
-  const role = g.you.role;
-  return el(
-    "div",
-    { class: "mc-rolebox" },
-    g.you.read ? el("p", { class: "mc-read" }, el("span", { class: "mc-read-label", text: `${role.icon} Your read` }), g.you.read) : null,
-    roleDetails(g, open),
-  );
+/** Your role's one line that matters most right now. */
+export function readLine(g) {
+  return g.you.read ? el("p", { class: "mc-read" }, el("span", { class: "mc-read-label", text: `${g.you.role.icon} Your read` }), g.you.read) : null;
+}
+
+/** Your read, then the card: what your role is for, what only you see, what to try. */
+export function roleCard(g, { open = false, read = true } = {}) {
+  return el("div", { class: "mc-rolebox" }, read ? readLine(g) : null, roleDetails(g, open));
 }
 
 function roleDetails(g, open) {
@@ -314,10 +320,10 @@ export function leaderboard(o, { limit = Infinity, you = null } = {}) {
 
 /** Under the ending stamp: an icon and one line of flavour. */
 export const ENDING_FLAVOR = {
-  contained: { icon: "🏆", line: "Back in the box. The paperwork is somehow worse." },
-  terminated: { icon: "💥", line: "It's dead. Somebody has to explain the crater." },
-  escaped: { icon: "🏃", line: "It's out there now. Legal says that's a you problem." },
-  everyone_dies: { icon: "💀", line: "No survivors. Morale remains high." },
+  contained: { icon: "🏆", line: "Back in the box. Nobody touch anything." },
+  terminated: { icon: "💥", line: "Somebody has to explain the crater." },
+  escaped: { icon: "🏃", line: "Check under your desk. Then check again." },
+  everyone_dies: { icon: "💀", line: "Great teamwork, though." },
 };
 
 /** Makes `node` fade in `at` seconds after the screen opens. Set through CSSOM: the CSP forbids style attributes. */

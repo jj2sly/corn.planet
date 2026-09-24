@@ -15,6 +15,7 @@ import {
   MEDALS,
   outcomeStamp,
   PENDING_REPORT,
+  readLine,
   recapCard,
   reveal,
   roleCard,
@@ -33,7 +34,7 @@ const seenNotices = new Set();
 
 function timerRow(timer, label) {
   const slot = el("span", {}, timerEl(timer));
-  const node = el("div", { class: "row spread" }, el("span", { class: "eyebrow", text: label }), slot);
+  const node = el("div", { class: "row spread mc-timer-row" }, el("span", { class: "eyebrow", text: label }), slot);
   return { node, set: (t) => slot.replaceChildren(timerEl(t)) };
 }
 
@@ -48,7 +49,8 @@ function statusCard(icon, title, body, ...extra) {
   );
 }
 
-const stageLabel = (g) => (g.stage ? `Stage ${g.stage} of ${g.totalStages}` : `Incident ${g.incident.code}`);
+const PHASE_NAME = { UPDATE: "Briefing", RESPONSE: "Your move", PROCESSING: "Processing", CONSEQUENCE: "Results", STAGE_VOTE: "Vote" };
+const stageLabel = (g) => (g.stage ? `Stage ${g.stage}/${g.totalStages} · ${PHASE_NAME[g.phase] ?? ""}` : `Incident ${g.incident.code}`);
 
 /** Your role, lives and anything that just happened to you. Rebuilt on every update. */
 function youStrip(g) {
@@ -114,9 +116,11 @@ function buildBriefing(s) {
     s,
     [
       t.node,
+      el("p", { class: "hint", text: alert ? "Learn your role. Stage 1 starts when the timer runs out." : "Read up. You respond when the timer runs out." }),
       alert ? el("div", { class: "warning", text: "Containment breach" }) : null,
       alert ? narration.node : null,
-      alert ? el("p", { class: "phone-prompt", text: g.incident.problem }) : null,
+      // The opening narration usually says it already.
+      alert && !g.narration.some((n) => n.text.includes(g.incident.problem)) ? el("p", { class: "phone-prompt", text: g.incident.problem }) : null,
       !alert && g.recap ? recapCard(g.recap) : null,
       intel,
     ],
@@ -168,7 +172,7 @@ function buildResponse(s, tools) {
       },
       el("span", { class: "icon", "aria-hidden": "true", text: TAG_INFO[id].icon }),
       el("span", { class: "label", text: TAG_INFO[id].label }),
-      strong ? el("span", { class: "strong", text: "★ role" }) : null,
+      strong ? el("span", { class: "strong", title: "Your role's strength", text: "★" }) : null,
     );
   });
 
@@ -216,7 +220,7 @@ function buildResponse(s, tools) {
         playCue("response_in");
       },
     },
-    el("p", { class: "phone-prompt", text: g.incident.problem }),
+    el("p", { class: "phone-prompt", text: g.recap?.now ?? g.incident.problem }),
     el("p", { class: "label", id: "mcTagLabel", text: "What kind of response?" }),
     el("div", { class: "mc-tags", role: "group", "aria-labelledby": "mcTagLabel" }, tagButtons),
     el("label", { for: "mcText", text: "What do you do?" }),
@@ -229,13 +233,27 @@ function buildResponse(s, tools) {
     note,
   );
 
+  // Out of time with a response typed but never filed: file it rather than lose it.
+  let hasFiled = !!g.you.response;
+  let autoFile = 0;
+  const armAutoFile = (timer) => {
+    clearTimeout(autoFile);
+    if (hasFiled || !timer || timer.paused) return;
+    autoFile = setTimeout(() => {
+      if (form.isConnected && !hasFiled && tag && textarea.value.trim()) form.requestSubmit();
+    }, Math.max(0, timer.remainingMs - 2000));
+  };
+
   const setFiled = (next) => {
-    filed.textContent = next.game.you.response ? `Response filed. You can change it until everyone's in (${next.game.progress.submitted}/${next.game.progress.needed}).` : "";
-    submit.textContent = next.game.you.response ? "Update response" : "File response";
+    hasFiled = !!next.game.you.response;
+    filed.textContent = hasFiled ? `Response filed. You can change it until everyone's in (${next.game.progress.submitted}/${next.game.progress.needed}).` : "";
+    submit.textContent = hasFiled ? "Update response" : "File response";
+    armAutoFile(next.timer);
   };
   setFiled(s);
 
-  return screen(s, [t.node, form, roleCard(g)], (next) => {
+  // Your read first: it's what your role knows about this decision.
+  return screen(s, [t.node, readLine(g), form, roleCard(g, { read: false })], (next) => {
     t.set(next.timer);
     setFiled(next);
   });
@@ -346,7 +364,14 @@ function buildVote(s, tools) {
   apply(s);
   return screen(
     s,
-    [t.node, el("p", { class: "phone-prompt", text: "Best move this stage?" }), el("div", { class: "vote-options" }, buttons), locked, note],
+    [
+      t.node,
+      el("p", { class: "phone-prompt", text: "Best move this stage?" }),
+      el("p", { class: "hint", text: "Tap one to vote. It's anonymous, and final." }),
+      el("div", { class: "vote-options" }, buttons),
+      locked,
+      note,
+    ],
     (next) => {
       t.set(next.timer);
       apply(next);
@@ -481,7 +506,7 @@ function buildAwardVote(s, tools) {
   const groups = g.awards.list.map((award) => {
     const buttons = g.awards.recipients.map((r) =>
       el("button", {
-        class: "btn ghost small",
+        class: "btn ghost small mc-recipient",
         type: "button",
         text: r.name,
         dataset: { playerId: r.playerId },
@@ -538,7 +563,7 @@ function buildAwardResults(s) {
           ),
         ),
       ),
-      won.length ? reveal(el("div", { class: "mc-you-won", role: "status" }, el("span", { "aria-hidden": "true", text: "🏆 " }), `You won ${won.map((a) => `“${a.name}”`).join(" and ")}`), after) : null,
+      won.length ? reveal(el("div", { class: "mc-you-won", role: "status" }, el("span", { "aria-hidden": "true", text: "🏆 " }), `You won ${new Intl.ListFormat("en", { type: "conjunction" }).format(won.map((a) => `“${a.name}”`))}`), after) : null,
       beat(after + 0.6, el("h3", { text: "Final standings" }), leaderboard(g.outcome, { you: g.you.playerId })),
     ],
     (next) => t.set(next.timer),

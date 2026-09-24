@@ -482,6 +482,15 @@ export function applyStage(incident: Incident, plan: StagePlan, output: Validate
 
   for (const change of output.systemEffects) setSystem(change.system, change.condition);
 
+  // Personnel, before the new problem: a staff member rescued this stage can then be trapped again
+  // elsewhere, instead of the rescue quietly undoing the new problem (and completing its objective).
+  const personnelChanges: StageResult["personnelChanges"] = [];
+  for (const change of output.personnelEffects) {
+    const npc = incident.personnel.find((p) => p.id === change.npcId)!;
+    personnelChanges.push({ npcId: npc.id, name: npc.name, from: npc.status, to: change.status });
+    npc.status = change.status;
+  }
+
   const objectivesAdded: Objective[] = [];
   let newProblem: string | null = null;
   if (plan.newProblem) {
@@ -507,14 +516,6 @@ export function applyStage(incident: Incident, plan: StagePlan, output: Validate
   }
   for (const text of output.newObjectives) objectivesAdded.push(narrativeObjective(incident, text, stage, "director"));
   incident.objectives.push(...objectivesAdded);
-
-  // Personnel.
-  const personnelChanges: StageResult["personnelChanges"] = [];
-  for (const change of output.personnelEffects) {
-    const npc = incident.personnel.find((p) => p.id === change.npcId)!;
-    personnelChanges.push({ npcId: npc.id, name: npc.name, from: npc.status, to: change.status });
-    npc.status = change.status;
-  }
 
   // Termination: the director read an action as a kill attempt and the engine's pre-roll allows it.
   const terminated = output.interpretations.some((i) => i.intent === "terminate" && plan.actions.find((a) => a.id === i.actionId)?.roll.terminationPossible);

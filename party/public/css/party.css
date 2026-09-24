@@ -2464,6 +2464,8 @@ a.stamp:focus-visible {
   min-height: 44px;
   display: flex;
   align-items: center;
+  /* Flex drops the space between "Your role:" and the name. */
+  gap: 0.35em;
 }
 
 .mc-intel h3 {
@@ -3100,4 +3102,28 @@ a.stamp:focus-visible {
 .mc-finale,
 .mc-ending {
   overflow-x: clip;
+}
+
+/* My Cob Escaped on phones: the countdown stays in view while you scroll the response form, and the
+   small buttons are thumb-sized. */
+
+.phone .mc-timer-row {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin-inline: calc(-1 * var(--gutter));
+  padding: 6px var(--gutter);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.btn.mc-recipient,
+.mc-sound .btn {
+  min-height: 44px;
+  min-width: 56px;
+}
+
+.mc-recap-vote {
+  margin: 6px 0;
+  font-weight: 700;
 }

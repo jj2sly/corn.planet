@@ -329,9 +329,10 @@ describe("My Cob Escaped: stage recap, role cards, sound cues and the finale", (
     assert.deepEqual(view(room, ids[0]).recap, first, "phones get the same recap");
 
     await until(room, "RESPONSE");
-    assert.equal(view(room).recap, undefined, "only while the stage opens");
+    assert.deepEqual(view(room).recap, first, "kept while responding");
     for (const id of ids) room.gameInput(id, "respond", { tag: "INVESTIGATE", text: "Read everything" });
     await until(room, "CONSEQUENCE");
+    assert.equal(view(room).recap, undefined, "only while the stage opens and players respond");
     const c = view(room).consequence;
     await until(room, "UPDATE");
     const r = view(room).recap;
@@ -341,6 +342,7 @@ describe("My Cob Escaped: stage recap, role cards, sound cues and the finale", (
     if (worked) assert.ok(r.happened[0].includes(`${worked} worked`), r.happened[0]);
     if (c.lifeLosses.length) assert.ok(r.happened.some((h: string) => h.endsWith("lost a life.")));
     assert.ok(r.now.length > 0);
+    assert.ok(r.vote === null || /^Best move, by vote: .+ \(\d+\)$/.test(r.vote), r.vote);
     assert.ok(r.changes.length <= 3 && r.happened.length <= 3, "short");
     for (const line of [...r.happened, r.now, ...r.changes]) assert.ok(line.length <= 150, line);
 
@@ -405,7 +407,7 @@ describe("My Cob Escaped: stage recap, role cards, sound cues and the finale", (
       const { room, ids } = start({ seed, names: ["A1", "B2", "C3", "D4", "E5", "F6", "G7", "H8"] });
       rumors.push(view(room, ids.find((id) => view(room, id).you.role.id === "intern")!).you.read);
     }
-    const truths = rumors.filter((r) => /look into this|is the real problem|is about to give/.test(r)).length;
+    const truths = rumors.filter((r) => /look into this|the real problem is|is about to give/.test(r)).length;
     assert.ok(truths > 0 && truths < rumors.length, `${truths} true of ${rumors.length}`);
   });
 

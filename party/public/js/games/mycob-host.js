@@ -69,8 +69,8 @@ function board(g) {
   );
 }
 
-/** The countdowns worth a warning on the big screen: responses and the vote. */
-const warnKey = (g) => (g.phase === "RESPONSE" || g.phase === "STAGE_VOTE" ? `${g.incident.code}:${g.phase}:${g.stage}` : null);
+/** The countdown worth a warning on the big screen: the responses. (Phones warn their own late voters.) */
+const warnKey = (g) => (g.phase === "RESPONSE" ? `${g.incident.code}:${g.phase}:${g.stage}` : null);
 
 /** Main column + board. `main` is rebuilt per phase; the board refreshes on every update. */
 function layout(s, mainNodes, onUpdate) {
@@ -164,7 +164,7 @@ function buildResponse(s) {
     s,
     [
       head.node,
-      el("div", { class: "prompt-card mc-prompt", text: g.incident.problem }),
+      el("div", { class: "prompt-card mc-prompt", text: g.recap?.now ?? g.incident.problem }),
       situation(g.incident),
       el(
         "ul",

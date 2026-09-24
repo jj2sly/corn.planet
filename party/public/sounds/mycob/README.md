@@ -27,7 +27,7 @@ longer.
 |---|---|---|
 | `game_start` | The breach alert opens the game | Host |
 | `alert` | A stage brings a new problem or a special event | Host |
-| `timer_warning` | 10 s left to respond or vote | Host; a phone that hasn't filed or voted yet |
+| `timer_warning` | 10 s left to respond (host), or to respond or vote (a phone that hasn't yet) | Host; phones |
 | `response_in` | An agent files a response (not an edit) | Host; your phone for your own |
 | `success` | At least one action worked | Host |
 | `major_failure` | A catastrophe, or every action failed | Host |

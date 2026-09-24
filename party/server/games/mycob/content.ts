@@ -57,7 +57,7 @@ export const LOCATIONS: readonly LocationDef[] = [
   { id: "medical", name: "Medical Bay", description: "Beds, bandages and a hand-hygiene poster nobody reads.", difficulty: 2, stats: { personnel: 5 }, keywords: ["medical", "infirmary", "med bay"], source: "builtin" },
   { id: "security", name: "Security Office", description: "Monitors, a weapons locker and a half-eaten corn dog.", difficulty: 0, stats: { resources: 5 }, keywords: ["security office", "weapons locker"], source: "builtin" },
   { id: "administration", name: "Administration", description: "Filing cabinets and the Records Division annex. Nothing here is built to hold anything.", difficulty: 6, stats: { containment: -5 }, keywords: ["admin", "records division", "office"], source: "builtin" },
-  { id: "storage", name: "Storage Level B", description: "Shelving to the ceiling. Crates marked DO NOT OPEN, most of them open.", difficulty: 4, stats: { resources: 5 }, keywords: ["storage", "crate", "shelf"], source: "builtin" },
+  { id: "storage", name: "Storage Vault", description: "Shelving to the ceiling. Crates marked DO NOT OPEN, most of them open.", difficulty: 4, stats: { resources: 5 }, keywords: ["storage", "crate", "shelf"], source: "builtin" },
   { id: "maintenance", name: "Maintenance Tunnels", description: "Pipes, steam and nowhere to turn around.", difficulty: 7, stats: { time: -5 }, keywords: ["maintenance", "tunnel", "pipe"], source: "builtin" },
   { id: "loading", name: "Loading & Transport", description: "Dock doors, forklifts and a truck that was supposed to leave an hour ago.", difficulty: 5, keywords: ["loading", "dock", "truck", "forklift"], source: "builtin" },
   { id: "cafeteria", name: "Cafeteria", description: "Today's special is creamed corn. It is always creamed corn.", difficulty: 3, stats: { personnel: -5 }, keywords: ["cafeteria", "kitchen", "creamed corn"], source: "builtin" },
@@ -186,7 +186,7 @@ export const PROBLEMS: readonly ProblemDef[] = [
   { id: "comms_failure", text: "Communications are down across the facility.", difficulty: 4, stats: { information: -6 }, weight: 1.5, systems: { comms: "offline" } },
   { id: "security_failure", text: "The lockdown failed. Doors in the {location} are opening on their own.", difficulty: 5, stats: { containment: -6 }, weight: 1.5, systems: { doors: "offline" } },
   { id: "transport_incident", text: "A transport cart overturned in the {location}. Its cargo is missing.", difficulty: 4, stats: { containment: -6, resources: -6 }, weight: 1.5 },
-  { id: "unauthorized_access", text: "{npc} let themselves into the bay \"just to look\" and hasn't come out.", difficulty: 4, stats: { personnel: -6 }, weight: 1.5, npcStatus: "missing" },
+  { id: "unauthorized_access", text: "{npc} let themselves into the {location} \"just to look\" and hasn't come out.", difficulty: 4, stats: { personnel: -6 }, weight: 1.5, npcStatus: "missing" },
   { id: "unknown_anomaly", text: "Something is wrong in the {location}, and every instrument disagrees about what.", difficulty: 5, stats: { information: -10, chaos: 8 }, weight: 1.5 },
   { id: "corn_overflow", text: "The {location} is ankle-deep in corn and rising.", difficulty: 4, stats: { facility: -6, chaos: 5 }, weight: 1 },
 ];
