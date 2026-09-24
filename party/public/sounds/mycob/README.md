@@ -16,8 +16,8 @@ public/sounds/mycob/
   endings/     contained, terminated, escaped, everyone_dies, game_end
 ```
 
-Name each file after its cue, with `-2`, `-3`… for variants: `outcomes/life_lost.mp3`,
-`outcomes/life_lost-2.mp3`. Use lowercase with no spaces. Use `.mp3` or `.m4a` so every phone can
+Any file name works (the files here keep their original names); `sounds.json` is what ties a file
+to a cue. For new files, lowercase with no spaces is safest. Use `.mp3` or `.m4a` so every phone can
 play them (older iPhones can't play `.ogg`). Keep most files under about 2 seconds; endings can run
 longer.
 
