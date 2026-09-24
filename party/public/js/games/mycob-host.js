@@ -4,9 +4,11 @@
 
 import { el, plural, timerEl } from "../common.js";
 import {
-  bestMoveEl,
+  beat,
+  ENDING_FLAVOR,
   entityCard,
   factsList,
+  hallOfFame,
   leaderboard,
   liveNarration,
   livesEl,
@@ -15,7 +17,9 @@ import {
   objectivesList,
   outcomeStamp,
   personnelList,
+  podium,
   recapCard,
+  reveal,
   stampEl,
   statChips,
   statusGrid,
@@ -308,28 +312,37 @@ function breakdownTable(outcome) {
   );
 }
 
+/** The ending stamp, the entity unmasked, and the closing report a beat later. */
 function endingBlock(g) {
   const o = g.outcome;
+  const flavor = ENDING_FLAVOR[o.id];
   const text = el("p", { class: "mc-ending-text", text: o.narration ?? PENDING_REPORT });
   const node = el(
     "div",
-    { class: `mc-ending e-${o.id}` },
+    { class: `mc-ending e-${o.id} stack` },
     el("p", { class: "eyebrow", text: `Incident ${g.incident.code} · ${plural(o.stagesPlayed, "stage")}` }),
-    el("h1", { class: "flicker", text: o.title }),
-    text,
-    el(
-      "div",
-      { class: "reference" },
-      el("span", { class: "eyebrow", text: o.initiallyUnknown ? "The unknown entity was" : "Entity" }),
-      el("strong", { class: "reference-id", text: o.entity.ref }),
-      el("span", { class: "muted", text: `${o.entity.title} · ${o.entity.classification}` }),
+    el("h1", { class: "mc-stamp" }, el("span", { "aria-hidden": "true", text: `${flavor?.icon ?? "⚠"} ` }), o.title),
+    flavor ? reveal(el("p", { class: "mc-ending-line", text: flavor.line }), 0.7) : null,
+    reveal(
+      el(
+        "div",
+        { class: "reference" },
+        el("span", { class: "eyebrow", text: o.initiallyUnknown ? "The unknown entity was" : "Entity" }),
+        el("strong", { class: "reference-id", text: o.entity.ref }),
+        el("span", { class: "muted", text: `${o.entity.title} · ${o.entity.classification}` }),
+      ),
+      1.2,
     ),
+    reveal(text, 2),
   );
   return { node, set: (next) => (text.textContent = next.outcome.narration ?? PENDING_REPORT) };
 }
 
+// The finale reveals itself in beats, well inside the outcome timer: the stamp, the report, the team,
+// the podium, then the halls of glory and shame. The full debrief stays a tap away.
 function buildOutcome(s) {
   const g = s.game;
+  const o = g.outcome;
   const head = header("Operation complete", "", s.timer);
   const ending = endingBlock(g);
   return layout(
@@ -337,24 +350,15 @@ function buildOutcome(s) {
     [
       head.node,
       ending.node,
-      summaryTiles(g.outcome),
-      el(
-        "div",
-        { class: "mc-finale-grid" },
-        el("section", {}, el("h2", { text: "Final scores" }), leaderboard(g.outcome)),
-        el(
-          "section",
-          { class: "stack" },
-          el("h2", { text: "Highlights" }),
-          bestMoveEl(g.outcome),
-          g.outcome.mvps.length
-            ? el("p", {}, el("strong", { text: "Stage commendations: " }), g.outcome.mvps.map((m) => `S${m.stage} ${m.names.join(" & ")}`).join(" · "))
-            : el("p", { class: "muted", text: "No commendations. Nobody could agree on anything." }),
-        ),
+      beat(3.5, el("h2", { text: "Team status" }), summaryTiles(o), el("p", { class: "muted", text: `Team bonus for everyone: +${o.team}` })),
+      beat(5.5, el("h2", { text: "Final scores" })),
+      podium(o, { at: 6 }),
+      beat(10, hallOfFame(o)),
+      beat(
+        11,
+        el("details", { class: "mc-debrief" }, el("summary", { text: "Full debrief" }), breakdownTable(o)),
+        el("p", { class: "muted", text: "Everything that happened in this incident is game-only. The CPI Database is unchanged." }),
       ),
-      el("h2", { text: "Debrief" }),
-      breakdownTable(g.outcome),
-      el("p", { class: "muted", text: "Everything that happened in this incident is game-only. The CPI Database is unchanged." }),
     ],
     (next) => {
       head.setTimer(next.timer);
@@ -412,6 +416,10 @@ function buildAwardResults(s) {
   const g = s.game;
   const o = g.outcome;
   const head = header(`End of incident · ${o.title}`, "THE AWARDS", s.timer);
+  const results = g.awards.results;
+  // One trophy at a time, then the final standings, all inside the results timer.
+  const step = Math.min(1.6, 8 / Math.max(1, results.length));
+  const after = 0.6 + results.length * step;
   return layout(
     s,
     [
@@ -419,19 +427,22 @@ function buildAwardResults(s) {
       el(
         "ul",
         { class: "mc-awards mc-trophies" },
-        g.awards.results.map((a) =>
-          el(
-            "li",
-            {},
-            el("span", { class: "mc-trophy", "aria-hidden": "true", text: "🏆" }),
-            el("p", { class: "mc-award-name", text: a.name }),
-            a.description ? el("p", { class: "muted", text: a.description }) : null,
-            el("p", { class: "mc-award-winner", text: a.winners.length ? a.winners.map((w) => w.name).join(" & ") : "No votes" }),
-            a.winners.length ? el("p", { class: "muted mono", text: plural(a.winners[0].votes, "vote") }) : null,
+        results.map((a, i) =>
+          reveal(
+            el(
+              "li",
+              {},
+              el("span", { class: "mc-trophy", "aria-hidden": "true", text: "🏆" }),
+              el("p", { class: "mc-award-name", text: a.name }),
+              a.description ? el("p", { class: "muted", text: a.description }) : null,
+              el("p", { class: "mc-award-winner", text: a.winners.length ? a.winners.map((w) => w.name).join(" & ") : "No votes" }),
+              a.winners.length ? el("p", { class: "muted mono", text: plural(a.winners[0].votes, "vote") }) : null,
+            ),
+            0.6 + i * step,
           ),
         ),
       ),
-      el("section", {}, el("h2", { text: "Final scores" }), leaderboard(o)),
+      beat(after, el("h2", { text: "Final standings" }), leaderboard(o)),
     ],
     (next) => head.setTimer(next.timer),
   );

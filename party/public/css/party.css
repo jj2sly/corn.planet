@@ -2917,3 +2917,187 @@ a.stamp:focus-visible {
   text-transform: uppercase;
   color: var(--yellow);
 }
+
+/* My Cob Escaped: the finale, revealed in beats. Each .mc-beat waits --at seconds, then drops in.
+   With reduced motion the global rule turns animations off and everything simply shows. */
+
+.mc-beat {
+  animation: mc-beat-in 0.5s ease-out both;
+  animation-delay: var(--at, 0s);
+}
+
+@keyframes mc-beat-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.mc-stamp {
+  display: inline-block;
+  animation: mc-stamp 0.6s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+@keyframes mc-stamp {
+  from {
+    opacity: 0;
+    transform: scale(2.4) rotate(-10deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.94) rotate(-2deg);
+  }
+  to {
+    transform: scale(1) rotate(-2deg);
+  }
+}
+
+.mc-ending .mc-stamp {
+  font-size: clamp(2.2rem, 6vw, 5.5rem);
+  line-height: 1;
+  margin: 4px 0;
+}
+
+.mc-ending-line {
+  margin: 0;
+  font-family: var(--head);
+  font-size: clamp(1rem, 1.8vw, 1.6rem);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mc-podium {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  max-width: 640px;
+}
+
+.mc-podium li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  min-width: 0;
+}
+
+.mc-podium .medal {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+
+.mc-podium .name {
+  max-width: 100%;
+  font-family: var(--head);
+  font-size: clamp(1rem, 2vw, 1.6rem);
+  overflow-wrap: anywhere;
+}
+
+.mc-podium .step {
+  align-self: stretch;
+  padding: 8px 4px;
+  border: 2px solid var(--line);
+  border-bottom: none;
+  background: var(--panel-2);
+}
+
+.mc-podium .p1 .step {
+  height: 7em;
+  border-color: var(--yellow);
+}
+
+.mc-podium .p2 .step {
+  height: 5em;
+}
+
+.mc-podium .p3 .step {
+  height: 3.5em;
+}
+
+.mc-podium .p1 .name,
+.mc-podium .you .name {
+  color: var(--yellow);
+}
+
+.mc-hall {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+}
+
+.mc-hall section {
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+}
+
+.mc-hall section > * + * {
+  margin-top: 8px;
+}
+
+.mc-hall h2 {
+  margin: 0;
+}
+
+.mc-hall .glory {
+  border-color: var(--yellow);
+}
+
+.mc-hall .glory h2 {
+  color: var(--yellow);
+}
+
+.mc-hall .shame {
+  border-color: var(--danger);
+}
+
+.mc-hall .shame h2 {
+  color: var(--danger);
+}
+
+.mc-hall-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mc-hall-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.mc-hall-list .eyebrow {
+  display: block;
+}
+
+.mc-hall-icon {
+  font-size: 1.6rem;
+}
+
+.mc-debrief summary {
+  cursor: pointer;
+  font-family: var(--head);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mc-finale .big-status h2 {
+  font-size: 2.2rem;
+}
+
+/* The stamp starts at 2.4× its size: keep that from widening the page for a moment on phones. */
+.mc-finale,
+.mc-ending {
+  overflow-x: clip;
+}

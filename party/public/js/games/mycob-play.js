@@ -4,15 +4,19 @@
 import { el, notice, plural, store, timerEl } from "../common.js";
 import {
   APPROACH_INFO,
-  bestMoveEl,
+  beat,
   block,
+  ENDING_FLAVOR,
   factsList,
+  hallOfFame,
   leaderboard,
   liveNarration,
   livesEl,
+  MEDALS,
   outcomeStamp,
   PENDING_REPORT,
   recapCard,
+  reveal,
   roleCard,
   shortReport,
   stampEl,
@@ -352,51 +356,66 @@ function buildVote(s, tools) {
 
 // ------------------------------------------------------------------ ending and awards
 
-const ENDING_ICON = { contained: "🏆", terminated: "💥", escaped: "🏃", everyone_dies: "💀" };
-
+// The finale in beats, like the big screen: the stamp, the report, where you placed, the team, the halls.
 function buildOutcome(s) {
   const g = s.game;
   const o = g.outcome;
   const t = timerRow(s.timer, "Operation complete");
   const mine = o.breakdown.find((b) => b.playerId === g.you.playerId);
   const place = standings(o).find((r) => r.playerId === g.you.playerId);
+  const flavor = ENDING_FLAVOR[o.id];
   const report = el("p", { class: "muted", text: o.narration ?? PENDING_REPORT });
-  const card = statusCard(ENDING_ICON[o.id] ?? "⚠", o.title, null, report);
+  const card = el(
+    "div",
+    { class: "big-status" },
+    el("div", { class: "icon mc-stamp", "aria-hidden": "true", text: flavor?.icon ?? "⚠" }),
+    el("h2", { class: "mc-stamp", text: o.title }),
+    flavor ? reveal(el("p", { class: "mc-ending-line", text: flavor.line }), 0.7) : null,
+    reveal(report, 1.6),
+  );
   return screen(
     s,
     [
       t.node,
       el("div", { class: `mc-finale e-${o.id}` }, card),
-      place ? el("p", { class: "mc-place" }, el("span", { class: "eyebrow", text: "You placed" }), el("strong", { text: `#${place.place} of ${o.breakdown.length}` }), el("span", { class: "mono", text: `${place.total} pts` })) : null,
-      summaryTiles(o),
-      bestMoveEl(o),
-      el(
-        "div",
-        { class: "reference" },
-        el("span", { class: "eyebrow", text: "The entity" }),
-        el("a", { class: "reference-id", href: o.entity.url, target: "_blank", rel: "noopener noreferrer" }, `${o.entity.ref} — ${o.entity.title} →`),
-      ),
-      mine
-        ? el(
-            "details",
-            {},
-            el("summary", { text: "Your score, point by point" }),
-            el(
-              "ul",
-              { class: "list" },
-              [
-                ["Impact", mine.impact],
-                ["Chaos", mine.chaos],
-                ["Creativity", mine.creativity],
-                ["Role", mine.role],
-                ["Votes", mine.votes],
-                ["Sacrifice", mine.sacrifice],
-                ["Team", mine.team],
-                ["Total", mine.total],
-              ].map(([label, value]) => el("li", {}, el("span", { class: "grow", text: label }), el("strong", { class: "mono", text: String(value) }))),
-            ),
+      place
+        ? reveal(
+            el("p", { class: "mc-place" }, el("span", { class: "eyebrow", text: "You placed" }), el("strong", { text: `${MEDALS[place.place - 1] ?? ""} #${place.place} of ${o.breakdown.length}`.trim() }), el("span", { class: "mono", text: `${place.total} pts` })),
+            3,
           )
         : null,
+      beat(4.5, summaryTiles(o)),
+      beat(6.5, hallOfFame(o)),
+      beat(
+        8,
+        el(
+          "div",
+          { class: "reference" },
+          el("span", { class: "eyebrow", text: "The entity" }),
+          el("a", { class: "reference-id", href: o.entity.url, target: "_blank", rel: "noopener noreferrer" }, `${o.entity.ref} — ${o.entity.title} →`),
+        ),
+        mine
+          ? el(
+              "details",
+              {},
+              el("summary", { text: "Your score, point by point" }),
+              el(
+                "ul",
+                { class: "list" },
+                [
+                  ["Impact", mine.impact],
+                  ["Chaos", mine.chaos],
+                  ["Creativity", mine.creativity],
+                  ["Role", mine.role],
+                  ["Votes", mine.votes],
+                  ["Sacrifice", mine.sacrifice],
+                  ["Team", mine.team],
+                  ["Total", mine.total],
+                ].map(([label, value]) => el("li", {}, el("span", { class: "grow", text: label }), el("strong", { class: "mono", text: String(value) }))),
+              ),
+            )
+          : null,
+      ),
     ],
     (next) => {
       t.set(next.timer);
@@ -501,21 +520,26 @@ function buildAwardVote(s, tools) {
 function buildAwardResults(s) {
   const g = s.game;
   const t = timerRow(s.timer, "The awards");
-  const won = g.awards.results.filter((a) => a.winners.some((w) => w.playerId === g.you.playerId));
+  const results = g.awards.results;
+  const won = results.filter((a) => a.winners.some((w) => w.playerId === g.you.playerId));
+  const step = Math.min(1.6, 8 / Math.max(1, results.length));
+  const after = 0.6 + results.length * step;
   return screen(
     s,
     [
       t.node,
-      won.length ? el("div", { class: "mc-you-won", role: "status" }, el("span", { "aria-hidden": "true", text: "🏆 " }), `You won ${won.map((a) => `“${a.name}”`).join(" and ")}`) : null,
       el(
         "ul",
-        { class: "list" },
-        g.awards.results.map((a) =>
-          el("li", {}, el("span", { class: "grow" }, el("strong", { text: a.name })), el("span", { text: a.winners.length ? a.winners.map((w) => w.name).join(" & ") : "—" })),
+        { class: "list mc-award-list" },
+        results.map((a, i) =>
+          reveal(
+            el("li", {}, el("span", { class: "grow" }, el("span", { "aria-hidden": "true", text: "🏆 " }), el("strong", { text: a.name })), el("span", { text: a.winners.length ? a.winners.map((w) => w.name).join(" & ") : "—" })),
+            0.6 + i * step,
+          ),
         ),
       ),
-      el("h3", { text: "Final scores" }),
-      leaderboard(g.outcome, { you: g.you.playerId }),
+      won.length ? reveal(el("div", { class: "mc-you-won", role: "status" }, el("span", { "aria-hidden": "true", text: "🏆 " }), `You won ${won.map((a) => `“${a.name}”`).join(" and ")}`), after) : null,
+      beat(after + 0.6, el("h3", { text: "Final standings" }), leaderboard(g.outcome, { you: g.you.playerId })),
     ],
     (next) => t.set(next.timer),
   );

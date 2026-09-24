@@ -351,12 +351,16 @@ tuning prompts, probabilities and balance later. Nothing learns from it automati
 
 ## 13a. The finale
 
-OUTCOME shows the ending, the incident in numbers (`outcome.summary`: stages, objectives completed,
-identification stage for an unknown entity, discoveries, lives lost, staff evacuated and lost, the final
-chaos label), final scores with medals, the move of the incident (`outcome.bestMove`, the most-voted
-action) and the stage commendations, then the full debrief table. Phones show your placement, the same
-numbers and the move, with your own score breakdown a tap away. AWARD_RESULTS shows the player-created
-awards as trophies with the final scores; a phone that won one says so. Scoring is unchanged.
+OUTCOME reveals itself in beats inside its timer (CSS delays, nothing server-side): the ending stamp
+with a one-line quip, the entity unmasked, the closing report, the team status (`outcome.summary` tiles:
+stages, objectives, identification, discoveries, lives lost, staff evacuated and lost, final chaos) and
+team bonus, a podium (third, second, then first; everyone else below), then the **halls of glory and
+shame**: the move of the incident (`outcome.bestMove`), the most commended agent (stage MVPs), the most
+lives lost and the most chaos points, straight from the breakdown. The full debrief table is a tap away.
+Phones get the same beats with your own placement and score breakdown. AWARD_RESULTS reveals the
+player-created awards one trophy at a time, then the final standings; a phone that won one says so.
+The ending and `game_end` sound cues play as each screen opens. With reduced motion everything shows at
+once. Scoring is unchanged.
 
 ## 13. Narration and voice
 

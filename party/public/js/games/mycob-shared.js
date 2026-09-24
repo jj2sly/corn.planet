@@ -283,7 +283,7 @@ export function summaryTiles(o) {
   );
 }
 
-const MEDALS = ["🥇", "🥈", "🥉"];
+export const MEDALS = ["🥇", "🥈", "🥉"];
 
 /** Final scores, best first; tied totals share a place. */
 export function standings(o) {
@@ -291,21 +291,108 @@ export function standings(o) {
   return rows.map((r) => ({ ...r, place: 1 + rows.filter((x) => x.total > r.total).length }));
 }
 
+const rankRow = (r, you) =>
+  el(
+    "li",
+    { class: r.playerId === you ? "you" : "" },
+    el("span", { class: "place", text: MEDALS[r.place - 1] ?? `#${r.place}` }),
+    el("span", { class: "grow", text: r.name }),
+    el("strong", { class: "mono", text: String(r.total) }),
+  );
+
 export function leaderboard(o, { limit = Infinity, you = null } = {}) {
   return el(
     "ol",
     { class: "mc-leaderboard" },
     standings(o)
       .slice(0, limit)
-      .map((r) =>
-        el(
-          "li",
-          { class: r.playerId === you ? "you" : "" },
-          el("span", { class: "place", text: MEDALS[r.place - 1] ?? `#${r.place}` }),
-          el("span", { class: "grow", text: r.name }),
-          el("strong", { class: "mono", text: String(r.total) }),
-        ),
-      ),
+      .map((r) => rankRow(r, you)),
+  );
+}
+
+// ------------------------------------------------------------------ the finale
+
+/** Under the ending stamp: an icon and one line of flavour. */
+export const ENDING_FLAVOR = {
+  contained: { icon: "🏆", line: "Back in the box. The paperwork is somehow worse." },
+  terminated: { icon: "💥", line: "It's dead. Somebody has to explain the crater." },
+  escaped: { icon: "🏃", line: "It's out there now. Legal says that's a you problem." },
+  everyone_dies: { icon: "💀", line: "No survivors. Morale remains high." },
+};
+
+/** Makes `node` fade in `at` seconds after the screen opens. Set through CSSOM: the CSP forbids style attributes. */
+export function reveal(node, at) {
+  node.classList.add("mc-beat");
+  node.style.setProperty("--at", `${at}s`);
+  return node;
+}
+
+export const beat = (at, ...nodes) => reveal(el("div", { class: "stack" }, ...nodes), at);
+
+/** The top three on a podium, third place revealed first and first place last, then everyone else. */
+export function podium(o, { you = null, at = 0 } = {}) {
+  const rows = standings(o);
+  const top = rows.slice(0, 3);
+  // Drawn 2nd, 1st, 3rd; revealed 3rd, 2nd, 1st.
+  const order = [top[1], top[0], top[2]].filter(Boolean);
+  return el(
+    "div",
+    { class: "stack" },
+    el(
+      "ol",
+      { class: "mc-podium", "aria-label": "Top three" },
+      order.map((r) => {
+        const i = top.indexOf(r);
+        return reveal(
+          el(
+            "li",
+            { class: `p${i + 1} ${r.playerId === you ? "you" : ""}`.trim() },
+            el("span", { class: "medal", "aria-hidden": "true", text: MEDALS[r.place - 1] ?? `#${r.place}` }),
+            el("span", { class: "name", text: r.name }),
+            el("span", { class: "step" }, el("strong", { class: "mono", text: String(r.total) }), el("span", { class: "muted", text: " pts" })),
+          ),
+          at + (top.length - 1 - i) * 1.1,
+        );
+      }),
+    ),
+    rows.length > 3 ? reveal(el("ol", { class: "mc-leaderboard", start: "4" }, rows.slice(3).map((r) => rankRow(r, you))), at + 3.3) : null,
+  );
+}
+
+/**
+ * The last word: glory (the move of the incident, the most commended) and shame (the most lives lost,
+ * the most chaos caused). Straight from the scores and votes; nothing is made up.
+ */
+export function hallOfFame(o) {
+  const leaders = (key) => {
+    const max = Math.max(0, ...o.breakdown.map((r) => r[key]));
+    return max > 0 ? { names: o.breakdown.filter((r) => r[key] === max).map((r) => r.name).join(" & "), value: max } : null;
+  };
+  const commended = new Map();
+  for (const m of o.mvps) for (const name of m.names) commended.set(name, (commended.get(name) ?? 0) + 1);
+  const most = Math.max(0, ...commended.values());
+  const lives = leaders("livesLost");
+  const chaos = leaders("chaos");
+  const row = (icon, label, who) => el("li", {}, el("span", { class: "mc-hall-icon", "aria-hidden": "true", text: icon }), el("span", { class: "grow" }, el("span", { class: "eyebrow", text: label }), el("strong", { text: who })));
+  const glory = [most ? row("🎖️", "Most commended", `${[...commended].filter(([, n]) => n === most).map(([name]) => name).join(" & ")} ×${most}`) : null].filter(Boolean);
+  const shame = [lives ? row("💀", "Most lives lost", `${lives.names} (${lives.value})`) : null, chaos ? row("🌀", "Most chaos caused", chaos.names) : null].filter(Boolean);
+  return el(
+    "div",
+    { class: "mc-hall" },
+    el(
+      "section",
+      { class: "glory" },
+      el("h2", { text: "Hall of glory" }),
+      bestMoveEl(o),
+      glory.length ? el("ul", { class: "mc-hall-list" }, glory) : null,
+      !o.bestMove && !glory.length ? el("p", { class: "muted", text: "No commendations. Nobody could agree on anything." }) : null,
+    ),
+    el(
+      "section",
+      { class: "shame" },
+      el("h2", { text: "Hall of shame" }),
+      shame.length ? el("ul", { class: "mc-hall-list" }, shame) : el("p", { class: "muted", text: "Nobody embarrassed themselves. Suspicious." }),
+    ),
   );
 }
 
