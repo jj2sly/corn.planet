@@ -38,6 +38,19 @@ longer.
 | `contained` / `terminated` / `escaped` / `everyone_dies` | The ending | Host |
 | `game_end` | The final results | Host |
 
+Escape Thad's Steam Deck uses the cues above (round start, escalation, escapes, deaths, results) plus
+short effects played with `playSfx` (right away, beside the cues, dropped rather than queued when
+four are already playing). All have synthesized placeholders; map a file to replace one.
+
+| Effect | When | Where it plays |
+|---|---|---|
+| `device_boot` | The handheld boots at the start of the game | Host; Thad's phone |
+| `jump`, `land` | You jump / land hard | Your phone, for your own runner |
+| `plank_place` | A plank appears | Host; your phone for your own |
+| `hazard_arm` | Spikes arrive | Host |
+| `tilt_creak` | Thad leans the Deck past 75% | Host |
+| `ui_click` | Device buttons (mute, map, undo) | Phones |
+
 ## `sounds.json`
 
 Each cue takes one file, a list of variants (one is picked at random each time), or an object with

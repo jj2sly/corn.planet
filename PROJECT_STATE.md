@@ -1,7 +1,8 @@
 # Project state — corn.planet
 
 Read this first in a fresh session, then `party/docs/ARCHITECTURE.md` if you need detail.
-Last updated: 2026-09-23 (My Cob Escaped priority fix pass).
+Last updated: 2026-09-25 (Escape Thad's Steam Deck visual showcase overhaul; **not yet run through
+`npm run check` — see §8**).
 
 > **Naming (decided and applied 2026-09-17):** **CPI — Corn Planet Institution** is the umbrella org.
 > **CPST — Corn Planet Strike Team** is the team inside it (still used for role labels like "Strike
@@ -111,7 +112,9 @@ verification (jose + Google JWKS) and role lookup · `api.ts` REST · `rooms.ts`
 `canon.ts` read-only CPI Database access (warm snapshot, redactions stripped) ·
 `games/{types,registry,chaos,claims,cornorshit,entityauction,auctioneffects,awards}.ts`,
 `games/mycob/{config,content,incident,rules,director,narration,game}.ts`, `games/steamdeck/{levels,physics,game}.ts`.
-Shared browser/server drawing system: `public/js/drawing.js` (+ `drawing-canvas.js`). Browser code in `public/`
+Shared browser/server drawing system: `public/js/drawing.js` (+ `drawing-canvas.js`). Reusable CPI visuals in
+`public/js/cpi/` (`character.js`, `animation.js`, `particles.js`, `handheld.js`; see `party/docs/STEAMDECK.md`
+§Presentation and `party/docs/ADDING_A_GAME.md`). Browser code in `public/`
 (vanilla ES modules, `el()` helper, `games/<id>-{host,play}.js`). Adding a game:
 `party/docs/ADDING_A_GAME.md`. Canon rules: `party/docs/CANON.md`. My Cob Escaped: `party/docs/MYCOB.md`. Escape Thad's Steam Deck: `party/docs/STEAMDECK.md`.
 
@@ -120,6 +123,18 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 8. Status
 
+- **Escape Thad's Steam Deck visual showcase overhaul** (2026-09-25, uncommitted on `cpst-party`, done
+  on the Mac, which has **no Node**): client-only. Every screen runs inside the fictional CPI KERNEL
+  handheld; CPI agent characters with slot-based looks and position-driven animation; per-level scenery
+  cached behind the unchanged collision rects; particles; boot → launch → occupants → title sequence;
+  in-device round report; runner controls are the device's buttons; Thad gets hold-to-lean L / R and a
+  tilt console; follow camera on small phones. New sound effects through the existing manager
+  (`playSfx`). No server, rule, scoring, timing or packet change. Checked in a browser harness (Python
+  static server + a JS port of the physics, kept out of the repo): host 1280×800 and 8 players, Thad
+  1280×800 and 375 px, runner 375 px portrait / 844×390 landscape / desktop, touch and keyboard
+  drawing, pause, remount mid-phase, motion unavailable, frame cost (~1–2 ms). The 13 new tests in
+  `party/test/cpi-visuals.test.ts` passed in that harness. **Still to do on the Windows machine:
+  `npm run check` (typecheck + the full suite, expected 313 + 13), then a real multi-device session.**
 - **My Cob Escaped, What Do I Do Now???** (built 2026-09-18, **pushed to `cpst-party` and
   live on Railway 2026-09-18** — `/api/config` lists `mycob`, `/healthz` ok with 21 canon records; not
   yet played on the live site): incident-response game on a shared incident engine. Random canon entity (sometimes unknown),

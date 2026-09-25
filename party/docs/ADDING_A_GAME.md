@@ -98,6 +98,13 @@ validate them server-side; Socket.IO messages are capped at 64 KB. For drawings,
 System (`public/js/drawing.js`: validated compact strokes, per-tool interpretation rules; see
 `docs/STEAMDECK.md`) rather than a new format.
 
+**Reusable visuals** (`public/js/cpi/`, see `docs/STEAMDECK.md` for a full example): `character.js`
+gives every player a consistent CPI agent (same look on every screen, from their id and colour; pass
+`appearance` overrides for cosmetics), `animation.js` animates characters from positions you already
+send, `particles.js` does bounded effects, and `handheld.js` frames a game in the CPI KERNEL handheld
+with notifications and skippable boot/title sequences. Sounds go through `mycob-sound.js` (`playCue`
+for cues, `playSfx` for short effects): don't add another audio system.
+
 **Realtime games** (movement, tilt): send frequent input with `tools.stream(payload)`, which emits
 `game:stream` (no ack, dropped while offline, 30/s per socket) and reaches `handleInput` as the `stream`
 action. Send on change plus a heartbeat, validate leniently (ignore bad values), run your own

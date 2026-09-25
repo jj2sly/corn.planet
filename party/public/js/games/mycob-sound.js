@@ -1,5 +1,6 @@
 // My Cob Escaped sound manager. Every sound in the game goes through here: lookup, playback, volume,
-// mute, the browser's autoplay rules and keeping sounds from piling up.
+// mute, the browser's autoplay rules and keeping sounds from piling up. Other games use it too
+// (Escape Thad's Steam Deck): it's the party's one sound system.
 //
 // The server sends cues (`game.cues`: [{ id, cue }]) only for things every screen is already shown;
 // the host plays each new one once, phones play their own few (your response filed, your life lost,
@@ -35,6 +36,14 @@ export const CUES = [
   "escaped",
   "everyone_dies",
   "game_end",
+  // Short game effects (playSfx): Escape Thad's Steam Deck.
+  "device_boot",
+  "jump",
+  "land",
+  "plank_place",
+  "hazard_arm",
+  "tilt_creak",
+  "ui_click",
 ];
 
 /** Never dropped to make room for something else. */
@@ -72,6 +81,14 @@ const SYNTH = {
   terminated: [tone(0, 0.35, 220, 60, "sawtooth", 0.16), tone(0.42, 0.12, 784, 784, "triangle", 0.2), tone(0.56, 0.5, 1047, 1047, "triangle", 0.2)], // womp, ta-da
   everyone_dies: trombone([294, 277, 262, 247], 0.5, 1.6), // the slowest, saddest trombone
   game_end: [392, 523, 659, 784, 659].map((f, i) => tone(i * 0.11, 0.1, f, f, "triangle", 0.18)).concat(tone(0.58, 0.6, 1047, 1047, "triangle", 0.18)), // silly flourish
+  // Game effects: short and quiet, so a room full of them is texture, not noise.
+  device_boot: [tone(0, 0.5, 110, 110, "sine", 0.08), tone(0.12, 0.14, 523, 523, "sine", 0.14), tone(0.24, 0.14, 784, 784, "sine", 0.14), tone(0.36, 0.5, 1047, 1060, "sine", 0.14)], // handheld power-on chime
+  jump: [tone(0, 0.09, 300, 620, "square", 0.05)], // boop
+  land: [tone(0, 0.08, 150, 70, "sine", 0.16), hiss(0, 0.04, 0.04)], // thud
+  plank_place: [tone(0, 0.05, 240, 120, "square", 0.08), hiss(0, 0.03, 0.07), tone(0.1, 0.05, 260, 130, "square", 0.08), hiss(0.1, 0.03, 0.07)], // knock knock
+  hazard_arm: [tone(0, 0.22, 1700, 2600, "sawtooth", 0.035), hiss(0, 0.16, 0.05)], // shhhing
+  tilt_creak: [tone(0, 0.4, 95, 72, "sawtooth", 0.06, { rate: 26, depth: 9 })], // creeeak
+  ui_click: [tone(0, 0.035, 1300, 900, "square", 0.04)], // tick
 };
 
 // ------------------------------------------------------------------ settings (this device only)
@@ -202,13 +219,13 @@ function playBuffer(ac, buffer, volume, start) {
   source.start(start);
 }
 
-function synth(ac, parts, start) {
+function synth(ac, parts, start, volume = 1) {
   for (const p of parts) {
     const t0 = start + p.at;
     const t1 = t0 + p.dur;
     const gain = ac.createGain();
     gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(p.gain, t0 + 0.01);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, p.gain * volume), t0 + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, t1);
     gain.connect(master);
     let source;
@@ -266,6 +283,45 @@ let queue = Promise.resolve();
 export function playCue(cue) {
   // Chained so cues keep their order even while a file is still loading.
   queue = queue.then(() => play(cue)).catch(() => {});
+}
+
+// ------------------------------------------------------------------ game effects
+
+/** At most this many effects at once, and the same one no closer than this (seconds). */
+const MAX_SFX = 4;
+const SFX_GAP = 0.06;
+let sfxPlaying = [];
+const sfxLast = new Map();
+
+/**
+ * A short game effect (a jump, a landing): plays right away, beside the cues rather than queued
+ * behind them, and is dropped rather than delayed when too many are already playing. Same mute,
+ * volume and sounds.json mapping as every cue. Never throws.
+ */
+export function playSfx(cue, { volume = 1 } = {}) {
+  (async () => {
+    if (isMuted()) return;
+    const ac = context();
+    if (!ac) return;
+    if (ac.state !== "running") return unlock();
+    const now = ac.currentTime;
+    if (now - (sfxLast.get(cue) ?? -Infinity) < SFX_GAP) return;
+    sfxPlaying = sfxPlaying.filter((end) => end > now);
+    if (sfxPlaying.length >= MAX_SFX) return;
+    sfxLast.set(cue, now);
+    const entry = (await loadManifest()).get(cue);
+    if (entry) {
+      const buffer = await decode(ac, entry.files[Math.floor(Math.random() * entry.files.length)]);
+      if (buffer) {
+        sfxPlaying.push(now + buffer.duration);
+        return playBuffer(ac, buffer, entry.volume * volume, ac.currentTime + 0.01);
+      }
+    }
+    const parts = SYNTH[cue];
+    if (!parts) return;
+    sfxPlaying.push(now + Math.max(...parts.map((p) => p.at + p.dur)));
+    synth(ac, parts, ac.currentTime + 0.01, volume);
+  })().catch(() => {});
 }
 
 const seen = new Map();

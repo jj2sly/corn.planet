@@ -1,7 +1,8 @@
 // Escape Thad's Steam Deck: Thad's tilt as one number -1..1, from any device. No special hardware:
 //
 //   Keyboard  ← → (or A D) lean the world, further the longer you hold; ↓, S or Space levels it.
-//   Mouse / touch  the slider (and its Level button).
+//   Mouse / touch  the slider (and its Level button), or hold the device's L / R shoulder buttons
+//             (exactly like holding ← →).
 //   Gamepad   the left stick, while it's pushed (a Steam Deck's controls show up as a gamepad).
 //   Motion    optional: only if Thad turns it on and the device reports.
 //
@@ -161,6 +162,12 @@ export function createTiltInput() {
     },
     setManual(v) {
       manual = clamp(Number(v) || 0);
+    },
+    /** An on-screen button held or let go: "left" / "right" behave exactly like the arrow keys. */
+    hold(side, down) {
+      if (side !== "left" && side !== "right") return;
+      held[side] = !!down;
+      if (down && motion === "on") motion = "off";
     },
     get manual() {
       return manual;

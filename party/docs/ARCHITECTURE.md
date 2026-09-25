@@ -93,6 +93,13 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `js/games/cornorshit-host.js`, `js/games/cornorshit-play.js` | Corn or Shit views |
 | `js/games/entityauction-{host,play}.js`, `js/games/entityauction-bay.js` | Entity Auction views; the containment doors are in `-bay.js` |
 | `js/games/mycob-{host,play,shared}.js`, `js/games/mycob-voice.js` | My Cob Escaped views; `-voice.js` is where a future narrator voice plugs in |
+| `js/games/mycob-sound.js` | The party's one sound manager (cues, placeholders, mute/volume, `playSfx` for short game effects), mapped in `sounds/mycob/sounds.json` |
+| `js/games/steamdeck-{host,play,world,scenery,ui,tilt,rules}.js` | Escape Thad's Steam Deck: screens, the canvas renderer, level art, shared presentation, Thad's tilt, the plank rule (see `docs/STEAMDECK.md`) |
+| `js/drawing.js`, `js/drawing-canvas.js` | CPI Drawing System: stroke data model (shared with the server) and capture/rendering |
+| `js/cpi/character.js` | CPI characters: deterministic per-player look from slots (hat, face, suit, accessory; overridable for future cosmetics), drawn procedurally in any pose |
+| `js/cpi/animation.js` | Animation states and moments (jump, land, die, escape…) inferred from sampled positions only: no extra network data |
+| `js/cpi/particles.js` | Fixed-pool particle effects (dust, sparks, confetti, debris, rings, pop-up text) |
+| `js/cpi/handheld.js` | The CPI KERNEL handheld: a device frame any game can run inside (status bar, notifications, edge flashes, real or decorative controls, skippable boot/title sequences) |
 | `hall.html`, `js/hall.js` | Hall of Fame: accepted reports, moderator hide and promote |
 | `account.html`, `js/account.js` | Login/register (Firebase), display name, stats, history |
 | `prompts.html`, `js/prompts.js` | Prompt writing, library, reports, moderation console |

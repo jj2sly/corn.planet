@@ -3181,16 +3181,877 @@ a.stamp:focus-visible {
   }
 }
 
+/* ------------------------------------------------------------------ CPI handheld (js/cpi/handheld.js) */
+/* A fictional CPI games handheld any game can run inside. Graphite plastic, a dark bezel, a glass
+   screen; grips either side (landscape) or controls underneath (portrait). Materials are gradients
+   and shadows only: no images. */
+
+.cpi-hh {
+  --hh-body: #23252b;
+  --hh-body-2: #15161a;
+  --hh-grip: clamp(64px, 9vw, 150px);
+  --hh-radius: clamp(20px, 3vw, 44px);
+  --hh-a: #7fcf86;
+  --hh-b: #e2766d;
+  --hh-x: #74a9dc;
+  --hh-y: #e3c86c;
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  padding-top: 12px;
+  transform: rotate(var(--rock, 0deg));
+  transition: transform 140ms linear;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.cpi-hh-shoulders {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 calc(var(--hh-radius) * 0.8);
+  pointer-events: none;
+}
+
+.cpi-hh-shoulder {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: calc(var(--hh-grip) * 1.15);
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid #0b0c0e;
+  border-bottom: 0;
+  border-radius: 16px 16px 3px 3px;
+  background: linear-gradient(#41444d, #24262c);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  color: #8d929c;
+  font: 700 11px/1 var(--mono);
+  letter-spacing: 0.1em;
+  transition: background-color 0.1s, box-shadow 0.1s, color 0.1s;
+}
+
+button.cpi-hh-shoulder {
+  cursor: pointer;
+  touch-action: none;
+}
+
+.cpi-hh-shoulder small {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+
+.cpi-hh-shoulder.lit,
+.cpi-hh-shoulder.pressed {
+  background: linear-gradient(#ffe45c, #d6b100);
+  color: #1a1500;
+  box-shadow: 0 0 16px rgba(255, 212, 0, 0.45);
+}
+
+.cpi-hh-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--hh-grip) minmax(0, 1fr) var(--hh-grip);
+  grid-template-areas: "left face right" "below below below";
+  align-items: center;
+  gap: clamp(8px, 1.2vw, 18px);
+  padding: clamp(10px, 1.3vw, 20px) clamp(10px, 1.2vw, 20px);
+  border: 1px solid #0a0b0d;
+  border-radius: var(--hh-radius);
+  background:
+    radial-gradient(60% 90% at 8% 50%, rgba(255, 255, 255, 0.05), transparent 70%),
+    radial-gradient(60% 90% at 92% 50%, rgba(255, 255, 255, 0.05), transparent 70%),
+    linear-gradient(180deg, #2e3139 0%, var(--hh-body) 38%, var(--hh-body-2) 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -5px 0 rgba(0, 0, 0, 0.45),
+    0 22px 50px rgba(0, 0, 0, 0.7);
+}
+
+.cpi-hh-grip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.cpi-hh-grip.left {
+  grid-area: left;
+}
+
+.cpi-hh-grip.right {
+  grid-area: right;
+}
+
+.cpi-hh-face {
+  grid-area: face;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cpi-hh-below {
+  grid-area: below;
+  min-width: 0;
+}
+
+.cpi-hh-bezel {
+  padding: 5px 8px 8px;
+  border-radius: 12px;
+  background: #060709;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 3px 10px rgba(0, 0, 0, 0.9);
+}
+
+/* The status bar: brand, the title (or a notification sliding over it), the system icons. */
+.cpi-hh-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  padding: 0 2px 5px;
+  color: #9aa1ab;
+  font: 700 11px/1 var(--mono);
+  letter-spacing: 0.05em;
+  overflow: hidden;
+}
+
+.cpi-hh-center {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+.cpi-hh-title,
+.cpi-hh-note {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.cpi-hh-title {
+  color: #d9dde3;
+}
+
+.cpi-hh-note {
+  transform: translateY(110%);
+  opacity: 0;
+  font-weight: 700;
+}
+
+.cpi-hh-status.noting .cpi-hh-title {
+  transform: translateY(-110%);
+  opacity: 0;
+}
+
+.cpi-hh-status.noting .cpi-hh-note {
+  transform: none;
+  opacity: 1;
+}
+
+.cpi-hh-note.info {
+  color: #dff6ff;
+}
+
+.cpi-hh-note.ok {
+  color: var(--ok);
+}
+
+.cpi-hh-note.warn {
+  color: var(--yellow);
+}
+
+.cpi-hh-note.danger {
+  color: var(--danger);
+}
+
+.cpi-hh-sys,
+.cpi-hh-extra {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+}
+
+.cpi-hh-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  color: var(--yellow);
+  font: 700 11px/1 var(--head);
+  letter-spacing: 0.14em;
+}
+
+/* A corn kernel: the CPI KERNEL logo. */
+.cpi-hh-kernel {
+  display: inline-block;
+  width: 9px;
+  height: 11px;
+  border-radius: 50% 50% 45% 45% / 62% 62% 38% 38%;
+  background: radial-gradient(circle at 35% 30%, #fff3a8, #ffd400 45%, #c79a00);
+  box-shadow: 0 0 6px rgba(255, 212, 0, 0.4);
+}
+
+.cpi-hh-kernel.big {
+  width: 40px;
+  height: 50px;
+}
+
+.cpi-hh-battery {
+  position: relative;
+  width: 20px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+
+.cpi-hh-battery::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: -4px;
+  width: 2px;
+  height: 3px;
+  background: currentColor;
+}
+
+.cpi-hh-battery-fill {
+  position: absolute;
+  inset: 1px auto 1px 1px;
+  width: calc(var(--level, 100%) - 2px);
+  max-width: calc(100% - 2px);
+  background: var(--ok);
+  transition: width 0.5s linear;
+}
+
+.cpi-hh-battery.low .cpi-hh-battery-fill {
+  background: var(--danger);
+}
+
+.cpi-hh-signal {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  height: 10px;
+}
+
+.cpi-hh-signal .bar {
+  width: 2.5px;
+  background: #3b3f46;
+}
+
+.cpi-hh-signal .bar.on {
+  background: currentColor;
+}
+
+.cpi-hh-signal .b1 {
+  height: 3px;
+}
+
+.cpi-hh-signal .b2 {
+  height: 5px;
+}
+
+.cpi-hh-signal .b3 {
+  height: 7.5px;
+}
+
+.cpi-hh-signal .b4 {
+  height: 10px;
+}
+
+.cpi-hh-chip {
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 212, 0, 0.4);
+  border-radius: 8px;
+  color: var(--yellow);
+  white-space: nowrap;
+}
+
+.cpi-hh-sysbtn {
+  min-width: 26px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid #30343b;
+  border-radius: 6px;
+  background: #15171b;
+  color: inherit;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cpi-hh-status .timer {
+  gap: 2px;
+  font-size: 13px;
+}
+
+.cpi-hh-screen-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #000;
+}
+
+.cpi-hh-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+/* Glass: a sheen, a vignette, faint scanlines; and an edge glow for system alerts. */
+.cpi-hh-glass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 26%),
+    radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.32) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.cpi-hh-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.07) 0 1px, transparent 1px 3px);
+}
+
+.cpi-hh-glass[data-flash="warn"] {
+  animation: cpi-hh-glow-warn 1.2s ease-out;
+}
+
+.cpi-hh-glass[data-flash="danger"] {
+  animation: cpi-hh-glow-danger 1.2s ease-out;
+}
+
+.cpi-hh-glass[data-flash="ok"] {
+  animation: cpi-hh-glow-ok 1.2s ease-out;
+}
+
+@keyframes cpi-hh-glow-warn {
+  from {
+    box-shadow: inset 0 0 70px rgba(255, 212, 0, 0.75);
+  }
+}
+
+@keyframes cpi-hh-glow-danger {
+  from {
+    box-shadow: inset 0 0 80px rgba(255, 70, 60, 0.85);
+  }
+}
+
+@keyframes cpi-hh-glow-ok {
+  from {
+    box-shadow: inset 0 0 70px rgba(110, 255, 150, 0.7);
+  }
+}
+
+/* Over the screen: boot, cards, bands (a strip, the game still visible), stamps. */
+.cpi-hh-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(8px, 2.5%, 28px);
+  overflow: auto;
+  background: rgba(4, 6, 9, 0.9);
+  animation: cpi-hh-in 0.22s ease-out;
+}
+
+.cpi-hh-overlay.leaving {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.cpi-hh-overlay.band,
+.cpi-hh-overlay.stamp {
+  pointer-events: none;
+  background: linear-gradient(rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0) 70%);
+  align-items: flex-start;
+  overflow: hidden;
+}
+
+.cpi-hh-overlay.band.bottom {
+  inset: auto 0 0;
+  padding: 10px;
+  background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.82) 45%);
+  align-items: flex-end;
+}
+
+.cpi-hh-overlay.stamp {
+  background: transparent;
+  align-items: center;
+}
+
+.cpi-hh-overlay.card {
+  background: rgba(4, 6, 9, 0.8);
+  backdrop-filter: blur(2px);
+}
+
+.in-sequence .cpi-hh-overlay {
+  cursor: pointer;
+}
+
+@keyframes cpi-hh-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.cpi-hh-under {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 16px;
+  color: #6d737e;
+}
+
+.cpi-hh-mark.small {
+  opacity: 0.55;
+  font-size: 9px;
+}
+
+.cpi-hh-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #58d36a;
+  box-shadow: 0 0 6px #58d36a;
+}
+
+.cpi-hh.alert .cpi-hh-led {
+  background: #ffb020;
+  box-shadow: 0 0 6px #ffb020;
+  animation: blink 0.8s steps(1) infinite;
+}
+
+.cpi-hh-sticker {
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: #e9e1c8;
+  color: #3a3226;
+  font: 700 8px/1.3 var(--mono);
+  letter-spacing: 0.08em;
+  transform: rotate(-2.5deg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.cpi-hh.shake {
+  animation: cpi-hh-shake 0.42s ease-out;
+}
+
+@keyframes cpi-hh-shake {
+  20% {
+    transform: rotate(var(--rock, 0deg)) translate(-5px, 1px);
+  }
+  40% {
+    transform: rotate(var(--rock, 0deg)) translate(4px, -1px);
+  }
+  60% {
+    transform: rotate(var(--rock, 0deg)) translate(-3px, 0);
+  }
+  80% {
+    transform: rotate(var(--rock, 0deg)) translate(2px, 0);
+  }
+}
+
+/* Controls: sticks, d-pad, face buttons. Moulded (inert) ones are decoration; buttons are real. */
+.cpi-hh-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 1.6vw, 22px);
+  width: 100%;
+}
+
+.cpi-hh-stick {
+  position: relative;
+  width: clamp(36px, 60%, 70px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #111216 0 58%, #2c2f36 60% 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.8),
+    0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.cpi-hh-nub {
+  position: absolute;
+  inset: 16%;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04) 0 2px, transparent 2px 4px),
+    radial-gradient(circle at 40% 32%, #5b606b, #272a31 70%);
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.6);
+  transform: translateX(var(--x, 0%));
+  transition: transform 90ms linear;
+}
+
+.cpi-hh-dpad {
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  width: clamp(54px, 70%, 104px);
+  aspect-ratio: 1;
+}
+
+.cpi-hh-dir,
+.cpi-hh-dpad-hub {
+  border: 0;
+  background: linear-gradient(#34373f, #202227);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.cpi-hh-dir.up {
+  grid-area: 1 / 2;
+  border-radius: 5px 5px 0 0;
+}
+
+.cpi-hh-dir.left {
+  grid-area: 2 / 1;
+  border-radius: 5px 0 0 5px;
+}
+
+.cpi-hh-dpad-hub {
+  grid-area: 2 / 2;
+}
+
+.cpi-hh-dir.right {
+  grid-area: 2 / 3;
+  border-radius: 0 5px 5px 0;
+}
+
+.cpi-hh-dir.down {
+  grid-area: 3 / 2;
+  border-radius: 0 0 5px 5px;
+}
+
+button.cpi-hh-dir {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c9ced6;
+  font-size: clamp(14px, 3vw, 22px);
+  cursor: pointer;
+  touch-action: none;
+}
+
+button.cpi-hh-dir.pressed,
+button.cpi-hh-dir:active {
+  background: linear-gradient(#5a4c00, #3a3100);
+  color: var(--yellow);
+}
+
+button.cpi-hh-dir:disabled {
+  color: #4b4f57;
+  cursor: default;
+}
+
+.cpi-hh-abxy {
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  width: clamp(54px, 72%, 110px);
+  aspect-ratio: 1;
+}
+
+.cpi-hh-abxy .l-Y {
+  grid-area: 1 / 2;
+}
+
+.cpi-hh-abxy .l-X {
+  grid-area: 2 / 1;
+}
+
+.cpi-hh-abxy .l-B {
+  grid-area: 2 / 3;
+}
+
+.cpi-hh-abxy .l-A {
+  grid-area: 3 / 2;
+}
+
+.cpi-hh-face-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #0a0b0d;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 32%, #454952, #1f2126 72%);
+  box-shadow:
+    0 3px 0 #0c0d10,
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: #c9ced6;
+  font: 700 12px/1 var(--head);
+}
+
+.cpi-hh-face-btn[data-letter="A"] .cpi-hh-letter {
+  color: var(--hh-a);
+}
+
+.cpi-hh-face-btn[data-letter="B"] .cpi-hh-letter {
+  color: var(--hh-b);
+}
+
+.cpi-hh-face-btn[data-letter="X"] .cpi-hh-letter {
+  color: var(--hh-x);
+}
+
+.cpi-hh-face-btn[data-letter="Y"] .cpi-hh-letter {
+  color: var(--hh-y);
+}
+
+.cpi-hh-abxy .cpi-hh-face-btn {
+  width: 80%;
+  aspect-ratio: 1;
+  place-self: center;
+  font-size: clamp(8px, 1vw, 12px);
+}
+
+button.cpi-hh-face-btn {
+  cursor: pointer;
+  touch-action: none;
+  transition: transform 0.06s, box-shadow 0.06s;
+}
+
+button.cpi-hh-face-btn.pressed,
+button.cpi-hh-face-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 #0c0d10,
+    0 0 16px rgba(255, 212, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+button.cpi-hh-face-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* A real face button's printed label, under it (like the text moulded into a controller). */
+.cpi-hh-label {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  color: #9aa1ab;
+  font: 700 10px/1 var(--head);
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+
+.cpi-hh-key {
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  color: #5d636d;
+  font: 700 9px/1 var(--mono);
+  white-space: nowrap;
+}
+
+.cpi-hh-pill {
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid #0b0c0e;
+  border-radius: 13px;
+  background: linear-gradient(#34373f, #202227);
+  color: #b9bec7;
+  font: 700 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.cpi-hh-pill.on {
+  background: linear-gradient(#ffe45c, #d6b100);
+  color: #1a1500;
+}
+
+.cpi-hh-grille {
+  width: 60%;
+  height: 16px;
+  background: radial-gradient(circle, #0a0b0d 1.2px, transparent 1.7px) 0 0 / 6px 6px;
+  opacity: 0.9;
+}
+
+/* Portrait: the screen on top, the controls in a row underneath. */
+.cpi-hh[data-layout="portrait"] {
+  --hh-radius: 22px;
+}
+
+.cpi-hh[data-layout="portrait"] .cpi-hh-body {
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: "face face" "left right" "below below";
+  row-gap: 14px;
+}
+
+.cpi-hh[data-layout="portrait"] .cpi-hh-shoulders {
+  padding: 0 16px;
+}
+
+.cpi-hh[data-layout="portrait"] .cpi-hh-shoulder {
+  width: 34%;
+}
+
+.cpi-hh[data-layout="portrait"] .cpi-hh-grille {
+  display: none;
+}
+
+.cpi-hh[data-layout="portrait"] .cpi-hh-clock,
+.cpi-hh[data-layout="portrait"] .cpi-hh-pct,
+.cpi-hh[data-layout="portrait"] .cpi-hh-signal,
+.cpi-hh[data-layout="portrait"] .cpi-hh-status .cpi-hh-mark > span:last-child {
+  display: none;
+}
+
+/* Keyboard hints only where there's probably a keyboard. */
+@media (hover: none) {
+  .cpi-hh-key {
+    display: none;
+  }
+}
+
+/* Standard screens: boot, system cards. */
+.cpi-boot {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: min(100%, 460px);
+  color: #cfd5dc;
+  font-family: var(--mono);
+}
+
+.cpi-boot-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  animation: cpi-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.cpi-boot-name {
+  color: var(--yellow);
+  font: 700 clamp(1.4rem, 4.5vw, 2.6rem) / 1 var(--head);
+  letter-spacing: 0.16em;
+}
+
+.cpi-boot-ver {
+  margin: 0;
+  color: #6d737e;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+}
+
+.cpi-boot-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: clamp(0.55rem, 1.6vw, 0.8rem);
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.cpi-boot-lines li {
+  opacity: 0;
+  animation: cpi-hh-in 0.01s calc(250ms + var(--i, 0) * 230ms) forwards;
+}
+
+.cpi-boot-bar {
+  width: 70%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #1c1f24;
+}
+
+.cpi-boot-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--yellow);
+  transform-origin: left;
+  animation: cpi-fill var(--ms, 1400ms) ease-in-out both;
+}
+
+@keyframes cpi-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes cpi-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+.cpi-card {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  max-width: 34em;
+  text-align: center;
+  animation: cpi-pop 0.35s ease-out both;
+}
+
+.cpi-card p {
+  margin: 0;
+}
+
+.cpi-card-eyebrow {
+  margin: 0;
+  color: #8f97a3;
+  font: 700 clamp(0.6rem, 1.4vw, 0.85rem) / 1.3 var(--mono);
+  letter-spacing: 0.18em;
+}
+
+.cpi-card-title {
+  margin: 0;
+  color: var(--yellow);
+  font: 700 clamp(1.1rem, 4vw, 2.8rem) / 1.05 var(--head);
+  letter-spacing: 0.04em;
+}
+
+.cpi-card-text {
+  margin: 0;
+  color: #d5dae1;
+  font-size: clamp(0.75rem, 1.6vw, 1.1rem);
+  line-height: 1.35;
+}
+
+.cpi-char {
+  display: block;
+}
+
 /* ------------------------------------------------------------------ Escape Thad's Steam Deck */
+
+.sd-device .cpi-hh-screen {
+  background: #030405;
+}
 
 .sd-stage {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
-  border: 3px solid #2a2f38;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #07080a;
+  height: 100%;
 }
 
 .sd-canvas,
@@ -3200,18 +4061,71 @@ a.stamp:focus-visible {
   height: 100%;
 }
 
+/* The drawing layer covers exactly the whole level (16:9, centred), whatever the screen's shape:
+   in map mode the level is drawn there, so a stroke's normalized points are level coordinates. */
 .sd-draw {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 0;
+  z-index: 1;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  transform: translateY(-50%);
   touch-action: none;
   cursor: crosshair;
 }
 
-.sd-draw[hidden],
-.sd-drawbar[hidden],
-.sd-controls[hidden],
-.sd-btn[hidden] {
+.sd-draw[hidden] {
   display: none;
+}
+
+/* The big screen: the device as large as the TV allows, the level at its largest, everything
+   (HUD, device, roster) on one screen with no scrolling. */
+.sd-host {
+  --sd-chrome: 350px;
+  display: grid;
+  gap: 10px;
+}
+
+.stage:has(.sd-host) {
+  padding-top: 12px;
+  padding-bottom: 10px;
+}
+
+.sd-hud-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 18px;
+}
+
+.sd-host .sd-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.8vw, 3rem);
+}
+
+.sd-host .sd-hud .timer {
+  font-size: clamp(1.4rem, 2.4vw, 2.8rem);
+}
+
+.sd-roster-slot {
+  padding-top: 2px;
+}
+
+.sd-host .cpi-hh-screen-wrap {
+  width: min(100%, calc((100dvh - var(--sd-chrome)) * 16 / 9));
+  min-width: min(100%, 420px);
+  margin: 0 auto;
+}
+
+.sd-host .sd-hud {
+  margin-bottom: 0;
+}
+
+.sd-host .cpi-hh-status {
+  font-size: clamp(11px, 1vw, 14px);
+  height: clamp(24px, 2.2vw, 30px);
 }
 
 .sd-title.p-ESCALATION {
@@ -3222,185 +4136,702 @@ a.stamp:focus-visible {
   color: var(--danger);
 }
 
-.sd-banner {
-  margin: 0;
-  padding: 8px 12px;
-  border-left: 4px solid var(--yellow);
-  background: var(--panel-2);
-  font-family: var(--head);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.sd-banner.warn {
-  border-color: var(--yellow);
-  color: var(--yellow);
-}
-
-.sd-banner.danger {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
 .sd-roster {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  justify-content: center;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .sd-roster li {
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 2px 10px 2px 2px;
+  border: 1px solid #262930;
+  border-left: 3px solid var(--agent, #fff);
+  border-radius: 4px;
+  background: #0d0f12;
   font-weight: 700;
 }
 
 .sd-roster li.out {
+  border-color: rgba(143, 224, 96, 0.5);
+  border-left-color: var(--agent, #fff);
+}
+
+.sd-roster-note {
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
+.sd-roster li.out .sd-roster-note {
   color: var(--ok);
 }
 
-.sd-swatch {
-  display: inline-block;
-  width: 14px;
-  height: 18px;
-  border: 1px solid #000;
-}
-
-.sd-swatch.big {
-  width: 22px;
-  height: 28px;
-  vertical-align: middle;
-}
-
-.sd-thad,
-.sd-verdict {
-  margin: 0;
-  font-family: var(--head);
-  font-size: clamp(1.3rem, 2.4vw, 2.4rem);
-}
-
 .sd-howto {
-  margin: 0;
+  margin: 8px 0 0;
   padding-left: 1.2em;
+  color: #aab1bb;
+  font-size: clamp(0.65rem, 1.2vw, 0.95rem);
+  text-align: left;
 }
 
 .sd-howto li + li {
   margin-top: 4px;
 }
 
-.sd-results {
+/* Launch: the cover, the occupants, the title. */
+.sd-launch {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: 16px;
+  justify-items: center;
+  gap: 10px;
 }
 
-/* Phones: the level on top, big buttons at the bottom, as little text as possible. */
+.sd-cover {
+  display: grid;
+  align-content: end;
+  gap: 4px;
+  width: clamp(120px, 34%, 300px);
+  aspect-ratio: 3 / 4;
+  padding: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 70% 30%, rgba(255, 212, 0, 0.55), transparent 45%),
+    linear-gradient(160deg, #1c3a5e, #0d1522 60%, #2b1030);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(255, 212, 0, 0.2);
+  animation: sd-launch 1s ease-in both;
+}
 
+.sd-cover-kicker {
+  color: #9fb7d4;
+  font: 700 clamp(0.45rem, 1vw, 0.7rem) / 1 var(--mono);
+  letter-spacing: 0.14em;
+}
+
+.sd-cover-title {
+  color: var(--yellow);
+  font: 700 clamp(0.9rem, 2.6vw, 1.9rem) / 1 var(--head);
+  letter-spacing: 0.02em;
+}
+
+.sd-launch-note {
+  margin: 0;
+  color: #cfd5dc;
+  font: 700 0.75rem/1 var(--mono);
+  letter-spacing: 0.3em;
+  animation: blink 0.5s steps(1) infinite;
+}
+
+@keyframes sd-launch {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  25% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  85% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.sd-occupants {
+  display: grid;
+  justify-items: center;
+  gap: clamp(6px, 2%, 16px);
+  width: 100%;
+}
+
+.sd-occupant-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(4px, 1.5vw, 18px);
+}
+
+.sd-occupant-row .sd-badge {
+  animation: sd-drop 0.45s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+  animation-delay: calc(var(--i, 0) * 140ms);
+}
+
+@keyframes sd-drop {
+  from {
+    transform: translateY(-60px);
+    opacity: 0;
+  }
+}
+
+.sd-held {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: cpi-pop 0.4s 0.8s ease-out both;
+}
+
+.sd-held-label {
+  color: #8f97a3;
+  font: 700 0.75rem/1 var(--mono);
+  letter-spacing: 0.2em;
+}
+
+.sd-badge {
+  display: grid;
+  justify-items: center;
+  margin: 0;
+}
+
+.sd-badge figcaption {
+  display: grid;
+  justify-items: center;
+  max-width: 9em;
+  line-height: 1.15;
+}
+
+.sd-badge-name {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--agent, #fff);
+  font: 700 clamp(0.7rem, 1.3vw, 1rem) / 1.2 var(--head);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sd-badge-note {
+  color: var(--yellow);
+  font: 700 0.6rem/1.2 var(--mono);
+  letter-spacing: 0.12em;
+}
+
+.sd-title-card {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.sd-logo {
+  display: grid;
+  justify-items: center;
+  margin: 0;
+  color: var(--yellow);
+  font-family: var(--head);
+  font-weight: 700;
+  line-height: 0.92;
+  text-shadow: 0 4px 0 #6b5400, 0 0 30px rgba(255, 212, 0, 0.35);
+  animation: sd-stamp 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.sd-logo .a,
+.sd-logo .b {
+  font-size: clamp(1rem, 4vw, 2.6rem);
+  letter-spacing: 0.3em;
+  color: #f4f4f4;
+  text-shadow: 0 3px 0 #333;
+}
+
+.sd-logo .c {
+  font-size: clamp(2rem, 9vw, 6rem);
+  letter-spacing: 0.02em;
+}
+
+.sd-logo-sub {
+  margin: 0;
+  color: #b9c0ca;
+  font: 700 clamp(0.6rem, 1.4vw, 0.9rem) / 1 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+@keyframes sd-stamp {
+  from {
+    transform: scale(2.2) rotate(-4deg);
+    opacity: 0;
+  }
+}
+
+.sd-band {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  color: #e9edf2;
+  font-size: clamp(0.7rem, 1.5vw, 1.05rem);
+  font-weight: 700;
+}
+
+.sd-band-tag {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--yellow);
+  color: #000;
+  font: 700 0.75em/1.3 var(--mono);
+  letter-spacing: 0.1em;
+}
+
+.sd-ready {
+  margin-top: 6px !important;
+  color: #cfd5dc;
+  font: 700 0.8rem/1 var(--mono);
+  letter-spacing: 0.3em;
+  animation: blink 0.7s steps(1) infinite;
+}
+
+.sd-stamp-big {
+  padding: 4px 18px;
+  border: 3px solid currentColor;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--yellow);
+  font: 700 clamp(1.1rem, 5vw, 3.6rem) / 1.1 var(--head);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  animation: sd-stamp 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.band .sd-stamp-big {
+  margin: 0 auto;
+  font-size: clamp(0.9rem, 3.4vw, 2.4rem);
+}
+
+.sd-stamp-big.ok {
+  color: var(--ok);
+}
+
+.sd-stamp-big.warn {
+  color: var(--yellow);
+}
+
+.sd-stamp-big.danger {
+  color: var(--danger);
+}
+
+/* The round report: a system screen. */
+.sd-report {
+  display: grid;
+  gap: clamp(6px, 1.2vw, 14px);
+  width: 100%;
+  max-width: 1100px;
+  align-self: start;
+  animation: cpi-hh-in 0.3s ease-out;
+}
+
+.sd-report p,
+.sd-report h3 {
+  margin: 0;
+}
+
+.sd-report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sd-stamp {
+  padding: 3px 10px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  color: var(--yellow);
+  font: 700 clamp(0.7rem, 1.5vw, 1.1rem) / 1.1 var(--head);
+  letter-spacing: 0.1em;
+  transform: rotate(-2deg);
+  animation: sd-stamp 0.4s 0.2s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.sd-stamp.ok {
+  color: var(--ok);
+}
+
+.sd-stamp.danger {
+  color: var(--danger);
+}
+
+.sd-report-line {
+  color: #e2e6eb;
+  font-size: clamp(0.75rem, 1.5vw, 1.1rem);
+}
+
+.sd-report-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: clamp(6px, 1.4vw, 18px);
+}
+
+.sd-report h3 {
+  margin-bottom: 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #2c3037;
+  color: #8f97a3;
+  font: 700 clamp(0.6rem, 1.1vw, 0.8rem) / 1.2 var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.sd-rows {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sd-row,
+.sd-report-thad {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px 2px 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: clamp(0.7rem, 1.3vw, 1rem);
+}
+
+.sd-row .sd-badge figcaption,
+.sd-report-thad .sd-badge figcaption {
+  display: none;
+}
+
+.sd-row-main {
+  display: grid;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.sd-row-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sd-row-quip {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.85em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sd-row-stat {
+  color: var(--muted);
+}
+
+.sd-row-pts {
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.sd-row.out .sd-row-stat {
+  color: var(--ok);
+}
+
+.sd-report-thad {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  border: 1px solid rgba(255, 212, 0, 0.25);
+}
+
+.sd-report-next {
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
+.sd-report.compact {
+  font-size: 0.9rem;
+}
+
+/* Phones: the device fills the width, the buttons are the device's own. */
 .sd-phone {
+  --sd-chrome: 150px;
+  display: grid;
+  gap: 12px;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.sd-top {
-  margin: 0;
-}
-
-.sd-you,
 .sd-status {
   margin: 0;
   font-weight: 700;
 }
 
-.sd-controls {
+.sd-runner-device[data-layout="landscape"] .cpi-hh-screen-wrap,
+.sd-thad-screen .cpi-hh-screen-wrap {
+  width: min(100%, calc((100dvh - var(--sd-chrome)) * 16 / 9));
+  min-width: min(100%, 300px);
+  margin: 0 auto;
+}
+
+/* A runner's phone held upright: a taller screen (the camera follows, so height is more to see),
+   using the room under the controls. */
+.sd-runner-device[data-layout="portrait"] .cpi-hh-screen {
+  aspect-ratio: auto;
+  height: clamp(190px, calc(100dvh - 470px), 105vw);
+}
+
+.sd-runner-device {
+  --hh-grip: clamp(120px, 15vw, 190px);
+}
+
+.sd-runner-device .cpi-hh-dpad {
+  width: clamp(112px, 88%, 160px);
+}
+
+.sd-runner-device[data-layout="portrait"] .cpi-hh-dpad {
+  width: min(150px, 40vw);
+}
+
+.sd-sys-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 44px;
+}
+
+.sd-undo {
+  width: 38px;
+  height: 38px;
+  visibility: hidden;
+}
+
+.drawing .sd-undo {
+  visibility: visible;
+}
+
+.sd-ab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 4vw, 22px);
+  padding-bottom: 18px;
+}
+
+.sd-ab .cpi-hh-face-btn {
+  width: clamp(58px, 17vw, 86px);
+  aspect-ratio: 1;
+  font-size: clamp(16px, 4vw, 22px);
+}
+
+.sd-ab .sd-a {
+  width: clamp(66px, 20vw, 96px);
+  transform: translateY(12px);
+}
+
+.sd-ab .sd-a.pressed,
+.sd-ab .sd-a:active {
+  transform: translateY(14px);
+}
+
+/* Landscape: A and B on a diagonal, like a controller's face buttons, sized to the grip. */
+.sd-runner-device[data-layout="landscape"] .sd-ab {
   display: grid;
-  grid-template-columns: 1fr 1fr 0.7fr 1.4fr;
-  gap: 8px;
-  touch-action: none;
+  grid-template-columns: repeat(2, auto);
+  gap: 0 6px;
+  padding-bottom: 22px;
 }
 
-.sd-btn {
-  min-height: 84px;
-  border: 2px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel-2);
-  color: var(--text);
-  font-family: var(--head);
-  font-size: 2rem;
-  touch-action: none;
-  -webkit-touch-callout: none;
+.sd-runner-device[data-layout="landscape"] .sd-ab .sd-b {
+  grid-area: 1 / 1;
+  width: clamp(48px, 5.4vw, 76px);
 }
 
-.sd-btn.down,
-.sd-btn:active {
-  border-color: var(--yellow);
-  background: #2a2300;
+.sd-runner-device[data-layout="landscape"] .sd-ab .sd-a {
+  grid-area: 2 / 2;
+  width: clamp(54px, 6.2vw, 86px);
+  margin-top: -14px;
+  transform: none;
 }
 
-.sd-btn.jump {
+.sd-runner-device[data-layout="landscape"] .sd-ab .sd-a.pressed,
+.sd-runner-device[data-layout="landscape"] .sd-ab .sd-a:active {
+  transform: translateY(2px);
+}
+
+/* The plank button's recharge: a sweep and the seconds left. */
+.sd-b.cooling::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(rgba(255, 212, 0, 0.55) calc((1 - var(--cd, 0)) * 360deg), transparent 0);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%);
+  mask: radial-gradient(circle, transparent 62%, #000 64%);
+}
+
+.sd-cooldown {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
   background: var(--yellow);
   color: #000;
-  font-size: 1.5rem;
-  letter-spacing: 0.08em;
+  font: 700 11px/18px var(--mono);
+  text-align: center;
 }
 
-.sd-btn.draw {
-  font-size: 1.6rem;
+.sd-cooldown:empty {
+  display: none;
 }
 
-.sd-btn:disabled {
-  opacity: 0.4;
+.drawing .sd-a .cpi-hh-letter,
+.drawing .sd-b .cpi-hh-letter {
+  color: var(--yellow);
 }
 
-.sd-drawbar {
-  display: grid;
-  grid-template-columns: 1fr 1fr 2fr;
-  gap: 8px;
+.drawing .cpi-hh-screen-wrap {
+  box-shadow: 0 0 0 2px rgba(140, 200, 255, 0.6);
 }
 
-.sd-drawbar .btn {
-  min-height: 56px;
+.sd-keys {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.8rem;
 }
 
-/* Thad's tilt panel. */
-
-.sd-panel {
-  padding: 12px;
-  border: 2px solid var(--line);
-  background: var(--panel);
+@media (hover: none) {
+  .sd-runner .sd-keys {
+    display: none;
+  }
 }
 
-.sd-reading,
-.sd-source {
+.sd-result {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 3vw, 20px);
+  text-align: left;
+  animation: cpi-pop 0.35s ease-out both;
+}
+
+.sd-result p {
   margin: 0;
 }
 
-.sd-reading {
-  font-family: var(--mono);
-  font-size: 1.4rem;
-  font-weight: 700;
+.sd-result.ok .cpi-card-title {
+  color: var(--ok);
+}
+
+.sd-result.danger .cpi-card-title {
+  color: var(--danger);
+}
+
+/* Thad's console: sits beside the device (landscape) or under it (portrait). */
+.sd-console {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #0a0b0d;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #26292f, #17181c);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 12px 30px rgba(0, 0, 0, 0.55);
+}
+
+.sd-console p {
+  margin: 0;
+}
+
+.sd-console-head {
+  display: grid;
+  gap: 3px;
+}
+
+.sd-console-title {
   color: var(--yellow);
+  font: 700 1rem/1 var(--head);
+  letter-spacing: 0.16em;
+}
+
+.sd-console-sub {
+  color: #6d737e;
+  font: 700 0.65rem/1 var(--mono);
+  letter-spacing: 0.14em;
+}
+
+.sd-dial-wrap {
+  display: grid;
+  justify-items: center;
+}
+
+.sd-dial {
+  width: 100%;
+  max-width: 260px;
+  height: 92px;
+}
+
+.sd-reading {
+  margin-top: -4px !important;
+  color: var(--yellow);
+  font: 700 1.2rem/1.2 var(--mono);
 }
 
 .sd-reading.hot {
   color: var(--danger);
 }
 
+.sd-influence {
+  color: #aab1bb;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.sd-limits,
+.sd-sources {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.sd-limit,
+.sd-chip {
+  padding: 3px 8px;
+  border: 1px solid #30343b;
+  border-radius: 10px;
+  color: #6d737e;
+  font: 700 0.7rem/1.2 var(--mono);
+  letter-spacing: 0.06em;
+}
+
+.sd-limit.on {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+
+.sd-chip.on {
+  border-color: var(--ok);
+  background: rgba(143, 224, 96, 0.1);
+  color: var(--ok);
+}
+
 .sd-meter {
   position: relative;
-  height: 28px;
-  border: 2px solid var(--line);
+  height: 12px;
+  border: 1px solid #30343b;
+  border-radius: 6px;
   background: linear-gradient(90deg, rgba(255, 77, 77, 0.35), transparent 30%, transparent 70%, rgba(255, 77, 77, 0.35));
 }
 
 .sd-meter::after {
   content: "";
   position: absolute;
-  left: 50%;
   top: 0;
   bottom: 0;
+  left: 50%;
   border-left: 2px dashed var(--muted);
 }
 
@@ -3411,6 +4842,7 @@ a.stamp:focus-visible {
   left: 50%;
   width: 8px;
   margin-left: -4px;
+  border-radius: 3px;
   background: var(--yellow);
   transition: left 60ms linear;
 }
@@ -3423,26 +4855,13 @@ a.stamp:focus-visible {
 
 .sd-panel-buttons .btn {
   flex: 1;
-  min-height: 52px;
-  font-size: 0.95rem;
-}
-
-.sd-keys {
-  margin: 0;
-  font-family: var(--mono);
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.sd-keys[hidden] {
-  display: none;
+  min-height: 48px;
+  font-size: 0.9rem;
 }
 
 .sd-motion {
-  margin: 0;
-  font-family: var(--mono);
-  font-size: 0.9rem;
   color: var(--muted);
+  font: 0.8rem/1.3 var(--mono);
 }
 
 .sd-motion.ok {
@@ -3453,30 +4872,112 @@ a.stamp:focus-visible {
   color: var(--yellow);
 }
 
-/* The Deck (1280×800) and other landscape screens: the level beside the panel. */
-@media (orientation: landscape) and (min-width: 700px) {
-  .sd-thad-screen {
-    max-width: none;
-  }
+.sd-console-status {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #2c3037;
+}
 
-  .phone:has(.sd-thad-screen) {
-    max-width: 1280px;
+.sd-coming,
+.sd-runners {
+  color: #cfd5dc;
+  font-size: 0.8rem;
+}
+
+.sd-coming.hot {
+  color: var(--danger);
+}
+
+.sd-log {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font: 0.75rem/1.3 var(--mono);
+}
+
+.sd-log .ok {
+  color: var(--ok);
+}
+
+.sd-log .hit {
+  color: #ff9b91;
+}
+
+.sd-log li:first-child {
+  animation: cpi-hh-in 0.3s ease-out;
+}
+
+/* The Deck and other wide screens: the device beside the console, as big as it can be. */
+.phone:has(.sd-thad-screen),
+.phone:has(.sd-runner-device[data-layout="landscape"]) {
+  max-width: 1320px;
+}
+
+.sd-thad-layout {
+  display: grid;
+  gap: 14px;
+}
+
+.sd-thad-device {
+  --hh-grip: clamp(56px, 7vw, 110px);
+}
+
+@media (orientation: landscape) and (min-width: 820px) {
+  .sd-thad-screen {
+    --sd-chrome: 190px;
   }
 
   .sd-thad-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
-    gap: 16px;
+    grid-template-columns: minmax(0, 1fr) minmax(250px, 290px);
     align-items: start;
   }
 }
 
-.sd-thad-layout > * + * {
-  margin-top: 12px;
+/* Thad in portrait: no grips (the console is the controls), big L / R to hold. */
+.sd-thad-device[data-layout="portrait"] .cpi-hh-grip {
+  display: none;
 }
 
-@media (orientation: landscape) and (min-width: 700px) {
-  .sd-thad-layout > * + * {
-    margin-top: 0;
+.sd-thad-device[data-layout="portrait"] {
+  padding-top: 40px;
+}
+
+.sd-thad-device[data-layout="portrait"] .cpi-hh-shoulder {
+  width: 44%;
+  height: 50px;
+  font-size: 15px;
+}
+
+/* A landscape phone: every pixel of height for the screen. */
+@media (orientation: landscape) and (max-height: 520px) {
+  body:has(.sd-device) .topbar {
+    display: none;
   }
+
+  .sd-phone {
+    --sd-chrome: 96px;
+  }
+
+  .phone:has(.sd-device) {
+    padding-top: 6px;
+  }
+
+  .sd-device .cpi-hh-under {
+    display: none;
+  }
+}
+
+.sd-phone-report:empty {
+  display: none;
+}
+
+.sd-phone-report {
+  padding: 12px;
+  border: 1px solid #262930;
+  border-radius: 12px;
+  background: #0b0c0f;
 }

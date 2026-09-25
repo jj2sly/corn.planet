@@ -1,161 +1,169 @@
-// Escape Thad's Steam Deck on the big screen: who's Thad, the level, the world live (leaning with
-// Thad's tilt), and each round's results. Sounds go through the My Cob sound manager.
+// Escape Thad's Steam Deck on the big screen: the whole round plays inside a CPI handheld. It boots,
+// launches the game and introduces everyone, then the level runs live on its screen (leaning with
+// Thad's tilt, the device rocking and its stick and shoulder buttons following Thad's hands), phase
+// changes arrive as system notifications, and the round report opens on the same screen.
+// Sounds go through the party's sound manager (mycob-sound.js).
 
-import { el, timerEl } from "../common.js";
-import { playNewCues, preloadSounds, soundControl } from "./mycob-sound.js";
+import { el } from "../common.js";
+import { createHandheld, systemCard } from "../cpi/handheld.js";
+import { playNewCues, playSfx, preloadSounds, soundControl } from "./mycob-sound.js";
+import { assignmentBand, badge, battery, castOf, launchSteps, levelCard, liveTimer, PHASE_TITLE, phaseNotice, roundReport, TITLE } from "./steamdeck-ui.js";
 import { createWorldView } from "./steamdeck-world.js";
 
-const PHASE_TITLE = {
-  ASSIGNMENT: "ROLES ASSIGNED",
-  INTRO: "GET READY",
-  ESCAPE: "ESCAPE!",
-  ESCALATION: "THAD IS ANGRY",
-  FINAL: "FINAL ESCAPE WINDOW",
-  RESULTS: "ROUND OVER",
-};
-
-function header(g, timer) {
-  const slot = el("div", {}, timerEl(timer));
-  const node = el(
-    "div",
-    { class: "phase-head" },
-    el("div", {}, el("p", { class: "eyebrow", text: `Round ${g.round} of ${g.totalRounds} · ${g.level.name}` }), el("h1", { class: `sd-title p-${g.phase}`, text: PHASE_TITLE[g.phase] })),
-    el("div", { class: "row" }, slot, soundControl()),
-  );
-  return { node, setTimer: (t) => slot.replaceChildren(timerEl(t)) };
-}
-
-function rosterChips(g) {
-  return el(
-    "ul",
-    { class: "sd-roster" },
-    g.roster.map((r) =>
-      el(
-        "li",
-        { class: r.escapedMs !== null ? "out" : "" },
-        el("span", { class: "sd-swatch", "aria-hidden": "true" }),
-        r.name,
-        el("span", { class: "muted", text: r.escapedMs !== null ? ` ✓ ${(r.escapedMs / 1000).toFixed(1)}s` : r.deaths ? ` 💀${r.deaths}` : "" }),
-      ),
-    ),
-  );
-}
-
-/** Paints each chip's swatch in the runner's colour (CSSOM, not a style attribute: CSP). */
-function paintSwatches(node, g) {
-  node.querySelectorAll(".sd-swatch").forEach((s, i) => s.style.setProperty("background", g.roster[i]?.color ?? "#fff"));
-  return node;
-}
-
-function screen(s, nodes, onUpdate) {
-  const node = el("div", { class: "stack sd-host" }, ...nodes);
-  preloadSounds();
-  playNewCues(`steamdeck:${s.game.session}`, s.game.cues, { fresh: s.game.phase === "ASSIGNMENT" && s.game.round === 1 });
+/** The roster under the device: each runner's character, name and how they're doing. */
+function rosterStrip(g) {
+  const cast = castOf(g);
+  const rows = new Map();
+  const list = el("ul", { class: "sd-roster", "aria-label": "Runners" });
+  for (const r of g.roster) {
+    const b = badge(cast.get(r.id), { size: 34 });
+    const note = el("span", { class: "sd-roster-note mono" });
+    const li = el("li", {}, b.canvas, el("span", { class: "sd-roster-name", text: r.name }), note);
+    li.style.setProperty("--agent", r.color);
+    rows.set(r.id, { li, note, canvas: b.canvas, out: false });
+    list.append(li);
+  }
   return {
-    node,
+    node: list,
+    ids: g.roster.map((r) => r.id).join(","),
     update(next) {
-      playNewCues(`steamdeck:${next.game.session}`, next.game.cues);
-      onUpdate?.(next);
+      for (const r of next.roster) {
+        const row = rows.get(r.id);
+        if (!row) continue;
+        const out = r.escapedMs !== null;
+        const text = out ? `✓ ${(r.escapedMs / 1000).toFixed(1)}s` : r.deaths ? `💀 ${r.deaths}` : "";
+        if (row.note.textContent !== text) row.note.textContent = text;
+        if (out !== row.out) {
+          row.out = out;
+          row.li.classList.toggle("out", out);
+          row.canvas.paint({ state: out ? "cheer" : "idle", t: 0.2 });
+        }
+      }
     },
   };
 }
 
-function buildAssignment(s) {
-  const g = s.game;
-  const head = header(g, s.timer);
-  return screen(
-    s,
-    [
-      head.node,
-      el("p", { class: "sd-thad" }, "🎮 Thad this round: ", el("strong", { text: g.thad.name })),
-      el("p", { class: "muted", text: "Everyone else is trapped inside the Steam Deck. Get to the EXIT." }),
-      paintSwatches(rosterChips(g), g),
-      el(
-        "ul",
-        { class: "sd-howto" },
-        el("li", { text: "Runners: ◀ ▶ / ← → to move, JUMP / Space to jump, ✏️ / E for a plank across a gap." }),
-        el("li", { text: "Thad: lean the whole level with ← → or the slider. It gets worse every phase." }),
-        el("li", { text: "Red spikes kill. Dashed red boxes are spikes that haven't arrived yet." }),
-      ),
-    ],
-    (next) => head.setTimer(next.timer),
-  );
-}
+const stamp = (text, kind = "") => el("div", { class: `sd-stamp-big ${kind}`.trim(), text });
 
-function bannerFor(g) {
-  if (g.phase === "INTRO") return el("p", { class: "sd-banner", text: `${g.level.name}: ${g.level.tagline}` });
-  if (g.phase === "ESCALATION") return el("p", { class: "sd-banner warn", text: "ESCALATION: more tilt, more spikes." });
-  if (g.phase === "FINAL") return el("p", { class: "sd-banner danger", text: "FINAL WINDOW: get out now." });
-  return null;
-}
+const HOWTO = [
+  "Runners: ◀ ▶ / ← → move · A / Space jump · B / E draw a plank across a gap",
+  "Thad: lean the level with ← →, hold L / R, or the slider. Worse every phase",
+  "Spikes kill. A dashed box with ⚠ is spikes on their way",
+];
 
-// One build from the intro to the final window, so the canvas and its animation carry straight on.
-function buildWorld(s) {
-  const g = s.game;
-  let phase = g.phase;
-  let head = header(g, s.timer);
-  const top = el("div", { class: "stack" }, head.node, bannerFor(g));
-  const canvas = el("canvas", { class: "sd-canvas", "aria-label": `${g.level.name}: the level, live` });
-  const view = createWorldView(canvas, { rotate: true, labels: true });
-  view.update(g);
-  const chips = el("div", {}, paintSwatches(rosterChips(g), g));
-  return screen(s, [top, el("div", { class: "sd-stage" }, canvas), chips], (next) => {
-    if (next.game.phase !== phase) {
-      phase = next.game.phase;
-      head = header(next.game, next.timer);
-      top.replaceChildren(head.node, ...[bannerFor(next.game)].filter(Boolean));
-    }
-    head.setTimer(next.timer);
-    view.update(next.game);
-    chips.replaceChildren(paintSwatches(rosterChips(next.game), next.game));
+function buildRound(s) {
+  const g0 = s.game;
+  let g = g0;
+  let phase = null;
+  let paused = false;
+
+  const eyebrow = el("p", { class: "eyebrow" });
+  const title = el("h1", { class: "sd-title" });
+  const timer = liveTimer();
+  const head = el("div", { class: "phase-head sd-hud" }, el("div", { class: "sd-hud-title" }, title, eyebrow), el("div", { class: "row" }, timer.node, soundControl()));
+
+  let roster = rosterStrip(g0);
+  const rosterSlot = el("div", { class: "sd-roster-slot" }, roster.node);
+  const hh = createHandheld({ title: TITLE, owner: g0.thad.name.toUpperCase(), layout: "landscape", rock: true, below: rosterSlot, label: `${g0.level.name}: the level, live`, className: "sd-device sd-device-host" });
+  const canvas = el("canvas", { class: "sd-canvas", "aria-hidden": "true" });
+  hh.screen.append(canvas);
+  hh.setStatus({ extra: el("span", { class: "cpi-hh-chip", text: `HELD BY ${g0.thad.name}` }) });
+  const view = createWorldView(canvas, {
+    rotate: true,
+    labels: true,
+    onEvent: (type) => {
+      if (type === "plank") playSfx("plank_place", { volume: 0.7 });
+      else if (type === "hazard") playSfx("hazard_arm");
+    },
   });
+  view.update(g0);
+
+  const node = el("div", { class: "sd-host" }, head, hh.node);
+
+  preloadSounds();
+  playNewCues(`steamdeck:${g0.session}`, g0.cues, { fresh: g0.phase === "ASSIGNMENT" && g0.round === 1 });
+
+  const enter = (next, remainingMs) => {
+    const p = next.phase;
+    eyebrow.textContent = `Round ${next.round} of ${next.totalRounds} · ${next.level.name}`;
+    title.textContent = PHASE_TITLE[p];
+    title.className = `sd-title p-${p}`;
+    // A transition only for a change seen live: a reconnect mid-phase just shows where things are.
+    const live = phase !== null;
+    const news = phaseNotice(next);
+    if (news && live) hh.notify(news.text, { ...news, replace: true });
+    if (p === "ASSIGNMENT") {
+      // A fresh start gets the whole launch; a reload part-way through just gets the roles.
+      if ((remainingMs ?? 0) > 5_000) {
+        hh.sequence(launchSteps(next, { short: next.round > 1, size: 64, onBoot: () => playSfx("device_boot") })).done.then(() => {
+          if (phase === "ASSIGNMENT" && !paused) hh.overlay(assignmentBand(next), "band bottom");
+        });
+      } else hh.overlay(assignmentBand(next), "band bottom");
+    } else if (p === "INTRO") hh.overlay(levelCard(next, { howto: HOWTO }), "card");
+    else if (p === "ESCAPE") {
+      if (live) hh.overlay(stamp("GO!", "ok"), "stamp", { ms: 900 });
+      else hh.clearOverlay();
+    } else if (p === "ESCALATION" || p === "FINAL") {
+      const danger = p === "FINAL";
+      if (live) {
+        hh.overlay(stamp(danger ? "FINAL ESCAPE WINDOW" : "THAD IS ANGRY", danger ? "danger" : "warn"), "band", { ms: 1800 });
+        hh.flash(danger ? "danger" : "warn");
+        hh.shake();
+      } else hh.clearOverlay();
+    } else if (p === "RESULTS") {
+      hh.overlay(roundReport(next), "report");
+      const out = next.results?.escaped ?? 0;
+      if (live) hh.flash(out === next.results?.total ? "ok" : out === 0 ? "danger" : "warn");
+    }
+    phase = p;
+  };
+
+  let lastRoster = new Map(g0.roster.map((r) => [r.id, r.escapedMs]));
+  let creakAt = 0;
+  let wasLeaning = false;
+
+  return {
+    node,
+    update(next) {
+      g = next.game;
+      playNewCues(`steamdeck:${g.session}`, g.cues);
+      timer.set(next.timer);
+      if (next.paused !== paused) {
+        paused = next.paused;
+        if (paused) hh.overlay(systemCard({ eyebrow: "SYSTEM", title: "PAUSED", text: "Waiting for the host display." }), "card");
+        else {
+          // Back where we were, without replaying the phase's entrance.
+          phase = null;
+          enter(g, 0);
+        }
+      }
+      if (g.phase !== phase && !paused) enter(g, next.timer?.remainingMs);
+      view.update(g);
+      if (roster.ids !== g.roster.map((r) => r.id).join(",")) {
+        roster = rosterStrip(g);
+        rosterSlot.replaceChildren(roster.node);
+      }
+      roster.update(g);
+      // Escapes are news; deaths are just the roster (too many to announce).
+      for (const r of g.roster) {
+        if (r.escapedMs !== null && lastRoster.get(r.id) === null) hh.notify(`${r.name} escaped · ${(r.escapedMs / 1000).toFixed(1)}s`, { kind: "ok", icon: "✓" });
+      }
+      lastRoster = new Map(g.roster.map((r) => [r.id, r.escapedMs]));
+      const connected = next.players.filter((p) => p.connected).length;
+      hh.setStatus({ battery: battery(g.phase, next.timer), signal: next.players.length ? connected / next.players.length : 1 });
+      hh.setTilt(g.world.tilt);
+      // The Deck creaks when Thad really leans on it.
+      const leaning = Math.abs(g.world.tilt) > 0.75;
+      if (leaning && !wasLeaning && performance.now() - creakAt > 2_000) {
+        creakAt = performance.now();
+        playSfx("tilt_creak", { volume: 0.8 });
+      }
+      wasLeaning = leaning;
+    },
+  };
 }
-
-function buildResults(s) {
-  const g = s.game;
-  const head = header(g, s.timer);
-  const points = g.results?.points ?? {};
-  const escaped = g.roster.filter((r) => r.escapedMs !== null).sort((a, b) => a.escapedMs - b.escapedMs);
-  const trapped = g.roster.filter((r) => r.escapedMs === null);
-  const verdict = !g.roster.length ? "" : escaped.length === g.roster.length ? "Everyone got out. Thad is furious." : escaped.length === 0 ? "Nobody got out. Thad wins. Thad is insufferable." : "Some got out. Thad is only mildly smug.";
-  return screen(
-    s,
-    [
-      head.node,
-      el("p", { class: "sd-verdict", text: verdict }),
-      el(
-        "div",
-        { class: "sd-results" },
-        el(
-          "section",
-          {},
-          el("h2", { text: "Escaped" }),
-          escaped.length
-            ? el("ol", { class: "list" }, escaped.map((r) => el("li", {}, el("span", { class: "grow", text: r.name }), el("span", { class: "mono", text: `${(r.escapedMs / 1000).toFixed(1)}s · +${points[r.id] ?? 0}` }))))
-            : el("p", { class: "muted", text: "Nobody." }),
-        ),
-        el(
-          "section",
-          {},
-          el("h2", { text: "Still inside" }),
-          trapped.length
-            ? el("ul", { class: "list" }, trapped.map((r) => el("li", {}, el("span", { class: "grow", text: r.name }), el("span", { class: "mono", text: `💀 ${r.deaths}` }))))
-            : el("p", { class: "muted", text: "Nobody." }),
-        ),
-        el("section", {}, el("h2", { text: "Thad" }), el("p", {}, el("strong", { text: g.thad.name }), ` +${points[g.thad.id] ?? 0}`)),
-      ),
-      el("p", { class: "muted", text: g.round < g.totalRounds ? "Next round: someone new holds the Deck." : "Final scores next." }),
-    ],
-    (next) => head.setTimer(next.timer),
-  );
-}
-
-const BUILDERS = { ASSIGNMENT: buildAssignment, INTRO: buildWorld, ESCAPE: buildWorld, ESCALATION: buildWorld, FINAL: buildWorld, RESULTS: buildResults };
-
-const GROUP = { INTRO: "play", ESCAPE: "play", ESCALATION: "play", FINAL: "play" };
 
 export function render(mount, state) {
   const g = state.game;
-  const build = BUILDERS[g.phase];
-  if (build) mount(`steamdeck:${g.session}:${g.round}:${GROUP[g.phase] ?? g.phase}`, build, state);
+  if (g) mount(`steamdeck:${g.session}:${g.round}`, buildRound, state);
 }
