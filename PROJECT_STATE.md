@@ -123,6 +123,11 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 8. Status
 
+- **Escape Thad's Steam Deck cast and shake** (2026-09-25, uncommitted, on the Mac, no Node): runners
+  are dealt random characters from an 8-member cast with their own movement (a gameplay change, by
+  request: not meant to be fair); Thad gets a SHAKE (0.5 s rumble, then a jolt, 8 s recharge). Server:
+  `physics.ts` (stats, `jolt`), `game.ts` (dealing, shake, view fields). Checked in the browser harness;
+  new tests in `test/steamdeck.test.ts` **not run yet**: run `npm run check` on Windows.
 - **Escape Thad's Steam Deck visual showcase overhaul** (2026-09-25, uncommitted on `cpst-party`, done
   on the Mac, which has **no Node**): client-only. Every screen runs inside the fictional CPI KERNEL
   handheld; CPI agent characters with slot-based looks and position-driven animation; per-level scenery

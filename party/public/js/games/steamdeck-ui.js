@@ -4,6 +4,7 @@
 
 import { el } from "../common.js";
 import { characterCanvas, createCharacter, hashString } from "../cpi/character.js";
+import { castMember } from "./steamdeck-cast.js";
 import { bootScreen, systemCard } from "../cpi/handheld.js";
 
 export const TITLE = "ESCAPE THAD'S STEAM DECK";
@@ -62,11 +63,28 @@ export function liveTimer({ label = "Time remaining", compact = false } = {}) {
   };
 }
 
-/** Everyone's character, Thad included, from what the game view already carries. */
+/**
+ * A runner's character this round: the cast member they were dealt (steamdeck-cast.js), named for
+ * the player. Anyone without one (an older server) is a CPI agent in their colour.
+ */
+export function characterOf(r) {
+  const member = castMember(r.character);
+  if (!member) return createCharacter({ id: r.id, name: r.name, color: r.color });
+  const build = member.builds?.[r.build ?? 0];
+  return createCharacter({ id: r.id, name: r.name, color: r.color, person: member.look, size: { w: build?.w ?? member.size.w, h: member.size.h } });
+}
+
+/** The cast member's name and, for one with builds, this round's ("Aiden Kane · bulk"). */
+export function castLabel(r) {
+  const member = castMember(r.character);
+  if (!member) return "";
+  const build = member.builds?.[r.build ?? 0];
+  return build ? `${member.name} · ${build.name}` : member.name;
+}
+
+/** Every runner's character. Thad isn't one: Thad's Steam Deck is the item they're all inside. */
 export function castOf(g) {
-  const cast = new Map(g.roster.map((r) => [r.id, createCharacter({ id: r.id, name: r.name, color: r.color })]));
-  cast.set(g.thad.id, createCharacter({ id: g.thad.id, name: g.thad.name, color: g.thad.color }));
-  return cast;
+  return new Map(g.roster.map((r) => [r.id, characterOf(r)]));
 }
 
 /** Keeps a set of badge canvases animating while they're on screen. */
@@ -82,7 +100,7 @@ export function animateBadges(badges) {
   requestAnimationFrame(loop);
 }
 
-/** A character badge with its name under it. */
+/** A character badge with its name (and, say, who they're playing) under it. */
 export function badge(ch, { size = 56, state = "idle", note = "" } = {}) {
   const canvas = characterCanvas(ch, { size, state });
   const node = el("figure", { class: "sd-badge" }, canvas, el("figcaption", {}, el("span", { class: "sd-badge-name", text: ch.name }), note ? el("span", { class: "sd-badge-note", text: note }) : null));
@@ -117,19 +135,17 @@ export function launchSteps(g, { short = false, size = 64, onBoot } = {}) {
     cls: "occupants",
     render: () => {
       const runners = g.roster.map((r, i) => {
-        const b = badge(cast.get(r.id), { size, state: "idle" });
+        const b = badge(cast.get(r.id), { size, state: "idle", note: castLabel(r) });
         b.node.style.setProperty("--i", String(i));
         return b;
       });
-      const thad = badge(cast.get(g.thad.id), { size: Math.round(size * 1.15), state: "cheer", note: "HOLDS THE DECK" });
-      thad.node.classList.add("is-thad");
-      animateBadges([...runners, thad].map((b, i) => ({ ...b, offset: i * 0.37 })));
+      animateBadges(runners.map((b, i) => ({ ...b, offset: i * 0.37 })));
       return el(
         "div",
         { class: "sd-occupants" },
-        el("p", { class: "cpi-card-eyebrow", text: "OCCUPANTS DETECTED" }),
+        el("p", { class: "cpi-card-eyebrow", text: "OCCUPANTS DETECTED · CHARACTERS DEALT" }),
         el("div", { class: "sd-occupant-row" }, runners.map((b) => b.node)),
-        el("div", { class: "sd-held" }, el("span", { class: "sd-held-label", text: "HELD BY" }), thad.node),
+        el("div", { class: "sd-held" }, el("span", { class: "sd-held-label", text: "DECK HELD BY" }), el("span", { class: "sd-held-name", text: g.thad.name })),
       );
     },
   });
@@ -227,14 +243,12 @@ export function roundReport(g, { compact = false } = {}) {
       "li",
       { class: `sd-row ${out ? "out" : "in"}` },
       b.node,
-      el("span", { class: "sd-row-main" }, el("strong", { text: r.name }), el("span", { class: "sd-row-quip", text: quip(r.id, out, g.round) })),
+      el("span", { class: "sd-row-main" }, el("strong", { text: castLabel(r) ? `${r.name} · ${castLabel(r)}` : r.name }), el("span", { class: "sd-row-quip", text: quip(r.id, out, g.round) })),
       el("span", { class: "sd-row-stat mono", text: out ? `${(r.escapedMs / 1000).toFixed(1)}s` : `💀 ${r.deaths}` }),
       el("span", { class: "sd-row-pts mono", text: out ? `+${points[r.id] ?? 0}` : "—" }),
     );
   };
   const thadPts = points[g.thad.id] ?? 0;
-  const thad = badge(cast.get(g.thad.id), { size, state: thadPts ? "cheer" : "sad" });
-  badges.push(thad);
   animateBadges(badges);
   return el(
     "div",
@@ -250,7 +264,7 @@ export function roundReport(g, { compact = false } = {}) {
     el(
       "div",
       { class: "sd-report-thad" },
-      thad.node,
+      el("span", { class: "sd-deck-icon", "aria-hidden": "true", text: "🎮" }),
       el("span", { class: "sd-row-main" }, el("strong", { text: `${g.thad.name} held the Deck` }), el("span", { class: "sd-row-quip", text: thadLine(g, thadPts) })),
       el("span", { class: "sd-row-pts mono", text: `+${thadPts}` }),
     ),

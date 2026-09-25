@@ -4981,3 +4981,67 @@ button.cpi-hh-face-btn:disabled {
   border-radius: 12px;
   background: #0b0c0f;
 }
+
+/* Thad's SHAKE: a big red button with its recharge swept round the edge. */
+.sd-shake {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 64px;
+  padding: 8px 12px;
+  border: 2px solid #5a1410;
+  border-radius: 14px;
+  background: radial-gradient(circle at 50% 35%, #ff6b5e, #b3221a 70%);
+  box-shadow:
+    0 4px 0 #4a0e0a,
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sd-shake-label {
+  font: 700 1.5rem/1 var(--head);
+  letter-spacing: 0.2em;
+}
+
+.sd-shake-sub {
+  font: 700 0.7rem/1 var(--mono);
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+
+.sd-shake:disabled {
+  background: linear-gradient(90deg, #6b2420 calc((1 - var(--cd, 0)) * 100%), #2a1614 0);
+  cursor: default;
+  opacity: 0.75;
+}
+
+.sd-shake.pressed,
+.sd-shake:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #4a0e0a;
+}
+
+.sd-shake.rumbling {
+  animation: cpi-hh-shake 0.25s linear infinite;
+}
+
+.sd-deck-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  font-size: 1.4rem;
+}
+
+.sd-deck-icon.big {
+  width: 64px;
+  font-size: 2.6rem;
+}
+
+.sd-held-name {
+  color: var(--yellow);
+  font: 700 clamp(1rem, 2.4vw, 1.8rem) / 1 var(--head);
+  letter-spacing: 0.06em;
+}

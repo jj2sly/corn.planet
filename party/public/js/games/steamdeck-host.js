@@ -74,6 +74,10 @@ function buildRound(s) {
     onEvent: (type) => {
       if (type === "plank") playSfx("plank_place", { volume: 0.7 });
       else if (type === "hazard") playSfx("hazard_arm");
+      else if (type === "rumble") {
+        playSfx("deck_shake");
+        hh.notify("THAD IS SHAKING THE DECK", { kind: "danger", icon: "⚠", ms: 1200 });
+      } else if (type === "shake") hh.shake(500);
     },
   });
   view.update(g0);

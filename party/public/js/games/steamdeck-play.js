@@ -13,7 +13,7 @@ import { isMuted, playSfx, setMuted } from "./mycob-sound.js";
 import { plankFromStroke, strokeAhead } from "./steamdeck-rules.js";
 import { paintPlank } from "./steamdeck-scenery.js";
 import { createTiltInput } from "./steamdeck-tilt.js";
-import { animateBadges, assignmentBand, battery, launchSteps, levelCard, liveTimer, PHASE_SHORT, phaseNotice, PLAYING, quip, roundReport, thadLine } from "./steamdeck-ui.js";
+import { animateBadges, assignmentBand, battery, castLabel, characterOf, launchSteps, levelCard, liveTimer, PHASE_SHORT, phaseNotice, PLAYING, quip, roundReport, thadLine } from "./steamdeck-ui.js";
 import { createWorldView } from "./steamdeck-world.js";
 
 let tilt = null;
@@ -149,14 +149,11 @@ function roundDevice(s, { left = null, right = null, shoulders = null, className
 function resultCard(g, { me, role }) {
   const points = g.results?.points?.[me] ?? 0;
   if (role === "thad") {
-    const ch = createCharacter({ id: me, name: g.thad.name, color: g.thad.color });
-    const c = characterCanvas(ch, { size: 64, state: points ? "cheer" : "sad" });
-    animateBadges([{ canvas: c, state: points ? "cheer" : "sad" }]);
-    return el("div", { class: "sd-result" }, c, el("div", {}, el("p", { class: "cpi-card-eyebrow", text: "YOU HELD THE DECK" }), el("p", { class: "cpi-card-title", text: `+${points}` }), el("p", { class: "cpi-card-text", text: `${g.results.total - g.results.escaped} of ${g.results.total} still trapped. ${thadLine(g, points)}` })));
+    return el("div", { class: "sd-result" }, el("span", { class: "sd-deck-icon big", "aria-hidden": "true", text: "🎮" }), el("div", {}, el("p", { class: "cpi-card-eyebrow", text: "YOU HELD THE DECK" }), el("p", { class: "cpi-card-title", text: `+${points}` }), el("p", { class: "cpi-card-text", text: `${g.results.total - g.results.escaped} of ${g.results.total} still trapped. ${thadLine(g, points)}` })));
   }
   const r = g.roster.find((x) => x.id === me);
   const out = r?.escapedMs != null;
-  const ch = createCharacter({ id: me, name: r?.name ?? "", color: r?.color ?? "#ffd400" });
+  const ch = r ? characterOf(r) : createCharacter({ id: me });
   const c = characterCanvas(ch, { size: 64, state: out ? "cheer" : "sad" });
   animateBadges([{ canvas: c, state: out ? "cheer" : "sad" }]);
   return el(
@@ -235,7 +232,7 @@ function drawDial(canvas, value, maxTilt) {
 }
 
 /** Thad's console: the reading, the limit, where the tilt comes from, and what's coming. */
-function thadConsole({ stream }) {
+function thadConsole({ stream, request }) {
   const input = tiltInput();
   const dial = el("canvas", { class: "sd-dial", "aria-hidden": "true" });
   const meter = el("div", { class: "sd-meter", role: "meter", "aria-label": "Tilt", "aria-valuemin": "-100", "aria-valuemax": "100" }, el("div", { class: "sd-needle" }));
@@ -249,6 +246,39 @@ function thadConsole({ stream }) {
   const note = el("p", { class: "notice" });
   const motionBtn = el("button", { class: "btn ghost small", type: "button" });
   const coming = el("p", { class: "sd-coming mono" });
+  // The shake: throws every runner standing on something. A rumble warns them first.
+  const shakeBtn = el("button", { class: "sd-shake", type: "button", "aria-label": "Shake the Deck" }, el("span", { class: "sd-shake-label", text: "SHAKE" }), el("span", { class: "sd-shake-sub" }));
+  const shakeSub = shakeBtn.lastChild;
+  let shakeReady = false;
+  const shake = async () => {
+    if (!shakeReady) return;
+    shakeReady = false;
+    shakeBtn.disabled = true;
+    shakeBtn.classList.add("pressed");
+    setTimeout(() => shakeBtn.classList.remove("pressed"), 150);
+    playSfx("deck_shake");
+    const result = await request("game:input", { action: "shake" });
+    if (!result.ok) notice(note, result.message, "error");
+  };
+  shakeBtn.addEventListener("click", shake);
+  const onShakeKey = (e) => {
+    if (!shakeBtn.isConnected) return removeEventListener("keydown", onShakeKey);
+    if (e.repeat || e.target?.closest?.("input, textarea, select")) return;
+    if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") {
+      e.preventDefault();
+      shake();
+    }
+  };
+  addEventListener("keydown", onShakeKey);
+  // A gamepad's bottom face button shakes too.
+  let padWas = false;
+  const padPoll = setInterval(() => {
+    if (!shakeBtn.isConnected) return clearInterval(padPoll);
+    const pad = [...(navigator.getGamepads?.() ?? [])].find((p) => p?.connected);
+    const down = !!pad?.buttons?.[0]?.pressed;
+    if (down && !padWas) shake();
+    padWas = down;
+  }, 50);
   const runners = el("p", { class: "sd-runners mono" });
   const log = el("ol", { class: "sd-log", "aria-label": "Recent events" });
 
@@ -336,11 +366,12 @@ function thadConsole({ stream }) {
     { class: "sd-console", "aria-label": "Thad's controls" },
     el("div", { class: "sd-console-head" }, el("span", { class: "sd-console-title", text: "DECK CONTROL" }), el("span", { class: "sd-console-sub", text: "YOU HOLD THE DECK" })),
     el("div", { class: "sd-dial-wrap" }, dial, reading),
+    shakeBtn,
     influence,
     limits,
     meter,
     slider,
-    el("p", { class: "sd-keys", text: "Keys: ← → lean (hold for more) · ↓ or Space: level · or hold L / R on the Deck" }),
+    el("p", { class: "sd-keys", text: "Keys: ← → lean (hold for more) · ↓ or Space: level · ↑ or W: SHAKE · or hold L / R on the Deck" }),
     chips,
     el("div", { class: "row sd-panel-buttons" }, motionBtn, calibrate, level),
     motionLine,
@@ -361,6 +392,12 @@ function thadConsole({ stream }) {
       paintDial(input.value);
       limits.querySelectorAll(".sd-limit").forEach((c) => c.classList.toggle("on", c.dataset.phase === (PLAYING.includes(g.phase) ? g.phase : "ESCAPE")));
       const secs = next.timer ? Math.ceil(next.timer.remainingMs / 1000) : 0;
+      const [readyIn, hitIn] = g.world.shake ?? [0, -1];
+      shakeReady = PLAYING.includes(g.phase) && readyIn <= 0 && hitIn < 0;
+      shakeBtn.disabled = !shakeReady;
+      shakeBtn.classList.toggle("rumbling", hitIn >= 0);
+      shakeBtn.style.setProperty("--cd", String(Math.min(1, readyIn / (g.limits.shakeCooldownMs ?? 8000))));
+      shakeSub.textContent = !PLAYING.includes(g.phase) ? "when play starts" : hitIn >= 0 ? "RUMBLING…" : readyIn > 0 ? `ready in ${Math.ceil(readyIn / 1000)}s` : "READY · ↑";
       const arriving = g.level.hazards.filter((h) => !h[4]).length;
       coming.textContent =
         g.phase === "ESCAPE"
@@ -400,7 +437,7 @@ function buildThad(s, tools) {
   const rBtn = el("button", { type: "button", "aria-label": "Lean right (hold)" }, el("span", { text: "R" }), el("small", { text: "LEAN ▶" }));
   holdable(lBtn, () => input.hold("left", true), () => input.hold("left", false));
   holdable(rBtn, () => input.hold("right", true), () => input.hold("right", false));
-  const panel = thadConsole({ stream: tools.stream });
+  const panel = thadConsole({ stream: tools.stream, request: tools.request });
   const device = roundDevice(s, {
     shoulders: { left: lBtn, right: rBtn },
     className: "sd-thad-device",
@@ -465,11 +502,11 @@ function buildRunner(s, tools) {
     label: "The level. You have the white outline and the YOU tag.",
     intro: (next, remainingMs) => {
       const r = next.roster.find((x) => x.id === me);
-      const ch = createCharacter({ id: me, name: r?.name ?? "", color: myColor });
+      const ch = r ? characterOf(r) : createCharacter({ id: me, color: myColor });
       const card = () => {
         const c = characterCanvas(ch, { size: 70, state: "cheer" });
         animateBadges([{ canvas: c, state: "cheer" }]);
-        return el("div", { class: "sd-result" }, c, el("div", {}, el("p", { class: "cpi-card-eyebrow", text: "THIS IS YOU" }), el("p", { class: "cpi-card-title", text: "TRAPPED IN THE DECK" }), el("p", { class: "cpi-card-text", text: `${next.thad.name} is holding it. Reach the EXIT.` })));
+        return el("div", { class: "sd-result" }, c, el("div", {}, el("p", { class: "cpi-card-eyebrow", text: "THIS ROUND YOU ARE" }), el("p", { class: "cpi-card-title", text: (r && castLabel(r)) || "TRAPPED IN THE DECK" }), el("p", { class: "cpi-card-text", text: `${next.thad.name} is holding it. Reach the EXIT.` })));
       };
       if (remainingMs > 4_000)
         device.hh.sequence([{ ms: 3200, cls: "card", render: card }]).done.then(() => {
@@ -491,12 +528,19 @@ function buildRunner(s, tools) {
     follow: true,
     labels: "others",
     onEvent: (type, { mine, strength }) => {
-      if (!mine) return;
+      if (!mine && type !== "rumble" && type !== "shake") return;
       if (type === "jump") playSfx("jump", { volume: 0.5 });
       else if (type === "land" && strength > 0.35) playSfx("land", { volume: 0.7 });
       else if (type === "plank") playSfx("plank_place");
       else if (type === "die") buzz(120);
       else if (type === "escape") buzz([30, 40, 30]);
+      else if (type === "rumble") {
+        hh.notify("THAD IS SHAKING THE DECK", { kind: "danger", icon: "⚠", ms: 1000 });
+        buzz([20, 30, 20, 30, 20]);
+      } else if (type === "shake") {
+        hh.shake(450);
+        buzz(90);
+      }
     },
   });
   view.update(g);

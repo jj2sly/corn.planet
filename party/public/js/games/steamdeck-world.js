@@ -11,6 +11,7 @@
 
 import { createAnimator } from "../cpi/animation.js";
 import { BOX, createCharacter, drawCharacter } from "../cpi/character.js";
+import { characterOf } from "./steamdeck-ui.js";
 import { createParticles } from "../cpi/particles.js";
 import { fitCanvas } from "../drawing-canvas.js";
 import { MARGIN, paintBackdrop, paintExit, paintHazard, paintLive, paintPlank, paintSolids, paintVoid, themeFor } from "./steamdeck-scenery.js";
@@ -54,6 +55,7 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
   let last = performance.now();
   let moteAt = 0;
   let wordAt = 0; // the last floating word: at most two a second, so a pile-up stays readable
+  let rumbling = false; // Thad called a shake and it hasn't landed yet
   const dustAt = new Map();
 
   const now = () => performance.now() / 1000;
@@ -68,7 +70,8 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
   const syncCast = (roster) => {
     for (const r of roster) {
       const had = cast.get(r.id);
-      if (!had || had.colors.suit !== r.color || had.name !== r.name) cast.set(r.id, createCharacter({ id: r.id, name: r.name, color: r.color }));
+      const key = `${r.color}:${r.name}:${r.character ?? ""}:${r.build ?? 0}`;
+      if (!had || had.key !== key) cast.set(r.id, Object.assign(Object.create(characterOf(r)), { key }));
     }
   };
 
@@ -162,6 +165,19 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
         emit("hazard", { index: i });
       } else had.live = live;
     });
+    // Thad's shake: a rumble, then the jolt.
+    const hitIn = next.world.shake?.[1] ?? -1;
+    if (hitIn >= 0 && !rumbling) {
+      rumbling = true;
+      if (primed) emit("rumble");
+    } else if (hitIn < 0 && rumbling) {
+      rumbling = false;
+      if (primed) {
+        shakeIt(rotate ? 12 : 9, 0.45);
+        for (const [, x, y, , state] of next.world.runners) if (state === 0) fx.burst("dust", x + rw / 2, y + rh, count(6), { spread: Math.PI, speed: 140 });
+        emit("shake");
+      }
+    }
     primed = true;
   };
 
@@ -289,6 +305,10 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
       const left = (shake.until - t) / 0.3;
       sx = (Math.random() - 0.5) * shake.power * left;
       sy = (Math.random() - 0.5) * shake.power * left;
+    } else if (rumbling && !reduced) {
+      // The warning: a low buzz you can see before the jolt.
+      sx = Math.sin(t * 90) * 1.6;
+      sy = Math.cos(t * 70) * 1.2;
     }
     ctx.translate(width / 2 + sx, height / 2 + sy);
     ctx.rotate(v.angle);

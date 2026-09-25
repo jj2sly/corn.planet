@@ -14,6 +14,7 @@
 // you give it. The drawing may poke out of the box a little (hats, arms): that's cosmetic only.
 
 import { fitCanvas } from "../drawing-canvas.js";
+import { drawPerson } from "./person.js";
 
 export const BOX = Object.freeze({ w: 28, h: 36 });
 
@@ -103,9 +104,10 @@ const known = (slot, id) => SLOTS[slot].some((o) => o.id === id);
 
 /**
  * A character: identity plus appearance. `appearance` overrides any slot (unknown values are
- * ignored, so a stale cosmetic can never break drawing).
+ * ignored, so a stale cosmetic can never break drawing). `person` draws a person (cpi/person.js)
+ * instead of a helmeted agent; `size` stretches the drawing ({ w, h }, 1 = normal).
  */
-export function createCharacter({ id, name = "", color = "#ffd400", appearance = {} } = {}) {
+export function createCharacter({ id, name = "", color = "#ffd400", appearance = {}, person = null, size = null } = {}) {
   const base = appearanceFor(id);
   const look = { ...base };
   for (const slot of Object.keys(SLOTS)) if (known(slot, appearance[slot])) look[slot] = appearance[slot];
@@ -117,6 +119,8 @@ export function createCharacter({ id, name = "", color = "#ffd400", appearance =
     name,
     seed: hashString(String(id)),
     appearance: Object.freeze(look),
+    person: person ? Object.freeze(person) : null,
+    size: Object.freeze({ w: Number(size?.w) > 0 ? Number(size.w) : 1, h: Number(size?.h) > 0 ? Number(size.h) : 1 }),
     // The helmet is a pale tint of the suit, so the whole silhouette reads as the player's colour.
     colors: Object.freeze({ suit, dark: shade(suit, -0.38), light: shade(suit, 0.3), helmet: shade(suit, 0.62), helmetShade: shade(suit, 0.22), led: look.led, knit: look.knit }),
   });
@@ -792,7 +796,7 @@ export function drawCharacter(ctx, ch, pose) {
   ctx.save();
   ctx.globalAlpha *= j.ghost ? alpha * 0.55 : alpha;
   ctx.translate(x + w / 2, y + h);
-  ctx.scale(k * (1 + (1 - squash) * 0.8), k * squash);
+  ctx.scale(k * ch.size.w * (1 + (1 - squash) * 0.8), k * ch.size.h * squash);
   ctx.rotate((lean + j.lean) * (facing < 0 ? -1 : 1));
   if (facing < 0) ctx.scale(-1, 1);
   ctx.translate(0, j.bob);
@@ -806,6 +810,13 @@ export function drawCharacter(ctx, ch, pose) {
     ctx.fill();
   }
 
+  if (ch.person) {
+    drawPerson(ctx, ch.person, j, { eyes: (c, color, shut) => drawEyes(c, j.eyes, color, "visor", shut), blink, clock, speed, line: outline });
+    drawItem(ctx, j.item, j.frontArm);
+    drawEffects(ctx, effects, clock);
+    ctx.restore();
+    return;
+  }
   drawBackAccessory(ctx, ch, j, clock, speed, outline);
   limb(ctx, -3.5, -16, j.backArm, 8, 4.2, ch.colors.dark, GEAR, outline);
   if (j.ghost) {

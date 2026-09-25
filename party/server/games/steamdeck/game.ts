@@ -10,11 +10,12 @@
 // starting with the first agent who joined (the session leader, usually whoever brought the Deck).
 
 import { deserialize, DrawingError, interpret, type Drawing, type Stroke } from "../../../public/js/drawing.js";
+import { castMember, dealCast } from "../../../public/js/games/steamdeck-cast.js";
 import { plankFromStroke } from "../../../public/js/games/steamdeck-rules.js";
 import { PartyError } from "../../errors.ts";
 import type { GameContext, GameDefinition, GameInstance, Highlight, Viewer } from "../types.ts";
 import { hazardActive, LEVELS, WORLD, type Level, type Phase as PlayPhase } from "./levels.ts";
-import { newBody, PHYS, stepBody, tiltAccel, type Body, type Plank, type RunnerInput } from "./physics.ts";
+import { jolt, newBody, PHYS, stepBody, tiltAccel, type Body, type Plank, type RunnerInput, type Stats } from "./physics.ts";
 
 export interface SteamDeckSettings {
   rounds: number;
@@ -39,6 +40,12 @@ export const MAX_TILT: Record<PlayPhase, number> = { ESCAPE: 14, ESCALATION: 22,
 
 export const PLANK = { minLength: 80, maxLength: 320, lifetimeMs: 10_000, cooldownMs: 4_000 } as const;
 
+/**
+ * Thad's shake: a warning rumble, then every runner standing on something is thrown up (`lift`) and
+ * sideways (`push`, a random way each), scaled by their character's `knock`.
+ */
+export const SHAKE = { cooldownMs: 8_000, warnMs: 500, lift: 520, push: 300 } as const;
+
 export const POINTS = { escape: 100, perSecondLeft: 2, firstOut: 25, thadPerTrapped: 50, thadPerDeath: 5, thadDeathCap: 60 } as const;
 
 export const COLORS = ["#ffd400", "#4dd4ff", "#ff5fa2", "#7dff6a", "#ff9a3d", "#b58cff", "#f4f4f4", "#ff4d4d"];
@@ -58,6 +65,11 @@ type Cue = "game_start" | "alert" | "timer_warning" | "success" | "life_lost" | 
 
 interface Runner {
   id: string;
+  /** Their character this round (steamdeck-cast.js) and, for one with builds, which. */
+  character: string;
+  build: number;
+  stats: Stats;
+  knock: number;
   body: Body;
   input: RunnerInput;
   deaths: number;
@@ -80,6 +92,8 @@ interface RoundRecord {
   deaths: Record<string, number>;
   planks: number;
   points: Record<string, number>;
+  cast: Record<string, string>;
+  shakes: number;
 }
 
 function asRecord(payload: unknown): Record<string, unknown> {
@@ -106,6 +120,10 @@ class SteamDeckGame implements GameInstance {
   private plankSeq = 0;
   private tilt = 0;
   private tiltTarget = 0;
+  /** Game clock times: when Thad can shake again, and when a called shake lands (null: none). */
+  private shakeReadyAt = 0;
+  private shakeAt: number | null = null;
+  private shakes = 0;
   /** Game time in ms, advanced only while the physics runs (so pauses don't eat it). */
   private clock = 0;
   private playStartedAt = 0;
@@ -152,13 +170,33 @@ class SteamDeckGame implements GameInstance {
     const present = this.order.filter((id) => this.present().includes(id));
     this.thadId = present[(this.round - 1) % present.length]!;
     this.level = this.levelOrder[(this.round - 1) % this.levelOrder.length]!;
+    const runnerIds = present.filter((id) => id !== this.thadId);
+    const dealt = dealCast(runnerIds.length, () => this.ctx.random());
     this.runners = new Map(
-      present
-        .filter((id) => id !== this.thadId)
-        .map((id) => [id, { id, body: newBody(this.level.spawn), input: { left: false, right: false, jumpSeq: 0 }, deaths: 0, planks: 0, escapedAtMs: null, plankCooldownUntil: 0 }]),
+      runnerIds.map((id, i) => {
+        const { id: character, build } = dealt[i]!;
+        const member = castMember(character)!;
+        const runner: Runner = {
+          id,
+          character,
+          build,
+          stats: { run: member.stats.run, jump: member.stats.jump },
+          knock: member.stats.knock,
+          body: newBody(this.level.spawn),
+          input: { left: false, right: false, jumpSeq: 0 },
+          deaths: 0,
+          planks: 0,
+          escapedAtMs: null,
+          plankCooldownUntil: 0,
+        };
+        return [id, runner];
+      }),
     );
     this.planks = [];
     this.tilt = this.tiltTarget = 0;
+    this.shakeReadyAt = this.clock;
+    this.shakeAt = null;
+    this.shakes = 0;
     this.roundPoints = new Map();
     this.cue("game_start");
     this.enter("ASSIGNMENT");
@@ -203,11 +241,18 @@ class SteamDeckGame implements GameInstance {
       planks: this.planks,
     };
     const idle: RunnerInput = { left: false, right: false, jumpSeq: 0 };
+    if (this.shakeAt !== null && this.clock >= this.shakeAt) {
+      this.shakeAt = null;
+      for (const r of this.runners.values()) {
+        const way = this.ctx.random() < 0.5 ? -1 : 1;
+        jolt(r.body, way * SHAKE.push * r.knock, SHAKE.lift * r.knock);
+      }
+    }
     for (let s = 0; s < TIMING.substeps; s++) {
       this.clock += TIMING.tickMs / TIMING.substeps;
       for (const r of this.runners.values()) {
         const input = connected.has(r.id) ? r.input : { ...idle, jumpSeq: r.body.lastJumpSeq };
-        for (const event of stepBody(r.body, input, arena, pull, dt)) {
+        for (const event of stepBody(r.body, input, arena, pull, dt, r.stats)) {
           if (event === "died") {
             r.deaths += 1;
             this.ctx.countStat(r.id, "deaths");
@@ -256,6 +301,8 @@ class SteamDeckGame implements GameInstance {
       deaths: Object.fromEntries(runners.map((r) => [r.id, r.deaths])),
       planks: runners.reduce((n, r) => n + r.planks, 0),
       points: Object.fromEntries(this.roundPoints),
+      cast: Object.fromEntries(runners.map((r) => [r.id, r.character])),
+      shakes: this.shakes,
     });
     this.cue(escaped.length === runners.length ? "success" : escaped.length === 0 ? "major_failure" : "vote_result");
   }
@@ -281,7 +328,19 @@ class SteamDeckGame implements GameInstance {
   handleInput(playerId: string, action: string, payload: unknown): void {
     if (action === "stream") return this.stream(playerId, payload);
     if (action === "plank") return this.placePlank(playerId, payload);
+    if (action === "shake") return this.shake(playerId);
     throw new PartyError("INVALID_ACTION");
+  }
+
+  /** Thad shakes the Deck: it rumbles for a moment, then throws everyone standing. */
+  private shake(playerId: string): void {
+    if (playerId !== this.thadId) throw new PartyError("NOT_ALLOWED", "Only Thad can shake the Deck.");
+    if (!this.playing()) throw new PartyError("PHASE_CLOSED");
+    if (this.clock < this.shakeReadyAt || this.shakeAt !== null) throw new PartyError("INVALID_ACTION", "The Deck is still settling.");
+    this.shakeAt = this.clock + SHAKE.warnMs;
+    this.shakeReadyAt = this.clock + SHAKE.cooldownMs;
+    this.shakes += 1;
+    this.ctx.changed();
   }
 
   /** Buttons from runners, tilt from Thad. Best-effort and frequent: bad values are ignored. */
@@ -368,12 +427,14 @@ class SteamDeckGame implements GameInstance {
         // [id, x, y, facing, state] — state 0 alive, 1 dead, 2 escaped.
         runners: runners.map((r) => [r.id, Math.round(r.body.x), Math.round(r.body.y), r.body.facing, r.body.escaped ? 2 : r.body.deadFor > 0 ? 1 : 0]),
         planks: this.planks.map((p) => [p.x1, p.x2, p.y, p.owner, Math.max(0, p.expiresAt - this.clock)]),
+        // [ms until Thad can shake again, ms until a called shake lands or -1]
+        shake: [Math.max(0, this.shakeReadyAt - this.clock), this.shakeAt === null ? -1 : Math.max(0, this.shakeAt - this.clock)],
       },
       thad: { id: this.thadId, name: this.ctx.playerName(this.thadId), color: colorOf(this.thadId) },
-      roster: runners.map((r) => ({ id: r.id, name: this.ctx.playerName(r.id), color: colorOf(r.id), deaths: r.deaths, escapedMs: r.escapedAtMs })),
+      roster: runners.map((r) => ({ id: r.id, name: this.ctx.playerName(r.id), color: colorOf(r.id), character: r.character, build: r.build, deaths: r.deaths, escapedMs: r.escapedAtMs })),
       cues: this.cues.map((c) => ({ ...c })),
       results: phase === "RESULTS" ? { points: Object.fromEntries(this.roundPoints), escaped: runners.filter((r) => r.body.escaped).length, total: runners.length } : null,
-      limits: { plankMin: PLANK.minLength, plankMax: PLANK.maxLength, cooldownMs: PLANK.cooldownMs },
+      limits: { plankMin: PLANK.minLength, plankMax: PLANK.maxLength, cooldownMs: PLANK.cooldownMs, shakeCooldownMs: SHAKE.cooldownMs },
     };
     if (!playerId) return base;
     const runner = this.runners.get(playerId);

@@ -44,6 +44,7 @@ export const CUES = [
   "hazard_arm",
   "tilt_creak",
   "ui_click",
+  "deck_shake",
 ];
 
 /** Never dropped to make room for something else. */
@@ -89,6 +90,7 @@ const SYNTH = {
   hazard_arm: [tone(0, 0.22, 1700, 2600, "sawtooth", 0.035), hiss(0, 0.16, 0.05)], // shhhing
   tilt_creak: [tone(0, 0.4, 95, 72, "sawtooth", 0.06, { rate: 26, depth: 9 })], // creeeak
   ui_click: [tone(0, 0.035, 1300, 900, "square", 0.04)], // tick
+  deck_shake: [tone(0, 0.5, 70, 50, "sawtooth", 0.12, { rate: 18, depth: 12 }), hiss(0.42, 0.18, 0.12), tone(0.45, 0.2, 140, 60, "square", 0.14)], // rrrrumble, WHUMP
 };
 
 // ------------------------------------------------------------------ settings (this device only)

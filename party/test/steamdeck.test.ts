@@ -7,8 +7,9 @@ import { createPartyServer } from "../server/app.ts";
 import { createAuthVerifier } from "../server/auth.ts";
 import { PartyDb } from "../server/db.ts";
 import { PartyError } from "../server/errors.ts";
-import { PLANK, TIMING } from "../server/games/steamdeck/game.ts";
-import { newBody, PHYS, stepBody, type Arena } from "../server/games/steamdeck/physics.ts";
+import { CAST, dealCast } from "../public/js/games/steamdeck-cast.js";
+import { PLANK, SHAKE, TIMING } from "../server/games/steamdeck/game.ts";
+import { jolt, newBody, PHYS, stepBody, type Arena } from "../server/games/steamdeck/physics.ts";
 import type { Room } from "../server/rooms.ts";
 import { makeRooms, roomWithPlayers, stubCanon } from "./helpers.ts";
 
@@ -178,9 +179,57 @@ describe("Escape Thad's Steam Deck", () => {
   });
 });
 
+describe("Escape Thad's Steam Deck: the cast and Thad's shake", () => {
+  beforeEach(() => mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] }));
+  afterEach(() => mock.timers.reset());
+
+  it("deals every runner a different character, and Thad none", () => {
+    const { room, ids } = start(["Thad", "Ann", "Bo", "Cy", "Dee", "Eve", "Fay", "Gus"]);
+    const roster = view(room).roster as View[];
+    const dealt = roster.map((r) => r.character);
+    assert.equal(roster.length, 7);
+    assert.equal(new Set(dealt).size, 7, "no repeats until the cast runs out");
+    for (const id of dealt) assert.ok(CAST.some((c) => c.id === id), id);
+    assert.ok(!roster.some((r) => r.id === ids[0]), "Thad holds the Deck: not a character");
+    for (const r of roster) assert.ok(Number.isInteger(r.build) && r.build >= 0);
+  });
+
+  it("deals from a reshuffled cast once there are more runners than characters", () => {
+    let n = 0;
+    const random = () => ((n = (n * 9301 + 49297) % 233280) / 233280);
+    const dealt = dealCast(CAST.length + 3, random).map((d) => d.id);
+    assert.equal(new Set(dealt.slice(0, CAST.length)).size, CAST.length);
+    assert.equal(dealt.length, CAST.length + 3);
+  });
+
+  it("lets only Thad shake, only in play, then not again until it has recharged", () => {
+    const { room, ids } = start();
+    const [thad, ann] = ids as [string, string];
+    expectError(() => room.gameInput(thad, "shake", {}), "PHASE_CLOSED");
+    until(room, "ESCAPE");
+    ticks(10);
+    expectError(() => room.gameInput(ann, "shake", {}), "NOT_ALLOWED");
+    const floor = pos(room, ann)[2];
+    room.gameInput(thad, "shake", {});
+    assert.deepEqual(view(room).world.shake, [SHAKE.cooldownMs, SHAKE.warnMs], "a rumble first");
+    expectError(() => room.gameInput(thad, "shake", {}), "INVALID_ACTION");
+    ticks(SHAKE.warnMs / TIMING.tickMs - 1);
+    assert.equal(pos(room, ann)[2], floor, "nothing moves during the warning");
+    ticks(3);
+    assert.ok(pos(room, ann)[2] < floor - 10, "then everyone standing is thrown up");
+    assert.equal(view(room).world.shake[1], -1);
+    ticks(SHAKE.cooldownMs / TIMING.tickMs);
+    assert.equal(view(room).world.shake[0], 0);
+    room.gameInput(thad, "shake", {});
+  });
+});
+
 describe("Escape Thad's Steam Deck: physics", () => {
   const arena = (extra: Partial<Arena> = {}): Arena => ({ spawn: [100, 100], exit: [1500, 0, 50, 50], platforms: [[0, 500, 1600, 100]], hazards: [], planks: [], ...extra });
   const idle = { left: false, right: false, jumpSeq: 0 };
+  const run1 = (b: ReturnType<typeof newBody>, a: Arena, seconds: number, input = idle, stats = { run: 1, jump: 1 }) => {
+    for (let t = 0; t < seconds; t += 1 / 80) stepBody(b, input, a, 0, 1 / 80, stats);
+  };
   const run = (b: ReturnType<typeof newBody>, a: Arena, seconds: number, input = idle, tilt = 0) => {
     const events: string[] = [];
     for (let t = 0; t < seconds; t += 1 / 80) events.push(...stepBody(b, input, a, tilt, 1 / 80));
@@ -199,6 +248,36 @@ describe("Escape Thad's Steam Deck: physics", () => {
     below.coyote = PHYS.coyoteS;
     run(below, arena({ platforms: [[0, 480, 1600, 100]], planks: [{ x1: 50, x2: 250, y: 380 }] }), 1, { ...idle, jumpSeq: 1 });
     assert.equal(below.y, 380 - PHYS.height, "jumped up through the plank and landed on it");
+  });
+
+  it("moves each character at their own speed and jump", () => {
+    const top = (run: number) => {
+      const b = newBody([100, 464]);
+      run1(b, arena(), 1, { ...idle, right: true }, { run, jump: 1 });
+      return b.vx;
+    };
+    assert.equal(top(1), PHYS.maxRunSpeed);
+    assert.ok(Math.abs(top(0.84) - PHYS.maxRunSpeed * 0.84) < 1e-9, "a slow character tops out lower");
+    const peak = (jump: number) => {
+      const b = newBody([100, 464]);
+      run1(b, arena(), 0.2);
+      let top = b.y;
+      for (let t = 0; t < 1; t += 1 / 80) {
+        stepBody(b, { ...idle, jumpSeq: 1 }, arena(), 0, 1 / 80, { run: 1, jump });
+        top = Math.min(top, b.y);
+      }
+      return 464 - top;
+    };
+    assert.ok(peak(0.86) < peak(1) * 0.8, "and jumps lower");
+  });
+
+  it("throws only a runner who is standing, with the shake", () => {
+    const b = newBody([100, 100]);
+    run(b, arena(), 1);
+    assert.equal(jolt(b, 200, 500), true);
+    assert.equal(b.grounded, false);
+    assert.ok(b.vy < 0 && b.vx >= 200);
+    assert.equal(jolt(b, 200, 500), false, "not again in the air");
   });
 
   it("kills on hazards and falls, respawns at the spawn, and escapes at the exit", () => {

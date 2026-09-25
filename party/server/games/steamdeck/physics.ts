@@ -60,6 +60,14 @@ export interface Arena {
 
 export type StepEvent = "died" | "escaped" | "jumped";
 
+/** A character's movement: multipliers on top speed and acceleration, and on the jump. 1 is normal. */
+export interface Stats {
+  run: number;
+  jump: number;
+}
+
+const NORMAL: Stats = { run: 1, jump: 1 };
+
 export function newBody(spawn: [number, number]): Body {
   return { x: spawn[0], y: spawn[1], vx: 0, vy: 0, facing: 1, grounded: false, coyote: 0, jumpBuffer: 0, lastJumpSeq: 0, deadFor: 0, escaped: false };
 }
@@ -70,7 +78,7 @@ const overlaps = (x: number, y: number, [rx, ry, rw, rh]: Rect) => x < rx + rw &
  * Advances one body by `dt` seconds. `tiltAccel` is the sideways pull (units/s²; positive = right).
  * Returns what happened.
  */
-export function stepBody(b: Body, input: RunnerInput, arena: Arena, tiltAccel: number, dt: number): StepEvent[] {
+export function stepBody(b: Body, input: RunnerInput, arena: Arena, tiltAccel: number, dt: number, stats: Stats = NORMAL): StepEvent[] {
   const events: StepEvent[] = [];
   if (b.escaped) return events;
   if (b.deadFor > 0) {
@@ -87,18 +95,18 @@ export function stepBody(b: Body, input: RunnerInput, arena: Arena, tiltAccel: n
   if (dir) b.facing = dir > 0 ? 1 : -1;
 
   // Horizontal: your own push, Thad's tilt, and friction when you let go on the ground.
-  const own = dir * (b.grounded ? PHYS.moveAccel : PHYS.airAccel);
+  const own = dir * (b.grounded ? PHYS.moveAccel : PHYS.airAccel) * stats.run;
   b.vx += (own + tiltAccel) * dt;
   if (!dir && b.grounded) b.vx -= b.vx * Math.min(1, PHYS.friction * dt);
   // Going the way the Deck leans, you can slide faster than you can run.
-  const cap = tiltAccel !== 0 && Math.sign(b.vx) === Math.sign(tiltAccel) ? PHYS.maxSlideSpeed : PHYS.maxRunSpeed;
+  const cap = (tiltAccel !== 0 && Math.sign(b.vx) === Math.sign(tiltAccel) ? PHYS.maxSlideSpeed : PHYS.maxRunSpeed) * stats.run;
   b.vx = Math.max(-cap, Math.min(cap, b.vx));
 
   // Jump: buffered presses and a little coyote time, so it feels fair on a phone.
   b.coyote = b.grounded ? PHYS.coyoteS : Math.max(0, b.coyote - dt);
   b.jumpBuffer = Math.max(0, b.jumpBuffer - dt);
   if (b.jumpBuffer > 0 && b.coyote > 0) {
-    b.vy = -PHYS.jumpVelocity;
+    b.vy = -PHYS.jumpVelocity * stats.jump;
     b.jumpBuffer = 0;
     b.coyote = 0;
     b.grounded = false;
@@ -150,6 +158,19 @@ export function stepBody(b: Body, input: RunnerInput, arena: Arena, tiltAccel: n
     events.push("escaped");
   }
   return events;
+}
+
+/**
+ * Thad's shake: throws a runner standing on something up and sideways. Airborne, dead or escaped
+ * runners ride it out. Returns whether it hit.
+ */
+export function jolt(b: Body, vx: number, vy: number): boolean {
+  if (!b.grounded || b.deadFor > 0 || b.escaped) return false;
+  b.vx += vx;
+  b.vy = -Math.abs(vy);
+  b.grounded = false;
+  b.coyote = 0;
+  return true;
 }
 
 /** The sideways pull for a tilt of -1..1 at a maximum angle in degrees. */

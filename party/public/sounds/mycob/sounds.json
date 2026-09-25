@@ -24,5 +24,6 @@
   "plank_place": [],
   "hazard_arm": [],
   "tilt_creak": [],
-  "ui_click": []
+  "ui_click": [],
+  "deck_shake": []
 }

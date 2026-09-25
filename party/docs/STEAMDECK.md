@@ -61,6 +61,33 @@ nothing extra. Rendering never feeds back into the game.
   device and the report under it.
 - **Reduced motion** (`prefers-reduced-motion`): no shake, fewer particles, no CSS animation.
 
+## The cast and Thad's shake
+
+Every round each runner is dealt a character at random from the cast (`public/js/games/steamdeck-cast.js`,
+shared by the server and the screens), with no repeats until the cast runs out. You escape with what you
+got. It isn't meant to be fair: some characters are slower, jump lower, or are harder to throw. Thad isn't a
+character: Thad's Steam Deck is the item everyone is inside.
+
+| Character | Build | Movement |
+|---|---|---|
+| Jacob Madden | taller | normal |
+| Mrs. Anacker | normal | normal |
+| Brady Parish | taller, ball and chain | slower (0.84), lower jump (0.86) |
+| Weller | wider, shorter | slower (0.84), lower jump (0.88), hard to throw (0.6) |
+| Blake Thomas | skinnier | faster (1.12), higher jump (1.08) |
+| Aiden Kane | cut or bulk, a new one each round | faster (1.1), higher jump (1.06) |
+| Eli Stenson | normal | faster (1.1), higher jump (1.06) |
+| Jacob Madden as Napoleon | shorter | normal |
+
+Everyone keeps the same collision box, so every level has the same shape for everyone; size is drawing only.
+To add a character, add an entry: `stats`, `size` (optionally `builds`) and a `look` for the person style
+(`public/js/cpi/person.js`: skin, hair style and colour, glasses, beard, hat, top, extras, a held prop).
+
+**Shake** (Thad: the SHAKE button, ↑ / W, or a gamepad's bottom face button; acked `game:input` `shake`):
+a 0.5 s rumble every screen shows and feels, then everyone standing on something is thrown up (520) and
+sideways (300, a random way each), scaled by their character's `knock`. 8 s to recharge. The view carries
+`world.shake: [ms until ready, ms until it lands or -1]`.
+
 ## Flow
 
 | Phase | Time | What happens |

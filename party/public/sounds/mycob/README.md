@@ -50,6 +50,7 @@ four are already playing). All have synthesized placeholders; map a file to repl
 | `hazard_arm` | Spikes arrive | Host |
 | `tilt_creak` | Thad leans the Deck past 75% | Host |
 | `ui_click` | Device buttons (mute, map, undo) | Phones |
+| `deck_shake` | Thad shakes the Deck (rumble, then the jolt) | Host; Thad's phone |
 
 ## `sounds.json`
 
