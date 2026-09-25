@@ -335,7 +335,9 @@ function buildLobby(s) {
           ),
         ),
       );
-      const needed = 3 - next.players.filter((p) => p.connected).length;
+      // The chosen game's minimum, like the host's lobby (Steam My Deck needs 2, most games 3).
+      const game = config.games.find((g) => g.id === next.config.gameId) ?? config.games[0];
+      const needed = game.minPlayers - next.players.filter((p) => p.connected).length;
       start.disabled = needed > 0;
       start.textContent = needed > 0 ? `Need ${plural(needed, "more agent")}` : "Start operation";
     },

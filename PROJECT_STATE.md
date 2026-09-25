@@ -1,8 +1,8 @@
 # Project state — corn.planet
 
 Read this first in a fresh session, then `party/docs/ARCHITECTURE.md` if you need detail.
-Last updated: 2026-09-25 (Escape Thad's Steam Deck visual showcase overhaul; **not yet run through
-`npm run check` — see §8**).
+Last updated: 2026-09-25 (Steam My Deck: renamed, reachability checker, lobby from `LEVELS`; `npm run
+check` passes on the Mac with a scratchpad Node 24).
 
 > **Naming (decided and applied 2026-09-17):** **CPI — Corn Planet Institution** is the umbrella org.
 > **CPST — Corn Planet Strike Team** is the team inside it (still used for role labels like "Strike
@@ -123,6 +123,13 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 8. Status
 
+- **Steam My Deck** (2026-09-25, `cpst-party`): the game formerly called Escape Thad's Steam Deck
+  (id `steamdeck` unchanged). `npm run check` run for the first time since `66df239`: typecheck clean,
+  all tests pass, so the four previously unchecked commits were fine. Added
+  `party/scripts/steamdeck-reach.ts` (reachability on the real `physics.ts`: every level, phase and
+  cast movement; all pass), the lobby's Steam Deck game list and count now come from `LEVELS` via the
+  game's catalog, and the phone Start button uses the chosen game's `minPlayers` (2 for Steam My Deck)
+  instead of a hard-coded 3. Still not played on real phones.
 - **Escape Thad's Steam Deck games** (2026-09-25, uncommitted, Mac, no Node): each round is a different
   game in a random order (the user plans to rename the whole thing "Steam My Deck"). New: Blockcraft
   (lava, a lake to swim through, a portal) and SLIM (dark woods, six Deck parts to find, a stalker);
@@ -164,7 +171,7 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
   Railway serves Cornlashing and Corn or Shit and loaded 21 canon records in production.
 - The CPI Database site on `main` (GitHub Pages) has the rename plus the incident and personnel
   pages, cherry-picked from `cpst-party` (`9dfd76b`, `1b9aae5`). Verified live.
-- Tests: **295 passing** (2026-09-23; 109 of them My Cob) (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
+- Tests: **339 passing** (2026-09-25; 109 of them My Cob) (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
   promotion, db, api, realtime, framework, mycob, mycob-incident, mycob-rules, mycob-realtime,
   mycob-secrecy, awards). `tsc --noEmit` clean.
 - **Entity Auction** (built 2026-09-18, on `origin/cpst-party` by 2026-09-18; live deploy not checked): agents bid Kernels on sealed
