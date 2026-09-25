@@ -1,4 +1,4 @@
-// Escape Thad's Steam Deck: how the levels *look*. Everything here is cosmetic and client-only:
+// Steam My Deck: how the levels *look*. Everything here is cosmetic and client-only:
 // the server's collision rects (levels.ts) decide where you can stand; this file only dresses them
 // and adds scenery behind them. Nothing in here is ever sent back or used for physics.
 //

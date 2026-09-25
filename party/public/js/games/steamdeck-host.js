@@ -1,4 +1,4 @@
-// Escape Thad's Steam Deck on the big screen: the whole round plays inside a CPI handheld. It boots,
+// Steam My Deck on the big screen: the whole round plays inside a CPI handheld. It boots,
 // launches the game and introduces everyone, then the level runs live on its screen (leaning with
 // Thad's tilt, the device rocking and its stick and shoulder buttons following Thad's hands), phase
 // changes arrive as system notifications, and the round report opens on the same screen.

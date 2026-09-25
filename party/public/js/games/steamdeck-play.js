@@ -1,4 +1,4 @@
-// Escape Thad's Steam Deck on a phone (or the Deck itself), inside a CPI handheld. Runners see the
+// Steam My Deck on a phone (or the Deck itself), inside a CPI handheld. Runners see the
 // level on its screen (the camera follows them on small screens) and play with the device's own
 // buttons: the d-pad moves, A jumps, B draws a plank (and in draw mode A places, B cancels, X undoes,
 // the d-pad nudges). Thad holds the device: the level leans under their hands, the L / R shoulder

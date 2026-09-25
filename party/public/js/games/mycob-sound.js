@@ -1,6 +1,6 @@
 // My Cob Escaped sound manager. Every sound in the game goes through here: lookup, playback, volume,
 // mute, the browser's autoplay rules and keeping sounds from piling up. Other games use it too
-// (Escape Thad's Steam Deck): it's the party's one sound system.
+// (Steam My Deck): it's the party's one sound system.
 //
 // The server sends cues (`game.cues`: [{ id, cue }]) only for things every screen is already shown;
 // the host plays each new one once, phones play their own few (your response filed, your life lost,
@@ -36,7 +36,7 @@ export const CUES = [
   "escaped",
   "everyone_dies",
   "game_end",
-  // Short game effects (playSfx): Escape Thad's Steam Deck.
+  // Short game effects (playSfx): Steam My Deck.
   "device_boot",
   "jump",
   "land",

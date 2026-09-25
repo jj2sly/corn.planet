@@ -1,4 +1,4 @@
-// Reachability checker for Escape Thad's Steam Deck. For every level, every phase and every distinct
+// Reachability checker for Steam My Deck. For every level, every phase and every distinct
 // movement in the cast, it searches what a runner can reach with the real physics (physics.ts), no
 // planks and a level Deck, and fails if the exit or any item is out of reach. Run it after changing
 // levels.ts or the cast's stats:

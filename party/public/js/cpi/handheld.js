@@ -1,7 +1,7 @@
 // CPI handheld: a fictional CPI games handheld (the "CPI KERNEL") that any game can run inside.
 // It's DOM + CSS only (see "CPI handheld" in party.css); the game draws into `screen` as usual.
 //
-//   const hh = createHandheld({ title: "ESCAPE THAD'S STEAM DECK", owner: "THAD" });
+//   const hh = createHandheld({ title: "STEAM MY DECK", owner: "THAD" });
 //   hh.screen.append(canvas);          // the game
 //   hh.setStatus({ battery: 0.6 });    // status bar: battery, signal, the title
 //   hh.notify("Spikes incoming", { kind: "warn" });   // system notification (never over the game)

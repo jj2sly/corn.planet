@@ -38,7 +38,7 @@ longer.
 | `contained` / `terminated` / `escaped` / `everyone_dies` | The ending | Host |
 | `game_end` | The final results | Host |
 
-Escape Thad's Steam Deck uses the cues above (round start, escalation, escapes, deaths, results) plus
+Steam My Deck uses the cues above (round start, escalation, escapes, deaths, results) plus
 short effects played with `playSfx` (right away, beside the cues, dropped rather than queued when
 four are already playing). All have synthesized placeholders; map a file to replace one.
 

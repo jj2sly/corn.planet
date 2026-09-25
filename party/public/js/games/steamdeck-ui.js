@@ -1,4 +1,4 @@
-// Escape Thad's Steam Deck: the presentation both screens share. The launch sequence, level and
+// Steam My Deck: the presentation both screens share. The launch sequence, level and
 // phase cards, the round report, and the CPI humour, all shown inside the CPI handheld
 // (cpi/handheld.js). Words and pictures only: nothing here decides anything about the game.
 
@@ -7,7 +7,7 @@ import { characterCanvas, createCharacter, hashString } from "../cpi/character.j
 import { castMember } from "./steamdeck-cast.js";
 import { bootScreen, systemCard } from "../cpi/handheld.js";
 
-export const TITLE = "ESCAPE THAD'S STEAM DECK";
+export const TITLE = "STEAM MY DECK";
 
 export const PHASE_TITLE = {
   ASSIGNMENT: "ROLES ASSIGNED",

@@ -44,7 +44,7 @@ function plankDrawing(points: [number, number][]) {
 
 const expectError = (fn: () => unknown, code: string) => assert.throws(fn, (e: unknown) => e instanceof PartyError && e.code === code, code);
 
-describe("Escape Thad's Steam Deck", () => {
+describe("Steam My Deck", () => {
   beforeEach(() => mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] }));
   afterEach(() => mock.timers.reset());
 
@@ -182,7 +182,7 @@ describe("Escape Thad's Steam Deck", () => {
   });
 });
 
-describe("Escape Thad's Steam Deck: the cast and Thad's shake", () => {
+describe("Steam My Deck: the cast and Thad's shake", () => {
   beforeEach(() => mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] }));
   afterEach(() => mock.timers.reset());
 
@@ -227,7 +227,7 @@ describe("Escape Thad's Steam Deck: the cast and Thad's shake", () => {
   });
 });
 
-describe("Escape Thad's Steam Deck: the games' own rules", () => {
+describe("Steam My Deck: the games' own rules", () => {
   it("offers the lobby every game in levels.ts, and as many games per match as there are", () => {
     assert.deepEqual((steamDeckGame.catalog as { games: { id: string }[] }).games.map((g) => g.id), LEVELS.map((l) => l.id));
     assert.equal(steamDeckGame.parseSettings({ rounds: 99 }).rounds, LEVELS.length);
@@ -288,7 +288,7 @@ describe("Escape Thad's Steam Deck: the games' own rules", () => {
   });
 });
 
-describe("Escape Thad's Steam Deck: physics", () => {
+describe("Steam My Deck: physics", () => {
   const arena = (extra: Partial<Arena> = {}): Arena => ({ spawn: [100, 100], exit: [1500, 0, 50, 50], platforms: [[0, 500, 1600, 100]], hazards: [], planks: [], ...extra });
   const idle = { left: false, right: false, jumpSeq: 0 };
   const run1 = (b: ReturnType<typeof newBody>, a: Arena, seconds: number, input = idle, stats = { run: 1, jump: 1 }) => {
@@ -381,7 +381,7 @@ describe("Escape Thad's Steam Deck: physics", () => {
   });
 });
 
-describe("Escape Thad's Steam Deck: the reachability checker", () => {
+describe("Steam My Deck: the reachability checker", () => {
   const box = (over: Partial<Level> = {}): Level => ({
     id: "box",
     name: "Box",
@@ -408,7 +408,7 @@ describe("Escape Thad's Steam Deck: the reachability checker", () => {
   });
 });
 
-describe("Escape Thad's Steam Deck over Socket.IO", () => {
+describe("Steam My Deck over Socket.IO", () => {
   /** A real server, a host and `names` players (the first is Thad), already in the ESCAPE phase. */
   async function escapeRound(names: string[]) {
     const db = new PartyDb(":memory:");

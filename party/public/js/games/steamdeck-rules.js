@@ -1,4 +1,4 @@
-// Escape Thad's Steam Deck: how a drawn stroke becomes a plank. Shared by the server (which places the
+// Steam My Deck: how a drawn stroke becomes a plank. Shared by the server (which places the
 // plank) and phones (which preview it while you draw), so the preview is exactly what you get.
 
 /**

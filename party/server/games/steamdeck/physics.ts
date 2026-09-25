@@ -1,4 +1,4 @@
-// Just enough platformer for Escape Thad's Steam Deck: boxes, solid rects, one-way planks, hazards,
+// Just enough platformer for Steam My Deck: boxes, solid rects, one-way planks, hazards,
 // water, an exit (which can be locked), and a sideways pull from Thad tilting the Deck. Server-authoritative and deterministic:
 // the same inputs give the same result.
 

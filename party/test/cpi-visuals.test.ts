@@ -1,4 +1,4 @@
-// The CPI visual systems (characters, animation, particles) and Escape Thad's Steam Deck's scenery.
+// The CPI visual systems (characters, animation, particles) and Steam My Deck's scenery.
 // They're browser code, but everything here runs without a browser: drawing goes to a stand-in
 // canvas context that records calls, and the animator is fed the server's own physics.
 
@@ -195,7 +195,7 @@ describe("CPI particles", () => {
   });
 });
 
-describe("Escape Thad's Steam Deck scenery", () => {
+describe("Steam My Deck scenery", () => {
   it("dresses every level without touching its collision data", () => {
     const before = JSON.stringify(LEVELS);
     for (const level of LEVELS) {
@@ -223,7 +223,7 @@ describe("Escape Thad's Steam Deck scenery", () => {
   });
 });
 
-describe("Escape Thad's Steam Deck presentation helpers", () => {
+describe("Steam My Deck presentation helpers", () => {
   it("drains the Deck's battery over the play phases", () => {
     assert.equal(battery("ASSIGNMENT", null), 1);
     assert.equal(battery("ESCAPE", { remainingMs: 35_000, totalMs: 35_000 }), 1);

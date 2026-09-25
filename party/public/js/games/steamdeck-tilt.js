@@ -1,4 +1,4 @@
-// Escape Thad's Steam Deck: Thad's tilt as one number -1..1, from any device. No special hardware:
+// Steam My Deck: Thad's tilt as one number -1..1, from any device. No special hardware:
 //
 //   Keyboard  ← → (or A D) lean the world, further the longer you hold; ↓, S or Space levels it.
 //   Mouse / touch  the slider (and its Level button), or hold the device's L / R shoulder buttons

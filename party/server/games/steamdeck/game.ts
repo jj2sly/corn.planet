@@ -1,4 +1,4 @@
-// ESCAPE THAD'S STEAM DECK — one agent is Thad and holds the Steam Deck; everyone else is trapped
+// STEAM MY DECK — one agent is Thad and holds the Steam Deck; everyone else is trapped
 // inside it and has to platform their way to the exit while Thad tilts the whole world.
 //
 // Realtime: the server runs the physics at 20 Hz and pushes a compact world snapshot each tick.
@@ -583,7 +583,7 @@ class SteamDeckGame implements GameInstance {
 
 export const steamDeckGame: GameDefinition<SteamDeckSettings> = {
   id: "steamdeck",
-  name: "Escape Thad's Steam Deck",
+  name: "Steam My Deck",
   tagline: "You live in the Deck now. Thad is holding it.",
   description:
     "One agent is Thad and holds the Steam Deck (in spirit: keyboard, mouse or touch all work). Everyone else is trapped inside it, " +

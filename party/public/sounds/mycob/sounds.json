@@ -17,7 +17,7 @@
   "escaped": { "files": ["endings/prowler-sound-effect_6bXErot.mp3", "endings/999-social-credit-siren.mp3"], "volume": 0.55 },
   "everyone_dies": { "files": ["endings/undertaker-bell-repeat.mp3"], "volume": 1 },
   "game_end": { "files": ["endings/outro-song_oqu8zAg.mp3"], "volume": 0.55 },
-  "_game_effects": "Short effects for Escape Thad's Steam Deck, played with playSfx. Empty lists use the built-in placeholders.",
+  "_game_effects": "Short effects for Steam My Deck, played with playSfx. Empty lists use the built-in placeholders.",
   "device_boot": [],
   "jump": [],
   "land": [],

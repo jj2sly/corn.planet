@@ -1,4 +1,4 @@
-// Escape Thad's Steam Deck: the cast. Every round each runner is dealt one of these at random (no
+// Steam My Deck: the cast. Every round each runner is dealt one of these at random (no
 // repeats until the cast runs out) and escapes with what they got. Shared by the server (which deals
 // them and applies their movement) and the screens (which draw them), like steamdeck-rules.js.
 //

@@ -1,4 +1,4 @@
-// Escape Thad's Steam Deck: draws the world on a canvas, for the host screen, runners' phones and
+// Steam My Deck: draws the world on a canvas, for the host screen, runners' phones and
 // Thad's Deck. The server sends a snapshot every tick (20 Hz); this draws one tick behind and
 // interpolates between the last two, so movement stays smooth at 60 fps.
 //

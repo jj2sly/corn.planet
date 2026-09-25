@@ -1,4 +1,4 @@
-# Escape Thad's Steam Deck
+# Steam My Deck
 
 Game id `steamdeck`, 2–8 agents. One agent is **Thad** and "holds the Steam Deck"; everyone else is a
 **runner** trapped inside it, platforming to the EXIT while Thad tilts the whole world. Runners can draw

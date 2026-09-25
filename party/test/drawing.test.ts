@@ -79,7 +79,7 @@ describe("CPI Drawing System", () => {
   });
 });
 
-describe("Escape Thad's Steam Deck: plank rule", () => {
+describe("Steam My Deck: plank rule", () => {
   const world = { width: 1600, height: 900, minLength: 80, maxLength: 320 };
   it("reads a sideways stroke as a flat plank at its average height, clamped in length", () => {
     const s = createStroke({ tool: "plank" });
