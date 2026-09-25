@@ -40,9 +40,11 @@ nothing extra. Rendering never feeds back into the game.
   Animated from positions alone (`public/js/cpi/animation.js`): idle, run, jump (stretch), fall, land
   (squash, dust by fall height), slip (pushed against where they face), slide (dragged fast), drawing
   (pencil), placing (hammer), hit, ghost, respawn, escape (beamed out through the door).
-- **Levels** (`public/js/games/steamdeck-scenery.js`): each level has its own look (the Home Screen's
-  UI tiles, the Library's shelves, Proton's gears and Compatibility Reactor) with lamps, signs, cables,
-  a few moving screens and parallax. Platforms are dressed from the collision rects, and every walkable
+- **Levels** (`public/js/games/steamdeck-scenery.js`): each level is a game running on Thad's Deck,
+  original pastiches of popular games (no one's actual art, names or logos): Blockcraft (voxel hills,
+  block trees, grass and dirt blocks), Fire Kid & Ice Girl (temple bricks, fire and water doors,
+  torches, gems) and Astro Blaster '84 (stars, marching pixel invaders, a ringed planet, a neon grid),
+  with parallax and a few moving bits. Platforms are dressed from the collision rects, and every walkable
   top edge is the same CPI yellow. Coming spikes are a dashed box with ⚠ and the slots they'll rise from;
   arriving spikes shoot up with sparks. Planks are pine with their owner's colour, build in, creak and
   blink in their last 2 s, then crumble. The static layers are cached, so a frame costs about 1–2 ms

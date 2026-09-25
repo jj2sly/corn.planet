@@ -392,28 +392,51 @@ function extrasOnTorso(ctx, extras, line) {
   }
 }
 
-/** A ball and chain, from the back ankle to an iron ball dragging behind. */
-function ballAndChain(ctx, legAngle, speed, t, line) {
+/**
+ * A ball and chain from the back ankle. On the ground the ball drags behind, further the faster
+ * you go, rolling as it goes; in the air it hangs and swings under you.
+ */
+function ballAndChain(ctx, legAngle, speed, t, state, line) {
   const ax = -3 + Math.sin(legAngle) * 6;
   const ay = -1;
-  const drag = Math.min(1, speed / 200);
-  const bx = -16 - drag * 3;
-  const by = -3.5 + Math.abs(Math.sin(t * 9)) * drag * 1.2;
-  ctx.strokeStyle = "#8b9097";
-  ctx.lineWidth = 1.1;
-  ctx.setLineDash?.([1.4, 1]);
+  const airborne = state === "jump" || state === "fall" || state === "escape";
+  let bx;
+  let by;
+  if (airborne) {
+    const swing = Math.sin(t * 7) * 5;
+    bx = -4 + swing;
+    by = 12;
+  } else {
+    const drag = Math.min(1, speed / 350);
+    bx = -14 - drag * 10;
+    by = -3.6 + Math.abs(Math.sin(t * 11)) * drag * 1.5;
+  }
+  // The chain sags between ankle and ball, one link at a time.
+  const links = 7;
+  ctx.fillStyle = "#9aa0a8";
+  for (let i = 1; i < links; i++) {
+    const k = i / links;
+    const lx = ax + (bx - ax) * k;
+    const ly = ay + (by - ay) * k + Math.sin(k * Math.PI) * (airborne ? 1 : 2.5);
+    ctx.beginPath();
+    ctx.ellipse(lx, ly, i % 2 ? 1.3 : 0.8, i % 2 ? 0.8 : 1.3, 0, 0, TAU);
+    ctx.fill();
+  }
   ctx.beginPath();
-  ctx.moveTo(ax, ay);
-  ctx.quadraticCurveTo((ax + bx) / 2, 0.5, bx + 3, by);
-  ctx.stroke();
-  ctx.setLineDash?.([]);
-  ctx.beginPath();
-  ctx.arc(bx, by, 3.6, 0, TAU);
+  ctx.arc(bx, by, 3.8, 0, TAU);
   paint(ctx, "#2b2d33", line, 1.1);
+  // A highlight, and a scuff that turns as it rolls.
   ctx.fillStyle = "rgba(255,255,255,0.3)";
   ctx.beginPath();
   ctx.arc(bx - 1.2, by - 1.2, 1, 0, TAU);
   ctx.fill();
+  const roll = airborne ? 0 : -t * speed * 0.05;
+  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(bx, by);
+  ctx.lineTo(bx + Math.cos(roll) * 3, by + Math.sin(roll) * 3);
+  ctx.stroke();
 }
 
 function prop(ctx, kind, line) {
@@ -455,13 +478,13 @@ function prop(ctx, kind, line) {
  * Draws a person in the pose `j` (from character.js's jointsFor). `eyes(ctx, color, blink)` draws the
  * expression; `ghost` draws a tail instead of legs.
  */
-export function drawPerson(ctx, look, j, { eyes, blink, clock, speed, line }) {
+export function drawPerson(ctx, look, j, { eyes, blink, clock, speed, state, line }) {
   const top = { ...look.top, skin: look.skin };
   const sleeve = top.style === "singlet" ? look.skin : top.color;
   const legs = look.legs ?? "#2e3440";
   const extras = look.extras ?? [];
   if (look.hair) hairBack(ctx, look.hair, line);
-  if (extras.includes("ballchain") && !j.ghost) ballAndChain(ctx, j.backLeg, speed, clock, line);
+  if (extras.includes("ballchain") && !j.ghost) ballAndChain(ctx, j.backLeg, speed, clock, state, line);
   limb(ctx, -3.5, -16, j.backArm, 8, 4, darker(sleeve, 0.25), look.skin, line);
   if (j.ghost) {
     ctx.beginPath();

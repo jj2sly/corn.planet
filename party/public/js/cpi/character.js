@@ -811,7 +811,7 @@ export function drawCharacter(ctx, ch, pose) {
   }
 
   if (ch.person) {
-    drawPerson(ctx, ch.person, j, { eyes: (c, color, shut) => drawEyes(c, j.eyes, color, "visor", shut), blink, clock, speed, line: outline });
+    drawPerson(ctx, ch.person, j, { eyes: (c, color, shut) => drawEyes(c, j.eyes, color, "visor", shut), blink, clock, speed, state, line: outline });
     drawItem(ctx, j.item, j.frontArm);
     drawEffects(ctx, effects, clock);
     ctx.restore();
