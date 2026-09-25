@@ -91,8 +91,10 @@ Level features (any level can use them):
 - **Achievements**: the Deck pops silly ones (lava death, drowning, first swim, a part found, the portal,
   being taken), on your phone for your own and on the big screen for everyone, once each per round.
 
-Every level is checked for reachability with the slowest cast (Parish, Weller): Fire Kid & Ice Girl got
-three stepping stones for them.
+Every level must be escapable by every character in every phase, without planks or tilt. Check it with
+`node scripts/steamdeck-reach.ts [levelId]` after changing a level or the cast's stats: it searches each
+level with the real physics (`physics.ts`) for each distinct movement in the cast and fails on any exit or
+item nobody can reach. Fire Kid & Ice Girl got three stepping stones for the slowest (Parish, Weller).
 
 ## The cast and Thad's shake
 

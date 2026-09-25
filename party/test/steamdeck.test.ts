@@ -9,10 +9,11 @@ import { PartyDb } from "../server/db.ts";
 import { PartyError } from "../server/errors.ts";
 import { CAST, dealCast } from "../public/js/games/steamdeck-cast.js";
 import { PLANK, SHAKE, TIMING } from "../server/games/steamdeck/game.ts";
-import { LEVELS } from "../server/games/steamdeck/levels.ts";
+import { LEVELS, type Level } from "../server/games/steamdeck/levels.ts";
 import { jolt, newBody, PHYS, stepBody, type Arena } from "../server/games/steamdeck/physics.ts";
 import type { Room } from "../server/rooms.ts";
 import { makeRooms, roomWithPlayers, stubCanon } from "./helpers.ts";
+import { checkReach } from "../scripts/steamdeck-reach.ts";
 
 type View = any;
 
@@ -371,6 +372,33 @@ describe("Escape Thad's Steam Deck: physics", () => {
     const out = newBody([1500, 0]);
     assert.ok(run(out, arena(), 0.1).includes("escaped"));
     assert.equal(out.escaped, true);
+  });
+});
+
+describe("Escape Thad's Steam Deck: the reachability checker", () => {
+  const box = (over: Partial<Level> = {}): Level => ({
+    id: "box",
+    name: "Box",
+    tagline: "",
+    intro: [],
+    spawn: [100, 800],
+    exit: [1400, 780, 60, 80],
+    platforms: [[0, 860, 1600, 40]],
+    hazards: [],
+    ...over,
+  });
+
+  it("finds the exit and items on an open floor, and flags a wall nobody can jump", () => {
+    const open = checkReach(box({ items: [{ id: "gem", name: "Gem", at: [700, 840] }] }), "FINAL", { run: 1, jump: 1 });
+    assert.deepEqual([open.exit, open.missingItems], [true, []]);
+    const walled = checkReach(box({ platforms: [[0, 860, 1600, 40], [1000, 400, 40, 460]] }), "FINAL", { run: 1, jump: 1 });
+    assert.equal(walled.exit, false);
+  });
+
+  it("flags a ledge only a stronger jump can make", () => {
+    const ledge = box({ exit: [1400, 620, 60, 80], platforms: [[0, 860, 1600, 40], [1300, 700, 300, 200]] });
+    assert.equal(checkReach(ledge, "ESCAPE", { run: 1, jump: 1.2 }).exit, true);
+    assert.equal(checkReach(ledge, "ESCAPE", { run: 1, jump: 0.8 }).exit, false);
   });
 });
 
