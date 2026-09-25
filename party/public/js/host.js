@@ -354,8 +354,8 @@ const SETTINGS_FORMS = {
   },
   steamdeck(settings, configure) {
     return [
-      choiceGroup("Rounds", "rounds", [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (v) => configure({ settings: { rounds: v } })),
-      el("p", { class: "hint", text: "The session leader is Thad first, then Thad rotates each round. No special hardware: keyboard, mouse or touch." }),
+      choiceGroup("Games", "rounds", [[1, "1"], [2, "2"], [3, "3"], [4, "4"]], settings.rounds, (v) => configure({ settings: { rounds: v } })),
+      el("p", { class: "hint", text: "One game per round, picked at random: Blockcraft, SLIM, Fire Kid & Ice Girl, Astro Blaster. The session leader is Thad first, then Thad rotates. Keyboard, mouse or touch." }),
     ];
   },
 };

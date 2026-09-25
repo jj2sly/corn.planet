@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import { ANIM, createAnimator, type AnimEvent } from "../public/js/cpi/animation.js";
 import { appearanceFor, createCharacter, drawCharacter, jointsFor, seeded, SLOTS } from "../public/js/cpi/character.js";
 import { createParticles, PARTICLE_KINDS } from "../public/js/cpi/particles.js";
-import { paintBackdrop, paintExit, paintHazard, paintLive, paintPlank, paintSolids, paintVoid, THEMES, themeFor } from "../public/js/games/steamdeck-scenery.js";
+import { paintBackdrop, paintExit, paintHazard, paintItem, paintLive, paintPlank, paintSolids, paintStalker, paintVoid, paintWater, THEMES, themeFor } from "../public/js/games/steamdeck-scenery.js";
 import { battery, phaseNotice, quip, verdict } from "../public/js/games/steamdeck-ui.js";
 import { LEVELS } from "../server/games/steamdeck/levels.ts";
 import { newBody, PHYS, stepBody, type Arena, type Body, type RunnerInput } from "../server/games/steamdeck/physics.ts";
@@ -207,16 +207,19 @@ describe("Escape Thad's Steam Deck scenery", () => {
       paintSolids(ctx, level);
       for (const t of [0, 1.3, 9.9]) paintLive(ctx, level, t);
       for (const h of level.hazards) {
-        paintHazard(ctx, h.rect, { live: 0, time: 1, theme: themeFor(level.id) });
-        paintHazard(ctx, h.rect, { live: 1, armed: 0.5, time: 1, theme: themeFor(level.id) });
+        paintHazard(ctx, h.rect, { live: 0, time: 1, theme: themeFor(level.id), kind: h.kind });
+        paintHazard(ctx, h.rect, { live: 1, armed: 0.5, time: 1, theme: themeFor(level.id), kind: h.kind });
       }
-      paintExit(ctx, level.exit, { time: 2, urgent: true, out: 1, total: 3 });
+      for (const w of level.water ?? []) paintWater(ctx, w, 1.5);
+      for (const item of level.items ?? []) paintItem(ctx, item.name, item.at[0], item.at[1], 2.2);
+      if (level.stalker) paintStalker(ctx, [400, 300, 30, 110], 3);
+      for (const open of [false, true]) paintExit(ctx, level.exit, { time: 2, urgent: true, out: 1, total: 3, style: themeFor(level.id).exit as string | undefined, open, found: 2, need: 6 });
       paintPlank(ctx, { x1: 400, x2: 600, y: 700 }, { age: 0.1, ttl: 1500, time: 1 });
       paintPlank(ctx, { x1: 400, x2: 600, y: 700 }, { ghost: true, invalid: true });
       assert.equal(count("save"), count("restore"), `${level.id}: save/restore balanced`);
     }
     assert.equal(JSON.stringify(LEVELS), before, "cosmetics never change what you can stand on");
-    assert.equal(themeFor("no-such-level"), THEMES.home, "an unknown level still gets dressed");
+    assert.equal(themeFor("no-such-level"), THEMES.blockcraft, "an unknown level still gets dressed");
   });
 });
 

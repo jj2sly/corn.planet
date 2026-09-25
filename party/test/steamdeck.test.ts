@@ -9,6 +9,7 @@ import { PartyDb } from "../server/db.ts";
 import { PartyError } from "../server/errors.ts";
 import { CAST, dealCast } from "../public/js/games/steamdeck-cast.js";
 import { PLANK, SHAKE, TIMING } from "../server/games/steamdeck/game.ts";
+import { LEVELS } from "../server/games/steamdeck/levels.ts";
 import { jolt, newBody, PHYS, stepBody, type Arena } from "../server/games/steamdeck/physics.ts";
 import type { Room } from "../server/rooms.ts";
 import { makeRooms, roomWithPlayers, stubCanon } from "./helpers.ts";
@@ -140,6 +141,7 @@ describe("Escape Thad's Steam Deck", () => {
     const { room, ids, records } = start(["Thad", "Ann", "Bo"], 2);
     until(room, "ESCAPE");
     const game = (room as any).game;
+    game.taken = game.taken.map(() => true); // a level with items to find keeps its exit shut until then
     for (const r of game.runners.values()) Object.assign(r.body, { x: game.level.exit[0] + 5, y: game.level.exit[1] + 10, vx: 0, vy: 0 });
     ticks(1);
     const g = view(room);
@@ -224,6 +226,61 @@ describe("Escape Thad's Steam Deck: the cast and Thad's shake", () => {
   });
 });
 
+describe("Escape Thad's Steam Deck: the games' own rules", () => {
+  beforeEach(() => mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] }));
+  afterEach(() => mock.timers.reset());
+
+  /** Swaps this round's level (the order is random) and puts everyone back at its spawn. */
+  function useLevel(room: Room, id: string) {
+    const game = (room as any).game;
+    game.level = LEVELS.find((l) => l.id === id);
+    game.taken = (game.level.items ?? []).map(() => false);
+    game.stalker = null;
+    game.stalkerNext = Number.POSITIVE_INFINITY;
+    for (const r of game.runners.values()) Object.assign(r.body, newBody(game.level.spawn));
+    return game;
+  }
+
+  it("keeps SLIM's dock shut until the team has found every part", () => {
+    const { room, ids } = start();
+    until(room, "ESCAPE");
+    const game = useLevel(room, "slim");
+    const ann = game.runners.get(ids[1]);
+    const exit = game.level.exit;
+    Object.assign(ann.body, { x: exit[0] + 5, y: exit[1] + 10, vx: 0, vy: 0 });
+    ticks(2);
+    assert.equal(view(room).world.exitOpen, false);
+    assert.equal(pos(room, ids[1]!)[4], 0, "the dock is locked: still inside");
+    // Touch every part: each is found once, for everyone.
+    for (const item of game.level.items) {
+      Object.assign(ann.body, { x: item.at[0] - 14, y: item.at[1] - 18, vx: 0, vy: 0 });
+      ticks(1);
+    }
+    assert.deepEqual(view(room).world.taken, game.level.items.map(() => 1));
+    assert.equal(view(room).world.exitOpen, true);
+    Object.assign(ann.body, { x: exit[0] + 5, y: exit[1] + 10, vx: 0, vy: 0 });
+    ticks(1);
+    assert.equal(pos(room, ids[1]!)[4], 2, "out");
+  });
+
+  it("lets SLIM's stalker take a runner who lingers, and spares one who moves away", () => {
+    const { room, ids } = start(["Thad", "Ann", "Bo"]);
+    until(room, "ESCAPE");
+    const game = useLevel(room, "slim");
+    ticks(5);
+    const [ann, bo] = [game.runners.get(ids[1]), game.runners.get(ids[2])];
+    Object.assign(bo.body, { x: 1400, y: 744 });
+    game.stalker = { x: ann.body.x + 40, y: ann.body.y - 74 };
+    ticks(5);
+    assert.ok(view(room, ids[1]).you.near > 0, "static builds");
+    assert.equal(view(room, ids[2]).you.near, 0, "not for someone far away");
+    ticks(game.level.stalker.killMs.ESCAPE / TIMING.tickMs);
+    assert.equal(pos(room, ids[1]!)[4], 1, "taken");
+    assert.equal(view(room).roster.find((r: View) => r.id === ids[1]).deaths, 1);
+    assert.equal(game.stalker, null, "and he's gone for a moment");
+  });
+});
+
 describe("Escape Thad's Steam Deck: physics", () => {
   const arena = (extra: Partial<Arena> = {}): Arena => ({ spawn: [100, 100], exit: [1500, 0, 50, 50], platforms: [[0, 500, 1600, 100]], hazards: [], planks: [], ...extra });
   const idle = { left: false, right: false, jumpSeq: 0 };
@@ -269,6 +326,30 @@ describe("Escape Thad's Steam Deck: physics", () => {
       return 464 - top;
     };
     assert.ok(peak(0.86) < peak(1) * 0.8, "and jumps lower");
+  });
+
+  it("swims: sinks slowly, strokes up on jump, leaps out at the surface, and drowns if it stays under", () => {
+    const pool = arena({ platforms: [[0, 500, 1600, 100]], water: [[0, 300, 1600, 200]] });
+    const b = newBody([100, 400]);
+    run(b, pool, 0.5);
+    assert.equal(b.wet, true);
+    assert.ok(b.vy <= PHYS.waterMaxFall, "sinks slowly");
+    const deep = b.y;
+    run(b, pool, 0.05, { ...idle, jumpSeq: 1 });
+    assert.ok(b.y < deep, "a stroke up");
+    // Head out at the surface: the next press leaps.
+    Object.assign(b, { y: 290, vy: 0 });
+    run(b, pool, 0.05, { ...idle, jumpSeq: 2 });
+    assert.ok(b.vy < -PHYS.swimStroke, "a leap, not a stroke");
+    const diver = newBody([100, 460]);
+    const events = run(diver, pool, PHYS.breathS + 0.5);
+    assert.ok(events.includes("died"), "drowned");
+  });
+
+  it("won't let anyone out through a locked exit", () => {
+    const locked = newBody([1500, 0]);
+    assert.ok(!run(locked, arena({ exitOpen: false }), 0.1).includes("escaped"));
+    assert.ok(run(locked, arena({ exitOpen: true }), 0.1).includes("escaped"));
   });
 
   it("throws only a runner who is standing, with the shake", () => {

@@ -5045,3 +5045,33 @@ button.cpi-hh-face-btn:disabled {
   font: 700 clamp(1rem, 2.4vw, 1.8rem) / 1 var(--head);
   letter-spacing: 0.06em;
 }
+
+/* A game's loading lines, typed out one after another. */
+.sd-intro {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: #9dffb8;
+  font: 700 clamp(0.6rem, 1.2vw, 0.9rem) / 1.35 var(--mono);
+  text-align: left;
+}
+
+.sd-intro li {
+  opacity: 0;
+  animation: cpi-hh-in 0.01s calc(300ms + var(--i, 0) * 700ms) forwards;
+}
+
+.sd-intro li:nth-child(2) {
+  --i: 1;
+}
+
+.sd-intro li:nth-child(3) {
+  --i: 2;
+}
+
+.sd-intro li::before {
+  content: "> ";
+  color: #ffd400;
+}

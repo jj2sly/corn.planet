@@ -25,5 +25,7 @@
   "hazard_arm": [],
   "tilt_creak": [],
   "ui_click": [],
-  "deck_shake": []
+  "deck_shake": [],
+  "achievement": [],
+  "static": []
 }

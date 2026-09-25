@@ -15,7 +15,7 @@ import { plankFromStroke } from "../../../public/js/games/steamdeck-rules.js";
 import { PartyError } from "../../errors.ts";
 import type { GameContext, GameDefinition, GameInstance, Highlight, Viewer } from "../types.ts";
 import { hazardActive, LEVELS, WORLD, type Level, type Phase as PlayPhase } from "./levels.ts";
-import { jolt, newBody, PHYS, stepBody, tiltAccel, type Body, type Plank, type RunnerInput, type Stats } from "./physics.ts";
+import { jolt, kill, newBody, PHYS, stepBody, tiltAccel, type Body, type Plank, type RunnerInput, type Stats } from "./physics.ts";
 
 export interface SteamDeckSettings {
   rounds: number;
@@ -61,7 +61,12 @@ const PHASE_MS: Record<Phase, number> = {
 
 const NEXT: Record<Phase, Phase | null> = { ASSIGNMENT: "INTRO", INTRO: "ESCAPE", ESCAPE: "ESCALATION", ESCALATION: "FINAL", FINAL: "RESULTS", RESULTS: null };
 
-type Cue = "game_start" | "alert" | "timer_warning" | "success" | "life_lost" | "major_failure" | "vote_result";
+type Cue = "game_start" | "alert" | "timer_warning" | "success" | "life_lost" | "major_failure" | "vote_result" | "discovery" | "contained";
+
+/** An item's pick-up box, either side of its centre. */
+const ITEM_REACH = 20;
+/** The stalker's size (he stands on something, tall). */
+const STALKER = { w: 30, h: 110 } as const;
 
 interface Runner {
   id: string;
@@ -76,6 +81,8 @@ interface Runner {
   planks: number;
   escapedAtMs: number | null;
   plankCooldownUntil: number;
+  /** Time spent near the stalker (ms); too long and he takes you. */
+  near: number;
 }
 
 interface PlacedPlank extends Plank {
@@ -94,6 +101,9 @@ interface RoundRecord {
   points: Record<string, number>;
   cast: Record<string, string>;
   shakes: number;
+  /** Items found, of how many (levels with items). */
+  found: number;
+  items: number;
 }
 
 function asRecord(payload: unknown): Record<string, unknown> {
@@ -124,6 +134,10 @@ class SteamDeckGame implements GameInstance {
   private shakeReadyAt = 0;
   private shakeAt: number | null = null;
   private shakes = 0;
+  /** Which of the level's items have been found this round (the whole team shares them). */
+  private taken: boolean[] = [];
+  private stalker: { x: number; y: number } | null = null;
+  private stalkerNext = 0;
   /** Game time in ms, advanced only while the physics runs (so pauses don't eat it). */
   private clock = 0;
   private playStartedAt = 0;
@@ -188,6 +202,7 @@ class SteamDeckGame implements GameInstance {
           planks: 0,
           escapedAtMs: null,
           plankCooldownUntil: 0,
+          near: 0,
         };
         return [id, runner];
       }),
@@ -197,6 +212,8 @@ class SteamDeckGame implements GameInstance {
     this.shakeReadyAt = this.clock;
     this.shakeAt = null;
     this.shakes = 0;
+    this.taken = (this.level.items ?? []).map(() => false);
+    this.stalker = null;
     this.roundPoints = new Map();
     this.cue("game_start");
     this.enter("ASSIGNMENT");
@@ -204,7 +221,10 @@ class SteamDeckGame implements GameInstance {
 
   private enter(phase: Phase): void {
     this.phase = phase;
-    if (phase === "ESCAPE") this.playStartedAt = this.clock;
+    if (phase === "ESCAPE") {
+      this.playStartedAt = this.clock;
+      this.stalkerNext = this.clock + (this.level.stalker?.firstMs ?? 0);
+    }
     if (phase === "ESCALATION") this.cue("alert");
     if (phase === "FINAL") this.cue("timer_warning");
     if (phase === "RESULTS") this.scoreRound();
@@ -239,6 +259,8 @@ class SteamDeckGame implements GameInstance {
       platforms: this.level.platforms,
       hazards: this.level.hazards.filter((h) => hazardActive(h, this.phase as PlayPhase)).map((h) => h.rect),
       planks: this.planks,
+      water: this.level.water ?? [],
+      exitOpen: this.exitOpen(),
     };
     const idle: RunnerInput = { left: false, right: false, jumpSeq: 0 };
     if (this.shakeAt !== null && this.clock >= this.shakeAt) {
@@ -267,11 +289,91 @@ class SteamDeckGame implements GameInstance {
       }
     }
     this.planks = this.planks.filter((p) => p.expiresAt > this.clock);
+    this.collect();
+    this.haunt();
     this.tickSeq += 1;
     // Everyone still inside is out: no reason to wait for the timer.
     const runners = [...this.runners.values()];
     if (runners.length && runners.every((r) => r.body.escaped)) return this.enter("RESULTS");
     this.ctx.changed();
+  }
+
+  // ---------------------------------------------------------------- items and the stalker
+
+  private found(): number {
+    return this.taken.filter(Boolean).length;
+  }
+
+  private exitOpen(): boolean {
+    return this.found() >= this.taken.length;
+  }
+
+  /** Anyone touching an item picks it up for the team; the last one opens the exit. */
+  private collect(): void {
+    const items = this.level.items;
+    if (!items?.length) return;
+    for (const r of this.runners.values()) {
+      const b = r.body;
+      if (b.deadFor > 0 || b.escaped) continue;
+      items.forEach((item, i) => {
+        if (this.taken[i]) return;
+        const [cx, cy] = item.at;
+        if (b.x < cx + ITEM_REACH && b.x + PHYS.width > cx - ITEM_REACH && b.y < cy + ITEM_REACH && b.y + PHYS.height > cy - ITEM_REACH) {
+          this.taken[i] = true;
+          this.ctx.countStat(r.id, "parts");
+          this.cue(this.exitOpen() ? "contained" : "discovery");
+        }
+      });
+    }
+  }
+
+  /**
+   * The stalker: every so often he appears near a runner, standing on whatever's there. Anyone who
+   * stays within his reach long enough is taken (they respawn, like any death).
+   */
+  private haunt(): void {
+    const cfg = this.level.stalker;
+    if (!cfg) return;
+    const phase = this.phase as PlayPhase;
+    const alive = [...this.runners.values()].filter((r) => r.body.deadFor === 0 && !r.body.escaped);
+    if (this.clock >= this.stalkerNext) {
+      this.stalkerNext = this.clock + cfg.everyMs[phase] + this.ctx.random() * 800;
+      const target = alive[Math.floor(this.ctx.random() * alive.length)];
+      if (!target) this.stalker = null;
+      else {
+        const side = this.ctx.random() < 0.5 ? -1 : 1;
+        let x = target.body.x + side * (200 + this.ctx.random() * 180);
+        if (x < 20 || x > WORLD.width - 50) x = target.body.x - side * (200 + this.ctx.random() * 180);
+        x = Math.max(20, Math.min(WORLD.width - 50, x));
+        // Stand on whatever is under that spot nearest the target's height.
+        const feet = target.body.y + PHYS.height;
+        const under = this.level.platforms.filter((p) => x + STALKER.w / 2 >= p[0] && x + STALKER.w / 2 <= p[0] + p[2]).sort((a, b) => Math.abs(a[1] - feet) - Math.abs(b[1] - feet))[0];
+        this.stalker = { x, y: (under ? under[1] : feet) - STALKER.h };
+      }
+    }
+    const s = this.stalker;
+    if (!s) return;
+    const sx = s.x + STALKER.w / 2;
+    const sy = s.y + STALKER.h / 2;
+    for (const r of this.runners.values()) {
+      const b = r.body;
+      if (b.deadFor > 0 || b.escaped) {
+        r.near = 0;
+        continue;
+      }
+      const close = Math.hypot(b.x + PHYS.width / 2 - sx, b.y + PHYS.height / 2 - sy) < cfg.reach;
+      r.near = close ? r.near + TIMING.tickMs : Math.max(0, r.near - TIMING.tickMs / 2);
+      if (r.near >= cfg.killMs[phase] && kill(b)) {
+        r.near = 0;
+        r.deaths += 1;
+        this.ctx.countStat(r.id, "deaths");
+        this.cue("life_lost");
+        // He's had his fun: gone for a moment.
+        this.stalker = null;
+        this.stalkerNext = this.clock + 1_200;
+        return;
+      }
+    }
   }
 
   // ---------------------------------------------------------------- scoring
@@ -303,6 +405,8 @@ class SteamDeckGame implements GameInstance {
       points: Object.fromEntries(this.roundPoints),
       cast: Object.fromEntries(runners.map((r) => [r.id, r.character])),
       shakes: this.shakes,
+      found: this.found(),
+      items: this.taken.length,
     });
     this.cue(escaped.length === runners.length ? "success" : escaped.length === 0 ? "major_failure" : "vote_result");
   }
@@ -413,12 +517,18 @@ class SteamDeckGame implements GameInstance {
         id: this.level.id,
         name: this.level.name,
         tagline: this.level.tagline,
+        intro: this.level.intro,
         width: WORLD.width,
         height: WORLD.height,
         spawn: this.level.spawn,
         exit: this.level.exit,
         platforms: this.level.platforms,
-        hazards: this.level.hazards.map((h) => [...h.rect, hazardActive(h, hazardPhase) ? 1 : 0]),
+        // [x, y, w, h, live, kind]
+        hazards: this.level.hazards.map((h) => [...h.rect, hazardActive(h, hazardPhase) ? 1 : 0, h.kind ?? "spikes"]),
+        water: this.level.water ?? [],
+        // [name, x, y]
+        items: (this.level.items ?? []).map((i) => [i.name, i.at[0], i.at[1]]),
+        stalker: !!this.level.stalker,
       },
       world: {
         tilt: Math.round(this.tilt * 1000) / 1000,
@@ -429,6 +539,10 @@ class SteamDeckGame implements GameInstance {
         planks: this.planks.map((p) => [p.x1, p.x2, p.y, p.owner, Math.max(0, p.expiresAt - this.clock)]),
         // [ms until Thad can shake again, ms until a called shake lands or -1]
         shake: [Math.max(0, this.shakeReadyAt - this.clock), this.shakeAt === null ? -1 : Math.max(0, this.shakeAt - this.clock)],
+        // Which items are found (1) or not (0), whether the exit is open, where the stalker stands.
+        taken: this.taken.map((t) => (t ? 1 : 0)),
+        exitOpen: this.exitOpen(),
+        stalker: this.stalker && this.playing() ? [Math.round(this.stalker.x), Math.round(this.stalker.y), STALKER.w, STALKER.h] : null,
       },
       thad: { id: this.thadId, name: this.ctx.playerName(this.thadId), color: colorOf(this.thadId) },
       roster: runners.map((r) => ({ id: r.id, name: this.ctx.playerName(r.id), color: colorOf(r.id), character: r.character, build: r.build, deaths: r.deaths, escapedMs: r.escapedAtMs })),
@@ -446,6 +560,8 @@ class SteamDeckGame implements GameInstance {
         color: colorOf(playerId),
         jumpSeq: runner?.body.lastJumpSeq ?? 0,
         plankReadyMs: runner ? Math.max(0, runner.plankCooldownUntil - this.clock) : 0,
+        // How close the stalker is to taking you, 0..1 (for your screen's static).
+        near: runner && this.level.stalker && this.playing() ? Math.min(1, runner.near / this.level.stalker.killMs[this.phase as PlayPhase]) : 0,
       },
     };
   }
@@ -470,15 +586,16 @@ export const steamDeckGame: GameDefinition<SteamDeckSettings> = {
   name: "Escape Thad's Steam Deck",
   tagline: "You live in the Deck now. Thad is holding it.",
   description:
-    "One agent is Thad and holds the Steam Deck (in spirit: keyboard, mouse or touch all work). Everyone else is trapped inside it and has to " +
-    "platform their way to the exit while Thad tilts the whole world. Draw planks to help each other across. " +
-    "Thad rotates every round.",
+    "One agent is Thad and holds the Steam Deck (in spirit: keyboard, mouse or touch all work). Everyone else is trapped inside it, " +
+    "dropped into a different game each round (in a random order) and has to reach its way out while Thad tilts and shakes the whole world. " +
+    "Draw planks to help each other across. Thad rotates every round.",
   minPlayers: 2,
   maxPlayers: 8,
-  defaultSettings: { rounds: 2 },
+  defaultSettings: { rounds: 3 },
   parseSettings(raw: unknown): SteamDeckSettings {
     const input = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
-    const rounds = typeof input.rounds === "number" && Number.isInteger(input.rounds) ? Math.min(3, Math.max(1, input.rounds)) : 2;
+    // One game per round, in a random order, never the same one twice in a match.
+    const rounds = typeof input.rounds === "number" && Number.isInteger(input.rounds) ? Math.min(LEVELS.length, Math.max(1, input.rounds)) : 3;
     return { rounds };
   },
   create(ctx, settings) {

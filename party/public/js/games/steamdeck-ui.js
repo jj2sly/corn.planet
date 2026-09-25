@@ -176,14 +176,22 @@ export function assignmentBand(g) {
   return el("div", { class: "sd-band" }, el("span", { class: "sd-band-tag", text: tag }), el("span", { text: line }));
 }
 
-/** The level's title card (the intro); `howto` lines go under it on the big screen. */
+/**
+ * The game's title card (the intro): its name, its joke, what the Deck says while it loads, and
+ * on the big screen the `howto` lines.
+ */
 export function levelCard(g, { howto = [] } = {}) {
+  const intro = g.level.intro ?? [];
   return systemCard({
-    eyebrow: `LEVEL ${g.round} OF ${g.totalRounds} · LOADING`,
+    eyebrow: `GAME ${g.round} OF ${g.totalRounds} · NOW LOADING`,
     title: g.level.name,
     text: g.level.tagline,
     kind: "level",
-    children: [howto.length ? el("ul", { class: "sd-howto" }, howto.map((line) => el("li", { text: line }))) : null, el("p", { class: "sd-ready", text: "GET READY" })],
+    children: [
+      intro.length ? el("ul", { class: "sd-intro" }, intro.map((line) => el("li", { text: line }))) : null,
+      howto.length ? el("ul", { class: "sd-howto" }, howto.map((line) => el("li", { text: line }))) : null,
+      el("p", { class: "sd-ready", text: "GET READY" }),
+    ],
   });
 }
 

@@ -51,6 +51,8 @@ four are already playing). All have synthesized placeholders; map a file to repl
 | `tilt_creak` | Thad leans the Deck past 75% | Host |
 | `ui_click` | Device buttons (mute, map, undo) | Phones |
 | `deck_shake` | Thad shakes the Deck (rumble, then the jolt) | Host; Thad's phone |
+| `achievement` | A silly achievement pops (lava, drowning, a part found…) | Your phone, for your own |
+| `static` | The stalker is close (SLIM) | Your phone |
 
 ## `sounds.json`
 

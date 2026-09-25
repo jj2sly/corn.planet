@@ -42,7 +42,8 @@ nothing extra. Rendering never feeds back into the game.
   (pencil), placing (hammer), hit, ghost, respawn, escape (beamed out through the door).
 - **Levels** (`public/js/games/steamdeck-scenery.js`): each level is a game running on Thad's Deck,
   original pastiches of popular games (no one's actual art, names or logos): Blockcraft (voxel hills,
-  block trees, grass and dirt blocks), Fire Kid & Ice Girl (temple bricks, fire and water doors,
+  block trees, grass and dirt blocks, lava, a lake, a portal), SLIM (dark woods, moon, fog, a tent,
+  fireflies, a flashlight each, the stalker), Fire Kid & Ice Girl (temple bricks, fire and water doors,
   torches, gems) and Astro Blaster '84 (stars, marching pixel invaders, a ringed planet, a neon grid),
   with parallax and a few moving bits. Platforms are dressed from the collision rects, and every walkable
   top edge is the same CPI yellow. Coming spikes are a dashed box with ⚠ and the slots they'll rise from;
@@ -62,6 +63,36 @@ nothing extra. Rendering never feeds back into the game.
   time, points and a line about their fate, and Thad's outcome); phones show their own result in the
   device and the report under it.
 - **Reduced motion** (`prefers-reduced-motion`): no shake, fewer particles, no CSS animation.
+
+## The games
+
+Each round drops the runners into a different game running on Thad's Deck, picked at random with no
+repeats (the lobby's "Games" setting, 1 to all of them). Levels are data in
+`server/games/steamdeck/levels.ts`; their look is in `public/js/games/steamdeck-scenery.js` (by level id).
+The intro card shows each game's loading lines.
+
+| Game | What you do | Escalation | Way out |
+|---|---|---|---|
+| **Blockcraft** | Jump the lava pits, drop into the lake, swim under the stone wall (it goes into the water), leap out onto the far bank, climb to the portal | ESCALATION: lava on the shore (jump it straight into the lake). FINAL: the lake floor under the wall turns to magma (swim through, don't sink) | The purple portal |
+| **SLIM: The Six Parts** | Dark woods, a flashlight each. Find the six parts of Thad's Deck (shared by the team) | He moves more often and takes you faster each phase; thorns grow on the floor | The repair dock, locked until all six are found |
+| **Fire Kid & Ice Girl** | Temple platforming over lava pits | Spikes arrive | The EXIT door |
+| **Astro Blaster '84** | Climb the arcade cabinet | Spikes arrive | The EXIT door |
+
+Level features (any level can use them):
+
+- **Water** (`water` rects): you sink slowly; each JUMP is a swim stroke up; JUMP with your head out leaps
+  onto the bank; 7 s with your head under and you drown. An air meter (bubbles) shows over your head.
+- **Items** (`items`): touching one picks it up for the whole team; the exit stays locked until every one
+  is found. The view carries `world.taken` and `world.exitOpen`.
+- **The stalker** (`stalker`): appears near a random runner, standing on whatever is there, every few
+  seconds (faster each phase). Staying within `reach` of him for `killMs` gets you taken (a normal death:
+  respawn). Your phone gets static as he closes in (`you.near`); shared screens get a little.
+- **Hazard kinds** (`kind`: spikes, lava, thorns) only change how a hazard is drawn.
+- **Achievements**: the Deck pops silly ones (lava death, drowning, first swim, a part found, the portal,
+  being taken), on your phone for your own and on the big screen for everyone, once each per round.
+
+Every level is checked for reachability with the slowest cast (Parish, Weller): Fire Kid & Ice Girl got
+three stepping stones for them.
 
 ## The cast and Thad's shake
 

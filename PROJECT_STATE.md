@@ -123,6 +123,13 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 8. Status
 
+- **Escape Thad's Steam Deck games** (2026-09-25, uncommitted, Mac, no Node): each round is a different
+  game in a random order (the user plans to rename the whole thing "Steam My Deck"). New: Blockcraft
+  (lava, a lake to swim through, a portal) and SLIM (dark woods, six Deck parts to find, a stalker);
+  the old levels became Fire Kid & Ice Girl and Astro Blaster '84. New level features: water
+  (swimming, drowning), items + locked exit, stalker, hazard kinds, intro lines; rounds up to 4.
+  Checked with a scripted player and a reachability checker (every cast member can finish every
+  level in every phase) in the scratchpad harness. Server tests added; **run `npm run check`.**
 - **Escape Thad's Steam Deck cast and shake** (2026-09-25, uncommitted, on the Mac, no Node): runners
   are dealt random characters from an 8-member cast with their own movement (a gameplay change, by
   request: not meant to be fair); Thad gets a SHAKE (0.5 s rumble, then a jolt, 8 s recharge). Server:

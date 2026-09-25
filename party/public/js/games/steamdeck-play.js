@@ -454,7 +454,14 @@ function buildThad(s, tools) {
   });
   const canvas = el("canvas", { class: "sd-canvas", "aria-hidden": "true" });
   device.hh.screen.append(canvas);
-  const view = createWorldView(canvas, { rotate: true, labels: true });
+  const view = createWorldView(canvas, {
+    rotate: true,
+    labels: true,
+    onEvent: (type, detail = {}) => {
+      if (type === "part") device.hh.notify(`They found ${detail.name} · ${detail.found}/${detail.need}`, { kind: "warn", icon: "🔧" });
+      else if (type === "unlocked") device.hh.notify("They fixed the Deck. The dock is open.", { kind: "danger", icon: "⚠", replace: true });
+    },
+  });
   view.update(g);
   // The device answers Thad's hands at once, not a network round trip later.
   panel.onTilt((v) => device.hh.setTilt(v));
@@ -523,12 +530,35 @@ function buildRunner(s, tools) {
   const overlay = el("canvas", { class: "sd-draw", hidden: true, "aria-label": "Draw a plank" });
   const stage = el("div", { class: "sd-stage" }, canvas, overlay);
   hh.screen.append(stage);
+  const achieved = new Set();
   const view = createWorldView(canvas, {
     you: me,
     follow: true,
     labels: "others",
-    onEvent: (type, { mine, strength }) => {
+    onEvent: (type, { mine, strength, name, found, need, title, key, near } = {}) => {
+      if (type === "part") {
+        hh.notify(mine ? `YOU FOUND ${name} · ${found}/${need}` : `FOUND ${name} · ${found}/${need}`, { kind: "ok", icon: "🔧" });
+        if (mine) buzz(40);
+        return;
+      }
+      if (type === "unlocked") {
+        hh.notify("DECK REASSEMBLED · GET TO THE DOCK", { kind: "ok", icon: "✓", replace: true });
+        hh.flash("ok");
+        return;
+      }
       if (!mine && type !== "rumble" && type !== "shake") return;
+      if (type === "achievement") {
+        if (achieved.has(key)) return;
+        achieved.add(key);
+        hh.notify(`Achievement get: ${title}`, { kind: "info", icon: "🏆", ms: 2400 });
+        playSfx("achievement", { volume: 0.6 });
+        return;
+      }
+      if (type === "static") {
+        playSfx("static", { volume: Math.min(1, near) });
+        if (near > 0.6) buzz(25);
+        return;
+      }
       if (type === "jump") playSfx("jump", { volume: 0.5 });
       else if (type === "land" && strength > 0.35) playSfx("land", { volume: 0.7 });
       else if (type === "plank") playSfx("plank_place");

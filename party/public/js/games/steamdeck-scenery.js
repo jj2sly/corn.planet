@@ -21,9 +21,11 @@ const EDGE = "#ffd400"; // every walkable top edge, in every level: "you can sta
 /** Per-level palette and props. Props are data: [type, ...args]; painters are below. */
 export const THEMES = {
   // Each level is a game running on Thad's Deck: original pastiches, not anyone's actual art.
-  home: {
+  blockcraft: {
     name: "Blockcraft",
     skin: "grass",
+    exit: "portal",
+    cables: false,
     wall: ["#5d9ce6", "#b8dcf7"],
     far: "rgba(40, 90, 50, 0.35)",
     block: ["#8a5a32", "#5a3a1f"],
@@ -43,10 +45,14 @@ export const THEMES = {
       ["blockTree", 520, 520],
       ["cartridge", 40, 40, "NOW PLAYING: BLOCKCRAFT"],
     ],
-    decals: [["sign", 1290, 560, 250, 44, "PROPERTY OF THAD", "plain"]],
+    decals: [
+      ["sign", 1506, 600, 88, 32, "THAD'S", "plain"],
+      ["sign", 20, 790, 260, 40, "SPAWN · DON'T DIG DOWN", "plain"],
+      ["sign", 560, 790, 220, 40, "SWIM UNDER →", "warn"],
+    ],
     live: [["drift", 0, 40]],
   },
-  library: {
+  firekid: {
     name: "Fire Kid & Ice Girl",
     skin: "temple",
     wall: ["#2e3320", "#15170e"],
@@ -75,7 +81,7 @@ export const THEMES = {
       ["gem", 1210, 470, "#ff4d3a"],
     ],
   },
-  proton: {
+  astro: {
     name: "Astro Blaster '84",
     skin: "neon",
     wall: ["#05061a", "#120828"],
@@ -100,10 +106,39 @@ export const THEMES = {
       ["twinkle", 0, 0, 1600, 650],
     ],
   },
+  slim: {
+    name: "SLIM: The Six Parts",
+    skin: "wood",
+    exit: "dock",
+    cables: false,
+    dark: true,
+    wall: ["#0a1411", "#020403"],
+    far: "rgba(0, 0, 0, 0.7)",
+    block: ["#1e1a14", "#0c0a08"],
+    top: "#243522",
+    seam: "rgba(0, 0, 0, 0.4)",
+    rim: "rgba(160, 200, 170, 0.12)",
+    slab: ["#4a3624", "#2a1d12"],
+    pit: ["#6a2a2a", "#140404"],
+    light: "rgba(170, 200, 255, 0.06)",
+    props: [
+      ["moon", 1350, 110, 46],
+      ["forest", 0, 900, "#0f1c18", 0.9, 7, 260],
+      ["forest", 0, 900, "#0a1411", 1, 19, 170],
+      ["fog", 0, 560, 1600, 220],
+      ["tent", 150, 780],
+      ["cartridge", 40, 40, "NOW PLAYING: SLIM"],
+    ],
+    decals: [
+      ["sign", 1020, 800, 250, 40, "DON'T LOOK BEHIND YOU", "warn"],
+      ["sign", 300, 800, 240, 40, "CPI CAMPGROUND", "plain"],
+    ],
+    live: [["fireflies", 0, 300, 1600, 450]],
+  },
 };
 
 export function themeFor(levelId) {
-  return THEMES[levelId] ?? THEMES.home;
+  return THEMES[levelId] ?? THEMES.blockcraft;
 }
 
 // ------------------------------------------------------------------ helpers
@@ -173,122 +208,70 @@ const isPit = (r) => r[1] + r[3] >= H - 1;
 // ------------------------------------------------------------------ backdrop props
 
 const PROPS = {
-  tabs(ctx, t, [x, y, labels]) {
-    let cx = x;
-    labels.forEach((label, i) => {
-      text(ctx, label, cx, y, { size: 22, color: i === 0 ? "#dff6ff" : "#6f86a3", font: HEAD, weight: 600 });
-      ctx.font = `600 22px ${HEAD}`;
-      const w = ctx.measureText(label).width;
-      if (i === 0) {
-        ctx.fillStyle = "#4dd4ff";
-        ctx.fillRect(cx, y + 16, w, 3);
-      }
-      cx += w + 42;
-    });
-  },
-  heading(ctx, t, [x, y, label]) {
-    text(ctx, label, x, y, { size: 20, font: MONO, color: "#8fb3d9", weight: 700 });
-  },
-  tiles(ctx, t, [x, y, w, h, gap, titles]) {
-    titles.forEach((title, i) => {
-      const tx = x + i * (w + gap);
-      const hue = [200, 40, 330, 150, 270][i % 5];
-      rr(ctx, tx, y, w, h, 10);
-      ctx.fillStyle = vgrad(ctx, y, y + h, `hsla(${hue}, 45%, 32%, 0.9)`, `hsla(${hue + 30}, 50%, 14%, 0.9)`);
-      ctx.fill();
-      // "Cover art": a few bold shapes, different per game.
-      ctx.save();
-      rr(ctx, tx, y, w, h, 10);
-      ctx.clip();
-      ctx.fillStyle = `hsla(${hue + 60}, 60%, 60%, 0.35)`;
-      ctx.beginPath();
-      ctx.arc(tx + w * (0.3 + hash(i) * 0.4), y + h * 0.55, h * (0.28 + hash(i + 9) * 0.2), 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "rgba(255, 212, 0, 0.35)";
-      ctx.fillRect(tx, y + h * 0.72, w, h * 0.06);
-      ctx.restore();
-      text(ctx, title, tx + 12, y + h - 20, { size: 19, color: "rgba(255,255,255,0.8)" });
-      rr(ctx, tx, y, w, h, 10);
-      ctx.strokeStyle = "rgba(255,255,255,0.12)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    });
-  },
-  widget(ctx, t, [x, y, w, h, label, value, kind]) {
-    rr(ctx, x, y, w, h, 12);
-    ctx.fillStyle = "rgba(10, 18, 30, 0.75)";
+  // ---- game pastiches
+  moon(ctx, t, [x, y, r]) {
+    const g = ctx.createRadialGradient(x, y, r * 0.6, x, y, r * 3);
+    g.addColorStop(0, "rgba(200, 220, 255, 0.18)");
+    g.addColorStop(1, "rgba(200, 220, 255, 0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r * 3, y - r * 3, r * 6, r * 6);
+    ctx.fillStyle = "#d8e0ea";
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = kind === "danger" ? "rgba(255, 77, 77, 0.45)" : "rgba(120, 200, 255, 0.2)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    text(ctx, label, x + 18, y + 26, { size: 16, font: MONO, color: "#7f97b5" });
-    text(ctx, value, x + 18, y + 72, { size: 46, color: kind === "danger" ? "#ff6b5e" : "#dff6ff" });
-    if (kind === "danger") {
-      // A battery icon, nearly empty.
-      rr(ctx, x + w - 94, y + 52, 64, 36, 5);
-      ctx.strokeStyle = "#ff6b5e";
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.fillStyle = "#ff6b5e";
-      ctx.fillRect(x + w - 30, y + 62, 6, 16);
-      ctx.fillRect(x + w - 89, y + 57, 7, 26);
-    }
+    ctx.fillStyle = "rgba(0,0,0,0.12)";
+    ctx.beginPath();
+    ctx.arc(x - r * 0.3, y - r * 0.2, r * 0.25, 0, Math.PI * 2);
+    ctx.arc(x + r * 0.35, y + r * 0.3, r * 0.18, 0, Math.PI * 2);
+    ctx.fill();
   },
-  circuit(ctx, t, [x, y, w, h], theme) {
-    // Faint traces across the lower half, like the board behind the screen.
+  forest(ctx, t, [x, bottom, color, alpha, seed, height]) {
+    // A row of bare trees, trunks and branches, as silhouettes.
     ctx.save();
-    ctx.strokeStyle = theme.far;
-    ctx.fillStyle = theme.far;
-    ctx.lineWidth = 3;
-    for (let i = 0; i < 14; i++) {
-      const sy = y + hash(i + 1) * h;
-      const sx = x + hash(i + 40) * w * 0.4;
-      const len = 200 + hash(i + 80) * 500;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+    for (let i = 0; i < 16; i++) {
+      const tx = x + i * 105 + hash(i + seed) * 60 - 30;
+      const tw = 14 + hash(i * 2 + seed) * 16;
+      const th = height * 2 + hash(i * 5 + seed) * 500;
+      ctx.fillRect(tx, bottom - th, tw, th);
+      ctx.lineWidth = 5;
       ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(sx + len * 0.6, sy);
-      ctx.lineTo(sx + len * 0.6 + 40, sy + (hash(i) > 0.5 ? 40 : -40));
-      ctx.lineTo(sx + len, sy + (hash(i) > 0.5 ? 40 : -40));
+      for (let b = 0; b < 4; b++) {
+        const by = bottom - th * (0.45 + b * 0.13);
+        const dir = (b + i) % 2 ? 1 : -1;
+        ctx.moveTo(tx + tw / 2, by);
+        ctx.lineTo(tx + tw / 2 + dir * (50 + hash(i + b) * 50), by - 40 - hash(b * 7 + i) * 40);
+      }
       ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(sx + len, sy + (hash(i) > 0.5 ? 40 : -40), 6, 0, Math.PI * 2);
-      ctx.fill();
     }
     ctx.restore();
   },
-  lamp(ctx, t, [x, y, reach], theme) {
-    // A hanging lamp and its cone of light: lighting, not collision.
-    ctx.strokeStyle = "rgba(0,0,0,0.6)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x, y + 60);
-    ctx.stroke();
-    const g = ctx.createRadialGradient(x, y + 70, 10, x, y + 70 + reach * 0.6, reach);
-    g.addColorStop(0, theme.light.replace(/[\d.]+\)$/, "0.22)"));
-    g.addColorStop(1, "rgba(0,0,0,0)");
+  fog(ctx, t, [x, y, w, h]) {
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, "rgba(150, 170, 180, 0)");
+    g.addColorStop(0.6, "rgba(150, 170, 180, 0.12)");
+    g.addColorStop(1, "rgba(150, 170, 180, 0.02)");
     ctx.fillStyle = g;
+    ctx.fillRect(x, y, w, h);
+  },
+  tent(ctx, t, [x, y]) {
+    ctx.fillStyle = "#3a2e22";
     ctx.beginPath();
-    ctx.moveTo(x - 18, y + 70);
-    ctx.lineTo(x + 18, y + 70);
-    ctx.lineTo(x + reach * 0.55, y + 70 + reach * 1.6);
-    ctx.lineTo(x - reach * 0.55, y + 70 + reach * 1.6);
+    ctx.moveTo(x - 70, y);
+    ctx.lineTo(x, y - 90);
+    ctx.lineTo(x + 70, y);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = "#1a1a1a";
+    ctx.fillStyle = "#120d08";
     ctx.beginPath();
-    ctx.moveTo(x - 22, y + 74);
-    ctx.lineTo(x - 10, y + 58);
-    ctx.lineTo(x + 10, y + 58);
-    ctx.lineTo(x + 22, y + 74);
+    ctx.moveTo(x - 18, y);
+    ctx.lineTo(x, y - 60);
+    ctx.lineTo(x + 18, y);
     ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#fff1c2";
-    ctx.beginPath();
-    ctx.ellipse(x, y + 75, 12, 4, 0, 0, Math.PI * 2);
     ctx.fill();
   },
-  // ---- game pastiches
   pixelSun(ctx, t, [x, y, r]) {
     ctx.fillStyle = "#fff6b0";
     ctx.fillRect(x - r / 2, y - r / 2, r, r);
@@ -436,156 +419,14 @@ const PROPS = {
       ctx.fill();
     }
   },
-  shelves(ctx, t, [x, y, w, h], theme) {
-    // A tower of cartridges, spines out, in no order whatsoever.
-    ctx.save();
-    ctx.globalAlpha = 0.55;
-    ctx.fillStyle = "#1a1116";
-    ctx.fillRect(x, y, w, h);
-    const rows = Math.floor(h / 90);
-    for (let r = 0; r < rows; r++) {
-      const ry = y + r * 90;
-      let cx = x + 8;
-      let n = 0;
-      while (cx < x + w - 14) {
-        const sw = 10 + hash(r * 31 + n) * 14;
-        const sh = 50 + hash(r * 17 + n * 3) * 26;
-        const hue = Math.floor(hash(n * 7 + r) * 360);
-        ctx.fillStyle = `hsl(${hue}, 32%, ${22 + hash(n + r) * 14}%)`;
-        ctx.fillRect(cx, ry + 84 - sh, sw - 2, sh);
-        cx += sw;
-        n += 1;
-      }
-      ctx.fillStyle = "#2a1c17";
-      ctx.fillRect(x, ry + 84, w, 6);
-    }
-    ctx.restore();
-    ctx.fillStyle = theme.far;
-    ctx.fillRect(x, y, w, h);
-  },
-  hanging(ctx, t, [x, y, drop, label]) {
-    ctx.font = `700 26px ${HEAD}`;
-    const w = ctx.measureText(label).width + 40;
-    ctx.strokeStyle = "rgba(0,0,0,0.7)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x + 14, y);
-    ctx.lineTo(x + 14, y + drop);
-    ctx.moveTo(x + w - 14, y);
-    ctx.lineTo(x + w - 14, y + drop);
-    ctx.stroke();
-    rr(ctx, x, y + drop, w, 44, 4);
-    ctx.fillStyle = "#e9e3d0";
-    ctx.fill();
-    ctx.strokeStyle = "#1a1a1a";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    text(ctx, label, x + w / 2, y + drop + 23, { size: 26, align: "center", color: "#231a14" });
-  },
-  gauge(ctx, t, [x, y, size, label]) {
-    rr(ctx, x, y, size, size * 0.85, 12);
-    ctx.fillStyle = "rgba(16, 10, 12, 0.85)";
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255, 196, 120, 0.35)";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    const cx = x + size / 2;
-    const cy = y + size * 0.62;
-    const r = size * 0.36;
-    ctx.lineWidth = 10;
-    for (const [a0, a1, c] of [[Math.PI, Math.PI * 1.45, "#5fa35f"], [Math.PI * 1.45, Math.PI * 1.75, "#d8b400"], [Math.PI * 1.75, Math.PI * 2, "#d8453a"]]) {
-      ctx.strokeStyle = c;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, a0, a1);
-      ctx.stroke();
-    }
-    text(ctx, label, cx, y + size * 0.75, { size: 16, font: MONO, align: "center", color: "#e9d7b8" });
-  },
-  ladder(ctx, t, [x, y, h]) {
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.strokeStyle = "#6a4d36";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + 40, y + h);
-    ctx.moveTo(x + 50, y);
-    ctx.lineTo(x + 90, y + h);
-    ctx.stroke();
-    ctx.lineWidth = 4;
-    for (let i = 1; i < h / 40; i++) {
-      const k = (i * 40) / h;
-      ctx.beginPath();
-      ctx.moveTo(x + 40 * k, y + h * k);
-      ctx.lineTo(x + 50 + 40 * k, y + h * k);
-      ctx.stroke();
-    }
-    ctx.restore();
-  },
-  gear(ctx, t, [x, y, r, teeth], theme) {
-    ctx.save();
-    ctx.fillStyle = theme.far.replace(/[\d.]+\)$/, "0.10)");
-    ctx.strokeStyle = "rgba(255, 138, 61, 0.12)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    for (let i = 0; i < teeth * 2; i++) {
-      const a0 = (i * Math.PI) / teeth;
-      const a1 = ((i + 1) * Math.PI) / teeth;
-      const rad = i % 2 ? r : r * 1.14;
-      ctx.lineTo(x + Math.cos(a0) * rad, y + Math.sin(a0) * rad);
-      ctx.lineTo(x + Math.cos(a1) * rad, y + Math.sin(a1) * rad);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = "rgba(4, 8, 7, 0.9)";
-    ctx.beginPath();
-    ctx.arc(x, y, r * 0.35, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  },
-  pipes(ctx, t, [x, y, w, h]) {
-    for (let i = 0; i < 2; i++) {
-      const py = y + i * (h / 2 + 4);
-      ctx.fillStyle = vgrad(ctx, py, py + h / 2 - 4, "#3d4a45", "#161c1a");
-      ctx.fillRect(x, py, w, h / 2 - 4);
-      ctx.fillStyle = "rgba(0,0,0,0.45)";
-      for (let bx = x + 60 + i * 40; bx < x + w; bx += 180) ctx.fillRect(bx, py - 2, 14, h / 2);
-    }
-  },
-  pipe(ctx, t, [x, y, w, h]) {
-    const g = ctx.createLinearGradient(x, 0, x + w, 0);
-    g.addColorStop(0, "#161c1a");
-    g.addColorStop(0.4, "#46544f");
-    g.addColorStop(1, "#111513");
-    ctx.fillStyle = g;
-    ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
-    for (let by = y + 80; by < y + h; by += 160) ctx.fillRect(x - 3, by, w + 6, 10);
-  },
-  reactor(ctx, t, [x, y, w, h]) {
-    // The Compatibility Reactor: a big machine with a screen that is always nearly done.
-    rr(ctx, x, y, w, h, 14);
-    ctx.fillStyle = vgrad(ctx, y, y + h, "#2a302d", "#101412");
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255, 150, 80, 0.3)";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    rr(ctx, x + 18, y + 18, w - 36, h * 0.52, 8);
-    ctx.fillStyle = "#06120d";
-    ctx.fill();
-    text(ctx, "COMPATIBILITY REACTOR", x + w / 2, y + 46, { size: 18, font: MONO, align: "center", color: "#7dff9a" });
-    text(ctx, "TRANSLATING…", x + 30, y + 90, { size: 22, font: MONO, color: "#7dff9a" });
-    // Vents.
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
-    for (let i = 0; i < 6; i++) ctx.fillRect(x + 24 + i * ((w - 48) / 6), y + h - 64, (w - 48) / 6 - 8, 40);
-  },
+
 };
 
 // ------------------------------------------------------------------ backdrop
 
 /** Suspension cables from thin platforms up to the ceiling: they hang, they don't hold anyone. */
-function cables(ctx, level) {
+function cables(ctx, level, theme) {
+  if (theme?.cables === false) return;
   ctx.save();
   ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
   ctx.lineWidth = 3;
@@ -622,7 +463,7 @@ export function paintBackdrop(ctx, level, theme = themeFor(level.id)) {
   }
   ctx.stroke();
   for (const [type, ...args] of theme.props) PROPS[type]?.(ctx, 0, args, theme);
-  cables(ctx, level);
+  cables(ctx, level, theme);
   // Depth below the gaps: the floor falls away into the dark.
   for (const h of level.hazards) {
     const [x, y, w] = h.rect ?? h;
@@ -641,6 +482,7 @@ export function paintBackdrop(ctx, level, theme = themeFor(level.id)) {
 // ------------------------------------------------------------------ solids
 
 function paintBlock(ctx, [x, y, w, h], theme, i) {
+  if (theme.skin === "wood") return paintForestFloor(ctx, [x, y, w, h]);
   if (theme.skin === "grass") return paintVoxelBlock(ctx, [x, y, w, h]);
   if (theme.skin === "neon") return paintNeonBlock(ctx, [x, y, w, h], theme);
   ctx.fillStyle = vgrad(ctx, y, y + h, theme.block[0], theme.block[1]);
@@ -700,6 +542,40 @@ function paintVoxelBlock(ctx, [x, y, w, h]) {
   ctx.fillRect(x, y, w, 4);
 }
 
+/** SLIM: a branch, bark and all. */
+function paintLog(ctx, [x, y, w, h]) {
+  rr(ctx, x, y, w, h, h / 2);
+  ctx.fillStyle = vgrad(ctx, y, y + h, "#5a4230", "#2a1d12");
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.45)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let bx = x + 12; bx < x + w - 8; bx += 22 + hash(bx) * 14) {
+    ctx.moveTo(bx, y + 5);
+    ctx.lineTo(bx + 8, y + h - 5);
+  }
+  ctx.stroke();
+  ctx.fillStyle = "#6e5a44";
+  ctx.beginPath();
+  ctx.ellipse(x + w - 4, y + h / 2, 4, h / 2 - 1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = EDGE;
+  ctx.fillRect(x + 4, y, w - 8, 3);
+}
+
+/** SLIM: dark soil with grass tufts. */
+function paintForestFloor(ctx, [x, y, w, h]) {
+  ctx.fillStyle = vgrad(ctx, y, y + h, "#1c2a1c", "#070a07");
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "#2a3f26";
+  for (let gx = x; gx < x + w; gx += 9) {
+    const gh = 5 + hash(gx) * 9;
+    ctx.fillRect(gx, y - gh + 4, 3, gh);
+  }
+  ctx.fillStyle = EDGE;
+  ctx.fillRect(x, y, w, 3);
+}
+
 /** Astro Blaster: dark blocks outlined in neon. */
 function paintNeonBlock(ctx, [x, y, w, h], theme) {
   ctx.fillStyle = vgrad(ctx, y, y + h, theme.block[0], theme.block[1]);
@@ -720,6 +596,8 @@ function paintNeonBlock(ctx, [x, y, w, h], theme) {
 }
 
 function paintSlab(ctx, [x, y, w, h], theme) {
+  if (theme.skin === "grass") return paintVoxelBlock(ctx, [x, y, w, h]);
+  if (theme.skin === "wood") return paintLog(ctx, [x, y, w, h]);
   // A suspended girder: plate on top, truss below, bolted end caps.
   ctx.fillStyle = vgrad(ctx, y, y + h, theme.slab[0], theme.slab[1]);
   rr(ctx, x, y, w, h, 3);
@@ -770,6 +648,18 @@ export function paintSolids(ctx, level, theme = themeFor(level.id)) {
 // ------------------------------------------------------------------ live scenery
 
 const LIVE = {
+  fireflies(ctx, time, [x, y, w, h]) {
+    for (let i = 0; i < 14; i++) {
+      const a = time * (0.3 + hash(i) * 0.4) + i;
+      const fx = x + ((hash(i + 20) * w + Math.sin(a) * 60) % w);
+      const fy = y + hash(i + 40) * h + Math.cos(a * 1.3) * 30;
+      const on = 0.3 + 0.7 * Math.max(0, Math.sin(time * 2 + i * 1.7));
+      ctx.fillStyle = `rgba(210, 255, 140, ${0.5 * on})`;
+      ctx.beginPath();
+      ctx.arc(fx, fy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
   drift(ctx, time, [x, y]) {
     // A few blocky clouds that actually move.
     ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
@@ -832,79 +722,7 @@ const LIVE = {
       ctx.fillRect(sx - 5, sy - 1, 11, 3);
     }
   },
-  cursor(ctx, time, [x, y, w, h, gap, count]) {
-    // The home screen's selection ring hops between tiles, like someone's scrolling.
-    const i = Math.floor(time / 2.2) % count;
-    const k = Math.min(1, (time % 2.2) / 0.18);
-    ctx.strokeStyle = `rgba(223, 246, 255, ${0.35 + 0.35 * k})`;
-    ctx.lineWidth = 4;
-    rr(ctx, x + i * (w + gap) - 6, y - 6, w + 12, h + 12, 14);
-    ctx.stroke();
-  },
-  blink(ctx, time, [x, y, color]) {
-    if (Math.floor(time * 2) % 2) return;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(x, y, 7, 0, Math.PI * 2);
-    ctx.fill();
-  },
-  ticker(ctx, time, [x, y, w, message]) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(x, y - 14, w, 28);
-    ctx.clip();
-    ctx.font = `700 17px ${MONO}`;
-    const span = ctx.measureText(message).width;
-    const off = (time * 60) % span;
-    ctx.fillStyle = "rgba(143, 179, 217, 0.55)";
-    ctx.textBaseline = "middle";
-    ctx.fillText(message, x - off, y);
-    ctx.fillText(message, x - off + span, y);
-    ctx.restore();
-  },
-  needle(ctx, time, [cx, cy, r]) {
-    // Pegged in the red, trembling.
-    const a = Math.PI * 1.93 + Math.sin(time * 23) * 0.025;
-    ctx.strokeStyle = "#fff1c2";
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-    ctx.stroke();
-  },
-  flicker(ctx, time, [x, y, reach], theme) {
-    // One lamp is on its way out.
-    const off = Math.sin(time * 37) > 0.93 || Math.sin(time * 3.1) > 0.985;
-    if (!off) return;
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.beginPath();
-    ctx.moveTo(x - 18, y + 70);
-    ctx.lineTo(x + 18, y + 70);
-    ctx.lineTo(x + reach * 0.55, y + 70 + reach * 1.6);
-    ctx.lineTo(x - reach * 0.55, y + 70 + reach * 1.6);
-    ctx.closePath();
-    ctx.fill();
-  },
-  progress(ctx, time, [x, y, w, h]) {
-    // Always nearly finished; then it starts again.
-    const k = Math.min(0.98, ((time % 9) / 9) ** 0.35);
-    rr(ctx, x, y, w, h, 4);
-    ctx.strokeStyle = "#7dff9a";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.fillStyle = "rgba(125, 255, 154, 0.7)";
-    ctx.fillRect(x + 3, y + 3, (w - 6) * k, h - 6);
-    text(ctx, `${Math.floor(k * 100) === 98 ? 2 : Math.floor(k * 100)}%`, x + w, y - 16, { size: 18, font: MONO, align: "right", color: "#7dff9a" });
-  },
-  spinner(ctx, time, [x, y, r]) {
-    ctx.strokeStyle = "#7dff9a";
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.arc(x, y, r, time * 5, time * 5 + Math.PI * 1.3);
-    ctx.stroke();
-  },
+
 };
 
 /** The few scenery bits that move. Cheap: a handful of shapes a frame. */
@@ -918,7 +736,7 @@ export function paintLive(ctx, level, time, theme = themeFor(level.id)) {
  * A hazard. `live` 0/1; `armed` 0..1 while it arrives (spikes extend); `time` for glow. Coming ones
  * are a dashed warning with the spike slots, so nobody is surprised twice.
  */
-export function paintHazard(ctx, rect, { live, armed = 1, time = 0, theme }) {
+export function paintHazard(ctx, rect, { live, armed = 1, time = 0, theme, kind = "spikes" }) {
   const [x, y, w, h] = rect;
   const pit = isPit(rect);
   if (!live) {
@@ -940,6 +758,8 @@ export function paintHazard(ctx, rect, { live, armed = 1, time = 0, theme }) {
     ctx.restore();
     return;
   }
+  if (kind === "lava") return paintLava(ctx, rect, time, armed);
+  if (kind === "thorns") return paintThorns(ctx, rect, armed);
   const [hot, deep] = theme?.pit ?? ["#ff3b3b", "#2a0508"];
   if (pit) {
     // A shredder at the bottom of the gap, glowing.
@@ -981,6 +801,214 @@ export function paintHazard(ctx, rect, { live, armed = 1, time = 0, theme }) {
   ctx.globalAlpha = 1;
 }
 
+/** Lava: a glowing, slowly churning pool. It rises into place as it arrives. */
+function paintLava(ctx, [x, y, w, h], time, armed) {
+  const rise = Math.max(0, Math.min(1, armed));
+  const top = y + h * (1 - rise);
+  const glow = ctx.createLinearGradient(0, top - 60, 0, top);
+  glow.addColorStop(0, "rgba(255, 110, 20, 0)");
+  glow.addColorStop(1, "rgba(255, 110, 20, 0.35)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(x, top - 60, w, 60);
+  ctx.fillStyle = vgrad(ctx, top, y + h, "#ffb020", "#c2360a");
+  ctx.fillRect(x, top, w, y + h - top);
+  // Churning blobs, blocky like everything else in there.
+  for (let i = 0; i < Math.ceil(w / 22); i++) {
+    const bx = x + i * 22 + ((time * 14 + i * 9) % 22);
+    if (bx > x + w - 10) continue;
+    ctx.fillStyle = i % 2 ? "rgba(255, 240, 150, 0.7)" : "rgba(200, 50, 0, 0.6)";
+    ctx.fillRect(bx, top + 4 + ((i * 7) % Math.max(1, y + h - top - 10)), 10, 6);
+  }
+  ctx.fillStyle = "rgba(255, 245, 190, 0.8)";
+  ctx.fillRect(x, top, w, 2);
+}
+
+/** Thorns: a thicket of spiky branches. */
+function paintThorns(ctx, [x, y, w, h], armed) {
+  const tall = h * Math.max(0, Math.min(1, armed));
+  ctx.fillStyle = "#1c2a14";
+  ctx.fillRect(x, y + h - 6, w, 6);
+  ctx.strokeStyle = "#3d5a24";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let i = 0; i < w / 8; i++) {
+    const tx = x + 4 + i * 8;
+    ctx.moveTo(tx, y + h);
+    ctx.lineTo(tx + (i % 2 ? 5 : -5), y + h - tall);
+  }
+  ctx.stroke();
+  ctx.fillStyle = "#d8453a";
+  for (let i = 0; i < w / 16; i++) ctx.fillRect(x + 6 + i * 16, y + h - tall - 1, 3, 3);
+}
+
+/** Water: see-through, drawn over whoever's swimming, with a moving surface and bubbles. */
+export function paintWater(ctx, [x, y, w, h], time) {
+  ctx.fillStyle = vgrad(ctx, y, y + h, "rgba(60, 130, 230, 0.45)", "rgba(20, 50, 140, 0.62)");
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = "rgba(200, 235, 255, 0.8)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let wx = x; wx <= x + w; wx += 10) {
+    const wy = y + Math.sin(wx / 30 + time * 3) * 2.5;
+    if (wx === x) ctx.moveTo(wx, wy);
+    else ctx.lineTo(wx, wy);
+  }
+  ctx.stroke();
+  ctx.fillStyle = "rgba(220, 245, 255, 0.5)";
+  for (let i = 0; i < w / 40; i++) {
+    const k = (time * (0.4 + hash(i) * 0.5) + hash(i + 9)) % 1;
+    ctx.fillRect(x + hash(i + 3) * w, y + h - k * h, 5, 5);
+  }
+}
+
+/** Swirling purple, in a frame of black blocks: the way to the next game. */
+function paintPortal(ctx, [x, y, w, h], time) {
+  const b = 12;
+  ctx.fillStyle = "#1a1024";
+  ctx.fillRect(x - b, y - b, w + b * 2, h + b);
+  ctx.fillStyle = "#2c1a3e";
+  for (let i = 0; i < 12; i++) ctx.fillRect(x - b + (i % 4) * ((w + b * 2) / 4) + 2, y - b + Math.floor(i / 4) * 4 + 2, 6, 3);
+  const g = ctx.createLinearGradient(x, y, x + w, y + h);
+  g.addColorStop(0, "#7a2ae0");
+  g.addColorStop(0.5, "#c060ff");
+  g.addColorStop(1, "#5a18b0");
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "rgba(255, 220, 255, 0.35)";
+  for (let i = 0; i < 10; i++) {
+    const k = (time * 0.6 + i / 10) % 1;
+    ctx.fillRect(x + ((hash(i) * w + Math.sin(time * 2 + i) * 10) % w), y + h - k * h, 6, 6);
+  }
+  const spill = ctx.createRadialGradient(x + w / 2, y + h / 2, 10, x + w / 2, y + h / 2, h * 1.2);
+  spill.addColorStop(0, "rgba(190, 90, 255, 0.25)");
+  spill.addColorStop(1, "rgba(190, 90, 255, 0)");
+  ctx.fillStyle = spill;
+  ctx.fillRect(x - h, y - h / 2, w + h * 2, h * 2);
+}
+
+/** SLIM's repair dock: locked (red, the count) until every part is in, then open (green). */
+function paintDock(ctx, [x, y, w, h], { time, open, found, need }) {
+  rr(ctx, x - 10, y + 20, w + 20, h - 20, 6);
+  ctx.fillStyle = "#1c1f24";
+  ctx.fill();
+  ctx.strokeStyle = open ? "#7dff9a" : "#ff5a4a";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  // The Deck on its stand, in bits or whole.
+  rr(ctx, x + 4, y + 30, w - 8, 26, 5);
+  ctx.fillStyle = open ? "#2a2c33" : "rgba(42, 44, 51, 0.4)";
+  ctx.fill();
+  ctx.fillStyle = open ? `rgba(120, 255, 160, ${0.6 + 0.3 * Math.sin(time * 4)})` : "rgba(255, 90, 74, 0.25)";
+  ctx.fillRect(x + 16, y + 34, w - 32, 18);
+  if (open) {
+    const beam = ctx.createLinearGradient(0, y - 60, 0, y + 30);
+    beam.addColorStop(0, "rgba(120, 255, 160, 0)");
+    beam.addColorStop(1, "rgba(120, 255, 160, 0.35)");
+    ctx.fillStyle = beam;
+    ctx.fillRect(x, y - 60, w, 90);
+  }
+  text(ctx, open ? "DOCK READY" : `LOCKED ${found}/${need}`, x + w / 2, y + 74, { size: 13, font: MONO, align: "center", color: open ? "#9dffb8" : "#ff8a7a" });
+}
+
+/** A piece of Thad's Deck, glinting, by its name. */
+export function paintItem(ctx, name, x, y, time) {
+  const bob = Math.sin(time * 2.4 + x) * 3;
+  const glow = ctx.createRadialGradient(x, y + bob, 2, x, y + bob, 30);
+  glow.addColorStop(0, "rgba(255, 230, 140, 0.45)");
+  glow.addColorStop(1, "rgba(255, 230, 140, 0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(x - 30, y - 30 + bob, 60, 60);
+  ctx.save();
+  ctx.translate(x, y + bob);
+  ctx.fillStyle = "#2a2c33";
+  ctx.strokeStyle = "#e8e8e8";
+  ctx.lineWidth = 2;
+  if (name.includes("SCREEN")) {
+    rr(ctx, -14, -9, 28, 18, 3);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#4dd4ff";
+    ctx.fillRect(-10, -6, 20, 12);
+  } else if (name.includes("BATTERY")) {
+    rr(ctx, -12, -7, 22, 14, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#8fe060";
+    ctx.fillRect(-9, -4, 12, 8);
+    ctx.fillStyle = "#e8e8e8";
+    ctx.fillRect(10, -3, 3, 6);
+  } else if (name.includes("STICK")) {
+    ctx.beginPath();
+    ctx.arc(0, 0, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#555a64";
+    ctx.beginPath();
+    ctx.arc(0, 0, 6, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (name.includes("FAN")) {
+    ctx.beginPath();
+    ctx.arc(0, 0, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#9aa0a8";
+    for (let i = 0; i < 5; i++) {
+      const a = time * 8 + (i * Math.PI * 2) / 5;
+      ctx.beginPath();
+      ctx.ellipse(Math.cos(a) * 5, Math.sin(a) * 5, 5, 2, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    rr(ctx, -12, -8, 24, 16, 2);
+    ctx.fillStyle = "#1f4a2a";
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#d4a93a";
+    for (let i = 0; i < 4; i++) ctx.fillRect(-9 + i * 5, 5, 3, 4);
+  }
+  ctx.restore();
+  // A glint now and then.
+  if ((time * 0.7 + x * 0.01) % 1 < 0.12) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(x + 8, y - 16 + bob, 3, 11);
+    ctx.fillRect(x + 4, y - 12 + bob, 11, 3);
+  }
+}
+
+/** The tall, thin, faceless man in the suit. Not anyone in particular. */
+export function paintStalker(ctx, [x, y, w, h], time) {
+  const sway = Math.sin(time * 1.3) * 1.5;
+  ctx.save();
+  ctx.translate(x + w / 2, y);
+  // Tendrils, barely there.
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 4; i++) {
+    const a = Math.sin(time * 1.7 + i) * 0.4;
+    ctx.beginPath();
+    ctx.moveTo(0, 32);
+    ctx.quadraticCurveTo((i - 1.5) * 26, 20 + a * 20, (i - 1.5) * 44 + a * 20, -10 + i * 8);
+    ctx.stroke();
+  }
+  // Legs, suit, arms too long.
+  ctx.fillStyle = "#08080a";
+  ctx.fillRect(-7, 62, 5, h - 62);
+  ctx.fillRect(2, 62, 5, h - 62);
+  ctx.fillRect(-10 + sway * 0.3, 22, 20, 44);
+  ctx.fillRect(-14, 24, 4, 58);
+  ctx.fillRect(10, 24, 4, 58);
+  ctx.fillStyle = "#e8e8e8";
+  ctx.fillRect(-3, 22, 6, 10);
+  ctx.fillStyle = "#6a0a0a";
+  ctx.fillRect(-1.5, 24, 3, 12);
+  // The head: blank.
+  ctx.fillStyle = "#f2f0ec";
+  ctx.beginPath();
+  ctx.ellipse(sway, 10, 8, 11, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function warningMark(ctx, x, y, r, pulse) {
   ctx.fillStyle = `rgba(255, 212, 0, ${0.6 + 0.4 * pulse})`;
   ctx.beginPath();
@@ -997,8 +1025,17 @@ function warningMark(ctx, x, y, r, pulse) {
   ctx.fillRect(x - 1.5, y + r * 0.38, 3, 3);
 }
 
-/** The EXIT: a lit door out of the Deck. `urgent` pulses it (final window); `out` counts escapes. */
-export function paintExit(ctx, [x, y, w, h], { time = 0, urgent = false, out = 0, total = 0 } = {}) {
+/**
+ * The EXIT: a lit door out of the Deck, or the level's own (`style`: "portal", "dock"). `urgent`
+ * pulses it (final window); `out` counts escapes; a dock shows `found` of `need` until it's `open`.
+ */
+export function paintExit(ctx, [x, y, w, h], { time = 0, urgent = false, out = 0, total = 0, style = "door", open = true, found = 0, need = 0 } = {}) {
+  if (style === "portal" || style === "dock") {
+    if (style === "portal") paintPortal(ctx, [x, y, w, h], time);
+    else paintDock(ctx, [x, y, w, h], { time, open, found, need });
+    if (total) text(ctx, `OUT ${out}/${total}`, x + w / 2, y - (style === "portal" ? 26 : -4), { size: 15, font: MONO, align: "center", color: "rgba(230, 210, 255, 0.9)" });
+    return;
+  }
   const pulse = urgent ? 0.55 + 0.45 * Math.sin(time * 9) : 0.85 + 0.15 * Math.sin(time * 2.5);
   // Light spilling onto the floor and wall.
   const spill = ctx.createRadialGradient(x + w / 2, y + h * 0.6, 10, x + w / 2, y + h * 0.6, h * 1.3);

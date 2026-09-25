@@ -14,7 +14,7 @@ import { BOX, createCharacter, drawCharacter } from "../cpi/character.js";
 import { characterOf } from "./steamdeck-ui.js";
 import { createParticles } from "../cpi/particles.js";
 import { fitCanvas } from "../drawing-canvas.js";
-import { MARGIN, paintBackdrop, paintExit, paintHazard, paintLive, paintPlank, paintSolids, paintVoid, themeFor } from "./steamdeck-scenery.js";
+import { MARGIN, paintBackdrop, paintExit, paintHazard, paintItem, paintLive, paintPlank, paintSolids, paintStalker, paintVoid, paintWater, themeFor } from "./steamdeck-scenery.js";
 
 const reducedMotion = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
@@ -26,6 +26,19 @@ const MAX_ZOOM = 2.5;
 const MAX_CACHE_SCALE = 1.3;
 const MAX_BACKDROP_SCALE = 1;
 const SPLATS = ["SPLAT", "BONK", "OOF", "YIKES", "NOPE"];
+
+/** Achievements the Deck pops for silly things (the screens show them, per runner, once a round). */
+export const ACHIEVEMENTS = {
+  lava: "Hot Tub",
+  drowned: "Forgot How Breathing Works",
+  swim: "Fish Mode",
+  portal: "Going Deeper",
+  taken: "He Was Right Behind You",
+  part: "Deck Tech Support",
+};
+
+const inRect = (x, y, [rx, ry, rw, rh]) => x >= rx && x < rx + rw && y >= ry && y < ry + rh;
+const hits = (x, y, w, h, [rx, ry, rw, rh]) => x < rx + rw && x + w > rx && y < ry + rh && y + h > ry;
 
 /**
  * `rotate` leans the whole world with Thad's tilt (host and Deck); otherwise a level indicator shows
@@ -56,6 +69,14 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
   let moteAt = 0;
   let wordAt = 0; // the last floating word: at most two a second, so a pile-up stays readable
   let rumbling = false; // Thad called a shake and it hasn't landed yet
+  let prevStalker = null; // where the stalker stood last snapshot (he vanishes when he takes someone)
+  let taken = null; // the items found, last snapshot
+  let wasOpen = true;
+  let swam = false;
+  let staticAt = 0;
+  let dark = null; // the darkness layer (SLIM), a canvas the size of this one
+  let noise = null; // a tile of TV static
+  let under = 0; // seconds your head has been under water (shown as air bubbles)
   const dustAt = new Map();
 
   const now = () => performance.now() / 1000;
@@ -119,6 +140,14 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
             flash = { until: now() + 0.45, color: "255, 60, 60" };
             shakeIt(8, 0.35);
           }
+          // Why? The Deck has an achievement for that.
+          const cx = x + rw / 2;
+          const cy = y + rh / 2;
+          const lava = next.level.hazards.some((h) => h[4] && h[5] === "lava" && hits(x - 4, y - 4, rw + 8, rh + 8, h));
+          const drowned = (next.level.water ?? []).some((w) => inRect(cx, cy, w));
+          const grabbed = next.level.stalker && prevStalker && Math.hypot(cx - prevStalker[0] - 15, cy - prevStalker[1] - 55) < 220;
+          const cause = lava ? "lava" : drowned ? "drowned" : grabbed ? "taken" : null;
+          if (cause) emit("achievement", { id, mine, key: cause, title: ACHIEVEMENTS[cause] });
         } else if (event === "respawn") {
           fx.emit("ring", x + rw / 2, y + rh / 2, { color: "rgba(255, 255, 255, 0.8)" });
         } else if (event === "escape") {
@@ -126,6 +155,7 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
           fx.emit("ring", x + rw / 2, y + rh / 2, { color: "rgba(120, 255, 160, 0.9)", grow: 160 });
           fx.emit("text", x + rw / 2, y - 10, { text: "ESCAPED!", size: 28, color: "#9dffb8" });
           if (mine) flash = { until: now() + 0.6, color: "80, 255, 140" };
+          if (themeFor(next.level.id).exit === "portal") emit("achievement", { id, mine, key: "portal", title: ACHIEVEMENTS.portal });
         }
         emit(event, { id, mine, strength: event === "land" ? anim.landing : 0 });
       }
@@ -165,6 +195,38 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
         emit("hazard", { index: i });
       } else had.live = live;
     });
+    // Water: your first swim of the round is an achievement.
+    if (you && !swam && primed) {
+      const me = next.world.runners.find((r) => r[0] === you);
+      if (me && me[4] === 0 && (next.level.water ?? []).some((w) => inRect(me[1] + rw / 2, me[2] + rh / 2, w))) {
+        swam = true;
+        emit("achievement", { id: you, mine: true, key: "swim", title: ACHIEVEMENTS.swim });
+      }
+    }
+
+    // Items found (the team shares them), and the exit opening when the last one is.
+    const nowTaken = next.world.taken ?? [];
+    if (taken && primed) {
+      nowTaken.forEach((t, i) => {
+        if (!t || taken[i]) return;
+        const [name, ix, iy] = next.level.items[i];
+        fx.burst("confetti", ix, iy, count(14));
+        fx.emit("ring", ix, iy, { color: "rgba(255, 230, 140, 0.9)", grow: 120 });
+        // Whoever was touching it found it.
+        const finder = next.world.runners.find((r) => hits(r[1], r[2], rw, rh, [ix - 24, iy - 24, 48, 48]));
+        emit("part", { name, found: nowTaken.filter(Boolean).length, need: nowTaken.length, id: finder?.[0], mine: !!finder && finder[0] === you });
+        if (finder) emit("achievement", { id: finder[0], mine: finder[0] === you, key: "part", title: ACHIEVEMENTS.part });
+      });
+    }
+    taken = nowTaken.slice();
+    const open = next.world.exitOpen !== false;
+    if (primed && open && !wasOpen) {
+      fx.burst("confetti", next.level.exit[0] + 35, next.level.exit[1] + 30, count(30));
+      emit("unlocked");
+    }
+    wasOpen = open;
+    prevStalker = next.world.stalker ?? prevStalker;
+
     // Thad's shake: a rumble, then the jolt.
     const hitIn = next.world.shake?.[1] ?? -1;
     if (hitIn >= 0 && !rumbling) {
@@ -328,12 +390,18 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
 
     const roster = game.roster;
     const out = roster.filter((r) => r.escapedMs !== null).length;
-    paintExit(ctx, L.exit, { time: t, urgent: game.phase === "FINAL", out, total: roster.length });
+    const need = (game.world.taken ?? []).length;
+    const found = (game.world.taken ?? []).filter(Boolean).length;
+    paintExit(ctx, L.exit, { time: t, urgent: game.phase === "FINAL", out, total: roster.length, style: theme.exit, open: game.world.exitOpen !== false, found, need });
 
-    L.hazards.forEach(([x, y, w, h, live], i) => {
+    L.hazards.forEach(([x, y, w, h, live, kind], i) => {
       const armedAt = hazardState[i]?.armedAt ?? -10;
-      paintHazard(ctx, [x, y, w, h], { live, armed: Math.min(1, (t - armedAt) / 0.3), time: t, theme });
+      paintHazard(ctx, [x, y, w, h], { live, armed: Math.min(1, (t - armedAt) / 0.3), time: t, theme, kind });
     });
+    (L.items ?? []).forEach(([name, ix, iy], i) => {
+      if (!game.world.taken?.[i]) paintItem(ctx, name, ix, iy, t);
+    });
+    if (game.world.stalker) paintStalker(ctx, game.world.stalker, t);
 
     const colorOf = new Map(roster.map((r) => [r.id, r.color]));
     for (const p of planks.values()) paintPlank(ctx, p, { color: colorOf.get(p.owner) ?? "#ffd400", age: t - p.born, ttl: p.ttl - (performance.now() - curr.at), time: t });
@@ -384,8 +452,49 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
       });
       if (r.state !== 2) heads.push({ id, x: r.x + rw / 2, y: r.y + pose.lift - 14, dead: r.state === 1 });
     }
+    // Water over whoever's in it, so swimmers are tinted and under.
+    for (const w of L.water ?? []) paintWater(ctx, w, t);
     fx.draw(ctx, "front");
     ctx.restore();
+
+    // SLIM: the dark, lit only around the runners (brightest around you) and the dock.
+    if (theme.dark) {
+      dark ??= document.createElement("canvas");
+      if (dark.width !== canvas.width || dark.height !== canvas.height) {
+        dark.width = canvas.width;
+        dark.height = canvas.height;
+      }
+      const d = dark.getContext("2d");
+      d.setTransform(1, 0, 0, 1, 0, 0);
+      d.globalCompositeOperation = "source-over";
+      d.fillStyle = you ? "rgba(2, 4, 3, 0.94)" : "rgba(2, 4, 3, 0.78)";
+      d.fillRect(0, 0, dark.width, dark.height);
+      d.globalCompositeOperation = "destination-out";
+      const light = (wx, wy, r) => {
+        const p = world.transformPoint(new DOMPoint(wx, wy));
+        const pr = r * v.scale * dpr;
+        const g = d.createRadialGradient(p.x, p.y, pr * 0.25, p.x, p.y, pr);
+        g.addColorStop(0, "rgba(0,0,0,1)");
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        d.fillStyle = g;
+        d.fillRect(p.x - pr, p.y - pr, pr * 2, pr * 2);
+      };
+      for (const h of heads) light(h.x, h.y + 20, h.id === you ? 200 : you ? 70 : 170);
+      light(L.exit[0] + L.exit[2] / 2, L.exit[1] + L.exit[3] / 2, 90);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(dark, 0, 0);
+      ctx.restore();
+      // Parts glint faintly through the dark now and then, so you know where to look.
+      (L.items ?? []).forEach(([, ix, iy], i) => {
+        if (game.world.taken?.[i]) return;
+        const k = Math.max(0, Math.sin(t * 1.3 + i * 2.1));
+        if (k < 0.8) return;
+        const p = world.transformPoint(new DOMPoint(ix, iy));
+        ctx.fillStyle = `rgba(255, 235, 150, ${(k - 0.8) * 4})`;
+        ctx.fillRect(p.x / dpr - 2, p.y / dpr - 2, 4, 4);
+      });
+    }
 
     // ---- screen space: crisp at any zoom or lean
     const toScreen = (x, y) => {
@@ -402,8 +511,77 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
       else nameTag(ctx, names.get(h.id) ?? "", p.x, p.y, labelSize, colorOf.get(h.id) ?? "#fff", h.dead);
     }
 
+    // Your air, as bubbles over your head, while you're under water (7 s of it, like the server's).
+    const mine = you && game.world.runners.find((r) => r[0] === you);
+    const pool = mine && mine[4] === 0 && (L.water ?? []).find((w) => inRect(mine[1] + rw / 2, mine[2] + rh / 2, w));
+    under = pool && mine[2] > pool[1] + 2 ? under + dt : 0;
+    if (under > 0.3) {
+      const left = Math.max(0, Math.ceil(7 - under));
+      const head = heads.find((h) => h.id === you);
+      if (head) {
+        const p = toScreen(head.x, head.y);
+        for (let i = 0; i < 7; i++) {
+          ctx.beginPath();
+          ctx.arc(p.x - 30 + i * 10, p.y - labelSize * 2.6, 4, 0, Math.PI * 2);
+          ctx.fillStyle = i < left ? "rgba(200, 240, 255, 0.9)" : "rgba(200, 240, 255, 0.12)";
+          ctx.fill();
+          ctx.strokeStyle = left <= 2 ? "#ff6b5e" : "rgba(20, 60, 120, 0.9)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+    }
+
     if (!rotate && mode === "follow" && follow) exitPointer(ctx, toScreen, L.exit, width, height, labelSize);
     if (!rotate && Math.abs(v.tilt) > 0.04) level(ctx, v.tilt, game.world.maxTilt, width, labelSize);
+
+    // Static when the stalker is close: your own closeness on a phone, the nearest runner's elsewhere.
+    let near = game.you?.near ?? 0;
+    if (!you && game.world.stalker) {
+      const [sx, sy] = game.world.stalker;
+      for (const h of heads) near = Math.max(near, 0.3 * (1 - Math.hypot(h.x - sx - 15, h.y + 20 - sy - 55) / 250));
+    }
+    if (near > 0.02) {
+      if (!noise) {
+        noise = document.createElement("canvas");
+        noise.width = noise.height = 96;
+        const n = noise.getContext("2d");
+        const img = n.createImageData(96, 96);
+        for (let i = 0; i < img.data.length; i += 4) {
+          const c = Math.random() * 255;
+          img.data[i] = img.data[i + 1] = img.data[i + 2] = c;
+          img.data[i + 3] = 255;
+        }
+        n.putImageData(img, 0, 0);
+      }
+      ctx.save();
+      // Heavy on your own phone (that's the scare), light on shared screens (they need to see).
+      ctx.globalAlpha = you ? Math.min(0.45, near * 0.5) : Math.min(0.18, near * 0.5);
+      ctx.fillStyle = ctx.createPattern(noise, "repeat");
+      ctx.translate(-Math.random() * 96, -Math.random() * 96);
+      ctx.fillRect(0, 0, width + 96, height + 96);
+      ctx.restore();
+      if (near > 0.25 && t - staticAt > 0.5) {
+        staticAt = t;
+        emit("static", { near });
+      }
+    }
+
+    // How many parts are still out there.
+    if (L.items?.length) {
+      const got = (game.world.taken ?? []).filter(Boolean).length;
+      ctx.save();
+      ctx.font = `700 ${labelSize}px "Roboto Mono", monospace`;
+      const label = got === L.items.length ? "DECK REASSEMBLED · GO TO THE DOCK" : `DECK PARTS ${got}/${L.items.length}`;
+      const w = ctx.measureText(label).width + 16;
+      ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+      roundedRect(ctx, 8, height - labelSize * 2.2 - 6, w, labelSize * 2, labelSize);
+      ctx.fill();
+      ctx.fillStyle = got === L.items.length ? "#9dffb8" : "#ffe08a";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, 16, height - labelSize * 1.2 - 6);
+      ctx.restore();
+    }
 
     if (flash.until > t) {
       const k = (flash.until - t) / 0.5;

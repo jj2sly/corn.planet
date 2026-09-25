@@ -68,10 +68,21 @@ function buildRound(s) {
   const canvas = el("canvas", { class: "sd-canvas", "aria-hidden": "true" });
   hh.screen.append(canvas);
   hh.setStatus({ extra: el("span", { class: "cpi-hh-chip", text: `HELD BY ${g0.thad.name}` }) });
+  const achieved = new Set();
   const view = createWorldView(canvas, {
     rotate: true,
     labels: true,
-    onEvent: (type) => {
+    onEvent: (type, detail = {}) => {
+      if (type === "part") hh.notify(`FOUND ${detail.name} · ${detail.found}/${detail.need}`, { kind: "ok", icon: "🔧" });
+      else if (type === "unlocked") {
+        hh.notify("DECK REASSEMBLED · THE DOCK IS OPEN", { kind: "ok", icon: "✓", replace: true });
+        hh.flash("ok");
+      } else if (type === "achievement" && !achieved.has(`${detail.id}:${detail.key}`)) {
+        // Once per agent per achievement a round: news, not spam.
+        achieved.add(`${detail.id}:${detail.key}`);
+        const who = g.roster.find((r) => r.id === detail.id)?.name ?? "Someone";
+        hh.notify(`${who}: ${detail.title}`, { kind: "info", icon: "🏆", ms: 2000 });
+      }
       if (type === "plank") playSfx("plank_place", { volume: 0.7 });
       else if (type === "hazard") playSfx("hazard_arm");
       else if (type === "rumble") {
