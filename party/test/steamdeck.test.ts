@@ -8,7 +8,7 @@ import { createAuthVerifier } from "../server/auth.ts";
 import { PartyDb } from "../server/db.ts";
 import { PartyError } from "../server/errors.ts";
 import { CAST, dealCast } from "../public/js/games/steamdeck-cast.js";
-import { PLANK, SHAKE, TIMING } from "../server/games/steamdeck/game.ts";
+import { PLANK, SHAKE, steamDeckGame, TIMING } from "../server/games/steamdeck/game.ts";
 import { LEVELS, type Level } from "../server/games/steamdeck/levels.ts";
 import { jolt, newBody, PHYS, stepBody, type Arena } from "../server/games/steamdeck/physics.ts";
 import type { Room } from "../server/rooms.ts";
@@ -228,6 +228,12 @@ describe("Escape Thad's Steam Deck: the cast and Thad's shake", () => {
 });
 
 describe("Escape Thad's Steam Deck: the games' own rules", () => {
+  it("offers the lobby every game in levels.ts, and as many games per match as there are", () => {
+    assert.deepEqual((steamDeckGame.catalog as { games: { id: string }[] }).games.map((g) => g.id), LEVELS.map((l) => l.id));
+    assert.equal(steamDeckGame.parseSettings({ rounds: 99 }).rounds, LEVELS.length);
+    assert.equal(steamDeckGame.parseSettings({ rounds: 0 }).rounds, 1);
+  });
+
   beforeEach(() => mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] }));
   afterEach(() => mock.timers.reset());
 

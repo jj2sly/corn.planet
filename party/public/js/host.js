@@ -353,9 +353,12 @@ const SETTINGS_FORMS = {
     ];
   },
   steamdeck(settings, configure) {
+    // The Deck's games come from the server (levels.ts), so a new level shows up here by itself.
+    const games = config.games.find((g) => g.id === "steamdeck")?.catalog?.games ?? [];
+    const counts = games.map((_, i) => [i + 1, String(i + 1)]);
     return [
-      choiceGroup("Games", "rounds", [[1, "1"], [2, "2"], [3, "3"], [4, "4"]], settings.rounds, (v) => configure({ settings: { rounds: v } })),
-      el("p", { class: "hint", text: "One game per round, picked at random: Blockcraft, SLIM, Fire Kid & Ice Girl, Astro Blaster. The session leader is Thad first, then Thad rotates. Keyboard, mouse or touch." }),
+      choiceGroup("Games", "rounds", counts, settings.rounds, (v) => configure({ settings: { rounds: v } })),
+      el("p", { class: "hint", text: `One game per round, picked at random: ${games.map((g) => g.name).join(", ")}. The session leader is Thad first, then Thad rotates. Keyboard, mouse or touch.` }),
     ];
   },
 };

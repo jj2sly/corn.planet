@@ -91,6 +91,9 @@ Level features (any level can use them):
 - **Achievements**: the Deck pops silly ones (lava death, drowning, first swim, a part found, the portal,
   being taken), on your phone for your own and on the big screen for everyone, once each per round.
 
+Adding a game is two files: its level in `levels.ts` and its look in `steamdeck-scenery.js` (theme by id).
+The lobby's "Games" choice and hint come from `levels.ts` through the game's catalog in `/api/config`.
+
 Every level must be escapable by every character in every phase, without planks or tilt. Check it with
 `node scripts/steamdeck-reach.ts [levelId]` after changing a level or the cast's stats: it searches each
 level with the real physics (`physics.ts`) for each distinct movement in the cast and fails on any exit or

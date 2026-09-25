@@ -592,6 +592,8 @@ export const steamDeckGame: GameDefinition<SteamDeckSettings> = {
   minPlayers: 2,
   maxPlayers: 8,
   defaultSettings: { rounds: 3 },
+  /** The games on the Deck, so the lobby's "Games" choice and hint follow levels.ts. */
+  catalog: { games: LEVELS.map((l) => ({ id: l.id, name: l.name })) },
   parseSettings(raw: unknown): SteamDeckSettings {
     const input = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
     // One game per round, in a random order, never the same one twice in a match.
