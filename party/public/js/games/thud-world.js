@@ -12,6 +12,7 @@ import { fitCanvas } from "../drawing-canvas.js";
 import { playSfx } from "./mycob-sound.js";
 import { drawBlock, drawBuilding, drawPig, drawRedCow, drawSling, MATERIAL_COLORS, paintBackdrop } from "./thud-art.js";
 import { lookFor } from "./thud-birds.js";
+import { frameShot } from "./thud-camera.js";
 import { createSnapshotBuffer } from "./thud-interp.js";
 import { arc } from "./thud-rules.js";
 
@@ -99,9 +100,10 @@ function boltPath(x, y) {
 /**
  * The world view. Options: `mode` "host" | "phone", `you` (a player id: highlights your bird and
  * cursor), `onFx(fx)` for each effect as it's shown (notifications, rumble), `sound` (host: all
- * effects; phone: only a few), `maxDpr`.
+ * effects; phone: only a few), `maxDpr`, `windBadge` (draw the wind in the corner; a screen with
+ * its own HUD shows it there instead).
  */
-export function createThudView(canvas, { mode = "host", you = null, onFx = null, sound = true, maxDpr = 2 } = {}) {
+export function createThudView(canvas, { mode = "host", you = null, onFx = null, sound = true, maxDpr = 2, windBadge: showWind = true } = {}) {
   const ctx = canvas.getContext("2d");
   const fx = createParticles({ max: mode === "host" ? 380 : 220 });
   const buf = createSnapshotBuffer({ delayMs: DELAY_MS });
@@ -138,6 +140,8 @@ export function createThudView(canvas, { mode = "host", you = null, onFx = null,
   let cowPhaseAt = 0;
   let lastPhase = null;
   let groundTops = null;
+  /** Screen pixels the page's HUD covers at the top and bottom: framing keeps the action clear. */
+  let insets = { top: 0, bottom: 0 };
   /** Block sprites by scale bucket: a block's detailed texture is drawn once, then just blitted. */
   const spriteSets = new Map();
   let shadowSprite = null;
@@ -357,28 +361,14 @@ export function createThudView(canvas, { mode = "host", you = null, onFx = null,
   }
 
   // ---------------------------------------------------------------- camera
+  //
+  // The camera frames a *box* of the world for each moment (the sling while aiming, the bird in
+  // flight, the fort as it settles, the build zone while building) and fits it to the screen,
+  // minus what the HUD covers. Spare height goes to the sky, not the dirt: views sit on the ground.
+  // Every box has a floor and a ceiling on zoom, so a small phone and a TV both frame it sensibly.
 
   function frameFor(width, height) {
-    const L = g.level;
-    const whole = () => {
-      const s = Math.min(width / (L.width + 40), height / (L.groundY + 140 - 60));
-      return { x: L.width / 2, y: L.groundY + 120 - height / s / 2, s };
-    };
-    const phone = (cx, cy, span) => {
-      const s = Math.min(width / span, height / (span * 0.62));
-      return { x: cx, y: Math.min(cy, L.groundY + 110 - height / s / 2), s };
-    };
-    // The Red Cow's moment: every screen pans in to watch it grow.
-    if (g.phase === "COW") return phone(L.cowX - 160, L.groundY - 200, 900);
-    if (camMode === "map" || mode === "host") return whole();
-    if (g.phase === "BUILD" || g.phase === "SELECT" || g.phase === "LAUNCH") return phone(430, L.groundY - 220, 980);
-    if (g.phase === "ACTION") {
-      const bird = bodies.find((b) => b.row[1] === "B" && !b.leaving);
-      // Lead the bird a little in the way it's going, so you see what it's about to hit.
-      if (bird) return phone(Math.max(700, bird.x + 200 + Math.max(-150, Math.min(260, bird.vx * 0.2))), Math.min(bird.y + Math.max(-80, Math.min(120, bird.vy * 0.12)), L.groundY - 260), 1500);
-      return phone(900, L.groundY - 300, 1650);
-    }
-    return phone(1500, L.groundY - 300, 1800);
+    return frameShot(g, bodies, { width, height, insets, mode, camMode, ghost, top: TOP });
   }
 
   function moveCamera(width, height, dt) {
@@ -387,31 +377,42 @@ export function createThudView(canvas, { mode = "host", you = null, onFx = null,
       Object.assign(cam, target, { ready: true });
       return;
     }
-    // Position eases quicker than zoom: the frame follows, then settles.
-    const kp = 1 - Math.exp(-dt * (g.phase === "ACTION" ? 6 : 3.5));
-    const ks = 1 - Math.exp(-dt * 2.8);
+    // Follow a bird briskly; ease everything else. Zoom eases in log space, so zooming in and out
+    // feel the same speed.
+    const chasing = g.phase === "ACTION" && g.action?.stage === "FLIGHT";
+    const kp = 1 - Math.exp(-dt * (chasing ? 7 : 4));
+    const ks = 1 - Math.exp(-dt * (chasing ? 3.2 : 3.6));
     cam.x += (target.x - cam.x) * kp;
     cam.y += (target.y - cam.y) * kp;
-    cam.s += (target.s - cam.s) * ks;
+    cam.s = Math.exp(Math.log(cam.s) + (Math.log(target.s) - Math.log(cam.s)) * ks);
   }
 
   // ---------------------------------------------------------------- caches
 
+  /**
+   * The scenery, painted once per scale step (half octaves) and kept: a zooming camera reuses a
+   * sharper copy rather than repainting mid-shot.
+   */
   function ensureBackdrop(scale) {
     const L = g.level;
-    const s = Math.min(1, Math.max(0.2, scale));
-    if (backdrop && backdrop.theme === L.theme && Math.abs(backdrop.s - s) / s < 0.2) return backdrop;
+    const want = Math.min(1, Math.max(0.25, 2 ** (Math.ceil(Math.log2(Math.max(0.01, scale)) * 2) / 2)));
+    if (backdrop?.theme !== L.theme || backdrop?.id !== L.id) backdrop = { theme: L.theme, id: L.id, sizes: new Map() };
+    let best = null;
+    for (const [q, c] of backdrop.sizes) if (q >= want && (!best || q < best.s)) best = { canvas: c, s: q };
+    if (best) return best;
     const W = L.width + 800;
     const H = L.groundY + 400 - TOP;
     const off = document.createElement("canvas");
-    off.width = Math.ceil(W * s);
-    off.height = Math.ceil(H * s);
+    off.width = Math.ceil(W * want);
+    off.height = Math.ceil(H * want);
     const c = off.getContext("2d");
-    c.scale(s, s);
+    c.scale(want, want);
     c.translate(400, -TOP);
     paintBackdrop(c, L, { top: TOP });
-    backdrop = { canvas: off, s, theme: L.theme };
-    return backdrop;
+    // Keep the two sharpest: enough for any zoom, bounded memory.
+    backdrop.sizes.set(want, off);
+    if (backdrop.sizes.size > 2) backdrop.sizes.delete(Math.min(...backdrop.sizes.keys()));
+    return { canvas: off, s: want };
   }
 
   const bucketOf = (scale) => (scale <= 0.6 ? 0.5 : scale <= 1.3 ? 1 : 2);
@@ -575,6 +576,16 @@ export function createThudView(canvas, { mode = "host", you = null, onFx = null,
         ctx.rotate(a);
         drawBuilding(ctx, type, Number(tier) || 1, hw, hh, { t, disabled: !!(flags & 4), broken: !!(flags & 8), waterlogged: !!(flags & 16), crack, progress: s?.progress ?? 0 });
         ctx.restore();
+        // Build phase: a building that's badly hurt pulses, so the team sees what needs protecting.
+        if (g.phase === "BUILD" && s && s.maxHp && s.hp < s.maxHp * 0.5) {
+          const pulse = 0.5 + Math.sin(t * 5) * 0.5;
+          ctx.beginPath();
+          ctx.arc(x, y, Math.max(hw, hh) + 10 + pulse * 4, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 90, 70, ${0.5 + pulse * 0.4})`;
+          ctx.lineWidth = 3 / Math.max(0.3, cam.s);
+          ctx.stroke();
+          label(ctx, `⚠ ${Math.round((s.hp / s.maxHp) * 100)}%`, x, y - Math.max(hw, hh) - 18, 13 / Math.max(0.3, cam.s) / 2.2, "#ff8a7a");
+        }
         if (s?.breeders?.length && g.phase === "BUILD") {
           const names = s.breeders.map((id) => g.roster.find((p) => p.id === id)?.name ?? "?").join(" + ");
           label(ctx, `♥ ${names} · 1 more`, x, y - hh - 16, 14 / Math.max(0.3, cam.s) / 2.2, "#ff9ad8");
@@ -626,7 +637,7 @@ export function createThudView(canvas, { mode = "host", you = null, onFx = null,
       flash *= Math.exp(-dt * 8);
     }
     drawVignette(width, height);
-    windBadge(ctx, width);
+    if (showWind) windBadge(ctx, width);
   }
 
   function contactShadows() {
@@ -1139,6 +1150,10 @@ export function createThudView(canvas, { mode = "host", you = null, onFx = null,
     },
     setCamera(next) {
       camMode = next;
+    },
+    /** { top, bottom }: screen pixels covered by the page's HUD. */
+    setInsets(next) {
+      insets = { top: next?.top ?? 0, bottom: next?.bottom ?? 0 };
     },
     get camera() {
       return camMode;

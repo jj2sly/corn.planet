@@ -78,9 +78,10 @@ export function kernelMark(extra = "") {
  * The device. Options: title, owner (a "PROPERTY OF" sticker), layout ("auto" | "landscape" |
  * "portrait"), left / right (grip contents; decorative by default), below (portrait-only extras
  * under the controls), shoulders ({ left, right } buttons, or decorative), rock (the device leans a
- * little with setTilt), label (the screen's accessible name).
+ * little with setTilt), label (the screen's accessible name), under (what's printed on the bezel
+ * under the screen: the CPI KERNEL mark by default, or a game's own menu bar).
  */
-export function createHandheld({ title = "", owner = null, layout = "auto", left = null, right = null, below = null, shoulders = null, rock = false, label = "Game screen", className = "" } = {}) {
+export function createHandheld({ title = "", owner = null, layout = "auto", left = null, right = null, below = null, shoulders = null, rock = false, label = "Game screen", className = "", under = null } = {}) {
   const screen = el("div", { class: "cpi-hh-screen", role: "group", "aria-label": label });
   const glass = el("div", { class: "cpi-hh-glass", "aria-hidden": "true" });
   const overlay = el("div", { class: "cpi-hh-overlay", hidden: true });
@@ -109,7 +110,7 @@ export function createHandheld({ title = "", owner = null, layout = "auto", left
     "div",
     { class: "cpi-hh-face" },
     el("div", { class: "cpi-hh-bezel" }, status, el("div", { class: "cpi-hh-screen-wrap" }, screen, glass, overlay)),
-    el("div", { class: "cpi-hh-under", "aria-hidden": "true" }, kernelMark("small"), el("span", { class: "cpi-hh-led" }), sticker),
+    under ? el("div", { class: "cpi-hh-under menu" }, under) : el("div", { class: "cpi-hh-under", "aria-hidden": "true" }, kernelMark("small"), el("span", { class: "cpi-hh-led" }), sticker),
   );
   const node = el(
     "div",

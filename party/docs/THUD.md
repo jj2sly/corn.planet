@@ -41,9 +41,16 @@ Tuning: **`server/games/thud/config.ts`** (and per-level numbers in `levels.ts`)
 | Next bird | X | X, or tap one in "Your birds" |
 | Build | ← → move, Enter place, Esc cancel | pick a card, drag on the screen or ◀ ▶, PLACE |
 | Map | M | Y |
+| Menu tabs | 1–6, Esc closes | the tabs under the screen |
 
-No motion sensors, gamepad or Steam Deck needed. Portrait phones get the controls under the screen,
-landscape phones and laptops get grips either side, and wide screens put the panel beside the device.
+No motion sensors, gamepad or Steam Deck needed. On a phone the whole page *is* the handheld: the
+screen takes every spare pixel (the site header is hidden, nothing scrolls), portrait phones get the
+controls under it, landscape phones and laptops grips either side. The glass carries a HUD with what
+you need now (corruption and the Red Cow, the sky, your bird and count) and a bar with whatever you
+must do before the timer runs out (Ready, Place, Skip, give a bird, the report). Everything else is in
+the device's menu, printed under the screen: BIRDS, BUILD, SKY (weather), TEAM, MENU (help, sound,
+controls). On a phone a tab slides a sheet over the screen (GAME, the tab again, B or Esc closes it,
+and it gets out of the way for your shot); from 1200 px wide the pages sit beside the device instead.
 Mashing the controls never zooms the page: the device has `touch-action: manipulation` and its grips
 `touch-action: none` (hub, gaps and labels included), and `cpi/handheld.js` also stops iOS's
 two-thumb pinch and old-iOS double-tap on the grips. Pinch-zoom still works on the page itself.
@@ -51,8 +58,7 @@ two-thumb pinch and old-iOS double-tap on the grips. Pinch-zoom still works on t
 **Tutorial.** A player's first game opens six short cards (build, aim & launch, their bird's ability,
 the team's goal, weather, teamwork) drawn with the game's own art (`thud-tutorial.js`; the words are
 in `thud-howto.js`, built from config so the build timer and abilities never drift). It opens once per
-browser, gets out of the way when it's your shot, and is skippable (Skip, Esc, tap outside). The "?" on
-the device and "How to play" under it bring it back.
+browser, gets out of the way when it's your shot, and is skippable (Skip, Esc, tap outside). MENU → "How to play" brings it back.
 
 ## Birds (`public/js/games/thud-birds.js`)
 
@@ -217,6 +223,12 @@ idle or random play win. Tune with real players; bots can't aim.
   screen's own frame rate. Late or bunched packets don't stutter; a pause between shots resyncs.
   Effects (breaks, pops, blasts) are held until the drawing reaches the tick they happened in, so the
   sound and particles land with the visible hit. Nothing is predicted: the server still decides.
+- **Camera** (`thud-camera.js`, pure and tested). Each moment frames a box of the world and fits it
+  to the screen minus the HUD, sitting on the ground (spare height is sky): your aim (the sling a
+  quarter in, steady while you pull), your bird in flight (followed, looking ahead, taking in the fort
+  as it arrives), the fort settling, your build zone or the building you're placing, the Red Cow's
+  moment. Upright phones crop the sides to fill their height; zoom eases in log space. The big screen
+  shows the whole field and leans in on the fort when a shot arrives. Y / M shows the whole map.
 - **Drawing cost.** Blocks are painted once per look (material, size, cracks) into cached sprites and
   blitted each frame; the scenery is one cached image. Measured at ~0.4 ms (phone) to ~1.3 ms (host,
   1422 × 677 at 2×) a frame, worst frames under 4 ms.
@@ -236,6 +248,8 @@ idle or random play win. Tune with real players; bots can't aim.
 | `public/js/cpi/bird.js` | CPI bird characters (look + pose), badges and animation |
 | `public/js/cpi/particles.js` | pooled effects: dust, sparks, debris, confetti, rings, text, smoke, embers, shards, glow |
 | `public/js/games/thud-interp.js` | snapshot smoothing on the server's tick clock, with effects held to their moment |
+| `public/js/games/thud-camera.js` | framing a moment's box of the world on any screen shape, clear of a HUD |
+| `public/js/cpi/handheld.js` `under` | a game's own menu bar printed on the bezel under the screen |
 | `public/js/games/thud-rules.js` | placement against zones and bodies; the aiming arc; pull-back aiming |
 
 ## Custom skins

@@ -7,8 +7,9 @@ import { drawBird } from "../public/js/cpi/bird.js";
 import { drawBlock, drawBuilding, drawPig, drawRedCow, drawSling, MATERIAL_COLORS, paintBackdrop, PIG_LOOK } from "../public/js/games/thud-art.js";
 import { BIRDS, lookFor, SKINS } from "../public/js/games/thud-birds.js";
 import { abilityHow, tutorialCards } from "../public/js/games/thud-howto.js";
-import { createSnapshotBuffer, type Row } from "../public/js/games/thud-interp.js";
-import { BUILDINGS, TIMING, WORLD } from "../server/games/thud/config.ts";
+import { fortBox, frameShot } from "../public/js/games/thud-camera.js";
+import { createSnapshotBuffer, type Row, type Sampled } from "../public/js/games/thud-interp.js";
+import { BUILDINGS, SLINGSHOT, TIMING, WORLD } from "../server/games/thud/config.ts";
 import { LEVELS } from "../server/games/thud/levels.ts";
 
 const TICK = 50;
@@ -180,5 +181,77 @@ describe("Angry Thud's Revenge: the art", () => {
       assert.ok(calls.length > 200, `${level.id} has scenery`);
     }
     assert.equal(JSON.stringify(LEVELS), before);
+  });
+});
+
+describe("Angry Thud's Revenge: the camera", () => {
+  const level = { width: WORLD.width, groundY: WORLD.groundY, cowX: 2255, zones: [[40, 405], [535, 800]] as [number, number][], sling: { x: SLINGSHOT.x, y: SLINGSHOT.y } };
+  const body = (id: string, code: string, x: number, y: number, r = 18, vx = 0, vy = 0, flags = 0): Sampled => ({ row: [id, code, "", x, y, 0, r, r, 0, flags, -1], x, y, a: 0, vx, vy, leaving: false });
+  const fort = [body("p1", "p", 1400, 860), body("p2", "p", 1800, 700), body("b1", "b", 1600, 800, 40), body("w1", "b", 600, 850, 20, 0, 0, 2)];
+  const game = (phase: string, stage: string | null = null) => ({ level, phase, action: stage ? { stage } : null });
+  /** Where a world point lands on the screen. */
+  const onScreen = (cam: { x: number; y: number; s: number }, w: number, h: number, x: number, y: number): [number, number] => [(x - cam.x) * cam.s + w / 2, (y - cam.y) * cam.s + h / 2];
+
+  it("frames your shot close: the sling a quarter of the way in, the ground clear of the HUD", () => {
+    for (const [w, h] of [[320, 480], [343, 400], [480, 280], [800, 520]] as const) {
+      const insets = { top: 36, bottom: 58 };
+      const cam = frameShot(game("ACTION", "AIM"), fort, { width: w, height: h, insets, mode: "phone" });
+      const [sx] = onScreen(cam, w, h, level.sling.x, level.sling.y);
+      assert.ok(sx > w * 0.15 && sx < w * 0.5, `${w}×${h}: the sling sits in from the left (${Math.round(sx)})`);
+      const [, gy] = onScreen(cam, w, h, 0, level.groundY);
+      assert.ok(gy < h - insets.bottom && gy > h * 0.5, `${w}×${h}: the ground is above the bar (${Math.round(gy)})`);
+      const span = w / cam.s;
+      // The old framing showed ~1650 units on every phone.
+      assert.ok(span >= 550 && span <= 1250, `${w}×${h}: close, not the whole field (${Math.round(span)} units across)`);
+    }
+  });
+
+  it("follows a bird in flight, looking ahead of it, and settles on the fort after", () => {
+    const w = 400;
+    const h = 300;
+    const bird = body("B1", "B", 1000, 420, 16, 700, -100);
+    const cam = frameShot(game("ACTION", "FLIGHT"), [...fort, bird], { width: w, height: h, mode: "phone" });
+    const [bx, by] = onScreen(cam, w, h, bird.x, bird.y);
+    assert.ok(bx > 0 && bx < w * 0.5, `the bird is in view, left of centre (${Math.round(bx)})`);
+    assert.ok(by > 0 && by < h, "and not off the top or bottom");
+    const settle = frameShot(game("ACTION", "FLIGHT"), fort, { width: w, height: h, mode: "phone" });
+    const [fx] = onScreen(settle, w, h, 1600, 800);
+    assert.ok(fx > 0 && fx < w, "no bird left: the fort's in view");
+  });
+
+  it("gives the big screen the whole field, leaning in on the fort when a shot gets there", () => {
+    const w = 1422;
+    const h = 677;
+    const overview = frameShot(game("ACTION", "AIM"), fort, { width: w, height: h, mode: "host" });
+    for (const x of [level.sling.x, level.cowX, level.zones[0]![0]]) {
+      const [px] = onScreen(overview, w, h, x, 800);
+      assert.ok(px >= 0 && px <= w, `${x} is on the big screen`);
+    }
+    const bird = body("B1", "B", 1350, 700, 16, 500, 200);
+    const lean = frameShot(game("ACTION", "FLIGHT"), [...fort, bird], { width: w, height: h, mode: "host" });
+    assert.ok(lean.s > overview.s * 1.1, "closer on the fort as the bird arrives");
+    const [bx] = onScreen(lean, w, h, bird.x, bird.y);
+    assert.ok(bx >= 0 && bx <= w, "with the bird still in view");
+  });
+
+  it("never shows past the level's edges or below the dirt, and the map shows it all", () => {
+    for (const phase of ["SELECT", "BUILD", "PROCESS", "COW", "OVER"]) {
+      for (const [w, h] of [[320, 560], [1920, 900]] as const) {
+        const cam = frameShot(game(phase), fort, { width: w, height: h, mode: "phone" });
+        assert.ok(cam.x - w / 2 / cam.s >= -400 - 1e-6 && cam.x + w / 2 / cam.s <= level.width + 400 + 1e-6, `${phase} ${w}: inside the level`);
+        assert.ok(cam.y + h / 2 / cam.s <= level.groundY + 150 + 1e-6, `${phase} ${w}: not below the dirt`);
+      }
+    }
+    const map = frameShot(game("ACTION", "AIM"), fort, { width: 400, height: 260, mode: "phone", camMode: "map" });
+    const [l] = onScreen(map, 400, 260, level.zones[0]![0], 0);
+    const [r] = onScreen(map, 400, 260, level.cowX, 0);
+    assert.ok(l >= 0 && r <= 400, "the map fits the build zones through the Red Cow");
+  });
+
+  it("finds the fort from what's standing (not the team's own walls)", () => {
+    const box = fortBox(fort, level);
+    assert.ok(box.l <= 1400 - 18 && box.l > 700, "the team's wall at 600 isn't part of the fort");
+    assert.ok(box.r >= level.cowX + 150);
+    assert.deepEqual(Object.keys(fortBox([], level)).sort(), ["l", "r", "t"], "an empty fort still frames the Red Cow's side");
   });
 });

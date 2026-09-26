@@ -1,9 +1,16 @@
-// Angry Thud's Revenge on a phone (or a laptop), inside the CPI handheld. The screen shows the
-// battlefield, following what matters to you: your build zone, the sling when it's your shot, your
-// bird in flight. The device's own buttons do the work: the d-pad aims (◀ ▶ angle, ▲ ▼ power) or
-// moves what you're placing, A launches / uses your bird's ability / confirms, B cancels, X picks
-// your next bird, Y shows the whole map. You can also drag back on the screen like a slingshot.
-// Keyboard: arrows, Space / Enter, Esc, X, M.
+// Angry Thud's Revenge on a phone (or a laptop), inside the CPI handheld. The whole page is the
+// device: the screen takes every spare pixel and shows the battlefield, following what matters to
+// you (your build zone, the sling when it's your shot, your bird in flight), with a HUD on the glass
+// for what you need right now (corruption, the weather, your bird, and a bar with whatever you have
+// to do before the timer runs out: ready, place, skip, give a bird). Everything else lives in the
+// device's menu, the bar of tabs printed under the screen: BIRDS, BUILD, SKY, TEAM, MENU. On a phone
+// a tab slides a sheet over the screen (GAME closes it); on a wide screen the tab's page sits beside
+// the device instead, and the screen stays whole.
+//
+// The device's own buttons do the playing: the d-pad aims (◀ ▶ angle, ▲ ▼ power) or moves what
+// you're placing, A launches / uses your bird's ability / confirms, B cancels, X picks your next bird,
+// Y shows the whole map. You can also drag back on the screen like a slingshot.
+// Keyboard: arrows, Space / Enter, Esc, X, M, and 1–6 for the menu tabs.
 //
 // Aim, steering and your build cursor go over tools.stream (fire-and-forget); everything that
 // changes the game (launch, ability, build, donate…) over tools.request, and the server decides.
@@ -11,16 +18,19 @@
 import { el } from "../common.js";
 import { animateBirds } from "../cpi/bird.js";
 import { createHandheld, dpad, faceButton, systemCard } from "../cpi/handheld.js";
-import { isMuted, playSfx, setMuted } from "./mycob-sound.js";
+import { isMuted, playSfx, setMuted, soundControl } from "./mycob-sound.js";
 import { birdType, SKINS } from "./thud-birds.js";
+import { abilityHow } from "./thud-howto.js";
 import { aimFromPull, clearOf, placement } from "./thud-rules.js";
-import { birdBadge, birdCards, cowBand, forecastPanel, launchSteps, levelCard, liveTimer, meters, overReport, PHASE_TITLE, processBanner, TITLE } from "./thud-ui.js";
 import { closeTutorial, showTutorial, tutorialSeen } from "./thud-tutorial.js";
+import { birdBadge, birdCards, cowBand, forecastPanel, launchSteps, levelCard, liveTimer, meters, overReport, PHASE_TITLE, processBanner, TITLE } from "./thud-ui.js";
 import { createThudView } from "./thud-world.js";
 
 const buzz = (pattern) => {
   if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(pattern);
 };
+
+const reducedMotion = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
 /** A button that fires on press (quicker for a game), and on Enter / Space for keyboards. */
 function tappable(button, fn) {
@@ -85,14 +95,22 @@ function muteButton() {
   return b;
 }
 
-/** The "?" on the device's status bar: the tutorial again. */
-function helpButton(open) {
-  const b = el("button", { class: "cpi-hh-sysbtn", type: "button", "aria-label": "How to play", text: "?" });
-  b.addEventListener("click", open);
-  return b;
-}
-
 const ACTION_LABEL = { AIM: "LAUNCH", FLIGHT: "ABILITY", BUILD: "PLACE" };
+
+/** The device's menu, in the order it's printed under the screen. */
+const TABS = [
+  { id: "game", icon: "🎮", label: "GAME", title: "Game" },
+  { id: "birds", icon: "🐦", label: "BIRDS", title: "Your birds" },
+  { id: "build", icon: "🔨", label: "BUILD", title: "Build" },
+  { id: "sky", icon: "⛅", label: "SKY", title: "Weather" },
+  { id: "team", icon: "👥", label: "TEAM", title: "Team" },
+  { id: "menu", icon: "☰", label: "MENU", title: "Menu" },
+];
+
+const WEATHER_ICON = { wind: "🌬️", strong_wind: "🌬️", tornado: "🌪️", dust_storm: "🌫️", acid_rain: "🧪", heavy_rain: "🌧️", hailstorm: "🧊", flood: "🌊", lightning_storm: "⚡", thunderstorm: "⛈️", fog: "🌫️", heat_wave: "🔥", earthquake: "🌋" };
+
+/** Wide enough to put the menu's pages beside the device rather than over its screen. */
+const WIDE = "(orientation: landscape) and (min-width: 1200px)";
 
 function buildScreen(s, tools) {
   const g0 = s.game;
@@ -100,13 +118,15 @@ function buildScreen(s, tools) {
   let g = g0;
   let room = s;
   let phase = null;
-  let panelKey = "";
   let paused = false;
   const aim = { a: 38, p: 0.75 };
   let aimDirty = false;
   let lastAimSent = 0;
   let placing = null;
   let steer = 0;
+  let tab = "game";
+  const wideQuery = globalThis.matchMedia?.(WIDE);
+  let wide = wideQuery?.matches === true;
 
   const request = async (action, payload = {}) => {
     const result = await tools.request("game:input", { action, payload });
@@ -130,29 +150,66 @@ function buildScreen(s, tools) {
   const yBtn = faceButton("Y", { label: "MAP", cls: "l-Y", keyHint: "M" });
   const leftGrip = el("div", { class: "cpi-hh-cluster" }, dpad({ left, right, up, down }));
   const rightGrip = el("div", { class: "cpi-hh-cluster td-face" }, el("div", { class: "cpi-hh-abxy real" }, yBtn, xBtn, bBtn, aBtn));
-  const panel = el("div", { class: "td-panel" });
-  const hh = createHandheld({ title: TITLE, owner: g0.roster.find((p) => p.id === me)?.name?.toUpperCase() ?? null, layout: "auto", left: leftGrip, right: rightGrip, label: "Angry Thud's Revenge", className: "sd-device td-device td-phone" });
+
+  // The menu bar, printed on the bezel under the screen.
+  const tabButtons = new Map();
+  const tabBar = el(
+    "div",
+    { class: "td-tabs", role: "tablist", "aria-label": "Device menu" },
+    TABS.map((t, i) => {
+      const badge = el("span", { class: "td-tab-badge", "aria-hidden": "true", hidden: true });
+      const b = el("button", { class: `td-tab t-${t.id}`, type: "button", role: "tab", id: `td-tab-${t.id}`, "aria-selected": "false", "aria-controls": "td-sheet", title: `${t.title} (${i + 1})` }, el("span", { class: "td-tab-icon", "aria-hidden": "true", text: t.icon }), el("span", { class: "td-tab-label", text: t.label }), badge);
+      b.addEventListener("click", () => setTab(t.id === tab && t.id !== "game" && !wide ? "game" : t.id, { user: true }));
+      tabButtons.set(t.id, { b, badge });
+      return b;
+    }),
+  );
+  const hh = createHandheld({ title: TITLE, owner: g0.roster.find((p) => p.id === me)?.name?.toUpperCase() ?? null, layout: "auto", left: leftGrip, right: rightGrip, label: "Angry Thud's Revenge", className: "sd-device td-device td-phone", under: tabBar });
+  hh.setStatus({ extra: [timer.node, muteButton()] });
   const howTo = () => showTutorial(g, { me });
-  hh.setStatus({ extra: [timer.node, helpButton(howTo), muteButton()] });
+
   const canvas = el("canvas", { class: "sd-canvas td-canvas", "aria-label": "The battlefield. Drag back from the slingshot to aim." });
   hh.screen.append(canvas);
   const view = createThudView(canvas, {
     mode: "phone",
     you: me,
     sound: true,
+    windBadge: false,
     onFx: (e) => {
       if (e.t === "boom" || e.t === "quake") buzz(e.t === "quake" ? [80, 60, 80] : 40);
     },
   });
   view.setAim(() => aim);
-  view.update(g0);
-  const m = meters({ compact: true });
-  const forecast = forecastPanel();
-  const inventory = el("div", { class: "td-inventory", role: "radiogroup", "aria-label": "Your birds" });
-  const status = el("p", { class: "td-status", role: "status" });
-  const howToBtn = el("button", { class: "btn subtle small td-howto", type: "button", text: "? How to play" });
-  howToBtn.addEventListener("click", () => howTo());
-  const node = el("div", { class: "td-phone-wrap" }, hh.node, el("div", { class: "td-under" }, m.node, status, inventory, panel, forecast.node, howToBtn));
+
+  // The HUD on the glass: corruption and the Red Cow (top left), the sky (top right), and the bar
+  // along the bottom: your bird, what's happening, and whatever you have to do about it.
+  const corrFill = el("span", { class: "td-hud-fill" });
+  const corrValue = el("span", { class: "td-hud-value" });
+  const cowValue = el("span", { class: "td-hud-cow" });
+  const corrChip = el("div", { class: "td-hud-chip corruption", role: "meter", "aria-label": "Corruption", "aria-valuemin": "0", "aria-valuemax": "100" }, el("span", { class: "td-hud-label", text: "☣" }), el("span", { class: "td-hud-bar" }, corrFill), corrValue, cowValue);
+  const skyChip = el("button", { class: "td-hud-chip sky", type: "button" });
+  skyChip.addEventListener("click", () => setTab("sky", { user: true }));
+  const hudTop = el("div", { class: "td-hud-top" }, corrChip, skyChip);
+  const birdChip = el("button", { class: "td-bird-chip", type: "button", "aria-label": "Your birds" });
+  birdChip.addEventListener("click", () => setTab("birds", { user: true }));
+  const barMain = el("div", { class: "td-bar-main", role: "status" });
+  const bar = el("div", { class: "td-bar" }, birdChip, barMain);
+  hh.screen.append(hudTop, bar);
+
+  // The menu's page: a sheet over the screen on a phone, a column beside the device when wide.
+  const sheetTitle = el("h2", { class: "td-sheet-title" });
+  const sheetClose = el("button", { class: "td-sheet-close", type: "button", "aria-label": "Back to the game", text: "✕" });
+  sheetClose.addEventListener("click", () => setTab("game", { user: true }));
+  const sheetBody = el("div", { class: "td-sheet-body" });
+  const sheet = el("section", { class: "td-sheet", id: "td-sheet", role: "tabpanel", hidden: true }, el("header", { class: "td-sheet-head" }, sheetTitle, sheetClose), sheetBody);
+  const aside = el("aside", { class: "td-aside", "aria-label": "Device menu" });
+  const node = el("div", { class: "td-phone-wrap" }, hh.node, aside);
+
+  // Clicked buttons let go of focus, so Space / Enter go back to launching, not re-pressing them.
+  node.addEventListener("click", (e) => {
+    const b = e.target instanceof Element ? e.target.closest("button") : null;
+    if (b && e.detail > 0) b.blur();
+  });
 
   const mine = () => g.roster.find((p) => p.id === me);
   const shooting = () => g.phase === "ACTION" && g.action?.shooterId === me;
@@ -245,8 +302,10 @@ function buildScreen(s, tools) {
     const d = def(type);
     const cursor = mine()?.cursor;
     placing = { type, w: d.w, h: d.h, x: cursor ?? (g.level.zones[0][0] + g.level.zones[0][1]) / 2, ok: false, reason: "" };
+    // Placing happens on the battlefield: the sheet gets out of the way.
+    if (!wide) setTab("game");
     movePlacement(placing.x, true);
-    renderPanel(true);
+    refresh(true);
   };
   const movePlacement = (x, stream) => {
     if (!placing) return;
@@ -254,12 +313,12 @@ function buildScreen(s, tools) {
     Object.assign(placing, { x: spot.x, ok: spot.ok, reason: spot.reason });
     view.setGhost({ type: placing.type, x: placing.x, w: placing.w, h: placing.h, ok: placing.ok });
     if (stream) tools.stream({ bx: placing.x });
-    renderPanel(false);
+    renderBar(false);
   };
   const cancelPlacing = () => {
     placing = null;
     view.setGhost(null);
-    renderPanel(true);
+    refresh(true);
   };
   const confirmPlacing = async () => {
     if (!placing) return;
@@ -271,7 +330,7 @@ function buildScreen(s, tools) {
     }
   };
 
-  // ---------------------------------------------------------------- buttons
+  // ---------------------------------------------------------------- buttons and keys
 
   holdable(left, { repeat: () => (placing ? movePlacement(placing.x - 10, true) : stage() === "AIM" ? nudgeAim(1, 0) : null), down: () => stage() === "FLIGHT" && setSteer(-1), up: () => setSteer(0) });
   holdable(right, { repeat: () => (placing ? movePlacement(placing.x + 10, true) : stage() === "AIM" ? nudgeAim(-1, 0) : null), down: () => stage() === "FLIGHT" && setSteer(1), up: () => setSteer(0) });
@@ -282,17 +341,21 @@ function buildScreen(s, tools) {
     if (stage() === "AIM") return launch();
     if (stage() === "FLIGHT") return useAbility();
   };
-  tappable(aBtn, primary);
-  tappable(bBtn, () => (placing ? cancelPlacing() : null));
-  tappable(xBtn, () => {
+  const nextBird = () => {
     const p = mine();
     if (p?.birds.length > 1) request("select", { index: (p.selected + 1) % p.birds.length });
-  });
-  tappable(yBtn, () => view.setCamera(view.camera === "map" ? "auto" : "map"));
+  };
+  const toggleMap = () => view.setCamera(view.camera === "map" ? "auto" : "map");
+  tappable(aBtn, primary);
+  tappable(bBtn, () => (placing ? cancelPlacing() : tab !== "game" && !wide ? setTab("game") : null));
+  tappable(xBtn, nextBird);
+  tappable(yBtn, toggleMap);
   const onKey = (e) => {
     if (!node.isConnected) return removeEventListener("keydown", onKey);
     if (e.target?.closest?.("input, textarea, select")) return;
     const k = e.key;
+    // A focused button (reached with Tab) takes its own Enter / Space.
+    if ((k === " " || k === "Enter") && e.target?.closest?.("button, a")) return;
     if (k === "ArrowLeft" || k === "ArrowRight") {
       e.preventDefault();
       const dir = k === "ArrowLeft" ? -1 : 1;
@@ -305,9 +368,12 @@ function buildScreen(s, tools) {
     } else if ((k === " " || k === "Enter") && !e.repeat) {
       e.preventDefault();
       primary();
-    } else if (k === "Escape") cancelPlacing();
-    else if (k === "x" || k === "X") xBtn.dispatchEvent(new MouseEvent("click", { detail: 0 }));
-    else if (k === "m" || k === "M") view.setCamera(view.camera === "map" ? "auto" : "map");
+    } else if (k === "Escape") {
+      if (placing) cancelPlacing();
+      else if (tab !== "game") setTab("game", { user: true });
+    } else if (k === "x" || k === "X") nextBird();
+    else if (k === "m" || k === "M") toggleMap();
+    else if (/^[1-6]$/.test(k) && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) setTab(TABS[Number(k) - 1].id, { user: true });
   };
   const onKeyUp = (e) => {
     if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && stage() === "FLIGHT") setSteer(0);
@@ -315,173 +381,403 @@ function buildScreen(s, tools) {
   addEventListener("keydown", onKey);
   addEventListener("keyup", onKeyUp);
 
-  // ---------------------------------------------------------------- the panel under the device
+  // ---------------------------------------------------------------- the menu
 
   const btn = (text, fn, cls = "") => {
     const b = el("button", { class: `btn ${cls}`.trim(), type: "button", text });
     b.addEventListener("click", fn);
     return b;
   };
+  const h = (text) => el("h3", { class: "td-h", text });
 
-  function selectPanel() {
-    const p = mine();
-    const skins = el(
-      "div",
-      { class: "td-skins", role: "radiogroup", "aria-label": "Skin (looks only)" },
-      SKINS.map((skin) => {
-        const b = el("button", { class: `td-skin ${p.skin === skin.id ? "on" : ""}`, type: "button", role: "radio", "aria-checked": String(p.skin === skin.id) }, birdBadge(p.bird, skin.id, { size: 40 }), el("span", { text: skin.name }));
-        b.addEventListener("click", () => request("choose", { skin: skin.id }));
-        return b;
-      }),
-    );
-    animateBirds([...skins.querySelectorAll("canvas")]);
-    return [
-      el("h2", { class: "td-h", text: "1 · Pick your bird (how it plays)" }),
-      birdCards(p.bird, p.skin, (bird) => request("choose", { bird })),
-      el("h2", { class: "td-h", text: "2 · Pick a skin (just looks)" }),
-      skins,
-      btn(p.ready ? "READY ✓ (tap to change)" : "READY", () => request("ready", { ready: !p.ready }), p.ready ? "ghost" : ""),
-    ];
+  /** Which page a wide screen shows beside the device when you haven't picked one. */
+  const phaseTab = () => {
+    if (g.phase === "BUILD") return "build";
+    if (g.phase === "OVER" || g.phase === "PROCESS" || g.phase === "COW") return "team";
+    if (g.phase === "ACTION" && g.action?.stage === "NEED_BIRD" && g.action.shooterId !== me) return "team";
+    return "birds";
+  };
+  const shownTab = () => (wide && tab === "game" ? phaseTab() : tab);
+
+  function setTab(next, { user = false } = {}) {
+    if (next === "game" && wide) next = phaseTab();
+    if (user) playSfx("ui_click");
+    const changed = next !== tab;
+    tab = next;
+    for (const [id, { b }] of tabButtons) {
+      const on = id === shownTab() || (id === "game" && tab === "game");
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-selected", String(on));
+    }
+    const open = shownTab() !== "game";
+    if (!wide) {
+      if (open && sheet.hidden) {
+        sheet.hidden = false;
+        sheet.classList.remove("leaving");
+      } else if (!open && !sheet.hidden) {
+        sheet.classList.add("leaving");
+        setTimeout(() => sheet.classList.contains("leaving") && ((sheet.hidden = true), sheet.classList.remove("leaving")), reducedMotion() ? 0 : 160);
+      }
+    }
+    sheet.setAttribute("aria-labelledby", `td-tab-${shownTab()}`);
+    if (changed || open) renderSheet(true);
   }
 
-  function buildPanel() {
-    const out = [];
-    if (placing) {
-      const d = def(placing.type);
-      out.push(
-        el("div", { class: `td-place ${placing.ok ? "ok" : "bad"}` }, el("strong", { text: `Placing: ${d.name} · ${d.cost} 🌽` }), el("span", { text: placing.ok ? "◀ ▶ or drag to move · A / Enter to place · permanent once placed" : placing.reason })),
-        el("div", { class: "row" }, btn(`PLACE HERE (${d.cost})`, confirmPlacing, placing.ok ? "" : "ghost"), btn("Cancel", cancelPlacing, "ghost")),
-      );
-      return out;
+  /** Put the menu's page where it goes for this screen size. */
+  function place() {
+    wide = wideQuery?.matches === true;
+    node.classList.toggle("wide", wide);
+    if (wide) {
+      aside.append(sheet);
+      sheet.hidden = false;
+      sheet.classList.remove("leaving");
+    } else {
+      hh.screen.append(sheet);
+      sheet.hidden = tab === "game";
     }
+    setTab(tab);
+  }
+  wideQuery?.addEventListener?.("change", () => node.isConnected && place());
+
+  function birdsPage() {
+    const p = mine();
+    if (!p) return [];
+    if (g.phase === "SELECT") {
+      const skins = el(
+        "div",
+        { class: "td-skins", role: "radiogroup", "aria-label": "Skin (looks only)" },
+        SKINS.map((skin) => {
+          const b = el("button", { class: `td-skin ${p.skin === skin.id ? "on" : ""}`, type: "button", role: "radio", "aria-checked": String(p.skin === skin.id) }, birdBadge(p.bird, skin.id, { size: 40 }), el("span", { text: skin.name }));
+          b.addEventListener("click", () => request("choose", { skin: skin.id }));
+          return b;
+        }),
+      );
+      animateBirds([...skins.querySelectorAll("canvas")]);
+      return [h("1 · Pick your bird (how it plays)"), birdCards(p.bird, p.skin, (bird) => request("choose", { bird })), h("2 · Pick a skin (just looks)"), skins];
+    }
+    const out = [];
+    const canvases = [];
+    out.push(h(p.birds.length ? `Your birds · ${p.birds.length}` : "No birds · ask the team for one"));
+    out.push(
+      el(
+        "div",
+        { class: "td-inventory", role: "radiogroup", "aria-label": "Your birds" },
+        p.birds.map((type, i) => {
+          const c = birdBadge(type, p.skin, { size: 40 });
+          canvases.push(c);
+          const b = el("button", { class: `td-inv ${i === p.selected ? "on" : ""}`, type: "button", role: "radio", "aria-checked": String(i === p.selected), "aria-label": `${birdType(type)?.name}${i === p.selected ? " (selected)" : ""}` }, c, el("span", { class: "td-inv-name", text: birdType(type)?.name ?? "" }));
+          b.addEventListener("click", () => request("select", { index: i }));
+          return b;
+        }),
+      ),
+    );
+    const type = p.birds[p.selected];
+    const b = birdType(type ?? p.bird);
+    if (b) {
+      const c = birdBadge(b.id, p.skin, { size: 64, state: "fly" });
+      canvases.push(c);
+      out.push(
+        el(
+          "div",
+          { class: "td-bird-card" },
+          c,
+          el("div", {}, el("p", { class: "td-bird-name", text: `${b.icon} ${b.name}` }), el("p", { class: "td-bird-role", text: `${b.title} · ${b.role}` }), el("p", { class: "td-bird-blurb", text: b.blurb }), el("p", { class: "td-bird-how", text: `HOW: ${abilityHow(b)}` })),
+        ),
+      );
+    }
+    if (g.phase === "BUILD") {
+      out.push(h("More birds"));
+      const crate = btn(`Buy a ${birdType(p.bird)?.name ?? "bird"} crate · ${g.build.birdCrate} 🌽`, () => request("buy_bird"), "ghost");
+      crate.disabled = g.kernels.balance < g.build.birdCrate;
+      out.push(crate);
+      for (const tank of g.build.structures.filter((q) => q.type === "clone")) {
+        const cb = btn(type ? `🧪 Clone my ${birdType(type)?.name} (one use)` : "🧪 Clone tank (you need a bird to copy)", () => request("clone", { tank: tank.id }), "ghost");
+        cb.disabled = !type || tank.disabled > 0;
+        out.push(cb);
+      }
+    }
+    animateBirds(canvases);
+    return out;
+  }
+
+  function buildPage() {
+    const out = [];
     const k = g.kernels.balance;
+    const open = g.phase === "BUILD";
+    out.push(el("p", { class: "td-page-lead" }, el("strong", { text: `🌽 ${k}` }), open ? " shared kernels to spend. Pick something, then place it on the battlefield." : " shared kernels. Building opens in the next Build Phase."));
+    const hurt = g.build.structures.filter((q) => q.maxHp && q.hp < q.maxHp * 0.5);
+    if (hurt.length) out.push(el("p", { class: "td-alert", text: `⚠ Needs protection: ${hurt.map((q) => `${def(q.type)?.name ?? q.type} ${Math.round((q.hp / q.maxHp) * 100)}%`).join(", ")}` }));
     out.push(
       el(
         "div",
         { class: "td-catalog" },
         g.build.catalog.map((c) => {
           const full = c.count >= c.max;
-          const b = el("button", { class: "td-build", type: "button", disabled: full || k < c.cost }, el("strong", { text: c.name }), el("span", { class: "mono", text: `${c.cost} 🌽${full ? " · MAX" : ""}` }), el("span", { class: "td-build-blurb", text: c.blurb }));
+          const b = el("button", { class: "td-build", type: "button", disabled: !open || full || k < c.cost }, el("strong", { text: c.name }), el("span", { class: "mono", text: `${c.cost} 🌽 · ${c.count}/${c.max}${full ? " MAX" : ""}` }), el("span", { class: "td-build-blurb", text: c.blurb }));
           b.addEventListener("click", () => startPlacing(c.type));
           return b;
         }),
       ),
     );
-    const actions = [];
-    const p = mine();
-    actions.push(btn(`Buy a ${birdType(p.bird)?.name ?? "bird"} crate · ${g.build.birdCrate} 🌽`, () => request("buy_bird"), "ghost"));
-    const f = g.forecast;
-    if (f?.status === "BROKEN") actions.push(btn(`Repair Weather Machine · ${f.repair} 🌽`, () => request("repair_weather")));
-    else if (f?.next) actions.push(btn(`Upgrade to ${f.next.name} · ${f.next.price} 🌽`, () => request("upgrade_weather"), "ghost"));
-    for (const n of g.build.structures.filter((q) => q.type === "nest")) {
-      const joined = n.breeders.includes(me);
-      const others = n.breeders.filter((id) => id !== me).map((id) => g.roster.find((q) => q.id === id)?.name);
-      const label = n.breeds ? "Nest bred this turn" : joined ? "Waiting for a second agent… (tap to leave)" : others.length ? `Breed with ${others.join(", ")} · ${g.build.breedCost} 🌽` : "Go to this nest to breed (needs 2 agents)";
-      const b = btn(`🥚 Nest @${n.x} · ${label}`, () => request("breed", { nest: n.id }), others.length && !joined ? "" : "ghost");
-      b.disabled = n.breeds > 0 || n.disabled > 0 || n.waterlogged;
-      actions.push(b);
-    }
-    for (const c of g.build.structures.filter((q) => q.type === "clone")) {
-      const type = p.birds[p.selected];
-      const b = btn(type ? `🧪 Clone my ${birdType(type)?.name} (one use)` : "🧪 Clone tank (you need a bird to copy)", () => request("clone", { tank: c.id }), "ghost");
-      b.disabled = !type || c.disabled > 0;
-      actions.push(b);
-    }
-    for (const q of g.roster.filter((q) => q.id !== me && q.here && q.birds.length === 0)) {
-      const type = p.birds[p.selected];
-      const b = btn(type ? `🎁 Give ${q.name} your ${birdType(type)?.name} (you'd have ${p.birds.length - 1})` : `${q.name} needs a bird (you have none)`, () => request("donate", { to: q.id, index: p.selected }), "");
-      b.disabled = !type;
-      actions.push(b);
-    }
-    actions.push(btn(p.vote ? `Voted to skip ✓ (${g.build.votes}/${g.build.needed})` : `Vote to skip build (${g.build.votes}/${g.build.needed})`, () => request("vote_skip", { vote: !p.vote }), p.vote ? "ghost" : "subtle"));
-    out.push(el("div", { class: "td-actions" }, actions));
     return out;
   }
 
-  function actionPanel() {
-    const a = g.action;
+  const forecast = forecastPanel();
+  function skyPage() {
+    const out = [];
+    const w = g.weather;
+    const wind = g.world.wind ?? 0;
+    if (w) out.push(el("p", { class: "td-sky-now" }, el("span", { class: "td-sky-icon", text: WEATHER_ICON[w.type] ?? "☁️" }), el("span", {}, el("strong", { text: w.label.toUpperCase() }), ` · ${w.severity}${w.secondary ? ` + ${w.secondary}` : ""}${wind ? ` · wind ${wind > 0 ? "→" : "←"} ${Math.abs(Math.round(wind / 10))}` : ""}`)));
+    else if (!g.forecast) out.push(el("p", { class: "td-page-lead", text: "No weather right now, and no Weather Machine to say what's coming. Build one in BUILD (it's cheap)." }));
+    else out.push(el("p", { class: "td-page-lead", text: g.phase === "BUILD" ? "Weather hits when the shooting starts. Here's what the machine sees coming:" : "No weather right now." }));
+    if (g.forecast) {
+      forecast.update(g);
+      out.push(forecast.node);
+    }
+    const f = g.forecast;
+    if (g.phase === "BUILD") {
+      if (f?.status === "BROKEN") out.push(btn(`Repair Weather Machine · ${f.repair} 🌽`, () => request("repair_weather")));
+      else if (f?.next) out.push(btn(`Upgrade to ${f.next.name} · ${f.next.price} 🌽`, () => request("upgrade_weather"), "ghost"));
+      else if (!f) out.push(el("p", { class: "muted", text: "Build a Weather Machine (BUILD tab) to see what's coming." }));
+    }
+    return out;
+  }
+
+  const teamMeters = meters();
+  function teamPage() {
+    if (g.phase === "OVER") return [overReport({ ...g, scores: Object.fromEntries(room.players.map((q) => [q.id, q.score])) }, { me })];
+    const out = [];
+    teamMeters.update(g);
+    out.push(teamMeters.node);
     const p = mine();
-    const shooter = g.roster.find((q) => q.id === a.shooterId);
-    if (a.stage === "NEED_BIRD" && a.shooterId !== me) {
-      const type = p.birds[p.selected];
-      return [
-        el("p", { class: "td-alert", text: `${shooter?.name} NEEDS A BIRD` }),
-        type ? btn(`🎁 Give ${shooter?.name} your ${birdType(type)?.name} · you'd have ${p.birds.length - 1} left`, () => request("donate", { to: a.shooterId, index: p.selected })) : el("p", { class: "muted", text: "You have none to give." }),
-      ];
+    const give = p?.birds[p.selected];
+    const a = g.action;
+    const rows = g.roster.map((q) => {
+      const tags = [];
+      if (!q.here) tags.push("AWAY");
+      if (g.phase === "SELECT") tags.push(q.ready ? "READY" : "PICKING");
+      if (g.phase === "BUILD" && q.vote) tags.push("SKIP ✓");
+      if (a?.shooterId === q.id) tags.push(a.stage === "NEED_BIRD" ? "NEEDS A BIRD" : "SHOOTING");
+      else if (a && a.queue.indexOf(q.id) > a.index) tags.push(`UP IN ${a.queue.indexOf(q.id) - a.index}`);
+      const c = birdBadge(q.birds[q.selected] ?? q.bird, q.skin, { size: 32 });
+      const needs = q.id !== me && q.here && q.birds.length === 0 && (g.phase === "BUILD" || g.phase === "ACTION");
+      const gift = needs && give ? btn(`🎁 Give ${birdType(give)?.name}`, () => request("donate", { to: q.id, index: p.selected }), "small") : null;
+      // The page's CSP allows styles set through the CSSOM, not style attributes.
+      const dot = el("i", { class: "td-dot" });
+      dot.style.setProperty("background", q.color);
+      return el("li", { class: q.id === me ? "me" : "" }, c, el("span", { class: "td-team-name" }, dot, q.id === me ? `${q.name} (you)` : q.name), el("span", { class: "mono td-team-birds", text: `🐦×${q.birds.length}` }), el("span", { class: "td-team-tags", text: tags.join(" · ") }), gift);
+    });
+    animateBirds(rows.map((r) => r.querySelector("canvas")).filter(Boolean));
+    out.push(h("The team"), el("ul", { class: "td-team" }, rows));
+    const nests = g.build.structures.filter((q) => q.type === "nest");
+    if (nests.length) {
+      out.push(h("Nests · breeding"));
+      for (const n of nests) {
+        const joined = n.breeders.includes(me);
+        const others = n.breeders.filter((id) => id !== me).map((id) => g.roster.find((q) => q.id === id)?.name);
+        const label = g.phase !== "BUILD" ? "Breeding opens in the Build Phase" : n.breeds ? "Bred this turn" : joined ? "Waiting for a second agent… (tap to leave)" : others.length ? `Breed with ${others.join(", ")} · ${g.build.breedCost} 🌽` : `Start breeding here · ${g.build.breedCost} 🌽 (needs 2 agents)`;
+        const b = btn(`🥚 Nest ${Math.round((n.progress ?? 0) * 100)}% · ${label}`, () => request("breed", { nest: n.id }), others.length && !joined ? "" : "ghost");
+        b.disabled = g.phase !== "BUILD" || n.breeds > 0 || n.disabled > 0 || n.waterlogged;
+        out.push(b);
+      }
     }
-    if (a.stage === "NEED_BIRD") return [el("p", { class: "td-alert", text: "You're out of birds. Waiting for a teammate to donate one…" })];
-    if (a.shooterId !== me) {
-      const pos = a.queue.indexOf(me) - a.index;
-      return [el("p", { class: "muted", text: pos > 0 ? `You're up in ${pos} shot${pos === 1 ? "" : "s"}. Pick your bird below.` : "You've shot this turn. Watch the chaos." })];
+    return out;
+  }
+
+  const sound = soundControl();
+  function menuPage() {
+    const mapBtn = btn(view.camera === "map" ? "🗺 Back to the action view" : "🗺 Show the whole map", () => {
+      toggleMap();
+      renderSheet(true);
+    }, "ghost");
+    return [
+      btn("? How to play (the tutorial)", howTo, ""),
+      mapBtn,
+      h("Sound"),
+      sound,
+      h("Controls"),
+      el(
+        "table",
+        { class: "td-controls" },
+        el(
+          "tbody",
+          {},
+          [
+            ["Aim", "Drag back on the screen · ◀ ▶ ▲ ▼", "← → ↑ ↓"],
+            ["Launch", "Let go · A", "Space / Enter"],
+            ["Ability", "Tap the screen · A (hold ◀ ▶ to glide)", "Space (hold ← →)"],
+            ["Next bird", "X · tap your bird", "X"],
+            ["Build", "BUILD tab · drag or ◀ ▶ · A to place", "← → · Enter · Esc"],
+            ["Map", "Y", "M"],
+            ["Menu", "The tabs under the screen", "1–6 · Esc"],
+          ].map(([what, touch, keys]) => el("tr", {}, el("th", { scope: "row", text: what }), el("td", { text: touch }), el("td", { class: "mono", text: keys }))),
+        ),
+      ),
+    ];
+  }
+
+  const PAGES = { birds: birdsPage, build: buildPage, sky: skyPage, team: teamPage, menu: menuPage };
+  let sheetKey = "";
+
+  /** What each page shows, as a key: a page only redraws when that changes. */
+  function pageKey(id) {
+    const p = mine();
+    const a = g.action;
+    switch (id) {
+      case "birds":
+        return JSON.stringify([g.phase, p?.bird, p?.skin, p?.birds, p?.selected, g.phase === "BUILD" ? [g.kernels.balance >= g.build.birdCrate, g.build.structures.filter((q) => q.type === "clone").map((q) => [q.id, q.disabled])] : null]);
+      case "build":
+        return JSON.stringify([g.phase, g.kernels.balance, g.build.catalog.map((c) => c.count), g.build.structures.map((q) => [q.id, q.maxHp && q.hp < q.maxHp * 0.5 ? Math.round((q.hp / q.maxHp) * 100) : 0])]);
+      case "sky":
+        return JSON.stringify([g.phase, g.weather, g.forecast, g.world.wind, g.turn]);
+      case "team":
+        return JSON.stringify([g.phase, g.phase === "OVER" ? g.over : null, g.roster.map((q) => [q.birds.length, q.selected, q.ready, q.vote, q.here]), a ? [a.shooterId, a.stage, a.index] : null, g.build.structures.filter((q) => q.type === "nest").map((q) => [q.id, q.breeders, q.breeds, q.disabled, q.waterlogged, Math.round((q.progress ?? 0) * 10)]), p?.selected, g.corruption, g.cow.progress, g.kernels.balance]);
+      default:
+        return id;
     }
-    if (a.stage === "AIM") {
-      const type = p.birds[p.selected];
+  }
+
+  function renderSheet(force) {
+    const id = shownTab();
+    if (id === "game") return;
+    const key = `${id}:${pageKey(id)}`;
+    if (!force && key === sheetKey) return;
+    sheetKey = key;
+    const t = TABS.find((x) => x.id === id);
+    sheetTitle.textContent = t.title.toUpperCase();
+    sheetBody.replaceChildren(...PAGES[id]().filter(Boolean));
+  }
+
+  /** Little marks on the tabs: something there wants you. */
+  function paintBadges() {
+    const p = mine();
+    const set = (id, text, kind = "") => {
+      const { badge } = tabButtons.get(id);
+      badge.textContent = text;
+      badge.className = `td-tab-badge ${kind}`.trim();
+      badge.hidden = !text;
+    };
+    set("birds", p && g.phase !== "SELECT" && g.phase !== "LAUNCH" ? String(p.birds.length) : "", p && p.birds.length === 0 ? "warn" : "");
+    set("build", g.phase === "BUILD" ? "●" : "", "ok");
+    const f = g.forecast;
+    set("sky", g.weather ? "!" : f?.status === "BROKEN" ? "!" : "", g.weather ? "warn" : "danger");
+    const needy = g.roster.some((q) => q.id !== me && q.here && q.birds.length === 0 && (g.phase === "BUILD" || g.phase === "ACTION"));
+    const partner = g.phase === "BUILD" && g.build.structures.some((q) => q.type === "nest" && !q.breeds && q.breeders.length === 1 && q.breeders[0] !== me);
+    set("team", g.phase === "OVER" ? "★" : needy || partner ? "!" : "", g.phase === "OVER" ? "ok" : "warn");
+  }
+
+  // ---------------------------------------------------------------- the HUD
+
+  let hudKey = "";
+  function renderHud() {
+    const c = g.corruption;
+    corrFill.style.setProperty("--pct", `${c}%`);
+    corrValue.textContent = `${c.toFixed(c % 1 ? 1 : 0)}%`;
+    corrChip.setAttribute("aria-valuenow", String(Math.round(c)));
+    corrChip.title = `Corruption ${c}% · Red Cow ${Math.round(g.cow.progress * 100)}%`;
+    cowValue.textContent = `🐄 ${Math.round(g.cow.progress * 100)}%`;
+    cowValue.classList.toggle("danger", g.cow.progress >= 0.6);
+    const w = g.weather;
+    const wind = g.world.wind ?? 0;
+    const windText = wind ? ` ${wind > 0 ? "→" : "←"}${Math.abs(Math.round(wind / 10))}` : "";
+    let sky = "";
+    let kind = "";
+    if (w && (g.phase === "ACTION" || g.phase === "PROCESS")) {
+      sky = `${WEATHER_ICON[w.type] ?? "☁️"} ${w.label.toUpperCase()}${windText}`;
+      kind = "warn";
+    } else {
+      const line = g.forecast?.status === "OK" ? g.forecast.lines?.find((l) => !l.clear) : null;
+      if (g.forecast?.status === "BROKEN") [sky, kind] = ["📡 MACHINE BROKEN", "danger"];
+      else if (line) sky = `📡 NEXT: ${line.label ? line.label.toUpperCase() : line.category}`;
+      else if (g.forecast?.status === "OK") sky = "📡 CLEAR AHEAD";
+      else sky = "☁️ SKY: ?";
+    }
+    const hurt = g.phase === "BUILD" ? g.build.structures.filter((q) => q.maxHp && q.hp < q.maxHp * 0.5).length : 0;
+    if (hurt) [sky, kind] = [`⚠ ${hurt} HURT · ${sky}`, "danger"];
+    skyChip.textContent = sky;
+    skyChip.className = `td-hud-chip sky ${kind}`.trim();
+    skyChip.setAttribute("aria-label", `Weather: ${sky}. Open the SKY tab.`);
+    const p = mine();
+    const type = p?.birds[p.selected] ?? p?.bird;
+    const key = JSON.stringify([type, p?.skin, p?.birds.length]);
+    if (key !== hudKey) {
+      hudKey = key;
       const b = birdType(type);
-      return [
-        el("p", { class: "td-alert ok", text: `YOUR SHOT · ${b?.icon ?? ""} ${b?.name ?? ""}` }),
-        el("p", { class: "muted", text: `Drag back on the screen to aim, or ◀ ▶ angle, ▲ ▼ power. A / Space launches. In flight: ${b?.usage ?? ""}.` }),
-      ];
+      const c2 = birdBadge(type, p?.skin ?? "classic", { size: 34 });
+      birdChip.replaceChildren(c2, el("span", { class: "td-bird-chip-text" }, el("strong", { text: b?.name ?? "—" }), el("span", { text: `×${p?.birds.length ?? 0}` })));
+      birdChip.setAttribute("aria-label", `Your bird: ${b?.name ?? "none"}, ${p?.birds.length ?? 0} in hand. Open BIRDS.`);
+      birdChip.classList.toggle("empty", !p?.birds.length);
+      animateBirds([c2]);
     }
-    if (a.stage === "FLIGHT") {
-      const b = birdType(a.flying?.bird);
-      const ab = b?.ability;
-      const verb = { pop: "POP", boost: "AFTERBURNER", split: "SPLIT INTO THREE", ricochet: "RICOCHET AT A PIGGY", slam: "SLAM DOWN", magnet: "MAGNET PULL", bunker: "BECOME A BUNKER" }[ab?.kind];
-      if (ab?.trigger === "tap") return [el("p", { class: `td-alert ${a.uses ? "" : "ok"}`.trim(), text: a.uses ? `TAP THE SCREEN (or A): ${verb} · ${a.uses} left` : `${verb}: done. Watch it land.` })];
-      if (ab?.trigger === "hold") return [el("p", { class: "td-alert", text: `HOLD ◀ ▶ TO GLIDE AND STEER · fuel ${a.fuel.toFixed(1)} s` })];
-      return [el("p", { class: "td-alert ok", text: `${b?.name}: ${b?.usage.toLowerCase()} · drilling through what it hits` })];
-    }
-    return [];
   }
 
-  function renderPanel(force) {
+  /** A bar button. `short` is what it says when the bar is narrow (a small phone). */
+  const act = (text, fn, cls = "", short = null) => {
+    const b = el("button", { class: `td-act ${cls}`.trim(), type: "button", "aria-label": text }, el("span", { class: "full", text }), short ? el("span", { class: "short", "aria-hidden": "true", text: short }) : null);
+    if (!short) b.classList.add("one");
+    b.addEventListener("click", fn);
+    return b;
+  };
+  const say = (text, cls = "") => el("span", { class: `td-say ${cls}`.trim(), text });
+  let barKey = "";
+
+  /** The bar along the bottom of the screen: what's happening and what you can do about it now. */
+  function renderBar(force) {
     const p = mine();
     const a = g.action;
-    const key = JSON.stringify([
-      g.phase,
-      a?.stage,
-      a?.shooterId,
-      a?.uses,
-      a?.stage === "FLIGHT" ? Math.round((a?.fuel ?? 0) * 10) : null,
-      g.phase === "BUILD" ? [placing?.type, placing?.ok, placing?.reason, g.kernels.balance, g.build.votes, g.build.structures.map((q) => [q.id, q.breeders, q.breeds, q.disabled, q.waterlogged]), g.forecast?.status, g.forecast?.tier, g.roster.map((q) => q.birds.length)] : null,
-      g.phase === "SELECT" ? [p?.bird, p?.skin, p?.ready] : null,
-      g.phase === "ACTION" && a?.stage === "NEED_BIRD" ? p?.birds.length : null,
-      p?.selected,
-    ]);
-    if (!force && key === panelKey) return;
-    panelKey = key;
-    let content = [];
-    if (g.phase === "SELECT") content = selectPanel();
-    else if (g.phase === "BUILD") content = buildPanel();
-    else if (g.phase === "ACTION") content = actionPanel();
-    else if (g.phase === "PROCESS") content = [el("p", { class: "muted", text: g.process?.detail || "The piggies are up to something." })];
-    else if (g.phase === "COW") content = [el("p", { class: "td-alert", text: "The Red Cow grows." })];
-    else if (g.phase === "OVER") content = [overReport({ ...g, scores: Object.fromEntries(room.players.map((q) => [q.id, q.score])) }, { me })];
-    else if (g.phase === "LAUNCH") content = [el("p", { class: "muted", text: "Launching from Steam My Deck…" })];
-    panel.replaceChildren(...content.filter(Boolean));
-    aBtn.querySelector(".cpi-hh-label").textContent = placing ? "PLACE" : ACTION_LABEL[stage()] ?? "A";
+    const st = stage();
+    const key = JSON.stringify([g.phase, a?.stage, a?.shooterId, a?.uses, st === "FLIGHT" ? Math.round((a?.fuel ?? 0) * 10) : null, g.phase === "BUILD" ? [g.kernels.balance, g.build.votes, g.build.needed, p?.vote] : null, placing ? [placing.type, placing.ok, placing.reason] : null, g.phase === "SELECT" ? [p?.ready, p?.bird] : null, a?.stage === "NEED_BIRD" ? [p?.birds.length, p?.selected] : null, g.process?.index, a ? a.queue.indexOf(me) - a.index : null]);
+    if (!force && key === barKey) return;
+    barKey = key;
+    const out = [];
+    if (placing) {
+      const d = def(placing.type);
+      out.push(say(placing.ok ? d.name : placing.reason, placing.ok ? "" : "bad"), act(`✓ PLACE ${d.cost}🌽`, confirmPlacing, placing.ok ? "go" : "off", `✓ ${d.cost}🌽`), act("✕", cancelPlacing, "ghost"));
+    } else if (g.phase === "SELECT") {
+      out.push(act("🐦 PICK BIRD", () => setTab("birds", { user: true }), "ghost", "🐦 BIRD"), act(p?.ready ? "READY ✓" : "READY", () => request("ready", { ready: !p?.ready }), p?.ready ? "done" : "go"));
+    } else if (g.phase === "BUILD") {
+      const k = g.kernels.balance;
+      const votes = `${g.build.votes}/${g.build.needed}`;
+      out.push(act(`🔨 BUILD · ${k}🌽`, () => setTab(tab === "build" && !wide ? "game" : "build", { user: true }), "go", `🔨 ${k}🌽`), act(p?.vote ? `SKIP ✓ ${votes}` : `⏭ SKIP ${votes}`, () => request("vote_skip", { vote: !p?.vote }), p?.vote ? "done" : "ghost", p?.vote ? `✓ ${votes}` : `⏭ ${votes}`));
+    } else if (g.phase === "ACTION") {
+      const shooter = g.roster.find((q) => q.id === a.shooterId);
+      if (a.stage === "NEED_BIRD" && a.shooterId !== me) {
+        const type = p?.birds[p.selected];
+        out.push(type ? act(`🎁 GIVE ${shooter?.name?.toUpperCase()} YOUR ${birdType(type)?.name?.toUpperCase()}`, () => request("donate", { to: a.shooterId, index: p.selected }), "go", `🎁 GIVE ${shooter?.name?.toUpperCase()} A BIRD`) : say(`${shooter?.name} needs a bird (you have none)`, "bad"));
+      } else if (a.stage === "NEED_BIRD") out.push(say("OUT OF BIRDS · waiting for a teammate to give you one", "bad"));
+      else if (st === "AIM") out.push(say("YOUR SHOT · drag back, let go", "go"));
+      else if (st === "FLIGHT") {
+        const b = birdType(a.flying?.bird);
+        const ab = b?.ability;
+        const verb = { pop: "POP", boost: "AFTERBURNER", split: "SPLIT", ricochet: "RICOCHET", slam: "SLAM", magnet: "MAGNET", bunker: "BUNKER" }[ab?.kind];
+        if (ab?.trigger === "tap") out.push(say(a.uses ? `TAP (or A): ${verb} · ${a.uses} left` : `${verb}: done`, a.uses ? "go" : ""));
+        else if (ab?.trigger === "hold") out.push(say(`HOLD ◀ ▶: GLIDE · ${a.fuel.toFixed(1)}s`, "go"));
+        else out.push(say(`${b?.name}: ${b?.usage.toLowerCase()}`));
+      } else {
+        const pos = a.queue.indexOf(me) - a.index;
+        out.push(say(`${shooter?.name ?? "?"} is shooting${pos > 0 ? ` · you're up in ${pos}` : " · you've shot this turn"}`));
+      }
+    } else if (g.phase === "PROCESS") out.push(say(g.process ? `PIGGY TURN ${g.process.index + 1}/${g.process.total} · ${g.process.label}` : "PIGGY TURN", "bad"));
+    else if (g.phase === "COW") out.push(say("THE RED COW GROWS", "bad"));
+    else if (g.phase === "OVER") out.push(say(g.over?.result === "victory" ? "TEAM VICTORY" : "TEAM DEFEAT", g.over?.result === "victory" ? "go" : "bad"), act("📋 REPORT", () => setTab("team", { user: true }), "go"));
+    else if (g.phase === "LAUNCH") out.push(say("Launching from Steam My Deck…"));
+    barMain.replaceChildren(...out);
+    aBtn.querySelector(".cpi-hh-label").textContent = placing ? "PLACE" : ACTION_LABEL[st] ?? "A";
   }
 
-  function renderInventory() {
-    const p = mine();
-    if (!p || g.phase === "SELECT") {
-      inventory.replaceChildren();
-      return;
-    }
-    const sig = `${p.birds.join(",")}:${p.selected}:${p.skin}`;
-    if (inventory.dataset.sig === sig) return;
-    inventory.dataset.sig = sig;
-    const canvases = [];
-    inventory.replaceChildren(
-      el("span", { class: "td-inv-label", text: p.birds.length ? `YOUR BIRDS · ${p.birds.length}` : "NO BIRDS · ask for a donation" }),
-      ...p.birds.map((type, i) => {
-        const c = birdBadge(type, p.skin, { size: 36 });
-        canvases.push(c);
-        const b = el("button", { class: `td-inv ${i === p.selected ? "on" : ""}`, type: "button", role: "radio", "aria-checked": String(i === p.selected), "aria-label": `${birdType(type)?.name}${i === p.selected ? " (selected)" : ""}` }, c);
-        b.addEventListener("click", () => request("select", { index: i }));
-        return b;
-      }),
-    );
-    animateBirds(canvases);
+  /** Tell the camera what the HUD covers, so it frames the action clear of it. */
+  const measure = () => view.setInsets({ top: hudTop.offsetHeight + 8, bottom: bar.offsetHeight + 8 });
+  if (typeof ResizeObserver === "function") {
+    const ro = new ResizeObserver(() => (node.isConnected ? measure() : ro.disconnect()));
+    ro.observe(hudTop);
+    ro.observe(bar);
+  }
+
+  function refresh(force) {
+    renderHud();
+    renderBar(force);
+    paintBadges();
+    renderSheet(force);
   }
 
   // ---------------------------------------------------------------- phases
@@ -490,6 +786,12 @@ function buildScreen(s, tools) {
     const p = next.phase;
     const live = phase !== null;
     if (p !== "BUILD" && placing) cancelPlacing();
+    // A phone opens the page this phase needs (choosing a bird, the report); a wide screen shows
+    // the phase's page beside the device.
+    if (wide) setTab(phaseTab());
+    else if (p === "SELECT") setTab("birds");
+    else if (p === "OVER") setTab("team");
+    else if (p === "LAUNCH") setTab("game");
     if (p === "LAUNCH" && (remainingMs ?? 0) > 3000) hh.sequence(launchSteps(next, { short: true }));
     else if (p === "BUILD") {
       hh.clearOverlay();
@@ -502,7 +804,7 @@ function buildScreen(s, tools) {
       hh.overlay(cowBand(next), "band");
       hh.flash("danger");
       buzz([60, 40, 120]);
-    } else if (p === "OVER") hh.overlay(systemCard({ eyebrow: "OPERATION OVER", title: next.over?.result === "victory" ? "TEAM VICTORY" : "TEAM DEFEAT", text: "Scroll down for the report." }), "card");
+    } else if (p === "OVER") hh.overlay(systemCard({ eyebrow: "OPERATION OVER", title: next.over?.result === "victory" ? "TEAM VICTORY" : "TEAM DEFEAT", text: "The report is in TEAM." }), "card");
     else if (p === "SELECT") hh.overlay(levelCard(next), "card");
     phase = p;
   };
@@ -511,67 +813,66 @@ function buildScreen(s, tools) {
   let lastProcess = null;
   let lastLog = g0.log.at(-1)?.id ?? 0;
 
-  return {
-    node,
-    update(next) {
-      room = next;
-      g = next.game;
-      timer.set(next.timer);
-      m.update(g);
-      if (next.paused !== paused) {
-        paused = next.paused;
-        if (paused) hh.overlay(systemCard({ eyebrow: "SYSTEM", title: "PAUSED", text: "The host display dropped out. Hang on." }), "card");
-        else {
-          phase = null;
-          enter(g, 0);
-        }
+  function update(next) {
+    room = next;
+    g = next.game;
+    timer.set(next.timer);
+    if (next.paused !== paused) {
+      paused = next.paused;
+      if (paused) hh.overlay(systemCard({ eyebrow: "SYSTEM", title: "PAUSED", text: "The host display dropped out. Hang on." }), "card");
+      else {
+        phase = null;
+        enter(g, 0);
       }
-      if (g.phase !== phase && !paused) enter(g, next.timer?.remainingMs);
-      if (g.phase === "PROCESS" && g.process?.index !== lastProcess) {
-        lastProcess = g.process?.index;
-        hh.overlay(processBanner(g), "band");
+    }
+    if (g.phase !== phase && !paused) enter(g, next.timer?.remainingMs);
+    if (g.phase === "PROCESS" && g.process?.index !== lastProcess) {
+      lastProcess = g.process?.index;
+      hh.overlay(processBanner(g), "band");
+    }
+    // Your turn: say so, loudly, and clear the glass.
+    const st = stage();
+    if (st !== lastStage) {
+      if (st === "AIM") {
+        // Your shot beats the tutorial and any menu page: they get out of the way.
+        closeTutorial();
+        if (!wide) setTab("game");
+        aim.a = g.action.aim.a;
+        aim.p = g.action.aim.p;
+        hh.notify("YOUR SHOT", { kind: "ok", icon: "🎯", replace: true });
+        hh.flash("ok");
+        buzz([60, 40, 60]);
+        playSfx("achievement");
       }
-      // Your turn: say so, loudly.
-      const st = stage();
-      if (st !== lastStage) {
-        if (st === "AIM") {
-          // Your shot beats the tutorial: it gets out of the way (the "?" brings it back).
-          closeTutorial();
-          aim.a = g.action.aim.a;
-          aim.p = g.action.aim.p;
-          hh.notify("YOUR SHOT", { kind: "ok", icon: "🎯", replace: true });
-          hh.flash("ok");
-          buzz([60, 40, 60]);
-          playSfx("achievement");
-        }
-        if (st !== "FLIGHT") setSteer(0);
-        lastStage = st;
-      }
-      if (g.phase === "ACTION" && g.action?.stage === "NEED_BIRD" && g.action.shooterId !== me && mine()?.birds.length) buzz(20);
-      // News that's about you (or bad for everyone) reaches your device too.
-      const myName = mine()?.name ?? "\u0000";
-      for (const line of g.log) {
-        if (line.id <= lastLog) continue;
-        lastLog = line.id;
-        if (line.kind === "danger" || line.text.includes(myName)) hh.notify(line.text, { kind: line.kind === "danger" ? "danger" : line.kind === "ok" ? "ok" : "info", icon: line.kind === "danger" ? "⚠" : "•", ms: 2400 });
-      }
-      const p = mine();
-      const b = birdType(p?.birds[p?.selected] ?? p?.bird);
-      status.textContent =
-        g.phase === "SELECT" ? `You: ${b?.name ?? ""} · ${p?.ready ? "ready" : "not ready"}` : `${PHASE_TITLE[g.phase]}${g.turn ? ` · turn ${g.turn}` : ""}${g.phase === "ACTION" && g.action?.shooterId ? ` · ${g.roster.find((q) => q.id === g.action.shooterId)?.name} shooting` : ""}`;
-      hh.setStatus({ title: `${PHASE_TITLE[g.phase]}`, battery: Math.max(0.03, g.corruption / 100) });
-      view.update(g);
-      forecast.update(g);
-      renderInventory();
-      if (placing) movePlacement(placing.x, false);
-      renderPanel(false);
-      const aiming = st === "AIM";
-      for (const bt of [left, right, up, down]) bt.disabled = !(aiming || placing || st === "FLIGHT");
-      aBtn.disabled = !(aiming || placing || st === "FLIGHT");
-      xBtn.disabled = !(p?.birds.length > 1) || st === "FLIGHT";
-      bBtn.disabled = !placing;
-    },
-  };
+      // Your bird's in the air: whatever page was open, watch the shot.
+      if (st === "FLIGHT" && !wide) setTab("game");
+      if (st !== "FLIGHT") setSteer(0);
+      lastStage = st;
+    }
+    if (g.phase === "ACTION" && g.action?.stage === "NEED_BIRD" && g.action.shooterId !== me && mine()?.birds.length) buzz(20);
+    // News that's about you (or bad for everyone) reaches your device too.
+    const myName = mine()?.name ?? "\u0000";
+    for (const line of g.log) {
+      if (line.id <= lastLog) continue;
+      lastLog = line.id;
+      if (line.kind === "danger" || line.text.includes(myName)) hh.notify(line.text, { kind: line.kind === "danger" ? "danger" : line.kind === "ok" ? "ok" : "info", icon: line.kind === "danger" ? "⚠" : "•", ms: 2400 });
+    }
+    const p = mine();
+    hh.setStatus({ title: `${PHASE_TITLE[g.phase]}${g.turn ? ` · T${g.turn}` : ""}`, battery: Math.max(0.03, g.corruption / 100) });
+    view.update(g);
+    if (placing) movePlacement(placing.x, false);
+    refresh(false);
+    const aiming = st === "AIM";
+    for (const bt of [left, right, up, down]) bt.disabled = !(aiming || placing || st === "FLIGHT");
+    aBtn.disabled = !(aiming || placing || st === "FLIGHT");
+    xBtn.disabled = !(p?.birds.length > 1) || st === "FLIGHT";
+    bBtn.disabled = !placing && (tab === "game" || wide);
+  }
+
+  view.update(g0);
+  place();
+  queueMicrotask(measure);
+  return { node, update };
 }
 
 /** A player's first game: the tutorial opens once the screen has settled (never again after). */

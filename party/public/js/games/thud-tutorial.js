@@ -1,6 +1,6 @@
 // Angry Thud's Revenge: the first-time tutorial. Six short cards (thud-howto.js says what), each
 // with a little animated scene drawn with the game's own art. It opens by itself once per browser,
-// on a player's first game; after that the "?" on the device (or "How to play") brings it back.
+// on a player's first game; after that the device's MENU tab ("How to play") brings it back.
 // Skippable at any point: Skip, Esc, or just tapping outside it. Swipe, ← → or the buttons page.
 // A modal <dialog>, so the game underneath doesn't take the taps or keys meanwhile.
 
