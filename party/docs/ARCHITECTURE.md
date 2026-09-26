@@ -81,6 +81,8 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `games/auctioneffects.ts` | Entity Auction's effect engine: modifier/event types, validation, starting library |
 | `games/mycob/*.ts` | My Cob Escaped: `config` (every tunable, modes), `content` (world data, entity rules), `incident` (generator, facts, objectives), `rules` (rolls, effects, scoring, endings), `director` (Incident Director contract, validation, built-in director), `claude` (Claude-backed director, `MYCOB_DIRECTOR=claude`), `narration`, `game` |
 | `games/awards.ts` | Player-created awards (create, dedupe, vote, results), usable by any game |
+| `games/thud/*.ts` | Angry Thud's Revenge: `config` (every tunable), `levels`, `world` (physics world, damage, birds and abilities, piggies' repairs, weather effects), `game` (turns, economy, buildings, corruption, Red Cow, weather, scoring, awards, views). `scripts/thud-sim.ts` simulates games. See `docs/THUD.md` |
+| `games/kit/*.ts` | Reusable game kit: `rigid` (deterministic 2D rigid-body physics), `destructible` (material health and impact damage), `weather` (seeded weather schedules and tiered forecasts), `economy` (shared team wallet with a ledger) |
 
 ### Browser code (`party/public/`)
 
@@ -95,6 +97,8 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `js/games/mycob-{host,play,shared}.js`, `js/games/mycob-voice.js` | My Cob Escaped views; `-voice.js` is where a future narrator voice plugs in |
 | `js/games/mycob-sound.js` | The party's one sound manager (cues, placeholders, mute/volume, `playSfx` for short game effects), mapped in `sounds/mycob/sounds.json` |
 | `js/games/steamdeck-{host,play,world,scenery,ui,tilt,rules}.js` | Steam My Deck: screens, the canvas renderer, level art, shared presentation, Thad's tilt, the plank rule (see `docs/STEAMDECK.md`) |
+| `js/games/thud-{host,play,world,art,ui,birds,rules}.js` | Angry Thud's Revenge: screens, the canvas renderer, piggies/materials/scenery art, shared presentation, the birds and skins (shared with the server), placement and aiming rules (see `docs/THUD.md`) |
+| `js/cpi/bird.js` | CPI bird characters: a look (colours, crest, eyes, accessory) drawn in any pose; badges and animation |
 | `js/drawing.js`, `js/drawing-canvas.js` | CPI Drawing System: stroke data model (shared with the server) and capture/rendering |
 | `js/cpi/character.js` | CPI characters: deterministic per-player look from slots (hat, face, suit, accessory; overridable for future cosmetics), drawn procedurally in any pose |
 | `js/cpi/animation.js` | Animation states and moments (jump, land, die, escape…) inferred from sampled positions only: no extra network data |

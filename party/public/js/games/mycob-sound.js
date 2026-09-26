@@ -47,10 +47,35 @@ export const CUES = [
   "deck_shake",
   "achievement",
   "static",
+  // Angry Thud's Revenge: cues the server sends (host) and effects the screens play.
+  "thud_cow",
+  "thud_weather",
+  "thud_nest",
+  "thud_donate",
+  "thud_victory",
+  "thud_defeat",
+  "thud_stretch",
+  "thud_launch",
+  "thud_break",
+  "thud_pig_hit",
+  "thud_pig_pop",
+  "thud_boom",
+  "thud_ability",
+  "thud_lightning",
+  "thud_tornado",
+  "thud_repair",
+  "thud_build",
+  "thud_nest_hatch",
+  "thud_lob",
+  "thud_splash",
+  "thud_shield",
+  "thud_clone",
+  "thud_purge",
+  "thud_kernels",
 ];
 
 /** Never dropped to make room for something else. */
-const IMPORTANT = new Set(["game_start", "life_lost", "contained", "terminated", "escaped", "everyone_dies", "game_end"]);
+const IMPORTANT = new Set(["game_start", "life_lost", "contained", "terminated", "escaped", "everyone_dies", "game_end", "thud_cow", "thud_victory", "thud_defeat"]);
 /** The same cue again within this many seconds is dropped: four agents filing at once is one bloop. */
 const SAME_CUE_GAP = 0.35;
 /** Cues play one after another; the next may start this many seconds into a long one. */
@@ -95,6 +120,31 @@ const SYNTH = {
   achievement: [tone(0, 0.09, 880, 880, "square", 0.06), tone(0.1, 0.09, 1175, 1175, "square", 0.06), tone(0.2, 0.25, 1760, 1760, "square", 0.06)], // bleep-bloop-BLEEP
   static: [hiss(0, 0.35, 0.07)], // kkssshhh
   deck_shake: [tone(0, 0.5, 70, 50, "sawtooth", 0.12, { rate: 18, depth: 12 }), hiss(0.42, 0.18, 0.12), tone(0.45, 0.2, 140, 60, "square", 0.14)], // rrrrumble, WHUMP
+  // Angry Thud's Revenge.
+  thud_cow: [tone(0, 0.9, 190, 120, "sawtooth", 0.14, { rate: 5, depth: 8 }), tone(0.95, 0.06, 300, 150, "square", 0.1), hiss(0.95, 0.04, 0.08), tone(1.15, 0.06, 300, 150, "square", 0.1), hiss(1.15, 0.04, 0.08)], // MOOOO, clonk clonk
+  thud_weather: [tone(0, 0.25, 520, 780, "triangle", 0.12), tone(0.28, 0.25, 520, 780, "triangle", 0.12)], // wooo-wooo
+  thud_nest: [tone(0, 0.07, 2200, 2600, "sine", 0.09), tone(0.1, 0.07, 2300, 2800, "sine", 0.09)], // cheep cheep
+  thud_donate: [tone(0, 0.1, 660, 660, "triangle", 0.16), tone(0.12, 0.3, 990, 1000, "triangle", 0.16)], // ta-daa
+  thud_victory: [523, 659, 784, 1047, 784, 1047].map((f, i) => tone(i * 0.13, 0.12, f, f, "square", 0.12)).concat(tone(0.8, 0.8, 1319, 1319, "triangle", 0.14)), // fanfare
+  thud_defeat: [tone(0, 1, 170, 110, "sawtooth", 0.15, { rate: 5, depth: 10 })].concat(trombone([330, 311, 294, 262], 0.35, 1.1).map((p) => ({ ...p, at: p.at + 1 }))), // moo, wah wah wah wahhh
+  thud_stretch: [tone(0, 0.12, 180, 320, "sawtooth", 0.04)], // eeek
+  thud_launch: [hiss(0, 0.08, 0.1), tone(0, 0.35, 400, 1400, "sine", 0.12, { rate: 9, depth: 30 })], // thwip, wheee
+  thud_break: [hiss(0, 0.09, 0.14), tone(0, 0.12, 180, 80, "square", 0.08)], // krack
+  thud_pig_hit: [tone(0, 0.16, 420, 300, "square", 0.08, { rate: 30, depth: 40 })], // oink
+  thud_pig_pop: [tone(0, 0.2, 600, 1500, "sawtooth", 0.08), hiss(0.18, 0.08, 0.12)], // squeeee-pop
+  thud_boom: [tone(0, 0.5, 110, 38, "sine", 0.3), hiss(0, 0.35, 0.18)], // BOOM
+  thud_ability: [hiss(0, 0.15, 0.06), tone(0, 0.18, 500, 1300, "triangle", 0.1)], // fwoosh
+  thud_lightning: [hiss(0, 0.2, 0.2), tone(0.05, 0.7, 70, 40, "sawtooth", 0.1, { rate: 12, depth: 8 })], // KRAKA-rumble
+  thud_tornado: [hiss(0, 1.2, 0.08), tone(0, 1.2, 180, 260, "sine", 0.05, { rate: 3, depth: 60 })], // whoooosh
+  thud_repair: [0, 0.14, 0.28].map((at) => tone(at, 0.05, 900, 500, "square", 0.07)), // tink tink tink
+  thud_build: [tone(0, 0.08, 160, 90, "sine", 0.2), tone(0.1, 0.18, 1175, 1175, "sine", 0.08)], // thunk, ding
+  thud_nest_hatch: [tone(0, 0.05, 900, 900, "square", 0.06), tone(0.08, 0.06, 2400, 2900, "sine", 0.1), tone(0.18, 0.06, 2500, 3000, "sine", 0.1)], // crack, cheep cheep
+  thud_lob: [tone(0, 0.25, 240, 520, "sine", 0.1)], // boing
+  thud_splash: [hiss(0, 0.3, 0.1)], // splish
+  thud_shield: [tone(0, 0.15, 900, 1800, "sine", 0.08)], // bzzing
+  thud_clone: [tone(0, 0.08, 400, 800, "sine", 0.12), tone(0.1, 0.08, 400, 800, "sine", 0.12)], // bloop bloop
+  thud_purge: [tone(0, 0.25, 1600, 700, "triangle", 0.06)], // shimmer down
+  thud_kernels: [tone(0, 0.05, 1320, 1320, "square", 0.05), tone(0.06, 0.1, 1760, 1760, "square", 0.05)], // ka-ching
 };
 
 // ------------------------------------------------------------------ settings (this device only)

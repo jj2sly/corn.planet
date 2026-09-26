@@ -7,8 +7,9 @@ import * as cornorshit from "./games/cornorshit-host.js";
 import * as entityauction from "./games/entityauction-host.js";
 import * as mycob from "./games/mycob-host.js";
 import * as steamdeck from "./games/steamdeck-host.js";
+import * as thud from "./games/thud-host.js";
 
-const RENDERERS = { chaos, cornorshit, entityauction, mycob, steamdeck };
+const RENDERERS = { chaos, cornorshit, entityauction, mycob, steamdeck, thud };
 const SESSION_KEY = "cpst-party:host";
 
 const stage = $("#stage");
@@ -352,6 +353,14 @@ const SETTINGS_FORMS = {
       }),
     ];
   },
+  thud(settings, configure) {
+    const levels = config.games.find((g) => g.id === "thud")?.catalog?.levels ?? [];
+    const level = levels.find((l) => l.id === settings.level) ?? levels[0];
+    return [
+      choiceGroup("Level", "level", levels.map((l) => [l.id, `${l.difficulty}. ${l.name}`]), settings.level, (v) => configure({ settings: { level: v } })),
+      el("p", { class: "hint", text: level ? `${"★".repeat(level.difficulty)} ${level.tagline} Co-op: everyone picks a bird, shares kernels, and launches one bird per turn. Keyboard, mouse or touch.` : "" }),
+    ];
+  },
   steamdeck(settings, configure) {
     // The Deck's games come from the server (levels.ts), so a new level shows up here by itself.
     const games = config.games.find((g) => g.id === "steamdeck")?.catalog?.games ?? [];
@@ -415,6 +424,8 @@ function sourceWarning() {
       return;
     }
 
+    // Angry Thud's Revenge doesn't use the CPI Database.
+    if (gameId === "thud") return;
     if (!canon) return;
     const n = canon.entity + canon.incident + canon.personnel;
     node.hidden = n >= 8;

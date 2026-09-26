@@ -116,13 +116,23 @@ Shared browser/server drawing system: `public/js/drawing.js` (+ `drawing-canvas.
 `public/js/cpi/` (`character.js`, `animation.js`, `particles.js`, `handheld.js`; see `party/docs/STEAMDECK.md`
 §Presentation and `party/docs/ADDING_A_GAME.md`). Browser code in `public/`
 (vanilla ES modules, `el()` helper, `games/<id>-{host,play}.js`). Adding a game:
-`party/docs/ADDING_A_GAME.md`. Canon rules: `party/docs/CANON.md`. My Cob Escaped: `party/docs/MYCOB.md`. Escape Thad's Steam Deck: `party/docs/STEAMDECK.md`.
+`party/docs/ADDING_A_GAME.md`. Canon rules: `party/docs/CANON.md`. My Cob Escaped: `party/docs/MYCOB.md`. Steam My Deck: `party/docs/STEAMDECK.md`. Angry Thud's Revenge: `party/docs/THUD.md`.
 
 Server is authoritative for state, timers, scores, votes and authorship. All user text is cleaned
 server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 8. Status
 
+- **Angry Thud's Revenge** (2026-09-26, `cpst-party`, uncommitted): new co-op slingshot game, id
+  `thud`, 2–8 agents, launched inside Steam My Deck's CPI handheld. Birds with 9 data-driven
+  abilities, skins separate from gameplay (Steam My Deck's cast as birds), shared kernels, build phase
+  (nests, walls, barricades, shields, clone tanks, weather machines T1–T4), donation and breeding,
+  Corruption Meter, Red Cow cutscenes, 13 weather types, 5 levels, factual awards. New reusable kit:
+  `party/server/games/kit/` (deterministic rigid-body physics, destructibles, weather + forecasts,
+  shared wallet) and `public/js/cpi/bird.js`. Design and tuning: `party/docs/THUD.md`; balance sim:
+  `node scripts/thud-sim.ts`. Tests pass; browser-checked host (1280, 1920) and phones (320, 375
+  portrait, 844 landscape, 1280 desktop) through build, action, donation, weather, Red Cow, victory
+  and defeat. Not yet played by people or on real devices; balance untested.
 - **Steam My Deck** (2026-09-25, `cpst-party`): the game formerly called Escape Thad's Steam Deck
   (id `steamdeck` unchanged). `npm run check` run for the first time since `66df239`: typecheck clean,
   all tests pass, so the four previously unchecked commits were fine. Added
@@ -171,7 +181,7 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
   Railway serves Cornlashing and Corn or Shit and loaded 21 canon records in production.
 - The CPI Database site on `main` (GitHub Pages) has the rename plus the incident and personnel
   pages, cherry-picked from `cpst-party` (`9dfd76b`, `1b9aae5`). Verified live.
-- Tests: **339 passing** (2026-09-25; 109 of them My Cob) (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
+- Tests: **373 passing** (2026-09-26; 109 of them My Cob) (`party/test/`: rooms, chaos, cornorshit, entityauction, claims, canon,
   promotion, db, api, realtime, framework, mycob, mycob-incident, mycob-rules, mycob-realtime,
   mycob-secrecy, awards). `tsc --noEmit` clean.
 - **Entity Auction** (built 2026-09-18, on `origin/cpst-party` by 2026-09-18; live deploy not checked): agents bid Kernels on sealed

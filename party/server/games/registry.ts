@@ -3,6 +3,7 @@ import { cornOrShitGame } from "./cornorshit.ts";
 import { entityAuctionGame } from "./entityauction.ts";
 import { createMyCobGame, type MyCobOptions } from "./mycob/game.ts";
 import { steamDeckGame } from "./steamdeck/game.ts";
+import { thudGame } from "./thud/game.ts";
 import type { GameDefinition } from "./types.ts";
 
 // To add a minigame: implement GameDefinition in games/<id>.ts, add it here, and add
@@ -14,6 +15,7 @@ function installed(mycob: MyCobOptions = {}): GameDefinition[] {
     entityAuctionGame as GameDefinition,
     createMyCobGame(mycob) as GameDefinition,
     steamDeckGame as GameDefinition,
+    thudGame as GameDefinition,
   ];
 }
 const INSTALLED = installed();

@@ -7,8 +7,9 @@ import * as cornorshit from "./games/cornorshit-play.js";
 import * as entityauction from "./games/entityauction-play.js";
 import * as mycob from "./games/mycob-play.js";
 import * as steamdeck from "./games/steamdeck-play.js";
+import * as thud from "./games/thud-play.js";
 
-const RENDERERS = { chaos, cornorshit, entityauction, mycob, steamdeck };
+const RENDERERS = { chaos, cornorshit, entityauction, mycob, steamdeck, thud };
 const SESSION_KEY = "cpst-party:player"; // { code, token, name }
 const NAME_KEY = "cpst-party:last-name";
 
