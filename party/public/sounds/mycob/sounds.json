@@ -52,5 +52,7 @@
   "thud_shield": [],
   "thud_clone": [],
   "thud_purge": [],
-  "thud_kernels": []
+  "thud_kernels": [],
+  "thud_breed": [],
+  "thud_chain": []
 }

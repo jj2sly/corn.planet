@@ -120,6 +120,7 @@ function buildScreen(s) {
     mode: "host",
     onFx: (e) => {
       if (e.t === "boom" || e.t === "quake") hh.shake(e.t === "quake" ? 900 : 350);
+      if (e.t === "chain") hh.notify(`CHAIN REACTION ×${e.n}`, { kind: "ok", icon: "💥", ms: 1800 });
       if (e.t === "bolt") hh.flash("warn", 500);
     },
   });
@@ -174,6 +175,8 @@ function buildScreen(s) {
     } else if (p === "OVER") {
       hh.overlay(overReport({ ...next, scores: Object.fromEntries(latest.players.map((q) => [q.id, q.score])) }), "report");
       hh.flash(next.over?.result === "victory" ? "ok" : "danger");
+      // The awards land after the victory/defeat sting.
+      setTimeout(() => playSfx("achievement", { volume: 0.7 }), 2400);
     }
     phase = p;
   };

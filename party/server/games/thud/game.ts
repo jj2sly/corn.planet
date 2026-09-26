@@ -64,6 +64,7 @@ type Cue =
   | "thud_weather"
   | "thud_nest"
   | "thud_donate"
+  | "thud_breed"
   | "thud_victory"
   | "thud_defeat";
 
@@ -1051,7 +1052,7 @@ class ThudGame implements GameInstance {
       this.points(q.id, SCORING.breed);
     }
     this.say(`BRED: ${this.name(pair[0]!.id)} + ${this.name(p.id)} → a ${birdType(to?.bird ?? p.bird)?.name} for ${this.name((to ?? p).id)}`, "ok");
-    this.cue("thud_nest");
+    this.cue("thud_breed");
     this.changed();
   }
 

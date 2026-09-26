@@ -72,6 +72,8 @@ export const CUES = [
   "thud_clone",
   "thud_purge",
   "thud_kernels",
+  "thud_breed",
+  "thud_chain",
 ];
 
 /** Never dropped to make room for something else. */
@@ -144,6 +146,8 @@ const SYNTH = {
   thud_shield: [tone(0, 0.15, 900, 1800, "sine", 0.08)], // bzzing
   thud_clone: [tone(0, 0.08, 400, 800, "sine", 0.12), tone(0.1, 0.08, 400, 800, "sine", 0.12)], // bloop bloop
   thud_purge: [tone(0, 0.25, 1600, 700, "triangle", 0.06)], // shimmer down
+  thud_breed: [tone(0, 0.1, 700, 1100, "sine", 0.1), tone(0.12, 0.1, 900, 1400, "sine", 0.1), tone(0.26, 0.05, 900, 900, "square", 0.06), tone(0.32, 0.08, 2400, 3000, "sine", 0.1)], // coo-coo, crack, cheep
+  thud_chain: [hiss(0, 0.12, 0.14), tone(0, 0.1, 160, 70, "square", 0.1), hiss(0.14, 0.12, 0.12), tone(0.14, 0.1, 140, 60, "square", 0.1), tone(0.3, 0.5, 90, 36, "sine", 0.26), hiss(0.3, 0.4, 0.14)], // krak-krak-KABOOM
   thud_kernels: [tone(0, 0.05, 1320, 1320, "square", 0.05), tone(0.06, 0.1, 1760, 1760, "square", 0.05)], // ka-ching
 };
 

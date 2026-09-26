@@ -16,6 +16,9 @@ const reducedMotion = () => globalThis.matchMedia?.("(prefers-reduced-motion: re
 const INTERP_MS = 70;
 const TOP = -420;
 
+/** How many things breaking in one update count as a chain reaction (presentation only). */
+const CHAIN_AT = 6;
+
 const FX_SOUND = {
   break: "thud_break",
   pop: "thud_pig_pop",
@@ -103,10 +106,18 @@ export function createThudView(canvas, { mode = "host", you = null, onFx = null,
     // Effects: only ones we haven't seen, and none from before this screen joined.
     const list = next.world.fx ?? [];
     if (seenFx === null) seenFx = list.length ? list[list.length - 1].id : 0;
+    let wrecked = 0;
     for (const e of list) {
       if (e.id <= seenFx) continue;
       seenFx = e.id;
+      if (e.t === "break" || e.t === "pop" || e.t === "boom") wrecked += 1;
       spawn(e);
+    }
+    // A big collapse in one update reads as a chain reaction: one sting, a bigger shake.
+    if (wrecked >= CHAIN_AT) {
+      shake = Math.max(shake, Math.min(16, 6 + wrecked));
+      if (sound) playSfx("thud_chain", { volume: mode === "host" ? 0.9 : 0.6 });
+      onFx?.({ t: "chain", n: wrecked });
     }
   }
 
