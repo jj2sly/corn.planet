@@ -44,6 +44,15 @@ Tuning: **`server/games/thud/config.ts`** (and per-level numbers in `levels.ts`)
 
 No motion sensors, gamepad or Steam Deck needed. Portrait phones get the controls under the screen,
 landscape phones and laptops get grips either side, and wide screens put the panel beside the device.
+Mashing the controls never zooms the page: the device has `touch-action: manipulation` and its grips
+`touch-action: none` (hub, gaps and labels included), and `cpi/handheld.js` also stops iOS's
+two-thumb pinch and old-iOS double-tap on the grips. Pinch-zoom still works on the page itself.
+
+**Tutorial.** A player's first game opens six short cards (build, aim & launch, their bird's ability,
+the team's goal, weather, teamwork) drawn with the game's own art (`thud-tutorial.js`; the words are
+in `thud-howto.js`, built from config so the build timer and abilities never drift). It opens once per
+browser, gets out of the way when it's your shot, and is skippable (Skip, Esc, tap outside). The "?" on
+the device and "How to play" under it bring it back.
 
 ## Birds (`public/js/games/thud-birds.js`)
 
@@ -202,7 +211,15 @@ idle or random play win. Tune with real players; bots can't aim.
 - **Traffic.** While something moves, the game pushes a compact snapshot 20 times a second: one row per
   body (id, kind, position, angle, size, crack stage, flags), cached once per change for every
   viewer. When nothing moves (building, aiming), it only sends on changes; the shooter's aim streams at
-  ~15 Hz over `game:stream`. Screens smooth between snapshots (70 ms behind) so 20 Hz looks fluid.
+  ~15 Hz over `game:stream`.
+- **Smoothing** (`thud-interp.js`). Snapshots carry their physics tick, so screens place them on the
+  server's clock and draw 100 ms behind it, on a curve through the snapshots either side, at the
+  screen's own frame rate. Late or bunched packets don't stutter; a pause between shots resyncs.
+  Effects (breaks, pops, blasts) are held until the drawing reaches the tick they happened in, so the
+  sound and particles land with the visible hit. Nothing is predicted: the server still decides.
+- **Drawing cost.** Blocks are painted once per look (material, size, cracks) into cached sprites and
+  blitted each frame; the scenery is one cached image. Measured at ~0.4 ms (phone) to ~1.3 ms (host,
+  1422 × 677 at 2×) a frame, worst frames under 4 ms.
 - **Determinism.** `kit/rigid.ts` is fixed-step (120 Hz), order-stable and seeded through the room's
   randomness: the same inputs give the same result (tested).
 - **Reconnects** are the room's: a returning agent gets the whole current view (their birds, the
@@ -217,6 +234,8 @@ idle or random play win. Tune with real players; bots can't aim.
 | `server/games/kit/weather.ts` | seeded hostile-weather schedules and tiered forecasts with accuracy |
 | `server/games/kit/economy.ts` | a shared team wallet with a per-agent ledger |
 | `public/js/cpi/bird.js` | CPI bird characters (look + pose), badges and animation |
+| `public/js/cpi/particles.js` | pooled effects: dust, sparks, debris, confetti, rings, text, smoke, embers, shards, glow |
+| `public/js/games/thud-interp.js` | snapshot smoothing on the server's tick clock, with effects held to their moment |
 | `public/js/games/thud-rules.js` | placement against zones and bodies; the aiming arc; pull-back aiming |
 
 ## Custom skins
@@ -237,7 +256,8 @@ later; screens draw the procedural look until a renderer for it exists. Nothing 
 The party's one sound manager (`mycob-sound.js`). The server sends cues the host plays (the start,
 weather warnings, hatchings, donations, the Red Cow, victory, defeat); screens play short effects
 from what happens in the world (launch, stretch, impacts, breaks, piggy hits and pops, booms, ability,
-lightning, tornado, repairs, building, clone tank, kernels, corruption dropping). Victory and defeat use
+lightning, tornado, repairs, building, clone tank, kernels, corruption dropping, breeding, and a
+chain-reaction sting when six or more things break at once). Victory and defeat use
 existing meme clips; the rest are synthesized placeholders until someone maps files in
 `sounds/mycob/sounds.json` (no code change needed).
 

@@ -201,9 +201,17 @@ function drawEyes(ctx, look, { blink, state }) {
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.fillRect(0.05, -0.3, 0.2, 0.05);
   } else {
+    // The brow's shadow over the eyes: it's what makes them look cross.
+    ctx.beginPath();
+    ctx.ellipse(0.32, -0.34, 0.5, 0.16, -0.05, 0, TAU);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
+    ctx.fill();
     for (const [x, y] of pos) {
       circle(ctx, x, y, 0.2);
-      fillStroke(ctx, "#ffffff", INK, 0.05);
+      const white = ctx.createRadialGradient(x - 0.05, y - 0.07, 0.02, x, y, 0.22);
+      white.addColorStop(0, "#ffffff");
+      white.addColorStop(1, "#d9dde6");
+      fillStroke(ctx, white, INK, 0.05);
       if (blink || hurt) {
         ctx.beginPath();
         ctx.moveTo(x - 0.12, y + (hurt ? -0.05 : 0));
@@ -216,11 +224,16 @@ function drawEyes(ctx, look, { blink, state }) {
         ctx.lineWidth = 0.06;
         ctx.stroke();
       } else {
-        circle(ctx, x + 0.06, y + 0.02, 0.09);
+        circle(ctx, x + 0.06, y + 0.02, 0.11);
+        ctx.fillStyle = look.iris ?? "#6b4a1e";
+        ctx.fill();
+        circle(ctx, x + 0.07, y + 0.03, 0.065);
         ctx.fillStyle = INK;
         ctx.fill();
-        circle(ctx, x + 0.09, y - 0.02, 0.03);
+        circle(ctx, x + 0.03, y - 0.02, 0.032);
         ctx.fillStyle = "#fff";
+        ctx.fill();
+        circle(ctx, x + 0.11, y + 0.07, 0.014);
         ctx.fill();
       }
     }
@@ -253,27 +266,29 @@ function drawEyes(ctx, look, { blink, state }) {
   // Brows: the attitude.
   const brow = look.brow ?? "angry";
   if (brow === "none") return;
+  // Each brow is a wedge, thick at the inside end.
+  const lines =
+    brow === "angry" || state === "fly"
+      ? [[-0.1, -0.54, 0.32, -0.38], [0.34, -0.4, 0.76, -0.52]]
+      : brow === "worried" || hurt
+        ? [[-0.06, -0.4, 0.28, -0.52], [0.4, -0.54, 0.72, -0.42]]
+        : [[-0.06, -0.48, 0.3, -0.47], [0.36, -0.48, 0.72, -0.49]];
+  ctx.fillStyle = look.browColor ?? "#1d1822";
   ctx.strokeStyle = INK;
-  ctx.lineWidth = 0.1;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  if (brow === "angry" || state === "fly") {
-    ctx.moveTo(-0.08, -0.52);
-    ctx.lineTo(0.3, -0.38);
-    ctx.moveTo(0.36, -0.4);
-    ctx.lineTo(0.72, -0.5);
-  } else if (brow === "worried" || hurt) {
-    ctx.moveTo(-0.05, -0.4);
-    ctx.lineTo(0.28, -0.5);
-    ctx.moveTo(0.4, -0.52);
-    ctx.lineTo(0.7, -0.42);
-  } else {
-    ctx.moveTo(-0.05, -0.47);
-    ctx.lineTo(0.28, -0.47);
-    ctx.moveTo(0.38, -0.48);
-    ctx.lineTo(0.7, -0.48);
-  }
-  ctx.stroke();
+  ctx.lineWidth = 0.025;
+  lines.forEach(([ax, ay, bx, by], i) => {
+    // Thick between the eyes, thin at the outside.
+    const thickA = i === 0 ? 0.06 : 0.13;
+    const thickB = i === 0 ? 0.13 : 0.06;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay - thickA / 2);
+    ctx.lineTo(bx, by - thickB / 2);
+    ctx.lineTo(bx, by + thickB / 2);
+    ctx.lineTo(ax, ay + thickA / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  });
 }
 
 /**
@@ -319,14 +334,52 @@ export function drawBird(ctx, look, pose = {}) {
       ctx.lineTo(-0.8, 0.18);
     }
     ctx.closePath();
-    fillStroke(ctx, wing, INK, 0.06);
+    const tg = ctx.createLinearGradient(-1.4, -0.4, -0.8, 0.3);
+    tg.addColorStop(0, shade(wing, 0.2));
+    tg.addColorStop(1, shade(wing, -0.25));
+    fillStroke(ctx, tg, INK, 0.06);
+    // Split into feathers.
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.lineWidth = 0.035;
+    ctx.beginPath();
+    ctx.moveTo(-0.85, 0);
+    ctx.lineTo(-1.3, -0.2);
+    ctx.moveTo(-0.85, 0.06);
+    ctx.lineTo(-1.3, 0.2);
+    ctx.stroke();
   }
-  // Body.
+  // Body: lit from the upper left, shadowed underneath, with the sky catching its back edge.
   circle(ctx, 0, 0, 1);
-  const grad = ctx.createRadialGradient(-0.35, -0.4, 0.1, 0, 0, 1.05);
-  grad.addColorStop(0, shade(body, 0.28));
-  grad.addColorStop(1, body);
+  const grad = ctx.createRadialGradient(-0.38, -0.45, 0.05, -0.1, -0.1, 1.15);
+  grad.addColorStop(0, shade(body, 0.42));
+  grad.addColorStop(0.5, body);
+  grad.addColorStop(1, shade(body, -0.32));
   fillStroke(ctx, grad, INK, 0.08);
+  ctx.save();
+  circle(ctx, 0, 0, 0.97);
+  ctx.clip();
+  // Feathers: short strokes over the head and back, a shade darker.
+  ctx.strokeStyle = shade(body, -0.22);
+  ctx.lineWidth = 0.035;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  for (const [fx, fy] of [[-0.55, -0.55], [-0.3, -0.72], [-0.05, -0.8], [-0.7, -0.25], [-0.5, -0.05], [-0.78, 0.15], [0.2, -0.78]]) {
+    ctx.moveTo(fx - 0.08, fy - 0.02);
+    ctx.quadraticCurveTo(fx, fy + 0.07, fx + 0.1, fy);
+  }
+  ctx.stroke();
+  const under = ctx.createLinearGradient(0, 0.2, 0, 1);
+  under.addColorStop(0, "rgba(0, 0, 0, 0)");
+  under.addColorStop(1, "rgba(0, 0, 0, 0.25)");
+  ctx.fillStyle = under;
+  ctx.fillRect(-1, 0.2, 2, 0.8);
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(0, 0, 0.9, Math.PI * 0.05, Math.PI * 0.45);
+  ctx.strokeStyle = "rgba(255, 245, 220, 0.4)";
+  ctx.lineWidth = 0.07;
+  ctx.lineCap = "round";
+  ctx.stroke();
   // Pattern on the back.
   if (look.pattern === "spots" || look.pattern === "stripes") {
     ctx.save();
@@ -337,10 +390,22 @@ export function drawBird(ctx, look, pose = {}) {
     else for (let i = 0; i < 3; i++) ctx.fillRect(-1, -0.7 + i * 0.32, 0.9, 0.1);
     ctx.restore();
   }
-  // Belly.
+  // Belly: soft-edged, a little scalloped.
   ctx.beginPath();
   ctx.ellipse(0.12, 0.42, 0.66, 0.5, 0, 0, TAU);
-  fillStroke(ctx, belly, null);
+  const bg = ctx.createRadialGradient(0.05, 0.3, 0.05, 0.12, 0.42, 0.7);
+  bg.addColorStop(0, shade(belly, 0.25));
+  bg.addColorStop(0.75, belly);
+  bg.addColorStop(1, shade(belly, -0.12));
+  fillStroke(ctx, bg, null);
+  ctx.strokeStyle = shade(belly, -0.18);
+  ctx.lineWidth = 0.03;
+  ctx.beginPath();
+  for (const [sx, sy] of [[-0.15, 0.45], [0.12, 0.52], [0.38, 0.45], [0.0, 0.7], [0.26, 0.72]]) {
+    ctx.moveTo(sx - 0.09, sy);
+    ctx.quadraticCurveTo(sx, sy + 0.08, sx + 0.09, sy);
+  }
+  ctx.stroke();
   drawCrest(ctx, look, t);
   // Wing: flapping in flight, up when cheering.
   const flap = state === "fly" ? Math.sin(t * 22) * 0.5 : state === "cheer" ? -0.8 + Math.sin(t * 10) * 0.3 : state === "sling" ? 0.3 : 0.1;
@@ -349,24 +414,58 @@ export function drawBird(ctx, look, pose = {}) {
   ctx.rotate(flap);
   ctx.beginPath();
   ctx.ellipse(-0.1, 0.1, 0.42, 0.26, -0.3, 0, TAU);
-  fillStroke(ctx, wing, INK, 0.05);
+  const wg = ctx.createLinearGradient(-0.4, -0.1, 0.2, 0.3);
+  wg.addColorStop(0, shade(wing, 0.22));
+  wg.addColorStop(1, shade(wing, -0.2));
+  fillStroke(ctx, wg, INK, 0.05);
+  // Feather tips along its trailing edge.
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.32)";
+  ctx.lineWidth = 0.03;
+  ctx.beginPath();
+  for (const k of [-0.3, -0.12, 0.06]) {
+    ctx.moveTo(k, 0.02);
+    ctx.lineTo(k - 0.12, 0.24);
+  }
+  ctx.stroke();
   ctx.restore();
   drawAccessory(ctx, look);
   // Beak.
   const beak = look.beak ?? "#ffb000";
   const open = state === "fly" || state === "cheer" ? 0.14 : state === "hit" ? 0.2 : 0.03;
+  if (open > 0.05) {
+    // The inside of the mouth, when it's open.
+    ctx.beginPath();
+    ctx.moveTo(0.72, 0.1);
+    ctx.lineTo(1.1, 0.1 + open * 0.6);
+    ctx.lineTo(0.72, 0.28 + open * 0.5);
+    ctx.closePath();
+    ctx.fillStyle = "#5a1414";
+    ctx.fill();
+  }
   ctx.beginPath();
   ctx.moveTo(0.72, -0.08);
   ctx.lineTo(1.28, 0.04);
   ctx.lineTo(0.72, 0.12);
   ctx.closePath();
-  fillStroke(ctx, beak, INK, 0.05);
+  const kg = ctx.createLinearGradient(0, -0.08, 0, 0.12);
+  kg.addColorStop(0, shade(beak, 0.3));
+  kg.addColorStop(1, shade(beak, -0.1));
+  fillStroke(ctx, kg, INK, 0.05);
+  ctx.beginPath();
+  ctx.moveTo(0.8, -0.04);
+  ctx.lineTo(1.1, 0.02);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+  ctx.lineWidth = 0.03;
+  ctx.stroke();
+  circle(ctx, 0.88, 0, 0.022);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+  ctx.fill();
   ctx.beginPath();
   ctx.moveTo(0.72, 0.12 + open * 0.3);
   ctx.lineTo(1.12, 0.16 + open);
   ctx.lineTo(0.72, 0.3 + open * 0.5);
   ctx.closePath();
-  fillStroke(ctx, shade(beak, -0.2), INK, 0.05);
+  fillStroke(ctx, shade(beak, -0.22), INK, 0.05);
   drawEyes(ctx, look, { blink, state });
   ctx.restore();
 }

@@ -118,6 +118,25 @@ export function createHandheld({ title = "", owner = null, layout = "auto", left
     el("div", { class: "cpi-hh-body" }, gripL, face, gripR, below ? el("div", { class: "cpi-hh-below" }, below) : null),
   );
 
+  // ---- touch: thumbs mashing the controls must never read as a zoom. party.css sets touch-action
+  // on the device (no double-tap zoom) and its grips (no gestures at all). iOS Safari still starts a
+  // pinch when two thumbs move on the two grips, and older iOS ignores touch-action for double-tap,
+  // so both are also stopped here. Game buttons act on pointerdown, so a cancelled touchend loses
+  // nothing (keyboard clicks don't come through here).
+  const onGesture = (e) => e.preventDefault();
+  node.addEventListener("gesturestart", onGesture);
+  node.addEventListener("gesturechange", onGesture);
+  let lastTouchEnd = -1e9;
+  node.addEventListener(
+    "touchend",
+    (e) => {
+      const onControls = e.target instanceof Element && e.target.closest(".cpi-hh-grip, .cpi-hh-shoulder");
+      if (onControls && e.timeStamp - lastTouchEnd < 400 && e.cancelable) e.preventDefault();
+      lastTouchEnd = e.timeStamp;
+    },
+    { passive: false },
+  );
+
   // ---- layout: measured as soon as the device is on the page (the microtask after it's mounted),
   // so the first frame is already right, then again whenever it's resized.
   let observer = null;

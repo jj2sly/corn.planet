@@ -3204,6 +3204,10 @@ a.stamp:focus-visible {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  /* A game's controls get mashed: no double-tap zoom anywhere on the device (pinch still works on
+     the body; the grips below take no gestures at all). */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .cpi-hh-shoulders {
@@ -3274,6 +3278,9 @@ button.cpi-hh-shoulder {
 }
 
 .cpi-hh-grip {
+  /* The whole grip, not just each button: a thumb that lands on the d-pad's hub, a gap between
+     arrows or a button's label must not zoom or scroll the page either. */
+  touch-action: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -5630,6 +5637,182 @@ button.cpi-hh-face-btn:disabled {
   gap: 10px;
   user-select: none;
   -webkit-user-select: none;
+  /* Build, donate and bird buttons get tapped fast: no double-tap zoom here either (pinch still works). */
+  touch-action: manipulation;
+}
+
+.btn.td-howto {
+  justify-self: start;
+  min-height: 44px;
+}
+
+/* ------------------------------------------------------------------ the first-time tutorial */
+
+.td-tutorial {
+  width: min(440px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid #34363c;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #1a1b20, #0d0e11);
+  color: var(--text);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.td-tutorial::backdrop {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.td-tut-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px 16px 16px;
+}
+
+.td-tut-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.td-tut-step {
+  margin: 0;
+  color: var(--yellow);
+  font: 700 11px/1 var(--mono);
+  letter-spacing: 0.14em;
+}
+
+.td-tut-skip {
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 700 13px/1 var(--body);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.td-tut-skip:hover,
+.td-tut-skip:focus-visible {
+  color: var(--yellow);
+}
+
+.td-tut-art {
+  display: block;
+  width: 100%;
+  height: clamp(120px, 36vw, 170px);
+  border: 1px solid #2a2c32;
+  border-radius: 10px;
+  background: #0b0d12;
+}
+
+.td-tut-title {
+  margin: 2px 0 0;
+  color: #fff;
+  font: 700 clamp(22px, 6vw, 28px) / 1.1 var(--head);
+  letter-spacing: 0.04em;
+}
+
+.td-tut-lines {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  /* Room for the longest card, so Next doesn't jump about as you page. */
+  min-height: 8.4em;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 15px;
+  line-height: 1.38;
+  overflow-wrap: anywhere;
+}
+
+.td-tut-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.td-tut-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  background: #3a3d44;
+  transition: width 0.2s, background-color 0.2s;
+}
+
+.td-tut-dots span.on {
+  width: 20px;
+  background: var(--yellow);
+}
+
+.td-tut-nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 10px;
+}
+
+.td-tut-nav .btn {
+  min-height: 46px;
+  padding: 8px 12px;
+}
+
+/* A phone on its side: the picture beside the words, so nothing needs scrolling. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .td-tutorial {
+    width: min(700px, calc(100vw - 24px));
+  }
+
+  .td-tut-card {
+    grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas: "head head" "art title" "art lines" "art nav";
+    gap: 6px 16px;
+    padding: 4px 16px 12px;
+  }
+
+  .td-tut-head {
+    grid-area: head;
+  }
+
+  .td-tut-art {
+    grid-area: art;
+    align-self: center;
+    height: min(calc(100dvh - 120px), 200px);
+  }
+
+  .td-tut-title {
+    grid-area: title;
+    font-size: 20px;
+  }
+
+  .td-tut-lines {
+    grid-area: lines;
+    gap: 4px;
+    min-height: 0;
+    font-size: 14px;
+  }
+
+  /* The header already says which card this is. */
+  .td-tut-dots {
+    display: none;
+  }
+
+  .td-tut-nav {
+    grid-area: nav;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .td-tut-dots span {
+    transition: none;
+  }
 }
 
 .td-phone[data-layout="landscape"] .cpi-hh-screen-wrap {
@@ -5668,6 +5851,32 @@ button.cpi-hh-face-btn:disabled {
 
 .td-face .cpi-hh-abxy.real {
   width: clamp(112px, 90%, 170px);
+}
+
+/* Each cluster fills its grip, so every button stays a comfortable thumb target: upright on a
+   320px phone (controls under the screen, half the width each) and on its side (a grip each). */
+.td-phone .cpi-hh-dpad,
+.td-phone .td-face .cpi-hh-abxy.real {
+  width: min(100%, 170px);
+}
+
+.td-face .cpi-hh-abxy.real .cpi-hh-face-btn {
+  width: 96%;
+}
+
+@media (max-width: 360px) {
+  .td-phone .td-face .cpi-hh-face-btn .cpi-hh-label {
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+}
+
+/* A little invisible margin round each face button, so a near miss still presses it. */
+.td-face .cpi-hh-face-btn::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
 }
 
 .td-face .cpi-hh-face-btn .cpi-hh-label {
@@ -5923,6 +6132,9 @@ button.cpi-hh-face-btn:disabled {
 
 .td-host .td-hud {
   gap: 4px 18px;
+  /* The title wraps (level name under the phase) before the meters get squeezed: they never go
+     narrower than their own content, so a long phase name can't push them over the kernels. */
+  grid-template-columns: minmax(min-content, max-content) minmax(max-content, 1fr) auto;
 }
 
 .td-host .td-meter {

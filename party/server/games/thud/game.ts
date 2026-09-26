@@ -1245,6 +1245,8 @@ class ThudGame implements GameInstance {
         catalog: Object.entries(BUILDINGS).map(([type, d]) => ({ type, name: d.name, cost: d.cost, w: d.w, h: buildingHeight(type as BuildingKind, 1, WEATHER_TIERS), max: d.max, count: counts[type] ?? 0, blurb: d.blurb })),
         birdCrate: ECONOMY.birdCrate,
         breedCost: ECONOMY.breed,
+        /** How long a build phase lasts (the tutorial says so). */
+        buildMs: TIMING.buildMs,
         structures: buildings.map((b) => {
           const s = entityOf(b).building!;
           const e = entityOf(b);

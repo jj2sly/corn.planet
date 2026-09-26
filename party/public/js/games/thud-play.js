@@ -15,6 +15,7 @@ import { isMuted, playSfx, setMuted } from "./mycob-sound.js";
 import { birdType, SKINS } from "./thud-birds.js";
 import { aimFromPull, clearOf, placement } from "./thud-rules.js";
 import { birdBadge, birdCards, cowBand, forecastPanel, launchSteps, levelCard, liveTimer, meters, overReport, PHASE_TITLE, processBanner, TITLE } from "./thud-ui.js";
+import { closeTutorial, showTutorial, tutorialSeen } from "./thud-tutorial.js";
 import { createThudView } from "./thud-world.js";
 
 const buzz = (pattern) => {
@@ -84,6 +85,13 @@ function muteButton() {
   return b;
 }
 
+/** The "?" on the device's status bar: the tutorial again. */
+function helpButton(open) {
+  const b = el("button", { class: "cpi-hh-sysbtn", type: "button", "aria-label": "How to play", text: "?" });
+  b.addEventListener("click", open);
+  return b;
+}
+
 const ACTION_LABEL = { AIM: "LAUNCH", FLIGHT: "ABILITY", BUILD: "PLACE" };
 
 function buildScreen(s, tools) {
@@ -124,7 +132,8 @@ function buildScreen(s, tools) {
   const rightGrip = el("div", { class: "cpi-hh-cluster td-face" }, el("div", { class: "cpi-hh-abxy real" }, yBtn, xBtn, bBtn, aBtn));
   const panel = el("div", { class: "td-panel" });
   const hh = createHandheld({ title: TITLE, owner: g0.roster.find((p) => p.id === me)?.name?.toUpperCase() ?? null, layout: "auto", left: leftGrip, right: rightGrip, label: "Angry Thud's Revenge", className: "sd-device td-device td-phone" });
-  hh.setStatus({ extra: [timer.node, muteButton()] });
+  const howTo = () => showTutorial(g, { me });
+  hh.setStatus({ extra: [timer.node, helpButton(howTo), muteButton()] });
   const canvas = el("canvas", { class: "sd-canvas td-canvas", "aria-label": "The battlefield. Drag back from the slingshot to aim." });
   hh.screen.append(canvas);
   const view = createThudView(canvas, {
@@ -141,7 +150,9 @@ function buildScreen(s, tools) {
   const forecast = forecastPanel();
   const inventory = el("div", { class: "td-inventory", role: "radiogroup", "aria-label": "Your birds" });
   const status = el("p", { class: "td-status", role: "status" });
-  const node = el("div", { class: "td-phone-wrap" }, hh.node, el("div", { class: "td-under" }, m.node, status, inventory, panel, forecast.node));
+  const howToBtn = el("button", { class: "btn subtle small td-howto", type: "button", text: "? How to play" });
+  howToBtn.addEventListener("click", () => howTo());
+  const node = el("div", { class: "td-phone-wrap" }, hh.node, el("div", { class: "td-under" }, m.node, status, inventory, panel, forecast.node, howToBtn));
 
   const mine = () => g.roster.find((p) => p.id === me);
   const shooting = () => g.phase === "ACTION" && g.action?.shooterId === me;
@@ -524,6 +535,8 @@ function buildScreen(s, tools) {
       const st = stage();
       if (st !== lastStage) {
         if (st === "AIM") {
+          // Your shot beats the tutorial: it gets out of the way (the "?" brings it back).
+          closeTutorial();
           aim.a = g.action.aim.a;
           aim.p = g.action.aim.p;
           hh.notify("YOUR SHOT", { kind: "ok", icon: "🎯", replace: true });
@@ -561,9 +574,26 @@ function buildScreen(s, tools) {
   };
 }
 
+/** A player's first game: the tutorial opens once the screen has settled (never again after). */
+function firstTimeTutorial(state) {
+  if (tutorialSeen()) return;
+  const g = state.game;
+  setTimeout(() => {
+    const shooting = g.phase === "ACTION" && g.action?.shooterId === g.you?.playerId;
+    if (document.querySelector(".td-phone") && !shooting) showTutorial(g, { me: g.you?.playerId });
+  }, 700);
+}
+
 export function render(mount, state, tools) {
   const g = state.game;
   if (!g) return;
   if (!g.you || g.you.spectator) return mount(`thud:${g.session}:watch`, (s) => ({ node: systemCard({ eyebrow: TITLE, title: "Watching", text: "This game started without you. Watch the big screen!" }) }), state);
-  mount(`thud:${g.session}`, (s) => buildScreen(s, tools), state);
+  mount(
+    `thud:${g.session}`,
+    (s) => {
+      firstTimeTutorial(s);
+      return buildScreen(s, tools);
+    },
+    state,
+  );
 }

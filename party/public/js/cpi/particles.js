@@ -22,6 +22,14 @@ const PRESETS = {
   text: { life: 1, size: 26, grow: 0, speed: 70, spread: 0, angle: -Math.PI / 2, gravity: -10, drag: 1.5, color: "#ffffff", shape: "text", layer: "front" },
   // Slow drifting specks in the air (ambient).
   mote: { life: 4, size: 2.5, grow: 0, speed: 12, spread: Math.PI * 2, gravity: -4, drag: 0, color: "rgba(255, 236, 170, 0.35)", shape: "circle", layer: "back" },
+  // Rolling smoke after a blast: dark, rising, growing, slow to fade.
+  smoke: { life: 1.6, size: 14, grow: 26, speed: 70, spread: Math.PI * 2, gravity: -60, drag: 1.6, color: ["rgba(60, 56, 54, 0.5)", "rgba(90, 84, 80, 0.42)", "rgba(40, 38, 40, 0.5)"], shape: "puff", layer: "back" },
+  // Glowing bits thrown out of a fire, falling.
+  ember: { life: 0.9, size: 2.6, grow: -1.5, speed: 320, spread: Math.PI * 2, gravity: 500, drag: 0.8, color: ["#ffd166", "#ff9a3d", "#ff5a1f"], shape: "glow", layer: "front" },
+  // Sharp broken pieces (glass, ice): spinning triangles.
+  shard: { life: 0.9, size: 7, grow: 0, speed: 300, spread: Math.PI * 1.4, angle: -Math.PI / 2, gravity: 1300, drag: 0.4, color: ["rgba(220, 245, 255, 0.95)", "rgba(160, 215, 245, 0.85)", "#ffffff"], shape: "shard", spin: 18, layer: "front" },
+  // A soft flash of light: a blast's fireball, a spark's bloom.
+  glow: { life: 0.35, size: 40, grow: 160, speed: 0, gravity: 0, drag: 0, color: "#ffc45a", shape: "glow", layer: "front" },
 };
 
 export const PARTICLE_KINDS = Object.freeze(Object.keys(PRESETS));
@@ -130,6 +138,44 @@ export function createParticles({ max = 160, random = Math.random } = {}) {
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             ctx.stroke();
+            break;
+          case "puff": {
+            // A soft cloud: a radial fade, so overlapping puffs build up like smoke.
+            const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+            g.addColorStop(0, p.color);
+            g.addColorStop(1, "rgba(0, 0, 0, 0)");
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+          }
+          case "glow": {
+            // Light adds up: drawn "lighter", a bright core fading out.
+            const prev = ctx.globalCompositeOperation;
+            ctx.globalCompositeOperation = "lighter";
+            const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+            g.addColorStop(0, "rgba(255, 255, 255, 0.9)");
+            g.addColorStop(0.25, p.color);
+            g.addColorStop(1, "rgba(0, 0, 0, 0)");
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalCompositeOperation = prev;
+            break;
+          }
+          case "shard":
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.beginPath();
+            ctx.moveTo(0, -p.size / 2);
+            ctx.lineTo(p.size * 0.35, p.size / 2);
+            ctx.lineTo(-p.size * 0.3, p.size * 0.3);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
             break;
           case "text":
             ctx.font = p.font.replace("1px", `${Math.round(p.size)}px`);
