@@ -1,7 +1,11 @@
-// Host screen: creates or resumes a session, runs the lobby, shows the game and results.
+// Host screen: creates or resumes a session, runs the lobby (Steam My Deck's hub, deck/hub.js),
+// launches and shows the game, and the results.
 
 import { $, announce, createMount, el, flavorLine, loadConfig, notice, plural, scoreboardEl, startCountdowns, store } from "./common.js";
 import { connect } from "./connection.js";
+import { buildHub } from "./deck/hub.js";
+import { gameInfo, PLATFORM_NAME, setLibrary } from "./deck/library.js";
+import { installQuickMenu, playLaunch, rememberPlayed, setCoverPainters, setSystem } from "./deck/ui.js";
 import * as chaos from "./games/chaos-host.js";
 import * as cornorshit from "./games/cornorshit-host.js";
 import * as entityauction from "./games/entityauction-host.js";
@@ -50,6 +54,10 @@ async function init() {
     stage.replaceChildren(el("div", { class: "banner danger", text: "Can't reach the Corn Planet Party server. Refresh to try again." }));
     return;
   }
+  // Steam My Deck: the registry's games are the library, and the renderers bring their covers.
+  setLibrary(config.games);
+  setCoverPainters(RENDERERS);
+  installQuickMenu();
   conn = await connect({ onState, onEnded, onStatus });
 }
 
@@ -164,10 +172,17 @@ async function skip() {
 
 function onState(next) {
   state = next;
+  const info = gameInfo(state.config.gameId);
   if (state.status !== lastStatus) {
-    announce(state.status === "LOBBY" ? "Lobby open" : state.status === "IN_GAME" ? "Operation started" : "Final debrief");
+    announce(state.status === "LOBBY" ? `${PLATFORM_NAME}: home` : state.status === "IN_GAME" ? `Launching ${info?.title ?? "the game"}` : "Final debrief");
+    // Seen live (not on a reload mid-game): Steam My Deck launches the game.
+    if (state.status === "IN_GAME" && lastStatus !== null && info) playLaunch(info);
+    if (state.status === "IN_GAME") rememberPlayed(state.config.gameId);
     lastStatus = state.status;
   }
+  document.title = state.status === "LOBBY" ? `${PLATFORM_NAME} — ${state.code}` : `${info?.title ?? "Corn Planet Party"} — ${PLATFORM_NAME}`;
+  // The KERNEL button's quick menu: the host can always end a game and bring everyone back.
+  setSystem(state.status === "IN_GAME" ? { gameId: state.config.gameId, canEnd: true, end: () => act("room:lobby") } : null);
   render();
 }
 
@@ -197,7 +212,8 @@ function renderBarControls() {
         class: "btn subtle small",
         type: "button",
         text: "End game",
-        onclick: () => confirm("End this game and return everyone to the lobby? Scores from this game won't be saved.") && act("room:lobby"),
+        title: `End the game and go back to ${PLATFORM_NAME}`,
+        onclick: () => confirm(`End this game and take everyone back to ${PLATFORM_NAME}? Scores from this game won't be saved.`) && act("room:lobby"),
       }),
     );
   } else {
@@ -211,32 +227,6 @@ function renderBarControls() {
     );
   }
   controls.replaceChildren(...buttons);
-}
-
-function agentCards(s, { kick = false } = {}) {
-  const cards = s.players.map((p) =>
-    el(
-      "li",
-      { class: `agent filled ${p.connected ? "" : "offline"}` },
-      el("span", { class: "status-dot", "aria-hidden": "true" }),
-      el("span", { class: "name", text: p.name }),
-      p.id === s.leaderId ? el("span", { class: "stamp", text: "Leader" }) : null,
-      p.connected ? null : el("span", { class: "stamp danger", text: "Signal lost" }),
-      kick
-        ? el("button", {
-            class: "btn subtle small",
-            type: "button",
-            "aria-label": `Remove ${p.name}`,
-            text: "✕",
-            onclick: () => confirm(`Remove ${p.name} from the session?`) && act("room:kick", { playerId: p.id }),
-          })
-        : null,
-    ),
-  );
-  for (let i = s.players.length; i < s.maxPlayers; i++) {
-    cards.push(el("li", { class: "agent empty", text: "AWAITING AGENT" }));
-  }
-  return cards;
 }
 
 function choiceGroup(legend, name, options, current, onChange) {
@@ -385,6 +375,8 @@ function sourceWarning() {
   let room = null;
 
   const show = () => {
+    // Hidden unless the selected game has something to warn about (a warning never outlives its game).
+    node.hidden = true;
     node.classList.remove("danger");
     if (gameId === "entityauction") {
       if (!canon || !room) return;
@@ -424,8 +416,8 @@ function sourceWarning() {
       return;
     }
 
-    // Angry Thud's Revenge doesn't use the CPI Database.
-    if (gameId === "thud") return;
+    // The handheld games (Angry Thud's Revenge, Escape Thad's Steam Deck) don't use the CPI Database.
+    if (gameId === "thud" || gameId === "steamdeck") return;
     if (!canon) return;
     const n = canon.entity + canon.incident + canon.personnel;
     node.hidden = n >= 8;
@@ -447,106 +439,19 @@ function sourceWarning() {
   };
 }
 
+/**
+ * The lobby is Steam My Deck's hub on the big screen (deck/hub.js): the library, title cards with
+ * each game's settings form, the join code and the agents.
+ */
 function buildLobby(s) {
-  const grid = el("ul", { class: "agent-grid", "aria-label": "Agents in this session" });
-  const count = el("span");
-  const leader = el("p", { class: "muted" });
-  const gameList = el("div", { class: "game-list", role: "group", "aria-label": "Available operations" });
-  const gameCard = el("div", { class: "game-card" });
-  const settingsBox = el("div", { class: "settings-grid" });
-  const start = el("button", { class: "btn big", type: "button", text: "Start operation", onclick: () => act("room:start", {}, startNote) });
-  const startNote = el("p", { class: "notice" });
-  const source = sourceWarning();
-
-  const gameFor = (state) => config.games.find((g) => g.id === state.config.gameId) ?? config.games[0];
-
-  const node = el(
-    "div",
-    { class: "lobby" },
-    el(
-      "section",
-      { class: "stack" },
-      el("p", { class: "eyebrow", text: "Classified party session · access code" }),
-      el("div", { class: "big-code", "aria-label": `Session code ${s.code.split("").join(" ")}`, text: s.code }),
-      el(
-        "ol",
-        { class: "steps" },
-        el("li", {}, "On your phone, open ", el("strong", { class: "mono", text: joinUrl() })),
-        el("li", {}, "Enter code ", el("strong", { class: "mono", text: s.code }), " and your agent name"),
-        el("li", { text: "The first agent to join is session leader and can start from their phone." }),
-      ),
-      location.hostname === "localhost" || location.hostname === "127.0.0.1"
-        ? el("p", { class: "banner", text: "Phones can't open “localhost”. Open this page using this computer's network address (shown in the server console) so the join link works." })
-        : null,
-      el("div", { class: "row spread" }, el("h2", {}, "Agents ", count), null),
-      grid,
-      leader,
-    ),
-    el(
-      "section",
-      { class: "panel stack" },
-      el("h2", { text: "Select operation" }),
-      gameList,
-      gameCard,
-      settingsBox,
-      source.node,
-      start,
-      startNote,
-    ),
-  );
-
-  return {
-    node,
-    update(next) {
-      grid.replaceChildren(...agentCards(next, { kick: true }));
-      count.textContent = `(${next.players.length}/${next.maxPlayers})`;
-      const leaderPlayer = next.players.find((p) => p.id === next.leaderId);
-      leader.textContent = leaderPlayer ? `Session leader: ${leaderPlayer.name}` : "Waiting for the first agent…";
-
-      const game = gameFor(next);
-      source.update(game.id, next.config.contentMode, next);
-
-      // Rebuild the picker only when the selection changed, so a click isn't lost mid-press.
-      if (gameList.dataset.selected !== game.id) {
-        gameList.dataset.selected = game.id;
-        gameList.replaceChildren(
-          ...config.games.map((g) =>
-            el("button", {
-              class: `game-choice ${g.id === game.id ? "selected" : ""}`.trim(),
-              type: "button",
-              "aria-pressed": String(g.id === game.id),
-              text: g.name,
-              onclick: () => act("room:configure", { gameId: g.id }, startNote),
-            }),
-          ),
-        );
-        gameCard.replaceChildren(
-          el("h3", { text: game.name }),
-          el("p", { class: "muted", text: game.tagline }),
-          el("p", { text: game.description }),
-          el("p", { class: "mono", text: `${game.minPlayers}–${game.maxPlayers} agents` }),
-        );
-      }
-
-      // Rebuild settings only when they changed, so keyboard focus isn't lost on every update.
-      const signature = JSON.stringify(next.config);
-      if (settingsBox.dataset.signature !== signature) {
-        const focusedName = document.activeElement?.name;
-        settingsBox.dataset.signature = signature;
-        const configure = (patch) => act("room:configure", patch, startNote);
-        const form = SETTINGS_FORMS[game.id];
-        settingsBox.replaceChildren(...(form ? form(next.config.settings, configure, next) : []));
-        if (focusedName) settingsBox.querySelector(`input[name="${focusedName}"]:checked`)?.focus();
-      }
-
-      const connected = next.players.filter((p) => p.connected).length;
-      const needed = game.minPlayers - connected;
-      start.disabled = needed > 0;
-      start.textContent = needed > 0 ? `Need ${plural(needed, "more agent")}` : "Start operation";
-    },
-  };
+  return buildHub(s, {
+    role: "host",
+    act: (event, payload) => conn.request(event, payload),
+    join: { url: joinUrl(), localhost: location.hostname === "localhost" || location.hostname === "127.0.0.1" },
+    options: (gameId, room, configure) => SETTINGS_FORMS[gameId]?.(room.config.settings, configure, room) ?? [],
+    warning: sourceWarning(),
+  });
 }
-
 
 function buildResults(s) {
   const results = s.results;
@@ -554,7 +459,7 @@ function buildResults(s) {
   const node = el(
     "div",
     { class: "stack" },
-    el("p", { class: "eyebrow", text: `${results.gameName} · ${plural(results.rounds, "round")} · operation complete` }),
+    el("p", { class: "eyebrow", text: `${gameInfo(results.gameId)?.title ?? results.gameName} · ${plural(results.rounds, "round")} · operation complete` }),
     el("h1", { class: "flicker", text: "FINAL DEBRIEF" }),
     scoreboardEl(results.standings.map((st) => ({ ...st, note: st.left ? "Left" : null }))),
     results.highlights.length
@@ -576,8 +481,8 @@ function buildResults(s) {
     el(
       "div",
       { class: "row" },
-      el("button", { class: "btn", type: "button", text: "Replay", onclick: () => act("room:start", {}, note) }),
-      el("button", { class: "btn ghost", type: "button", text: "Return to lobby", onclick: () => act("room:lobby", {}, note) }),
+      el("button", { class: "btn", type: "button", text: "▶ Play again", onclick: () => act("room:start", {}, note) }),
+      el("button", { class: "btn ghost", type: "button", text: `⌂ Back to ${PLATFORM_NAME}`, onclick: () => act("room:lobby", {}, note) }),
     ),
     note,
   );

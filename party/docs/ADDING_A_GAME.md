@@ -19,6 +19,13 @@ export const myGame: GameDefinition<MySettings> = {
   minPlayers: 3,
   maxPlayers: 8,
   defaultSettings: { rounds: 3 },
+  deck: {                           // its entry in Steam My Deck's library (optional)
+    shelf: "party",                 // "handheld" if it runs inside the CPI handheld on every screen
+    genre: "Sketch battle",
+    controls: ["Phone: draw the entity", "Phone: vote for the best one"],
+    length: "10–20 min",
+    art: { from: "#2b1d0e", to: "#0b0703", accent: "#ffc36b", glyph: "✏️", motif: "stripes" },
+  },
   parseSettings(raw) { /* clamp untrusted host input, never throw */ },
   create(ctx, settings) { return new MyGame(ctx, settings); },
 };
@@ -67,12 +74,18 @@ Rules of thumb:
 ## 2. Register it
 
 Add it to `INSTALLED` in `server/games/registry.ts`. It then appears in `/api/config`, on the landing page
-and in the host screen's game list. `room:configure` with `{ gameId }` selects it.
+and in **Steam My Deck**, the handheld hub that is the lobby on the big screen and on every phone
+(`public/js/deck/`): its library tile, cover, title card (title, tagline, players, genre, controls,
+description) and launch transition all come from the definition, so there is no list of games to edit.
+`room:configure` with `{ gameId }` selects it and `room:start` launches it; when it finishes (or the
+host ends it) `room:lobby` brings everyone back to the hub. A game without a `deck` entry still
+appears, on the party shelf with a plain cover.
 
 If the game needs lobby settings, add an entry to `SETTINGS_FORMS` in `public/js/host.js` keyed by
-your game id. Choices the form needs from the server (modes, presets) can go in the definition's
-optional `catalog`, which `/api/config` publishes with the game. Without one the game simply shows no settings. The operation picker, the game card and
-the minimum-player check all follow the selected game automatically.
+your game id: the host's title card shows it under OPTIONS. Choices the form needs from the server
+(modes, presets) can go in the definition's optional `catalog`, which `/api/config` publishes with
+the game. Without one the game simply shows no settings. The library, the title card and the
+minimum-player check all follow the selected game automatically.
 
 ## 3. Client: render it
 
@@ -80,6 +93,14 @@ Add two ES modules and register them next to Cornlashing:
 
 - `public/js/games/<id>-host.js` → `export function render(mount, state)`, registered in `RENDERERS` in `public/js/host.js`
 - `public/js/games/<id>-play.js` → `export function render(mount, state, tools)`, registered in `RENDERERS` in `public/js/play.js`
+
+Optionally, either module can also `export function cover(ctx, { width, height })`: it paints the
+game's cover art in the library (once per size, never animated) over its `deck.art` colours. The
+Steam My Deck launch (a short splash with the cover and title) plays on every screen before your
+renderer's first frame is seen, so don't add a boot or "launching" screen of your own; show your
+game's title with `titleOf(id)` from `public/js/deck/library.js` rather than a hard-coded string.
+A game drawn inside `cpi/handheld.js` gets the KERNEL button (Steam My Deck's quick menu: resume,
+sound, controls, end the game / leave) for free.
 
 `state` is the room view: `status`, `players` (with scores), `leaderId`, `timer`, `you`, `step` and
 `game` (your `viewFor` output). Send input with `tools.request("game:input", { action, payload })`.

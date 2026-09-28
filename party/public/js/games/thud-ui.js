@@ -3,13 +3,15 @@
 // final report, all inside the CPI handheld (cpi/handheld.js). Words and pictures only.
 
 import { el } from "../common.js";
-import { animateBirds, birdCanvas } from "../cpi/bird.js";
-import { bootScreen, systemCard } from "../cpi/handheld.js";
+import { animateBirds, birdCanvas, drawBird } from "../cpi/bird.js";
+import { systemCard } from "../cpi/handheld.js";
+import { titleOf } from "../deck/library.js";
 import { fitCanvas } from "../drawing-canvas.js";
-import { drawPig, drawRedCow } from "./thud-art.js";
+import { drawBlock, drawPig, drawRedCow } from "./thud-art.js";
 import { birdType, BIRDS, lookFor, skinById } from "./thud-birds.js";
 
-export const TITLE = "ANGRY THUD'S REVENGE";
+/** The game's title, as Steam My Deck's library (the server's registry) has it. */
+export const gameTitle = () => titleOf("thud", "Angry Thud's Revenge").toUpperCase();
 
 export const PHASE_TITLE = {
   SELECT: "CHOOSE YOUR BIRD",
@@ -69,35 +71,52 @@ export function birdBadge(type, skin, { size = 48, state = "idle" } = {}) {
   return c;
 }
 
+// ------------------------------------------------------------------ the cover
+
+/**
+ * Steam My Deck's cover art for the game (deck/ui.js paints it once per size): a bird mid-flight
+ * at the Boss Piggy's tower. Static: covers don't animate.
+ */
+export function paintCover(ctx, { width: w, height: h }) {
+  const s = Math.min(w, h * 1.4);
+  const ground = h * 0.86;
+  // A dusky hill, the flight's dotted arc, then the tower and its piggy.
+  ctx.fillStyle = "rgba(24, 9, 4, 0.78)";
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  ctx.lineTo(0, ground);
+  ctx.quadraticCurveTo(w * 0.45, ground - h * 0.08, w, ground - h * 0.02);
+  ctx.lineTo(w, h);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255, 244, 220, 0.6)";
+  for (let i = 0; i < 8; i++) {
+    const u = i / 8;
+    ctx.beginPath();
+    ctx.arc(w * (0.06 + u * 0.3), ground - h * 0.05 - Math.sin(u * 2.4) * h * 0.46, Math.max(1, s * 0.011), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const bw = s * 0.11;
+  const tower = [["stone", 0.7, 1], ["wood", 0.82, 1], ["stone", 0.76, 2], ["glass", 0.76, 3]];
+  for (const [m, fx, row] of tower) {
+    ctx.save();
+    ctx.translate(w * fx, ground - bw * 0.5 - (row - 1) * bw);
+    drawBlock(ctx, m, bw * 0.5, bw * 0.5, { seed: row });
+    ctx.restore();
+  }
+  drawPig(ctx, "boss", { x: w * 0.76, y: ground - bw * 3 - s * 0.07, r: s * 0.085, state: "smug", t: 0.6 });
+  drawBird(ctx, lookFor("popcorn", "classic"), { x: w * 0.42, y: h * 0.34, r: s * 0.085, angle: 0.18, state: "fly", t: 0.3 });
+}
+
 // ------------------------------------------------------------------ the launch
 
-const BOOT_LINES = ["LOADING CORN PHYSICS ........ OK", "CALIBRATING SLINGSHOT ....... OK", "PIGGY THREAT LEVEL .......... SMUG", "RED COW STATUS .............. UNDER CONSTRUCTION"];
-
-const LIBRARY = ["Blockcraft", "SLIM: The Six Parts", "Fire Kid & Ice Girl", "Astro Blaster '84"];
-
-/** Steam My Deck boots, opens its library, launches the game, then the level loads. */
-export function launchSteps(g, { short = false, onBoot } = {}) {
+/**
+ * The launch from the Deck's library already happened (deck/ui.js plays it when the room starts the
+ * game): here the title and the level load.
+ */
+export function launchSteps(g) {
   const steps = [];
-  if (!short) steps.push({ ms: 1500, cls: "boot", render: () => bootScreen({ lines: BOOT_LINES, ms: 1300 }), enter: onBoot });
   steps.push({
-    ms: 1500,
-    cls: "library",
-    render: () =>
-      el(
-        "div",
-        { class: "td-library" },
-        el("p", { class: "cpi-card-eyebrow", text: "STEAM MY DECK › LIBRARY" }),
-        el(
-          "ul",
-          {},
-          LIBRARY.map((name) => el("li", { text: name })),
-          el("li", { class: "on" }, el("span", { text: TITLE }), el("span", { class: "td-new", text: "NEW" })),
-        ),
-        el("p", { class: "td-library-note", text: "▶ LAUNCHING…" }),
-      ),
-  });
-  steps.push({
-    ms: 2200,
+    ms: 3000,
     cls: "title",
     render: () =>
       el(
@@ -108,7 +127,7 @@ export function launchSteps(g, { short = false, onBoot } = {}) {
         el("p", { class: "td-logo-sub", text: "A CPI KERNEL EXCLUSIVE · NOT AFFILIATED WITH ANY BIRDS" }),
       ),
   });
-  steps.push({ ms: 2200, cls: "level", render: () => levelCard(g) });
+  steps.push({ ms: 4200, cls: "level", render: () => levelCard(g) });
   return steps;
 }
 

@@ -534,6 +534,13 @@ export const entityAuctionGame: GameDefinition<EntityAuctionSettings> = {
     "Round: hidden buffs and debuffs wake up and random events shake the market. Highest net worth wins.",
   minPlayers: D.minPlayers,
   maxPlayers: D.maxPlayers,
+  deck: {
+    shelf: "party",
+    genre: "Blind auction",
+    controls: ["Phone: bid on sealed bays, or pass", "Big screen: the doors open, the market moves"],
+    length: "20–30 min",
+    art: { from: "#07302f", to: "#020c0d", accent: "#4dd4ff", glyph: "📦", motif: "grid" },
+  },
   defaultSettings: {
     startingKernels: D.startingKernels,
     entitiesPerPlayer: D.entitiesPerPlayer,

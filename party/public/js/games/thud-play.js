@@ -23,8 +23,11 @@ import { birdType, SKINS } from "./thud-birds.js";
 import { abilityHow } from "./thud-howto.js";
 import { aimFromPull, clearOf, placement } from "./thud-rules.js";
 import { closeTutorial, showTutorial, tutorialSeen } from "./thud-tutorial.js";
-import { birdBadge, birdCards, cowBand, forecastPanel, launchSteps, levelCard, liveTimer, meters, overReport, PHASE_TITLE, processBanner, TITLE } from "./thud-ui.js";
+import { birdBadge, birdCards, cowBand, forecastPanel, gameTitle, launchSteps, levelCard, liveTimer, meters, overReport, PHASE_TITLE, processBanner } from "./thud-ui.js";
 import { createThudView } from "./thud-world.js";
+
+/** Steam My Deck's cover art for this game. */
+export { paintCover as cover } from "./thud-ui.js";
 
 const buzz = (pattern) => {
   if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(pattern);
@@ -164,7 +167,7 @@ function buildScreen(s, tools) {
       return b;
     }),
   );
-  const hh = createHandheld({ title: TITLE, owner: g0.roster.find((p) => p.id === me)?.name?.toUpperCase() ?? null, layout: "auto", left: leftGrip, right: rightGrip, label: "Angry Thud's Revenge", className: "sd-device td-device td-phone", under: tabBar });
+  const hh = createHandheld({ title: gameTitle(), owner: g0.roster.find((p) => p.id === me)?.name?.toUpperCase() ?? null, layout: "auto", left: leftGrip, right: rightGrip, label: gameTitle(), className: "sd-device td-device td-phone", under: tabBar });
   hh.setStatus({ extra: [timer.node, muteButton()] });
   const howTo = () => showTutorial(g, { me });
 
@@ -760,7 +763,7 @@ function buildScreen(s, tools) {
     } else if (g.phase === "PROCESS") out.push(say(g.process ? `PIGGY TURN ${g.process.index + 1}/${g.process.total} · ${g.process.label}` : "PIGGY TURN", "bad"));
     else if (g.phase === "COW") out.push(say("THE RED COW GROWS", "bad"));
     else if (g.phase === "OVER") out.push(say(g.over?.result === "victory" ? "TEAM VICTORY" : "TEAM DEFEAT", g.over?.result === "victory" ? "go" : "bad"), act("📋 REPORT", () => setTab("team", { user: true }), "go"));
-    else if (g.phase === "LAUNCH") out.push(say("Launching from Steam My Deck…"));
+    else if (g.phase === "LAUNCH") out.push(say(`Loading ${g.level.name}…`));
     barMain.replaceChildren(...out);
     aBtn.querySelector(".cpi-hh-label").textContent = placing ? "PLACE" : ACTION_LABEL[st] ?? "A";
   }
@@ -792,7 +795,7 @@ function buildScreen(s, tools) {
     else if (p === "SELECT") setTab("birds");
     else if (p === "OVER") setTab("team");
     else if (p === "LAUNCH") setTab("game");
-    if (p === "LAUNCH" && (remainingMs ?? 0) > 3000) hh.sequence(launchSteps(next, { short: true }));
+    if (p === "LAUNCH" && (remainingMs ?? 0) > 3000) hh.sequence(launchSteps(next));
     else if (p === "BUILD") {
       hh.clearOverlay();
       if (live) hh.notify(`BUILD PHASE · ${next.kernels.balance} kernels`, { kind: "info", icon: "🔨", replace: true });
@@ -888,7 +891,7 @@ function firstTimeTutorial(state) {
 export function render(mount, state, tools) {
   const g = state.game;
   if (!g) return;
-  if (!g.you || g.you.spectator) return mount(`thud:${g.session}:watch`, (s) => ({ node: systemCard({ eyebrow: TITLE, title: "Watching", text: "This game started without you. Watch the big screen!" }) }), state);
+  if (!g.you || g.you.spectator) return mount(`thud:${g.session}:watch`, (s) => ({ node: systemCard({ eyebrow: gameTitle(), title: "Watching", text: "This game started without you. Watch the big screen!" }) }), state);
   mount(
     `thud:${g.session}`,
     (s) => {

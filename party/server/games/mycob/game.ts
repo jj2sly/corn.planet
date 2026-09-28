@@ -1644,6 +1644,13 @@ export function createMyCobGame(options: MyCobOptions = {}): GameDefinition<MyCo
       "and at the end you invent the awards.",
     minPlayers: base.players.min,
     maxPlayers: base.players.max,
+    deck: {
+      shelf: "party",
+      genre: "Improv incident",
+      controls: ["Phone: type what you do, anything at all", "Phone: vote for the best move", "Big screen: the Incident Director's verdicts"],
+      length: "15–35 min",
+      art: { from: "#2e1038", to: "#0b040e", accent: "#c77dff", glyph: "🚨", motif: "rays" },
+    },
     defaultSettings: { mode: "incident_response", length: "standard", stages: base.lengths.standard.stages },
     catalog: {
       modes: MODES.map(({ id, name, emoji, tagline, available }) => ({ id, name, emoji, tagline, available })),

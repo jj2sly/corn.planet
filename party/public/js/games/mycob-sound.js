@@ -1,6 +1,6 @@
 // My Cob Escaped sound manager. Every sound in the game goes through here: lookup, playback, volume,
 // mute, the browser's autoplay rules and keeping sounds from piling up. Other games use it too
-// (Steam My Deck): it's the party's one sound system.
+// (the handheld games, Steam My Deck's hub): it's the party's one sound system.
 //
 // The server sends cues (`game.cues`: [{ id, cue }]) only for things every screen is already shown;
 // the host plays each new one once, phones play their own few (your response filed, your life lost,
@@ -17,6 +17,7 @@ const BASE = "/sounds/mycob/";
 const MANIFEST = `${BASE}sounds.json`;
 const MUTE_KEY = "cpst-party:mycob-muted";
 const VOLUME_KEY = "cpst-party:mycob-volume";
+const SFX_KEY = "cpst-party:sfx-volume";
 
 /** Every cue a screen can play: the engine's, plus `timer_warning` from the screens themselves. */
 export const CUES = [
@@ -36,7 +37,7 @@ export const CUES = [
   "escaped",
   "everyone_dies",
   "game_end",
-  // Short game effects (playSfx): Steam My Deck.
+  // Short game effects (playSfx): Escape Thad's Steam Deck, and Steam My Deck's menus.
   "device_boot",
   "jump",
   "land",
@@ -165,6 +166,14 @@ export function setMuted(muted) {
 export function setVolume(volume) {
   store.set("localStorage", VOLUME_KEY, Math.min(1, Math.max(0, volume)));
   applyVolume();
+}
+/** Game effects (playSfx: jumps, clicks, crashes) relative to the master volume. Cues aren't affected. */
+export const getSfxVolume = () => {
+  const v = store.get("localStorage", SFX_KEY);
+  return typeof v === "number" && v >= 0 && v <= 1 ? v : 1;
+};
+export function setSfxVolume(volume) {
+  store.set("localStorage", SFX_KEY, Math.min(1, Math.max(0, volume)));
 }
 
 // ------------------------------------------------------------------ the sound map
@@ -359,8 +368,9 @@ const sfxLast = new Map();
  * volume and sounds.json mapping as every cue. Never throws.
  */
 export function playSfx(cue, { volume = 1 } = {}) {
+  volume *= getSfxVolume();
   (async () => {
-    if (isMuted()) return;
+    if (isMuted() || volume <= 0) return;
     const ac = context();
     if (!ac) return;
     if (ac.state !== "running") return unlock();

@@ -1,6 +1,7 @@
-# Steam My Deck
+# Escape Thad's Steam Deck
 
-Game id `steamdeck`, 2–8 agents. One agent is **Thad** and "holds the Steam Deck"; everyone else is a
+Game id `steamdeck`, 2–8 agents. One of the games installed on **Steam My Deck**, the CPI handheld hub
+every game is launched from (`public/js/deck/`; the id predates the name). One agent is **Thad** and "holds the Steam Deck"; everyone else is a
 **runner** trapped inside it, platforming to the EXIT while Thad tilts the whole world. Runners can draw
 planks to bridge gaps. Thad rotates every round, starting with the session leader (whoever joined first).
 1–3 rounds (lobby setting, default 2).
@@ -31,9 +32,9 @@ nothing extra. Rendering never feeds back into the game.
   escalation and the final window also flash the screen's edge, shake the device and stamp a banner
   across the top. On the host the device rocks a little with Thad's tilt and its stick and L / R
   shoulders follow Thad's hands.
-- **Launch** (host, round 1, 6.8 s of the 8 s roles phase; any key or tap skips): boot, the game
-  launches, every occupant is introduced as their character with Thad "holding the Deck", then the
-  title. Later rounds skip the boot. Phones get a short personal card ("THIS IS YOU" / "YOU HOLD THE
+- **Launch** (any key or tap skips): Steam My Deck's launch splash plays on every screen when the room
+  starts the game; then, on the host, every occupant is introduced as their character with Thad
+  "holding the Deck", then the title. Later rounds open with a short "next game" card instead. Phones get a short personal card ("THIS IS YOU" / "YOU HOLD THE
   DECK"). A screen that joins mid-phase shows where things are without replaying any entrance.
 - **Characters** (`public/js/cpi/character.js`): each agent is a CPI field agent in their colour with a
   hat, visor, suit and accessory picked from their player id, so they look the same on every screen.

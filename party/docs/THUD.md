@@ -1,7 +1,7 @@
 # Angry Thud's Revenge
 
-Game id `thud`, 2–8 agents, co-operative. It runs inside Steam My Deck's CPI KERNEL handheld: the
-host screen boots the Deck, opens its library and launches the game. The team launches birds at a
+Game id `thud`, 2–8 agents, co-operative. It runs inside the CPI KERNEL handheld, launched from
+Steam My Deck's library (`public/js/deck/`) like every other game. The team launches birds at a
 Corn Piggy fortress to drive the **Corruption Meter** from 100% to 0% before the piggies finish the
 **Red Cow**, a giant statue behind their walls.
 
@@ -16,7 +16,7 @@ Tuning: **`server/games/thud/config.ts`** (and per-level numbers in `levels.ts`)
 
 1. **SELECT** (45 s, ends when everyone is ready). Each agent picks a **bird** (how it plays) and a
    **skin** (looks only). Everyone starts with 3 of their bird.
-2. **LAUNCH** (8 s, skippable). Boot, the Deck's library, the title, the level card.
+2. **LAUNCH** (8 s, skippable). The title, then the level card.
 3. Then turns, until the team wins or loses:
    - **BUILD** (120 s, or until a majority votes to skip). Spend the team's shared kernels.
    - **ACTION**. Every agent launches exactly one bird, in join order: that's a turn. Aim 25 s; an agent

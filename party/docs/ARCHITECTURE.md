@@ -96,7 +96,8 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `js/games/entityauction-{host,play}.js`, `js/games/entityauction-bay.js` | Entity Auction views; the containment doors are in `-bay.js` |
 | `js/games/mycob-{host,play,shared}.js`, `js/games/mycob-voice.js` | My Cob Escaped views; `-voice.js` is where a future narrator voice plugs in |
 | `js/games/mycob-sound.js` | The party's one sound manager (cues, placeholders, mute/volume, `playSfx` for short game effects), mapped in `sounds/mycob/sounds.json` |
-| `js/games/steamdeck-{host,play,world,scenery,ui,tilt,rules}.js` | Steam My Deck: screens, the canvas renderer, level art, shared presentation, Thad's tilt, the plank rule (see `docs/STEAMDECK.md`) |
+| `js/deck/{library,ui,hub}.js` | Steam My Deck, the handheld hub: the library from the registry (`/api/config` games and their `deck` entries), covers, title cards, the launch splash, settings, the KERNEL-button quick menu, and the hub itself (the lobby on the host and on phones) |
+| `js/games/steamdeck-{host,play,world,scenery,ui,tilt,rules}.js` | Escape Thad's Steam Deck (id `steamdeck`): screens, the canvas renderer, level art, shared presentation, Thad's tilt, the plank rule (see `docs/STEAMDECK.md`) |
 | `js/games/thud-{host,play,world,art,ui,birds,rules}.js` | Angry Thud's Revenge: screens, the canvas renderer, piggies/materials/scenery art, shared presentation, the birds and skins (shared with the server), placement and aiming rules (see `docs/THUD.md`) |
 | `js/cpi/bird.js` | CPI bird characters: a look (colours, crest, eyes, accessory) drawn in any pose; badges and animation |
 | `js/drawing.js`, `js/drawing-canvas.js` | CPI Drawing System: stroke data model (shared with the server) and capture/rendering |

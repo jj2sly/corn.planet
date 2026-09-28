@@ -115,6 +115,31 @@ export interface GameInstance {
   dispose(): void;
 }
 
+/**
+ * How a game shows up in Steam My Deck, the CPI handheld's game library (the lobby every game is
+ * launched from). Published in /api/config with the game. Presentation only: nothing here changes
+ * how the game plays. A game without one still appears, with a plain cover.
+ */
+export interface DeckInfo {
+  /**
+   * "handheld": the whole game runs inside the CPI handheld on every screen.
+   * "party": a big-screen party game played from phones.
+   */
+  shelf: "handheld" | "party";
+  /** A two- or three-word genre for the cover and title card, e.g. "Co-op slingshot". */
+  genre: string;
+  /** How it plays: one short line per input or role, for the title card. */
+  controls: string[];
+  /** Roughly how long a game takes, e.g. "15–25 min". */
+  length: string;
+  /**
+   * The cover: two background colours (top-left to bottom-right), an accent, and a glyph (an emoji
+   * or a few letters) the hub paints on it. `motif` picks a background pattern: "grid" | "rays" |
+   * "stripes" | "dots" | "scan".
+   */
+  art: { from: string; to: string; accent: string; glyph: string; motif?: string };
+}
+
 export interface GameDefinition<Settings = unknown> {
   id: string;
   name: string;
@@ -125,6 +150,8 @@ export interface GameDefinition<Settings = unknown> {
   defaultSettings: Settings;
   /** Static choices the lobby can offer (e.g. modes), published in /api/config. */
   catalog?: unknown;
+  /** Its entry in Steam My Deck's library (cover art, genre, controls). */
+  deck?: DeckInfo;
   /** Turns untrusted host input into valid settings (clamping/ignoring bad values). Never throws. */
   parseSettings(raw: unknown): Settings;
   create(ctx: GameContext, settings: Settings): GameInstance;

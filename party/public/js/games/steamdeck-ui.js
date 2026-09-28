@@ -1,13 +1,15 @@
-// Steam My Deck: the presentation both screens share. The launch sequence, level and
+// Escape Thad's Steam Deck: the presentation both screens share. The launch sequence, level and
 // phase cards, the round report, and the CPI humour, all shown inside the CPI handheld
 // (cpi/handheld.js). Words and pictures only: nothing here decides anything about the game.
 
 import { el } from "../common.js";
-import { characterCanvas, createCharacter, hashString } from "../cpi/character.js";
-import { castMember } from "./steamdeck-cast.js";
-import { bootScreen, systemCard } from "../cpi/handheld.js";
+import { BOX, characterCanvas, createCharacter, drawCharacter, hashString } from "../cpi/character.js";
+import { CAST, castMember } from "./steamdeck-cast.js";
+import { systemCard } from "../cpi/handheld.js";
+import { titleOf } from "../deck/library.js";
 
-export const TITLE = "STEAM MY DECK";
+/** The game's title, as Steam My Deck's library (the server's registry) has it. */
+export const gameTitle = () => titleOf("steamdeck", "Escape Thad's Steam Deck").toUpperCase();
 
 export const PHASE_TITLE = {
   ASSIGNMENT: "ROLES ASSIGNED",
@@ -108,28 +110,71 @@ export function badge(ch, { size = 56, state = "idle", note = "" } = {}) {
   return { node, canvas, state };
 }
 
-// ------------------------------------------------------------------ launch
-
-const BOOT_LINES = (g) => [
-  "CHECKING CORN LEVELS ........ OK",
-  "MOUNTING THAD.SYS ........... OK",
-  `OCCUPANTS DETECTED .......... ${g.roster.length}`,
-  "GRAVITY ..................... OPTIONAL",
-];
+// ------------------------------------------------------------------ the cover
 
 /**
- * The launch: the handheld boots, the game launches, the occupants are introduced, then the title.
- * `short` (a new round, or a phone) skips the boot. Returns handheld sequence steps.
+ * Steam My Deck's cover art for the game (deck/ui.js paints it once per size): one of the cast
+ * sprinting for the EXIT across a level Thad is already tilting. Static: covers don't animate.
  */
-export function launchSteps(g, { short = false, size = 64, onBoot } = {}) {
+export function paintCover(ctx, { width: w, height: h }) {
+  const s = Math.min(w, h * 1.5);
+  const pw = w * 0.92;
+  const ph = Math.max(4, h * 0.07);
+  ctx.save();
+  ctx.translate(w / 2, h * 0.7);
+  ctx.rotate(-0.13);
+  const top = ctx.createLinearGradient(0, 0, 0, ph);
+  top.addColorStop(0, "#2d4a33");
+  top.addColorStop(1, "#101a12");
+  ctx.fillStyle = top;
+  ctx.fillRect(-pw / 2, 0, pw, ph);
+  ctx.fillStyle = "#7dff6a";
+  ctx.fillRect(-pw / 2, 0, pw, Math.max(1.5, ph * 0.2));
+  ctx.fillStyle = "#ff6b5e";
+  for (let i = 0; i < 4; i++) {
+    const x = -pw / 2 + pw * 0.04 + i * ph * 0.95;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + ph * 0.47, -ph * 0.95);
+    ctx.lineTo(x + ph * 0.95, 0);
+    ctx.fill();
+  }
+  const dh = h * 0.34;
+  const dw = dh * 0.55;
+  const dx = pw * 0.26;
+  ctx.fillStyle = "#050806";
+  ctx.fillRect(dx, -dh, dw, dh);
+  ctx.strokeStyle = "#7dff6a";
+  ctx.lineWidth = Math.max(1.5, s * 0.01);
+  ctx.strokeRect(dx, -dh, dw, dh);
+  ctx.fillStyle = "#7dff6a";
+  ctx.font = `700 ${Math.max(7, Math.round(dh * 0.2))}px Oswald, Arial, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.fillText("EXIT", dx + dw / 2, -dh - dh * 0.08);
+  const member = CAST[0];
+  const ch = createCharacter({ id: "cover", color: "#ffd400", person: member.look, size: member.size });
+  const chH = h * 0.4;
+  drawCharacter(ctx, ch, { x: -pw * 0.08, y: -chH, w: chH * (BOX.w / BOX.h), h: chH, facing: 1, state: "run", t: 0.4, cycle: 0.3 });
+  ctx.restore();
+}
+
+// ------------------------------------------------------------------ launch
+
+/**
+ * A round's launch: the occupants are introduced, then the title. The Deck itself was booted and
+ * the game launched by Steam My Deck (deck/ui.js) when the room started it; later rounds get a
+ * short "next game" card instead. Returns handheld sequence steps.
+ */
+export function launchSteps(g, { size = 64 } = {}) {
   const cast = castOf(g);
   const steps = [];
-  if (!short) steps.push({ ms: 1500, cls: "boot", render: () => bootScreen({ lines: BOOT_LINES(g), ms: 1300 }), enter: onBoot });
-  steps.push({
-    ms: 1000,
-    cls: "launch",
-    render: () => el("div", { class: "sd-launch" }, el("div", { class: "sd-cover" }, el("span", { class: "sd-cover-kicker", text: "CPI KERNEL EXCLUSIVE" }), el("span", { class: "sd-cover-title", text: TITLE })), el("p", { class: "sd-launch-note", text: "LAUNCHING…" })),
-  });
+  if (g.round > 1) {
+    steps.push({
+      ms: 1000,
+      cls: "launch",
+      render: () => el("div", { class: "sd-launch" }, el("div", { class: "sd-cover" }, el("span", { class: "sd-cover-kicker", text: `ROUND ${g.round} OF ${g.totalRounds}` }), el("span", { class: "sd-cover-title", text: gameTitle() })), el("p", { class: "sd-launch-note", text: "NEXT GAME LOADING…" })),
+    });
+  }
   steps.push({
     ms: 2600,
     cls: "occupants",

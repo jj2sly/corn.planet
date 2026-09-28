@@ -1320,6 +1320,13 @@ export const thudGame: GameDefinition<ThudSettings> = {
   minPlayers: 2,
   maxPlayers: 8,
   defaultSettings: { level: LEVELS[0]!.id },
+  deck: {
+    shelf: "handheld",
+    genre: "Co-op slingshot",
+    controls: ["Drag back and let go to launch · A ability", "Build with the team's kernels between turns", "Keyboard, mouse or touch"],
+    length: "15–25 min",
+    art: { from: "#62200e", to: "#1a0703", accent: "#ff9a3d", glyph: "🐦", motif: "rays" },
+  },
   catalog: { levels: LEVELS.map((l) => ({ id: l.id, name: l.name, difficulty: l.difficulty, tagline: l.tagline })), birds: BIRDS.map((b) => b.id) },
   parseSettings(raw: unknown): ThudSettings {
     const input = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};

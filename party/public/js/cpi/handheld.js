@@ -1,7 +1,8 @@
 // CPI handheld: a fictional CPI games handheld (the "CPI KERNEL") that any game can run inside.
 // It's DOM + CSS only (see "CPI handheld" in party.css); the game draws into `screen` as usual.
+// Steam My Deck (js/deck/) is the platform on it: the library every game launches from.
 //
-//   const hh = createHandheld({ title: "STEAM MY DECK", owner: "THAD" });
+//   const hh = createHandheld({ title: "ANGRY THUD'S REVENGE", owner: "THE TEAM" });
 //   hh.screen.append(canvas);          // the game
 //   hh.setStatus({ battery: 0.6 });    // status bar: battery, signal, the title
 //   hh.notify("Spikes incoming", { kind: "warn" });   // system notification (never over the game)
@@ -74,14 +75,33 @@ export function kernelMark(extra = "") {
   return el("span", { class: `cpi-hh-mark ${extra}`.trim() }, el("span", { class: "cpi-hh-kernel", "aria-hidden": "true" }), el("span", { text: "CPI KERNEL" }));
 }
 
+// The KERNEL button: the wordmark in the status bar doubles as the device's system button, and
+// opens whatever the platform installed here (Steam My Deck's quick menu, deck/ui.js). Games don't
+// need to know about it.
+let homeHandler = null;
+let homeLabel = "Menu";
+
+/** Installs what every device's KERNEL button does (`fn(device)`), or null for a plain wordmark. */
+export function setHomeHandler(fn, label = "Menu") {
+  homeHandler = typeof fn === "function" ? fn : null;
+  homeLabel = label;
+}
+
+function homeButton(onPress, label) {
+  const b = el("button", { class: "cpi-hh-mark cpi-hh-home", type: "button", "aria-label": label, title: label }, el("span", { class: "cpi-hh-kernel", "aria-hidden": "true" }), el("span", { text: "CPI KERNEL" }));
+  b.addEventListener("click", onPress);
+  return b;
+}
+
 /**
  * The device. Options: title, owner (a "PROPERTY OF" sticker), layout ("auto" | "landscape" |
  * "portrait"), left / right (grip contents; decorative by default), below (portrait-only extras
  * under the controls), shoulders ({ left, right } buttons, or decorative), rock (the device leans a
  * little with setTilt), label (the screen's accessible name), under (what's printed on the bezel
- * under the screen: the CPI KERNEL mark by default, or a game's own menu bar).
+ * under the screen: the CPI KERNEL mark by default, or a game's own menu bar), home (what the KERNEL
+ * button in the status bar does: a function, false for none, or by default the platform's menu).
  */
-export function createHandheld({ title = "", owner = null, layout = "auto", left = null, right = null, below = null, shoulders = null, rock = false, label = "Game screen", className = "", under = null } = {}) {
+export function createHandheld({ title = "", owner = null, layout = "auto", left = null, right = null, below = null, shoulders = null, rock = false, label = "Game screen", className = "", under = null, home } = {}) {
   const screen = el("div", { class: "cpi-hh-screen", role: "group", "aria-label": label });
   const glass = el("div", { class: "cpi-hh-glass", "aria-hidden": "true" });
   const overlay = el("div", { class: "cpi-hh-overlay", hidden: true });
@@ -92,7 +112,9 @@ export function createHandheld({ title = "", owner = null, layout = "auto", left
   const battery = batteryIcon();
   const signal = signalIcon();
   const extraEl = el("span", { class: "cpi-hh-extra" });
-  const status = el("div", { class: "cpi-hh-status" }, kernelMark(), el("span", { class: "cpi-hh-center" }, titleEl, noteEl), el("span", { class: "cpi-hh-sys" }, extraEl, signal, clockEl, battery, pctEl));
+  const onHome = home === false ? null : typeof home === "function" ? home : homeHandler;
+  const brand = onHome ? homeButton(() => onHome(api), typeof home === "function" ? "Home" : homeLabel) : kernelMark();
+  const status = el("div", { class: "cpi-hh-status" }, brand, el("span", { class: "cpi-hh-center" }, titleEl, noteEl), el("span", { class: "cpi-hh-sys" }, extraEl, signal, clockEl, battery, pctEl));
   const shoulder = (side) => {
     const given = shoulders?.[side];
     if (given) {
@@ -311,7 +333,7 @@ export function createHandheld({ title = "", owner = null, layout = "auto", left
     return running;
   };
 
-  return {
+  const api = {
     node,
     screen,
     setStatus,
@@ -331,6 +353,7 @@ export function createHandheld({ title = "", owner = null, layout = "auto", left
       clearInterval(clockTimer);
     },
   };
+  return api;
 }
 
 // ------------------------------------------------------------------ standard screens

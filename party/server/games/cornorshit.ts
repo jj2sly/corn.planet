@@ -340,6 +340,13 @@ export const cornOrShitGame: GameDefinition<CornOrShitSettings> = {
   minPlayers: 3,
   maxPlayers: 8,
   defaultSettings: { rounds: 5, guessSeconds: 25 },
+  deck: {
+    shelf: "party",
+    genre: "Canon quiz",
+    controls: ["Phone: pick the claim that's really in the database", "Big screen: the reveal and where to check it"],
+    length: "5–15 min",
+    art: { from: "#332900", to: "#0d0a00", accent: "#ffd400", glyph: "🌽", motif: "dots" },
+  },
   parseSettings(raw: unknown): CornOrShitSettings {
     const input = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
     const d = this.defaultSettings;

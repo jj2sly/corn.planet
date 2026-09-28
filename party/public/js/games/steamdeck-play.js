@@ -1,4 +1,4 @@
-// Steam My Deck on a phone (or the Deck itself), inside a CPI handheld. Runners see the
+// Escape Thad's Steam Deck on a phone (or the Deck itself), inside a CPI handheld. Runners see the
 // level on its screen (the camera follows them on small screens) and play with the device's own
 // buttons: the d-pad moves, A jumps, B draws a plank (and in draw mode A places, B cancels, X undoes,
 // the d-pad nudges). Thad holds the device: the level leans under their hands, the L / R shoulder
@@ -13,8 +13,11 @@ import { isMuted, playSfx, setMuted } from "./mycob-sound.js";
 import { plankFromStroke, strokeAhead } from "./steamdeck-rules.js";
 import { paintPlank } from "./steamdeck-scenery.js";
 import { createTiltInput } from "./steamdeck-tilt.js";
-import { animateBadges, assignmentBand, battery, castLabel, characterOf, launchSteps, levelCard, liveTimer, PHASE_SHORT, phaseNotice, PLAYING, quip, roundReport, thadLine } from "./steamdeck-ui.js";
+import { animateBadges, assignmentBand, battery, castLabel, characterOf, levelCard, liveTimer, PHASE_SHORT, phaseNotice, PLAYING, quip, roundReport, thadLine } from "./steamdeck-ui.js";
 import { createWorldView } from "./steamdeck-world.js";
+
+/** Steam My Deck's cover art for this game. */
+export { paintCover as cover } from "./steamdeck-ui.js";
 
 let tilt = null;
 /** One tilt input for the page, so motion permission and calibration survive screen changes. */
@@ -445,7 +448,7 @@ function buildThad(s, tools) {
     label: "The level, leaning with your tilt",
     intro: (next, remainingMs) => {
       if (remainingMs > 4_000) {
-        device.hh.sequence([{ ms: 1500, cls: "boot", render: () => launchSteps(next)[0].render(), enter: () => playSfx("device_boot") }, { ms: 1800, cls: "card", render: () => systemCard({ eyebrow: "ROLE ASSIGNED", title: "YOU HOLD THE DECK", text: "Everyone else is inside it. Lean it and keep them there." }) }]).done.then(() => {
+        device.hh.sequence([{ ms: 3300, cls: "card", render: () => systemCard({ eyebrow: "ROLE ASSIGNED", title: "YOU HOLD THE DECK", text: "Everyone else is inside it. Lean it and keep them there." }) }]).done.then(() => {
           if (device.phase === "ASSIGNMENT") device.hh.overlay(assignmentBand(next), "band bottom");
         });
       } else device.hh.overlay(assignmentBand(next), "band bottom");

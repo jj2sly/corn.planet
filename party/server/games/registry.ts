@@ -7,7 +7,8 @@ import { thudGame } from "./thud/game.ts";
 import type { GameDefinition } from "./types.ts";
 
 // To add a minigame: implement GameDefinition in games/<id>.ts, add it here, and add
-// public/js/games/<id>-host.js and <id>-play.js renderers. Nothing else needs to change.
+// public/js/games/<id>-host.js and <id>-play.js renderers. Nothing else needs to change: it appears
+// in Steam My Deck's library (the lobby) by itself, dressed by its `deck` entry.
 function installed(mycob: MyCobOptions = {}): GameDefinition[] {
   return [
     chaosGame as GameDefinition,
@@ -28,7 +29,7 @@ export function gamesWith(mycob: MyCobOptions): ReadonlyMap<string, GameDefiniti
 }
 
 export function gameSummaries() {
-  return INSTALLED.map(({ id, name, tagline, description, minPlayers, maxPlayers, defaultSettings, catalog }) => ({
+  return INSTALLED.map(({ id, name, tagline, description, minPlayers, maxPlayers, defaultSettings, catalog, deck }) => ({
     id,
     name,
     tagline,
@@ -37,5 +38,6 @@ export function gameSummaries() {
     maxPlayers,
     defaultSettings,
     catalog: catalog ?? null,
+    deck: deck ?? null,
   }));
 }

@@ -9,7 +9,8 @@ interface RosterEntry {
   escapedMs: number | null;
 }
 
-export declare const TITLE: string;
+/** The game's title, from Steam My Deck's library (the server registry) once it's installed. */
+export declare function gameTitle(): string;
 export declare const PLAYING: readonly string[];
 export declare const PHASE_TITLE: Readonly<Record<string, string>>;
 export declare const PHASE_SHORT: Readonly<Record<string, string>>;

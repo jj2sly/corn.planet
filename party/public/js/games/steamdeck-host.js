@@ -1,5 +1,5 @@
-// Steam My Deck on the big screen: the whole round plays inside a CPI handheld. It boots,
-// launches the game and introduces everyone, then the level runs live on its screen (leaning with
+// Escape Thad's Steam Deck on the big screen: the whole round plays inside a CPI handheld. Launched
+// from Steam My Deck's library (deck/), it introduces everyone, then the level runs live on its screen (leaning with
 // Thad's tilt, the device rocking and its stick and shoulder buttons following Thad's hands), phase
 // changes arrive as system notifications, and the round report opens on the same screen.
 // Sounds go through the party's sound manager (mycob-sound.js).
@@ -7,8 +7,11 @@
 import { el } from "../common.js";
 import { createHandheld, systemCard } from "../cpi/handheld.js";
 import { playNewCues, playSfx, preloadSounds, soundControl } from "./mycob-sound.js";
-import { assignmentBand, badge, battery, castOf, launchSteps, levelCard, liveTimer, PHASE_TITLE, phaseNotice, roundReport, TITLE } from "./steamdeck-ui.js";
+import { assignmentBand, badge, battery, castOf, gameTitle, launchSteps, levelCard, liveTimer, PHASE_TITLE, phaseNotice, roundReport } from "./steamdeck-ui.js";
 import { createWorldView } from "./steamdeck-world.js";
+
+/** Steam My Deck's cover art for this game. */
+export { paintCover as cover } from "./steamdeck-ui.js";
 
 /** The roster under the device: each runner's character, name and how they're doing. */
 function rosterStrip(g) {
@@ -64,7 +67,7 @@ function buildRound(s) {
 
   let roster = rosterStrip(g0);
   const rosterSlot = el("div", { class: "sd-roster-slot" }, roster.node);
-  const hh = createHandheld({ title: TITLE, owner: g0.thad.name.toUpperCase(), layout: "landscape", rock: true, below: rosterSlot, label: `${g0.level.name}: the level, live`, className: "sd-device sd-device-host" });
+  const hh = createHandheld({ title: gameTitle(), owner: g0.thad.name.toUpperCase(), layout: "landscape", rock: true, below: rosterSlot, label: `${g0.level.name}: the level, live`, className: "sd-device sd-device-host" });
   const canvas = el("canvas", { class: "sd-canvas", "aria-hidden": "true" });
   hh.screen.append(canvas);
   hh.setStatus({ extra: el("span", { class: "cpi-hh-chip", text: `HELD BY ${g0.thad.name}` }) });
@@ -110,7 +113,7 @@ function buildRound(s) {
     if (p === "ASSIGNMENT") {
       // A fresh start gets the whole launch; a reload part-way through just gets the roles.
       if ((remainingMs ?? 0) > 5_000) {
-        hh.sequence(launchSteps(next, { short: next.round > 1, size: 64, onBoot: () => playSfx("device_boot") })).done.then(() => {
+        hh.sequence(launchSteps(next, { size: 64 })).done.then(() => {
           if (phase === "ASSIGNMENT" && !paused) hh.overlay(assignmentBand(next), "band bottom");
         });
       } else hh.overlay(assignmentBand(next), "band bottom");

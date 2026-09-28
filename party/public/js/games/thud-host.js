@@ -1,5 +1,5 @@
-// Angry Thud's Revenge on the big screen: Steam My Deck's CPI handheld launches the game from its
-// library, then the whole battlefield runs live on its screen. The Corruption Meter, the Red Cow and
+// Angry Thud's Revenge on the big screen: launched from Steam My Deck's library (deck/), the whole
+// battlefield runs live on the CPI handheld's screen. The Corruption Meter, the Red Cow and
 // the shared kernels sit above it; the team, the weather forecast and the news feed below.
 // Sounds go through the party's sound manager (mycob-sound.js).
 
@@ -8,8 +8,11 @@ import { animateBirds } from "../cpi/bird.js";
 import { createHandheld, systemCard } from "../cpi/handheld.js";
 import { playNewCues, playSfx, preloadSounds, soundControl } from "./mycob-sound.js";
 import { birdType } from "./thud-birds.js";
-import { birdBadge, cowBand, forecastPanel, launchSteps, liveTimer, meters, overReport, PHASE_TITLE, processBanner, TITLE } from "./thud-ui.js";
+import { birdBadge, cowBand, forecastPanel, gameTitle, launchSteps, liveTimer, meters, overReport, PHASE_TITLE, processBanner } from "./thud-ui.js";
 import { createThudView } from "./thud-world.js";
+
+/** Steam My Deck's cover art for this game. */
+export { paintCover as cover } from "./thud-ui.js";
 
 function roster(g) {
   const list = el("ul", { class: "td-roster", "aria-label": "Agents" });
@@ -112,8 +115,8 @@ function buildScreen(s) {
   const forecast = forecastPanel();
   const feed = el("ol", { class: "td-feed", "aria-live": "polite", "aria-label": "What just happened" });
   const below = el("div", { class: "td-below" }, teamSlot, forecast.node, feed);
-  const hh = createHandheld({ title: "STEAM MY DECK", owner: "THE TEAM", layout: "landscape", below, label: `${g0.level.name}: the battlefield, live`, className: "sd-device sd-device-host td-device" });
-  hh.setStatus({ extra: el("span", { class: "cpi-hh-chip", text: TITLE }) });
+  const hh = createHandheld({ title: gameTitle(), owner: "THE TEAM", layout: "landscape", below, label: `${g0.level.name}: the battlefield, live`, className: "sd-device sd-device-host td-device" });
+  hh.setStatus({ extra: el("span", { class: "cpi-hh-chip", text: g0.level.name.toUpperCase() }) });
   const canvas = el("canvas", { class: "sd-canvas", "aria-hidden": "true" });
   hh.screen.append(canvas);
   const view = createThudView(canvas, {
@@ -151,7 +154,7 @@ function buildScreen(s) {
     title.className = `sd-title td-title p-${p}`;
     bandSig = "";
     if (p === "LAUNCH") {
-      if ((remainingMs ?? 0) > 3000) hh.sequence(launchSteps(next, { onBoot: () => playSfx("device_boot") }));
+      if ((remainingMs ?? 0) > 3000) hh.sequence(launchSteps(next));
     } else if (p === "BUILD") {
       if (live) {
         hh.overlay(stamp(`TURN ${next.turn} · BUILD`, "ok"), "stamp", { ms: 1000 });

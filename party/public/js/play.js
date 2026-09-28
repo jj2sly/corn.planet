@@ -1,7 +1,11 @@
-// Phone controller: join, reconnect, lobby, game input and results.
+// Phone controller: join, reconnect, the lobby (Steam My Deck's hub, deck/hub.js), game input and
+// results.
 
-import { $, announce, createMount, el, loadConfig, notice, ordinal, plural, rank, startCountdowns, store } from "./common.js";
+import { $, announce, createMount, el, loadConfig, notice, ordinal, rank, startCountdowns, store } from "./common.js";
 import { connect } from "./connection.js";
+import { buildHub } from "./deck/hub.js";
+import { gameInfo, PLATFORM_NAME, setLibrary } from "./deck/library.js";
+import { installQuickMenu, playLaunch, quickMenuButton, rememberPlayed, setCoverPainters, setSystem } from "./deck/ui.js";
 import * as chaos from "./games/chaos-play.js";
 import * as cornorshit from "./games/cornorshit-play.js";
 import * as entityauction from "./games/entityauction-play.js";
@@ -50,6 +54,11 @@ async function init() {
     main.replaceChildren(el("div", { class: "banner danger", role: "alert", text: "Can't reach the Corn Planet Party server. Refresh to try again." }));
     return;
   }
+  // Steam My Deck: the registry's games are the library, and the renderers bring their covers.
+  setLibrary(config.games);
+  setCoverPainters(RENDERERS);
+  installQuickMenu();
+  $(".topbar nav")?.prepend(menuButton);
   conn = await connect({
     onState,
     onEnded,
@@ -85,6 +94,9 @@ function onEnded(info) {
   saveSession(null);
   state = null;
   lastPhase = null;
+  lastStatus = null;
+  setSystem(null);
+  menuButton.hidden = true;
   setBanner();
   showJoin(info.message);
 }
@@ -93,6 +105,9 @@ function onEnded(info) {
 
 function showJoin(message) {
   state = null;
+  lastStatus = null;
+  setSystem(null);
+  menuButton.hidden = true;
   document.title = "Corn Planet Party — Join";
   mount(`join:${Date.now()}`, buildJoin, message);
 }
@@ -195,9 +210,25 @@ function buildJoin(message) {
 
 // ------------------------------------------------------------------ in a room
 
+/** The top bar's way into the quick menu (games that don't run inside the handheld). */
+const menuButton = quickMenuButton();
+menuButton.hidden = true;
+let lastStatus = null;
+
 function onState(next) {
   state = next;
-  document.title = `Corn Planet Party — ${next.code}`;
+  const info = gameInfo(next.config.gameId);
+  document.title = next.status === "IN_GAME" ? `${info?.title ?? "Corn Planet Party"} — ${PLATFORM_NAME}` : `${PLATFORM_NAME} — ${next.code}`;
+  if (next.status !== lastStatus) {
+    // Seen live (not on a reload mid-game): Steam My Deck launches the game.
+    if (next.status === "IN_GAME" && lastStatus !== null && info) playLaunch(info);
+    if (next.status === "IN_GAME") rememberPlayed(next.config.gameId);
+    lastStatus = next.status;
+  }
+  // The quick menu (KERNEL button, or MENU in the top bar): the leader can end the game for
+  // everyone; anyone can leave.
+  setSystem(next.status === "IN_GAME" ? { gameId: next.config.gameId, canEnd: isLeader(), end: () => conn.request("room:lobby"), leave: leaveSession } : null);
+  menuButton.hidden = next.status !== "IN_GAME";
   const phase = next.status === "IN_GAME" ? next.game?.phase : next.status;
   if (phase !== lastPhase) {
     lastPhase = phase;
@@ -269,80 +300,40 @@ function renderBanner() {
 
 function render() {
   if (!state) return;
-  if (state.status === "LOBBY") return mount(`lobby:${isLeader()}`, buildLobby, state);
+  if (state.status === "LOBBY") return mount(`lobby:${state.code}`, buildLobby, state);
   if (state.status === "FINAL_RESULTS") return mount(`results:${isLeader()}`, buildResults, state);
   const renderer = RENDERERS[state.config.gameId];
   if (renderer && state.game) renderer.render(mount, state, { request: conn.request, stream: conn.stream, leaveButton });
 }
 
-function leaveButton() {
-  return el("button", {
-    class: "btn subtle small",
-    type: "button",
-    text: "Leave session",
-    onclick: async () => {
-      if (!confirm(state?.status === "IN_GAME" ? "Leave mid-game? You can't rejoin this game." : "Leave this session?")) return;
-      await conn.request("room:leave");
-      saveSession(null);
-      showJoin("You left the session.");
-    },
-  });
+/** Leaves the session after asking. Resolves true if they left. */
+async function leaveSession() {
+  if (!confirm(state?.status === "IN_GAME" ? "Leave mid-game? You can't rejoin this game." : "Leave this session?")) return false;
+  await conn.request("room:leave");
+  saveSession(null);
+  showJoin("You left the session.");
+  return true;
 }
 
+function leaveButton() {
+  return el("button", { class: "btn subtle small", type: "button", text: "Leave session", onclick: leaveSession });
+}
+
+/**
+ * The lobby is Steam My Deck's hub on the phone (deck/hub.js): browse the library, see who's here,
+ * your agent, settings. The session leader can also pick and launch games from here.
+ */
 function buildLobby(s) {
-  const list = el("ul", { class: "list", "aria-label": "Agents in this session" });
-  const title = el("h2");
-  const startNote = el("p", { class: "notice" });
-  const start = el("button", { class: "btn big", type: "button", text: "Start operation", onclick: () => act("room:start", {}, startNote) });
-  const leaderBox = isLeader()
-    ? el(
-        "section",
-        { class: "panel stack" },
-        el("p", { class: "stamp solid", text: "You are session leader" }),
-        el("p", { text: "You can start the operation from here once at least 3 agents are connected. The host screen picks the settings." }),
-        start,
-        startNote,
-      )
-    : null;
-
-  const node = el(
-    "div",
-    { class: "stack" },
-    el(
-      "div",
-      { class: "big-status" },
-      el("div", { class: "icon", "aria-hidden": "true", text: "✓" }),
-      el("h2", { text: `YOU'RE IN, ${(s.you.name ?? "AGENT").toUpperCase()}` }),
-      el("p", { class: "muted", text: "Keep this page open and watch the host screen." }),
-    ),
-    leaderBox,
-    el("section", { class: "panel quiet" }, title, list),
-    el("div", { class: "row" }, leaveButton()),
-  );
-
-  return {
-    node,
-    update(next) {
-      title.textContent = `Session ${next.code} · ${plural(next.players.length, "agent")}`;
-      list.replaceChildren(
-        ...next.players.map((p) =>
-          el(
-            "li",
-            {},
-            el("span", { class: "grow", text: p.name }),
-            p.id === next.you.playerId ? el("span", { class: "stamp", text: "You" }) : null,
-            p.id === next.leaderId ? el("span", { class: "stamp muted", text: "Leader" }) : null,
-            p.connected ? null : el("span", { class: "stamp danger", text: "Signal lost" }),
-          ),
-        ),
-      );
-      // The chosen game's minimum, like the host's lobby (Steam My Deck needs 2, most games 3).
-      const game = config.games.find((g) => g.id === next.config.gameId) ?? config.games[0];
-      const needed = game.minPlayers - next.players.filter((p) => p.connected).length;
-      start.disabled = needed > 0;
-      start.textContent = needed > 0 ? `Need ${plural(needed, "more agent")}` : "Start operation";
+  return buildHub(s, {
+    role: "player",
+    act: (event, payload) => conn.request(event, payload),
+    leave: leaveSession,
+    account: {
+      loggedIn: hello.loggedIn,
+      displayName: hello.displayName,
+      guestNote: config.auth.mode === "none" ? null : el("p", { class: "deck-hint" }, el("a", { href: "/account", text: "Log in" }), " to record your stats."),
     },
-  };
+  });
 }
 
 function buildResults(s) {
@@ -355,7 +346,7 @@ function buildResults(s) {
     el(
       "div",
       { class: "big-status" },
-      el("p", { class: "eyebrow", text: "Final debrief" }),
+      el("p", { class: "eyebrow", text: `${gameInfo(results.gameId)?.title ?? results.gameName} · final debrief` }),
       me ? el("div", { class: "placement", text: ordinal(me.placement) }) : null,
       me ? el("h2", { text: `${me.score.toLocaleString()} points` }) : null,
       el("p", { class: "muted", text: me?.placement === 1 ? "Commendation filed. Try not to let it go to your head." : "Your debrief is on the host screen." }),
@@ -377,10 +368,10 @@ function buildResults(s) {
       ? el(
           "div",
           { class: "row" },
-          el("button", { class: "btn", type: "button", text: "Replay", onclick: () => act("room:start", {}, note) }),
-          el("button", { class: "btn ghost", type: "button", text: "Back to lobby", onclick: () => act("room:lobby", {}, note) }),
+          el("button", { class: "btn", type: "button", text: "▶ Play again", onclick: () => act("room:start", {}, note) }),
+          el("button", { class: "btn ghost", type: "button", text: `⌂ Back to ${PLATFORM_NAME}`, onclick: () => act("room:lobby", {}, note) }),
         )
-      : el("p", { class: "muted", text: "The host or session leader can start another round." }),
+      : el("p", { class: "muted", text: `The host or session leader can play again or take everyone back to ${PLATFORM_NAME}.` }),
     note,
     el("div", { class: "row" }, leaveButton()),
   );

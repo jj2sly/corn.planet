@@ -787,24 +787,6 @@ th {
   letter-spacing: 0.1em;
 }
 
-.big-code {
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: clamp(4rem, 14vw, 12rem);
-  letter-spacing: 0.18em;
-  color: var(--yellow);
-  line-height: 1;
-  text-shadow: 0 0 30px rgba(255, 212, 0, 0.35);
-  margin: 0.1em 0;
-}
-
-.lobby {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: clamp(16px, 3vw, 48px);
-  align-items: start;
-}
-
 .agent-grid {
   list-style: none;
   padding: 0;
@@ -835,12 +817,6 @@ th {
 
 .agent.filled {
   border-color: var(--yellow);
-}
-
-.agent.empty {
-  border-style: dashed;
-  color: #555;
-  font-size: 0.9em;
 }
 
 .agent.offline {
@@ -1117,11 +1093,6 @@ th {
   justify-content: flex-end;
 }
 
-.settings-grid {
-  display: grid;
-  gap: 14px;
-}
-
 .game-card {
   border: 2px solid var(--yellow);
   padding: 14px;
@@ -1235,12 +1206,6 @@ th {
 }
 
 /* ------------------------------------------------------------------ responsive */
-
-@media (max-width: 900px) {
-  .lobby {
-    grid-template-columns: 1fr;
-  }
-}
 
 @media (max-width: 600px) {
   .panel {
@@ -5658,38 +5623,6 @@ button.cpi-hh-face-btn:disabled {
   color: var(--ok);
 }
 
-.td-library ul {
-  margin: 10px 0;
-  padding: 0;
-  list-style: none;
-  font: 0.9rem/1.9 var(--mono);
-  color: #7d8591;
-}
-
-.td-library li.on {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 8px;
-  border-radius: 4px;
-  background: var(--yellow);
-  color: #000;
-  font-weight: 700;
-}
-
-.td-new {
-  padding: 0 6px;
-  border-radius: 3px;
-  background: #e03131;
-  color: #fff;
-  font-size: 0.7rem;
-}
-
-.td-library-note {
-  color: var(--yellow);
-  font: 700 0.85rem/1 var(--mono);
-}
-
 .td-title-card {
   display: grid;
   justify-items: center;
@@ -7066,5 +6999,1588 @@ body:has(.td-phone) .sr-only {
   .td-hud-fill,
   .td-tab {
     transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ Steam My Deck: the hub (js/deck/) */
+/* The lobby is the CPI handheld's home screen: the page is the device, its screen scrolls inside
+   itself, and nothing here animates continuously (a boot, the odd transition, and that's it). */
+
+/* The kernel button: the status bar's wordmark is the device's system button. */
+.cpi-hh-home {
+  min-height: 22px;
+  margin: -3px 0;
+  padding: 0 7px 0 5px;
+  border: 1px solid #2c3037;
+  border-radius: 11px;
+  background: linear-gradient(#1d2025, #111316);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.cpi-hh-home:hover {
+  border-color: rgba(255, 212, 0, 0.55);
+}
+
+.cpi-hh-home:active {
+  transform: translateY(1px);
+}
+
+/* ---- fitting the device to the page ---- */
+
+.host-body:has(.deck-hub-host) {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.stage:has(.deck-hub-host) {
+  display: flex;
+  min-height: 0;
+  padding-top: clamp(10px, 1.4vw, 22px);
+  padding-bottom: 10px;
+}
+
+.deck-hub {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+.deck-device {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* Shrinks with the page (a phone turned upright), so the device can switch to portrait. */
+  min-width: 0;
+}
+
+.deck-host {
+  --hh-grip: clamp(72px, 7vw, 124px);
+  max-width: 1640px;
+}
+
+.deck-device .cpi-hh-body {
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.deck-device[data-layout="portrait"] .cpi-hh-body {
+  grid-template-rows: minmax(0, 1fr) auto;
+  row-gap: 10px;
+}
+
+.deck-device .cpi-hh-face {
+  height: 100%;
+  min-height: 0;
+}
+
+.deck-device .cpi-hh-bezel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.deck-device .cpi-hh-screen-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.deck-device .cpi-hh-screen {
+  aspect-ratio: auto;
+  height: 100%;
+  min-height: 220px;
+  container: deck-screen / inline-size;
+  background: #05070a;
+}
+
+/* A phone: the page is the device (like Angry Thud's Revenge's phones). */
+body:has(.deck-hub-phone) .topbar {
+  display: none;
+}
+
+body:has(.deck-hub-phone) .sr-only {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+}
+
+.phone:has(.deck-hub-phone) {
+  display: flex;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+
+.deck-phone {
+  max-width: 1400px;
+}
+
+/* Portrait: a compact control row under the screen, so the screen keeps the height. */
+.deck-phone[data-layout="portrait"] .cpi-hh-dpad {
+  width: clamp(68px, 24vw, 96px);
+}
+
+.deck-phone[data-layout="portrait"] .cpi-hh-cluster {
+  gap: 6px;
+}
+
+/* ---- the screen ---- */
+
+.deck-wall {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(90% 70% at 88% -10%, color-mix(in srgb, var(--wall-accent, #ffd400) 20%, transparent), transparent 62%),
+    radial-gradient(circle at 50% 50%, rgba(255, 212, 0, 0.05) 1px, transparent 1.6px) 0 0 / 22px 22px,
+    linear-gradient(165deg, color-mix(in srgb, var(--wall-from, #1a1d22) 65%, #06080b) 0%, #05070a 72%);
+  transition: background 0.5s ease;
+}
+
+.deck-view {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: clamp(10px, 2.2cqw, 26px);
+  color: #e6e9ed;
+  font-size: clamp(0.82rem, 1.45cqw, 1.12rem);
+  line-height: 1.4;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3f47 transparent;
+}
+
+.deck-view:focus {
+  outline: none;
+}
+
+.deck-view h2,
+.deck-view h3,
+.deck-menu h2,
+.deck-menu h3 {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.deck-view h3,
+.deck-menu h3 {
+  color: #aeb5bf;
+  font: 700 0.74em/1.2 var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.deck-kicker {
+  margin: 0 0 4px;
+  color: #8f97a3;
+  font: 700 0.7em/1.3 var(--mono);
+  letter-spacing: 0.18em;
+}
+
+.deck-hint {
+  margin: 4px 0 0;
+  color: #9aa1ab;
+  font-size: 0.86em;
+  line-height: 1.35;
+}
+
+.deck-warn {
+  margin: 8px 0 0;
+  color: var(--yellow);
+  font-size: 0.82em;
+}
+
+.deck-view .notice {
+  min-height: 0;
+  margin: 6px 0 0;
+  font-size: 0.9em;
+}
+
+.deck-view .notice:empty {
+  display: none;
+}
+
+.deck-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.deck-row-count {
+  color: #7f8792;
+  font: 700 0.72em/1 var(--mono);
+  letter-spacing: 0.1em;
+}
+
+.deck-link {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--yellow);
+  font: 700 0.72em/1 var(--mono);
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.deck-link:hover {
+  background: rgba(255, 212, 0, 0.1);
+}
+
+/* Focus: keyboards get the usual ring; the d-pad cursor gets a glowing one. */
+.deck-device :focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.deck-device.nav-mode .deck-view [data-nav]:focus {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 7px rgba(255, 212, 0, 0.16);
+}
+
+/* ---- buttons, facts, badges ---- */
+
+.deck-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 18px;
+  border: 1px solid #0a0b0d;
+  border-radius: 999px;
+  background: linear-gradient(#3b3f48, #22252b);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    0 2px 0 #08090b;
+  color: #eceff3;
+  font: 700 0.92em/1 var(--head);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 0.06s, filter 0.15s;
+}
+
+.deck-btn:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.deck-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.deck-btn.go {
+  border-color: #6b5800;
+  background: linear-gradient(#ffe45c, #d6b100);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 2px 0 #5c4b00,
+    0 0 20px rgba(255, 212, 0, 0.22);
+  color: #1a1500;
+}
+
+.deck-btn.big {
+  min-height: 52px;
+  padding: 10px 26px;
+  font-size: 1.05em;
+}
+
+.deck-btn.ghost {
+  border-color: #3a3f47;
+  background: rgba(10, 12, 15, 0.5);
+  box-shadow: none;
+}
+
+.deck-btn.warn {
+  border-color: rgba(255, 212, 0, 0.55);
+  background: rgba(40, 32, 0, 0.7);
+  box-shadow: none;
+  color: var(--yellow);
+  white-space: normal;
+  text-align: center;
+}
+
+.deck-btn.danger {
+  border-color: rgba(255, 107, 94, 0.5);
+  color: var(--danger);
+}
+
+.deck-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+  filter: saturate(0.4);
+}
+
+.deck-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.deck-launch-row .deck-status {
+  margin: 8px 0 0;
+  color: #b9c0c9;
+  font-size: 0.86em;
+}
+
+.deck-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deck-fact {
+  padding: 3px 8px;
+  border: 1px solid #343941;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #c9cfd6;
+  font: 700 0.68em/1.2 var(--mono);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.deck-fact.shelf.handheld {
+  border-color: rgba(125, 255, 106, 0.45);
+  color: #a9f59c;
+}
+
+.deck-fact.shelf.party {
+  border-color: rgba(77, 212, 255, 0.45);
+  color: #9fe4ff;
+}
+
+.deck-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border: 1px solid #3a3f47;
+  border-radius: 6px;
+  color: #c9cfd6;
+  font: 700 0.64em/1.3 var(--mono);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.deck-badge.lead {
+  border-color: var(--yellow);
+  background: var(--yellow);
+  color: #1a1500;
+}
+
+.deck-badge.off {
+  border-color: rgba(255, 107, 94, 0.6);
+  color: var(--danger);
+}
+
+/* ---- covers ---- */
+
+.deck-cover {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 10px;
+  background: linear-gradient(145deg, var(--from), var(--to));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.09),
+    0 6px 16px rgba(0, 0, 0, 0.45);
+  container-type: inline-size;
+  isolation: isolate;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.deck-cover.s-mini,
+.deck-cover.s-hero {
+  aspect-ratio: 16 / 10;
+}
+
+.deck-cover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.9;
+}
+
+.deck-cover.m-grid::before {
+  background:
+    linear-gradient(color-mix(in srgb, var(--accent) 16%, transparent) 1px, transparent 1px) 0 0 / 14px 14px,
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent) 1px, transparent 1px) 0 0 / 14px 14px;
+}
+
+.deck-cover.m-rays::before {
+  background: repeating-conic-gradient(from 200deg at 78% 105%, color-mix(in srgb, var(--accent) 22%, transparent) 0 7deg, transparent 7deg 17deg);
+}
+
+.deck-cover.m-stripes::before {
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--accent) 15%, transparent) 0 9px, transparent 9px 22px);
+}
+
+.deck-cover.m-dots::before {
+  background: radial-gradient(color-mix(in srgb, var(--accent) 34%, transparent) 1.4px, transparent 1.9px) 0 0 / 12px 12px;
+}
+
+.deck-cover.m-scan::before {
+  background:
+    radial-gradient(80% 50% at 50% 100%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 4px);
+}
+
+.deck-cover-glyph {
+  position: absolute;
+  right: 7%;
+  bottom: 9%;
+  font-size: 34cqw;
+  line-height: 1;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+}
+
+.deck-cover.painted .deck-cover-glyph {
+  display: none;
+}
+
+.deck-cover-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.deck-cover-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(118deg, rgba(255, 255, 255, 0.17) 0%, rgba(255, 255, 255, 0) 30%);
+  pointer-events: none;
+}
+
+.deck-cover-title {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 18% 7% 7%;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+  color: #fff;
+  font: 700 max(11px, 11cqw) / 0.95 var(--head);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.55),
+    0 0 16px rgba(0, 0, 0, 0.6);
+  overflow-wrap: anywhere;
+}
+
+.deck-cover-badge {
+  position: absolute;
+  top: 6%;
+  left: 5%;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #d8dde3;
+  font: 700 max(8px, 5.2cqw) / 1.2 var(--mono);
+  letter-spacing: 0.12em;
+}
+
+.deck-cover-badge.handheld {
+  color: #a9f59c;
+}
+
+.deck-cover-badge.party {
+  color: #9fe4ff;
+}
+
+.deck-cover.s-mini .deck-cover-badge {
+  display: none;
+}
+
+/* ---- tiles (library, home shelf) ---- */
+
+.deck-tile {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.deck-tile:hover .deck-cover,
+.deck-tile:focus .deck-cover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 10px 22px rgba(0, 0, 0, 0.55);
+}
+
+.deck-tile.selected .deck-cover {
+  box-shadow:
+    0 0 0 2px var(--yellow),
+    0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.deck-tile-flag {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: var(--yellow);
+  color: #1a1500;
+  font: 700 9px/1 var(--mono);
+  letter-spacing: 0.1em;
+}
+
+.deck-tile-meta {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 0 2px;
+}
+
+.deck-tile-title {
+  overflow: hidden;
+  color: #eef1f4;
+  font: 700 0.8em/1.15 var(--head);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-tile-sub {
+  overflow: hidden;
+  color: #939aa4;
+  font: 0.68em/1.25 var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(118px, 19cqw, 230px), 1fr));
+  gap: clamp(10px, 1.6cqw, 18px);
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deck-shelf + .deck-shelf {
+  margin-top: clamp(14px, 2.6cqw, 26px);
+}
+
+.deck-shelf h2 {
+  color: #fff;
+  font: 700 1.05em/1 var(--head);
+  letter-spacing: 0.12em;
+}
+
+.deck-strip {
+  display: grid;
+  grid-auto-columns: clamp(104px, 16cqw, 196px);
+  grid-auto-flow: column;
+  gap: 10px;
+  margin: 0;
+  padding: 3px 3px 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  list-style: none;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.deck-strip > li {
+  scroll-snap-align: start;
+}
+
+/* ---- home ---- */
+
+.deck-home,
+.deck-profile,
+.deck-side {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.deck-home {
+  display: grid;
+  gap: clamp(10px, 1.8cqw, 22px);
+  align-items: start;
+}
+
+.deck-home.host {
+  grid-template-columns: minmax(0, 2.2fr) minmax(210px, 1fr);
+  grid-template-areas: "hero side" "shelf side";
+}
+
+.deck-home.host .deck-hero {
+  grid-area: hero;
+}
+
+.deck-home.host .deck-side {
+  grid-area: side;
+}
+
+.deck-home.host .deck-strip-wrap {
+  grid-area: shelf;
+}
+
+.deck-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(10px, 2cqw, 24px);
+  align-items: center;
+  padding: clamp(10px, 1.6cqw, 18px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.deck-hero-art {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  cursor: pointer;
+}
+
+.deck-hero-art:hover .deck-cover {
+  transform: translateY(-2px);
+}
+
+.deck-hero-title {
+  color: #fff;
+  font: 700 clamp(1.15rem, 3.8cqw, 3rem) / 1.02 var(--head);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.deck-hero-tag {
+  margin: 6px 0 0;
+  color: #cdd3da;
+}
+
+.deck-side {
+  display: grid;
+  gap: 12px;
+}
+
+.deck-join,
+.deck-agents-mini,
+.deck-panel {
+  padding: clamp(10px, 1.4cqw, 16px);
+  border: 1px solid #262a31;
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(24, 27, 32, 0.92), rgba(10, 12, 15, 0.92));
+}
+
+.deck-join {
+  text-align: center;
+}
+
+.deck-join-url {
+  margin: 2px 0 0;
+  color: #eef1f4;
+  font-size: 0.95em;
+  overflow-wrap: anywhere;
+}
+
+.deck-join-code {
+  margin: 4px 0 0;
+  color: var(--yellow);
+  font-size: clamp(2rem, 7cqw, 5.2rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-shadow: 0 0 24px rgba(255, 212, 0, 0.35);
+}
+
+.deck-agent-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deck-agent-row li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: 60px;
+  color: #cfd4da;
+  font: 0.68em/1.15 var(--mono);
+  text-align: center;
+}
+
+.deck-agent-row li.offline {
+  opacity: 0.45;
+}
+
+.deck-agent-row li.me .deck-agent-row-name {
+  color: var(--yellow);
+}
+
+.deck-agent-row-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-agent-row .deck-empty {
+  width: auto;
+  color: #8f97a3;
+  font-size: 0.8em;
+}
+
+.deck-crown {
+  position: absolute;
+  top: -2px;
+  right: 6px;
+  color: var(--yellow);
+  font-size: 13px;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+}
+
+.deck-me {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid #262a31;
+  border-radius: 14px;
+  background: rgba(10, 12, 15, 0.7);
+}
+
+.deck-me-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 1px solid #343941;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #2c3139, #121418);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.deck-me-text {
+  min-width: 0;
+}
+
+.deck-me-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #fff;
+  font: 700 1.1em/1.1 var(--head);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.deck-warning-slot .banner {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-width: 1px;
+  border-radius: 8px;
+  font-size: 0.82em;
+}
+
+/* ---- the title card ---- */
+
+.deck-card {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.4fr);
+  gap: clamp(12px, 2.4cqw, 28px);
+  align-items: start;
+}
+
+.deck-enter {
+  animation: deck-enter 0.22s ease-out;
+}
+
+@keyframes deck-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.deck-card-art {
+  position: sticky;
+  top: 0;
+}
+
+.deck-card-title {
+  color: #fff;
+  font: 700 clamp(1.3rem, 4.4cqw, 3.2rem) / 1 var(--head);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.deck-card-title:focus {
+  outline: none;
+}
+
+.deck-card-tagline {
+  margin: 6px 0 0;
+  color: #d5dae0;
+  font-size: 1.05em;
+}
+
+.deck-card-section {
+  margin-top: 14px;
+}
+
+.deck-card-desc {
+  margin: 4px 0 0;
+  color: #c3c9d1;
+}
+
+.deck-controls {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deck-controls li {
+  padding: 5px 9px;
+  border-left: 2px solid var(--yellow);
+  background: rgba(255, 255, 255, 0.04);
+  color: #dfe3e8;
+  font-size: 0.92em;
+}
+
+.deck-options {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.deck-options fieldset {
+  border-color: #2b2f36;
+  border-radius: 10px;
+}
+
+.deck-options .choice span {
+  min-height: 40px;
+  border-radius: 8px;
+  font-size: 0.92em;
+}
+
+.deck-options .hint {
+  margin: 0;
+  color: #9aa1ab;
+  font-size: 0.85em;
+}
+
+/* ---- agents, profile, settings ---- */
+
+.deck-agents {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deck-agent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 4px 4px;
+  border: 1px solid #262a31;
+  border-radius: 12px;
+  background: rgba(10, 12, 15, 0.75);
+}
+
+.deck-agent.offline {
+  opacity: 0.6;
+}
+
+.deck-agent.open {
+  padding: 10px 12px;
+  border-style: dashed;
+  color: #8f97a3;
+  font: 0.8em/1.3 var(--mono);
+}
+
+.deck-agent-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  font: 700 1em/1.2 var(--head);
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-agent-tags {
+  display: flex;
+  gap: 4px;
+}
+
+.deck-icon-btn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #343941;
+  border-radius: 50%;
+  background: #15171b;
+  color: #c9cfd6;
+  cursor: pointer;
+}
+
+.deck-icon-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.deck-profile {
+  display: grid;
+  gap: 12px;
+}
+
+.deck-profile-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.deck-profile-top .cpi-char {
+  flex: none;
+  padding: 4px;
+  border: 1px solid #343941;
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 40%, #2c3139, #101216);
+}
+
+.deck-profile-name {
+  color: #fff;
+  font: 700 clamp(1.3rem, 5cqw, 2.4rem) / 1 var(--head);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.deck-profile-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 6px 0 0;
+}
+
+.deck-profile .deck-btn.danger {
+  justify-self: start;
+}
+
+.deck-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.deck-sound {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.deck-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 14px 4px 4px;
+  border: 1px solid #343941;
+  border-radius: 999px;
+  background: #121418;
+  color: #dfe3e8;
+  font: 700 0.8em/1 var(--mono);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.deck-switch-knob {
+  position: relative;
+  width: 44px;
+  height: 28px;
+  border-radius: 14px;
+  background: #2a2e35;
+  transition: background 0.15s;
+}
+
+.deck-switch-knob::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #cfd4da;
+  transition: transform 0.15s;
+}
+
+.deck-switch[aria-checked="true"] .deck-switch-knob {
+  background: #7fcf86;
+}
+
+.deck-switch[aria-checked="true"] .deck-switch-knob::after {
+  transform: translateX(16px);
+  background: #fff;
+}
+
+.deck-setting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.deck-setting label {
+  color: #cfd4da;
+  font-size: 0.9em;
+}
+
+.deck-range {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  min-height: 32px;
+  accent-color: var(--yellow);
+}
+
+.deck-range-value {
+  color: #9aa1ab;
+  font-size: 0.8em;
+}
+
+.deck-keys {
+  width: 100%;
+  margin-top: 6px;
+  border-collapse: collapse;
+  font-size: 0.88em;
+}
+
+.deck-keys th,
+.deck-keys td {
+  padding: 4px 6px;
+  border-bottom: 1px solid #22262c;
+  text-align: left;
+}
+
+.deck-keys th {
+  width: 30%;
+  color: #aeb5bf;
+  font: 700 0.9em/1.2 var(--mono);
+}
+
+.deck-about {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  color: var(--yellow);
+  font: 700 0.9em/1 var(--head);
+  letter-spacing: 0.12em;
+}
+
+/* ---- the menu bar under the screen, and the A / B buttons ---- */
+
+.deck-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.deck-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 3px 4px;
+  border: 1px solid #25282e;
+  border-radius: 9px;
+  background: linear-gradient(#1c1e23, #121317);
+  color: #8f96a0;
+  font: 700 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, transform 0.08s;
+}
+
+.deck-tab-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.deck-tab.on {
+  border-color: #f5d000;
+  background: linear-gradient(#ffe45c, #d6b100);
+  box-shadow: 0 0 12px rgba(255, 212, 0, 0.3);
+  color: #111;
+}
+
+.deck-tab:active {
+  transform: translateY(1px);
+}
+
+.deck-host .deck-tab {
+  min-height: 38px;
+  font-size: clamp(10px, 0.8vw, 13px);
+}
+
+.deck-ab {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 0 clamp(8px, 1.4vw, 16px);
+  width: clamp(84px, 92%, 132px);
+  padding-bottom: 18px;
+}
+
+.deck-ab .cpi-hh-face-btn {
+  width: 100%;
+  aspect-ratio: 1;
+  font-size: clamp(13px, 1.6vw, 18px);
+}
+
+.deck-ab .cpi-hh-face-btn[data-letter="A"] {
+  transform: translateY(-38%);
+}
+
+.deck-ab .cpi-hh-face-btn[data-letter="A"].pressed,
+.deck-ab .cpi-hh-face-btn[data-letter="A"]:active {
+  transform: translateY(calc(-38% + 2px));
+}
+
+.deck-phone[data-layout="portrait"] .deck-ab {
+  width: clamp(92px, 30vw, 124px);
+  padding: 10px 0 16px;
+}
+
+/* ---- narrow screens (a phone's) ---- */
+
+@container deck-screen (max-width: 760px) {
+  .deck-home.host {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "hero" "side" "shelf";
+  }
+}
+
+@container deck-screen (max-width: 560px) {
+  .deck-view {
+    font-size: 0.86rem;
+  }
+
+  /* The cover already says HANDHELD / PARTY, and the title card has the length. */
+  .deck-hero .deck-fact.shelf,
+  .deck-hero .deck-fact:nth-child(4) {
+    display: none;
+  }
+
+  .deck-hero .deck-facts {
+    margin-top: 6px;
+  }
+
+  .deck-hero {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .deck-hero .deck-cover.s-hero {
+    aspect-ratio: 3 / 4;
+  }
+
+  .deck-hero-title {
+    font-size: 1.2rem;
+  }
+
+  .deck-hero-tag {
+    font-size: 0.86em;
+  }
+
+  .deck-hero .deck-launch-row {
+    grid-column: 1 / -1;
+  }
+
+  .deck-hero-body {
+    display: contents;
+  }
+
+  .deck-hero-body > .deck-kicker,
+  .deck-hero-body > .deck-hero-title,
+  .deck-hero-body > .deck-hero-tag,
+  .deck-hero-body > .deck-facts {
+    grid-column: 2;
+  }
+
+  .deck-hero-art {
+    grid-row: 1 / span 4;
+  }
+
+  .deck-hero-body > .deck-launch-row,
+  .deck-hero-body > .deck-warning-slot {
+    grid-column: 1 / -1;
+  }
+
+  .deck-launch-row .deck-actions .deck-btn {
+    flex: 1 1 auto;
+  }
+
+  .deck-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .deck-card-art {
+    position: static;
+    width: min(62%, 260px);
+  }
+
+  .deck-card-art .deck-cover {
+    aspect-ratio: 16 / 10;
+  }
+
+  .deck-card-title {
+    font-size: 1.45rem;
+  }
+
+  .deck-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .deck-settings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container deck-screen (max-width: 330px) {
+  .deck-me-avatar {
+    width: 46px;
+    height: 46px;
+  }
+
+  .deck-card-art {
+    width: 44%;
+  }
+
+  .deck-card-title {
+    font-size: 1.2rem;
+  }
+
+  .deck-card .deck-fact:nth-child(4) {
+    display: none;
+  }
+
+  /* The smallest phones: the tagline waits on the title card, so LAUNCH is on the first screen. */
+  .deck-hero-body > .deck-hero-tag {
+    display: none;
+  }
+
+  .deck-hero-title {
+    font-size: 1.05rem;
+  }
+
+  .deck-me {
+    padding: 4px 8px 4px 4px;
+  }
+
+  .deck-me .deck-hint {
+    font-size: 0.78em;
+  }
+
+  .deck-tile-sub {
+    display: none;
+  }
+}
+
+/* A phone on its side: every pixel of height for the screen. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .deck-device {
+    padding-top: 4px;
+  }
+
+  .deck-device .cpi-hh-shoulders {
+    display: none;
+  }
+
+  .deck-device .deck-tab {
+    min-height: 32px;
+  }
+
+  .deck-device .deck-tab-icon {
+    font-size: 13px;
+  }
+
+  .deck-device .cpi-hh-dpad {
+    width: clamp(60px, 74%, 92px);
+  }
+}
+
+/* A phone on its side, the hub: the cover beside the words, so LAUNCH is on the first screen (the
+   PROFILE page has your agent). */
+@media (orientation: landscape) and (max-height: 520px) {
+  .deck-hub-phone .deck-me {
+    display: none;
+  }
+
+  .deck-hub-phone .deck-hero {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    align-items: start;
+    padding: 10px;
+  }
+
+  .deck-hub-phone .deck-hero-body {
+    display: block;
+  }
+
+  .deck-hub-phone .deck-hero-art {
+    grid-row: auto;
+  }
+
+  .deck-hub-phone .deck-hero .deck-cover.s-hero {
+    aspect-ratio: 16 / 10;
+  }
+
+  .deck-hub-phone .deck-hero-title {
+    font-size: 1.15rem;
+  }
+
+  .deck-hub-phone .deck-hero-tag {
+    display: none;
+  }
+
+  .deck-hub-phone .deck-card {
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+  }
+
+  .deck-hub-phone .deck-card-art {
+    position: sticky;
+    width: auto;
+  }
+
+  .deck-hub-phone .deck-card-title {
+    font-size: 1.25rem;
+  }
+}
+
+/* Narrow portrait phones: icons over labels in the menu bar. */
+@media (max-width: 420px) {
+  .deck-phone[data-layout="portrait"] .deck-tab {
+    flex-direction: column;
+    gap: 2px;
+    font-size: 9px;
+  }
+}
+
+/* ---- the launch: the whole page, briefly ---- */
+
+.deck-launch {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(60% 50% at 50% 45%, color-mix(in srgb, var(--accent, #ffd400) 18%, transparent), transparent 70%),
+    rgba(3, 4, 6, 0.96);
+  cursor: pointer;
+  animation: cpi-hh-in 0.18s ease-out;
+}
+
+.deck-launch.leaving {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.deck-launch-inner {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: min(92vw, 520px);
+  text-align: center;
+}
+
+.deck-launch-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--yellow);
+  font: 700 0.8rem/1 var(--head);
+  letter-spacing: 0.3em;
+}
+
+.deck-launch .deck-cover {
+  width: min(78vw, 420px);
+  animation: deck-launch-zoom 1.4s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 24px 60px rgba(0, 0, 0, 0.7),
+    0 0 60px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+@keyframes deck-launch-zoom {
+  from {
+    transform: scale(0.78);
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+}
+
+.deck-launch-now {
+  margin: 6px 0 0;
+  color: #8f97a3;
+  font: 700 0.72rem/1 var(--mono);
+  letter-spacing: 0.3em;
+}
+
+.deck-launch-title {
+  margin: 0;
+  color: #fff;
+  font: 700 clamp(1.6rem, 6vw, 3rem) / 1 var(--head);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.deck-launch-bar {
+  width: min(70vw, 320px);
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #1c1f24;
+}
+
+.deck-launch-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--accent, var(--yellow));
+  transform-origin: left;
+  animation: cpi-fill var(--ms, 1200ms) ease-in-out both;
+}
+
+/* ---- the quick menu (the KERNEL button) ---- */
+
+.deck-menu {
+  width: min(94vw, 460px);
+  max-height: min(90dvh, 720px);
+  padding: 16px;
+  border: 1px solid #2c3037;
+  border-radius: 18px;
+  background: linear-gradient(170deg, #1d2025, #0d0f12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 30px 80px rgba(0, 0, 0, 0.8);
+  color: #e6e9ed;
+  overflow: auto;
+}
+
+.deck-menu::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.deck-menu[open] {
+  animation: cpi-pop 0.2s ease-out;
+}
+
+.deck-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--yellow);
+  font: 700 0.75rem/1 var(--head);
+  letter-spacing: 0.2em;
+}
+
+.deck-menu-sub {
+  margin-left: auto;
+  color: #7f8792;
+  font-family: var(--mono);
+  letter-spacing: 0.12em;
+}
+
+.deck-menu-title {
+  margin-top: 12px;
+  color: #fff;
+  font: 700 1.6rem/1.05 var(--head);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.deck-menu .deck-panel {
+  margin-top: 12px;
+}
+
+.deck-menu .stack-actions {
+  display: grid;
+}
+
+.deck-menu > .deck-btn.ghost {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.deck-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 4px 12px 4px 8px;
+  border: 1px solid #2c3037;
+  border-radius: 17px;
+  background: linear-gradient(#1d2025, #111316);
+  color: var(--yellow);
+  font: 700 0.75rem/1 var(--head);
+  letter-spacing: 0.14em;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-launch .deck-cover,
+  .deck-enter {
+    animation: none;
   }
 }

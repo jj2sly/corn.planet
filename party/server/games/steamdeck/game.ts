@@ -583,7 +583,8 @@ class SteamDeckGame implements GameInstance {
 
 export const steamDeckGame: GameDefinition<SteamDeckSettings> = {
   id: "steamdeck",
-  name: "Steam My Deck",
+  // The game's title. Steam My Deck is the handheld it (and every other game) is launched from.
+  name: "Escape Thad's Steam Deck",
   tagline: "You live in the Deck now. Thad is holding it.",
   description:
     "One agent is Thad and holds the Steam Deck (in spirit: keyboard, mouse or touch all work). Everyone else is trapped inside it, " +
@@ -592,6 +593,13 @@ export const steamDeckGame: GameDefinition<SteamDeckSettings> = {
   minPlayers: 2,
   maxPlayers: 8,
   defaultSettings: { rounds: 3 },
+  deck: {
+    shelf: "handheld",
+    genre: "Tilt platformer",
+    controls: ["Runners: ◀ ▶ move · A jump · B draw a plank", "Thad: lean with ← → or L / R · ↑ shake", "Keyboard, mouse or touch"],
+    length: "5–10 min",
+    art: { from: "#143d20", to: "#040d06", accent: "#7dff6a", glyph: "🎮", motif: "scan" },
+  },
   /** The games on the Deck, so the lobby's "Games" choice and hint follow levels.ts. */
   catalog: { games: LEVELS.map((l) => ({ id: l.id, name: l.name })) },
   parseSettings(raw: unknown): SteamDeckSettings {

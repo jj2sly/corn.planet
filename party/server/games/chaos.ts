@@ -446,6 +446,13 @@ export const chaosGame: GameDefinition<ChaosSettings> = {
   minPlayers: 3,
   maxPlayers: 8,
   defaultSettings: { rounds: 2, answerSeconds: 90, voteSeconds: 25, totalBreach: true },
+  deck: {
+    shelf: "party",
+    genre: "Report battle",
+    controls: ["Phone: type your incident report", "Phone: vote for the better one", "Big screen: the review board"],
+    length: "15–25 min",
+    art: { from: "#3d100c", to: "#120403", accent: "#ff6b5e", glyph: "📋", motif: "stripes" },
+  },
   parseSettings(raw: unknown): ChaosSettings {
     const input = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
     const d = this.defaultSettings;
