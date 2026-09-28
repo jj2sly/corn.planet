@@ -739,13 +739,22 @@ class MyCobGame implements GameInstance {
     const outcomes = plan.actions.map((a) => a.roll.outcome);
     const chaosLabels = this.config.stats.labels.chaos.map((l) => l.label);
     const chaosRank = (value: number) => chaosLabels.indexOf(describeStat("chaos", value, this.config).value);
-    if (outcomes.some((o) => o === "critical" || o === "success")) this.cue("success");
-    if (outcomes.includes("catastrophe") || (outcomes.length > 0 && outcomes.every((o) => o === "failure"))) this.cue("major_failure");
-    if (result.reveals.length) this.cue("discovery");
-    if (result.newProblem || result.specialEvent) this.cue("alert");
-    // Labels run highest first, so a lower index is more chaos.
-    if (chaosRank(result.statsAfter.chaos) < chaosRank(result.statsBefore.chaos)) this.cue("chaos_up");
-    if (livesLost) this.cue("life_lost");
+    // One sound for the whole consequence, the one that matters most: a sound for everything and
+    // nothing stands out. Labels run highest first, so a lower chaos index is more chaos.
+    const cue: SoundCue | null = livesLost
+      ? "life_lost"
+      : outcomes.includes("catastrophe") || (outcomes.length > 0 && outcomes.every((o) => o === "failure"))
+        ? "major_failure"
+        : result.newProblem || result.specialEvent
+          ? "alert"
+          : outcomes.some((o) => o === "critical" || o === "success")
+            ? "success"
+            : result.reveals.length
+              ? "discovery"
+              : chaosRank(result.statsAfter.chaos) < chaosRank(result.statsBefore.chaos)
+                ? "chaos_up"
+                : null;
+    if (cue) this.cue(cue);
 
     this.phase = "CONSEQUENCE";
     this.schedule(this.config.timing.consequenceMs, () => this.openVote());

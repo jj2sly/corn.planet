@@ -35,7 +35,7 @@ OUTCOME (ending, entity revealed, score breakdown) → AWARD_SUBMIT → AWARD_VO
 | Phase | Default | Closes early when |
 |---|---|---|
 | ALERT | 25 s | — (host/leader skip) |
-| UPDATE | 30 s × length scale | — |
+| UPDATE | 15 s × length scale | — |
 | RESPONSE | 60 s × length scale | every agent has filed (editable until then) |
 | PROCESSING | 4–10 s (Claude: 4–21 s) | director answered and 4 s passed; falls back to the built-in director at the limit |
 | CONSEQUENCE | 35 s × length scale | — |
@@ -46,30 +46,37 @@ Lengths: **Short** 3 stages, **Standard** 5, **Long** 7 (timers × 0.9 / 1 / 1.1
 also pick any 3–7 stages. So a Standard game gives 60 s to respond, 35 s for the consequence and
 25 s to vote; a Short one 54 s / 31.5 s / 25 s and a Long one 69 s / about 40 s / 25 s (the vote isn't
 scaled). Timers were raised on 2026-09-24 after a phone playtest: reading the recap and your role, then
-typing on a phone, didn't fit in 45 s. Standard is about 15.5 minutes at full timers including awards, less when everyone files and
+typing on a phone, didn't fit in 45 s. Standard is about 14 minutes at full timers including awards, less when everyone files and
 votes quickly (tune `timing` in `config.ts`). All timers are the
 room's single pausable server timer; they freeze while the host display is away.
 
-Each UPDATE opens with an **INCIDENT STATUS** recap (`recap` in the view, host and phones): what
-happened last stage (a tally of outcomes, the most dramatic move, who lost a life, who won the vote), what matters now
-(a new problem, else the worst status), and up to three changes (identification, a discovery, status
-changes, objectives, a special event), known risks (danger statuses, systems offline, staff in trouble,
-anomalies), the team's lives, who is on their last life and anyone back after going down, and objective progress (done/total, the
-primary's status, the nearest deadline). It is built only from what everyone has already been shown, and stays up through RESPONSE, where its
-"now" is the prompt players respond to. Phones label every phase ("Stage 2/3 · Your move") and keep the
-countdown pinned while you scroll; a response typed but never filed is filed 2 s before time runs out
-(if it has a type).
+**Screens: one thing at a time** (simplified 2026-09-26 after playtesters found the round too busy).
+Each phase shows only what that moment needs; the rest is folded (`▸`), never removed.
 
-On phones the consequence leads with what matters: your outcome stamp and one-line summary, your life
-loss (with the reason and lives left) and the team's, the status chips, and **what's next**
-(`consequence.next`). Below that: **why** (the engine's reasons in words: your role's strength,
-careful/reckless, harm's way, cramming, repeating, aiming at something, a clash or team-up, a twist,
-high chaos), **what you caused** (▲/▼ per status, doubled when big, never a number), everyone else's
-outcome, other changes, at most two discoveries, and the full report collapsed. The why and
-what-you-caused lines go only to your phone. The host screen keeps the full narration and shows who
-each move clashed or teamed up with. The phone alert is a headline (the problem) and three facts
-(breach, where, entity, plus any hazards), with the full alert text collapsed; the role card is open
-only when the role is new. The phone countdown pulses in the last 10 s and turns red in the last 5.
+| Phase | Phone shows | Folded |
+|---|---|---|
+| ALERT | CONTAINMENT BREACH, the problem, entity and where (plus hazards), **your job** (role, what it's good at, the team goal) | more about your role; the full alert |
+| UPDATE | what happened (one line, and the vote), what's wrong **now**, the situation light, your read | your role |
+| RESPONSE | what's happening (and one risk the headline doesn't already say), **your response** box, the kind of move (★ = your role's strength), Submit | risk: careful / reckless / harm's way |
+| CONSEQUENCE | what you did, what happened (stamp and summary), a lost life, the situation light | status changes, why, what you caused, everyone else, other changes, discoveries, the full report |
+| STAGE_VOTE | "Which move helped most?" and the moves | — |
+| OUTCOME | the ending stamp and line, where you placed, the entity | the final report; your points |
+
+A bar across the top of every phone screen says where you are ("2/5 · Your move"), your role and lives,
+and the time left, big (it pulses in the last 10 s, red in the last 5), and stays put while you scroll.
+Only news that changes things for you appears under it (a life lost, going down, coming back as someone
+else). The sound control is on the alert screen only. A response typed but never filed is filed 2 s
+before time runs out (if it has a type). Submitting says so at once ("✓ Submitted · 2/3 in").
+
+The **situation light** answers "how bad is it?": 🟢 under control, 🟡 getting bad, 🔴 everything is going
+horribly (`situationLevel` in `mycob-shared.js`), from containment, personnel, facility, chaos and time
+only (red when containment is failing and something else is, or three things are).
+
+The host keeps the full narration (it's the story, and the voice reads it) with one line per move and
+its outcome, not the story again. Its incident board shows the entity, the situation light, the open
+objectives and the team (filed ✓, lives); every stat, system, staff member and known fact is under
+**Full status**. The recap (`recap` in the view) is still built only from what everyone has already been
+shown; screens use its `happened`, `now`, `risks` and `vote`.
 
 The incident can end early — contained or terminated (from stage 3), or everyone dead (any time) —
 and ends when fewer than 2 agents remain.
@@ -379,15 +386,16 @@ Views send the current beat; private lines (your life loss) only to you. On the 
 provider can only skip lines, never hold up play.
 
 **Sound effects** are separate from the voice. The engine adds a cue (`game.cues`: `{ id, cue }`, the
-last 12) when something happens that every screen is already shown: `game_start`, `alert` (a new
-problem or special event), `response_in` (a first filing, not an edit), `success`, `major_failure` (a
-catastrophe, or every action failed), `discovery`, `chaos_up` (the chaos label rose), `life_lost`,
+last 12) when something happens that every screen is already shown: `game_start`, `response_in` (a
+first filing, not an edit), then **one** cue per consequence, the most important of `life_lost`,
+`major_failure` (a catastrophe, or every action failed), `alert` (a new problem or special event),
+`success`, `discovery` and `chaos_up` (the chaos label rose), so the big moments stand out,
 `vote_start`, `vote_result`, the ending (`contained`, `terminated`, `escaped`, `everyone_dies`) and
 `game_end`; screens add `timer_warning` themselves at 10 s left. All playback goes through one
 manager, `public/js/games/mycob-sound.js`: the host plays each cue once (a screen that joins mid-game
 plays nothing old), phones only your own response filed, life lost and timer warning (while you
-haven't filed or voted; the host warns only for responses). Mute and volume are per device (`localStorage`), on the host board and at the
-bottom of each phone screen. Sounds queue instead of stacking (at most 3 at once, repeats within
+haven't filed or voted; the host warns only for responses). Mute and volume are per device (`localStorage`), on the host board and on the
+phone's alert screen. Sounds queue instead of stacking (at most 3 at once, repeats within
 0.35 s and anything waiting over 3 s dropped, except game start, life lost and the endings), and
 nothing plays before the page has been tapped. Real sounds are mapped to cues in
 `public/sounds/mycob/sounds.json`; the folder layout and naming are in the README there. Unmapped cues

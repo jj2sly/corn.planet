@@ -1,28 +1,29 @@
-// My Cob Escaped on a phone: your role, your lives, your response, your vote, your award.
+// My Cob Escaped on a phone. One thing at a time: a bar across the top says where you are, what you
+// are and how long you have; under it, only what this moment needs. The alert says what escaped and
+// what your job is; the briefing what just happened and what's wrong now; the response is the
+// situation, a big box and a button; the result is what you did, what happened and how bad things
+// are. Everything else (the full alert, your role's details, why a move went the way it did, the
+// rest of the report) is folded away, one tap from sight.
 // Views are keyed by phase and stage so typing survives the live updates streaming in.
 
-import { el, notice, plural, store, timerEl } from "../common.js";
+import { el, notice, store, timerEl } from "../common.js";
 import {
   APPROACH_INFO,
-  beat,
   block,
   ENDING_FLAVOR,
   factsList,
-  hallOfFame,
   leaderboard,
   liveNarration,
   livesEl,
   MEDALS,
   outcomeStamp,
   PENDING_REPORT,
-  readLine,
-  recapCard,
   reveal,
-  roleCard,
+  roleBody,
+  situationEl,
   stampEl,
   standings,
   statChips,
-  summaryTiles,
   TAG_INFO,
   whyAndCaused,
 } from "./mycob-shared.js";
@@ -31,54 +32,45 @@ import { playCue, preloadSounds, soundControl, timerWarning } from "./mycob-soun
 const DRAFT_KEY = "cpst-party:mycob-draft";
 const seenNotices = new Set();
 
-function timerRow(timer, label) {
-  const slot = el("span", {}, timerEl(timer));
-  const node = el("div", { class: "row spread mc-timer-row" }, el("span", { class: "eyebrow", text: label }), slot);
-  return { node, set: (t) => slot.replaceChildren(timerEl(t)) };
+const PHASE_NAME = { ALERT: "Alert", UPDATE: "Briefing", RESPONSE: "Your move", PROCESSING: "Processing", CONSEQUENCE: "Result", STAGE_VOTE: "Vote" };
+
+/** Where you are, as short as it goes: "2/5 · Your move". */
+function whereLabel(g, fallback) {
+  if (!g.stage) return PHASE_NAME[g.phase] ?? fallback ?? "";
+  return `${g.stage}/${g.totalStages} · ${PHASE_NAME[g.phase] ?? ""}`;
 }
 
-function statusCard(icon, title, body, ...extra) {
-  return el(
-    "div",
-    { class: "big-status" },
-    el("div", { class: "icon", "aria-hidden": "true", text: icon }),
-    el("h2", { text: title }),
-    body ? el("p", { class: "muted", text: body }) : null,
-    ...extra,
-  );
-}
-
-const PHASE_NAME = { UPDATE: "Briefing", RESPONSE: "Your move", PROCESSING: "Processing", CONSEQUENCE: "Results", STAGE_VOTE: "Vote" };
-const stageLabel = (g) => (g.stage ? `Stage ${g.stage}/${g.totalStages} · ${PHASE_NAME[g.phase] ?? ""}` : `Incident ${g.incident.code}`);
-
-/** Your role, lives and anything that just happened to you. Rebuilt on every update. */
-function youStrip(g) {
-  const you = g.you;
-  // The consequence's own alert already says it; don't say it twice.
-  const shown = g.phase === "CONSEQUENCE" && you.lostLife ? you.notices.filter((n) => n.kind !== "life" && n.kind !== "down") : you.notices;
-  const notices = shown.map((n) =>
-    el("p", { class: `mc-notice k-${n.kind}`, role: n.kind === "life" || n.kind === "down" ? "alert" : "status", text: n.text }),
-  );
-  // Buzz once per new life-loss notice.
-  for (const n of you.notices) {
-    if (seenNotices.has(n.id)) continue;
-    seenNotices.add(n.id);
-    if (n.kind === "life" && navigator.userActivation?.hasBeenActive) {
-      navigator.vibrate?.([200, 100, 200]);
-      playCue("life_lost");
+/**
+ * The bar across the top, on every screen: where you are, your role and lives, and the time left
+ * (big; it pulses in the last ten seconds). Life-changing news for you sits right under it.
+ */
+function topBar(s, label) {
+  const timerSlot = el("span", { class: "mc-top-timer" });
+  const where = el("span", { class: "mc-top-where" });
+  const you = el("span", { class: "mc-top-you" });
+  const node = el("div", { class: "mc-top" }, el("div", { class: "mc-top-left" }, where, you), timerSlot);
+  const notices = el("div", { class: "stack" });
+  const set = (next) => {
+    const g = next.game;
+    where.textContent = label ?? whereLabel(g);
+    const role = g.you.role;
+    you.replaceChildren(el("span", { text: `${role.icon} ${role.name}` }), g.you.down ? stampEl("down", "danger") : livesEl(g.you.lives, g.you.maxLives));
+    timerSlot.replaceChildren(timerEl(next.timer));
+    // Only news that changes things for you: a life lost, going down, coming back as someone else.
+    // The result screen says a lost life itself.
+    const shown = g.phase === "CONSEQUENCE" ? g.you.notices.filter((n) => n.kind === "reassigned") : g.you.notices;
+    notices.replaceChildren(...shown.map((n) => el("p", { class: `mc-notice k-${n.kind}`, role: n.kind === "reassigned" ? "status" : "alert", text: n.text })));
+    for (const n of g.you.notices) {
+      if (seenNotices.has(n.id)) continue;
+      seenNotices.add(n.id);
+      if (n.kind === "life" && navigator.userActivation?.hasBeenActive) {
+        navigator.vibrate?.([200, 100, 200]);
+        playCue("life_lost");
+      }
     }
-  }
-  return el(
-    "div",
-    { class: "stack" },
-    el(
-      "div",
-      { class: `mc-you ${you.down ? "down" : ""}`.trim() },
-      el("div", { class: "grow" }, you.identity ? el("p", { class: "eyebrow", text: `Playing as ${you.identity}` }) : null, el("strong", { class: "mc-you-role", text: `${you.role.icon} ${you.role.name}` })),
-      you.down ? stampEl("down", "danger") : livesEl(you.lives, you.maxLives),
-    ),
-    ...notices,
-  );
+  };
+  set(s);
+  return { node: el("div", { class: "stack" }, node, notices), set };
 }
 
 /** Your own countdowns: a response you haven't filed, a vote you haven't cast. */
@@ -87,61 +79,78 @@ function warnKey(g) {
   return due ? `${g.incident.code}:${g.phase}:${g.stage}` : null;
 }
 
-/** Wraps a phase view with the you-strip on top; the strip refreshes on every update. */
-function screen(s, nodes, onUpdate) {
-  const strip = el("div", {}, youStrip(s.game));
-  const node = el("div", { class: "stack" }, strip, ...nodes, soundControl());
+/** A phase's screen: the top bar, then its own nodes. `label` overrides the where-you-are text. */
+function screen(s, nodes, onUpdate, { label = null } = {}) {
+  const top = topBar(s, label);
+  const node = el("div", { class: "stack mc-phone" }, top.node, ...nodes);
   timerWarning(warnKey(s.game), s.timer);
   return {
     node,
     update(next) {
-      strip.replaceChildren(youStrip(next.game));
+      top.set(next);
       timerWarning(warnKey(next.game), next.timer);
       onUpdate?.(next);
     },
   };
 }
 
-// ------------------------------------------------------------------ briefing
+const primaryObjective = (g) => g.incident.objectives.find((o) => o.kind === "primary" && o.status === "active") ?? g.incident.objectives.find((o) => o.kind === "primary");
 
-/** The alert's facts at a glance: what broke, where, what it is, anything hazardous. */
-function alertFacts(inc) {
-  return el(
-    "ul",
-    { class: "mc-alert-facts" },
-    el("li", {}, el("strong", { text: "Breach: " }), inc.breach.name),
-    el("li", {}, el("strong", { text: "Where: " }), inc.location.name),
-    el("li", {}, el("strong", { text: "Entity: " }), inc.entity.known ? `${inc.entity.title} (${inc.entity.classification})` : "UNKNOWN"),
-    inc.environment.map((e) => el("li", { class: "warn" }, `⚠ ${e}`)),
-  );
+// ------------------------------------------------------------------ the alert and the briefing
+
+/** The alert: what escaped, where, and what your job is. The rest is a tap away. */
+function buildAlert(s) {
+  const g = s.game;
+  const inc = g.incident;
+  const role = g.you.role;
+  const narration = liveNarration(g.narration);
+  const goal = primaryObjective(g);
+  return screen(s, [
+    el("div", { class: "warning", text: "Containment breach" }),
+    el("p", { class: "phone-prompt", text: inc.problem }),
+    el(
+      "ul",
+      { class: "mc-alert-facts" },
+      el("li", {}, el("strong", { text: "Entity: " }), inc.entity.known ? inc.entity.title : "UNKNOWN"),
+      el("li", {}, el("strong", { text: "Where: " }), inc.location.name),
+      inc.environment.map((e) => el("li", { class: "warn" }, `⚠ ${e}`)),
+    ),
+    el(
+      "section",
+      { class: "mc-job" },
+      el("p", { class: "mc-block-label", text: "Your job" }),
+      el("p", { class: "mc-job-role", text: `${role.icon} ${role.name}` }),
+      el("p", { text: role.goodAt }),
+      goal ? el("p", { class: "mc-job-goal" }, el("strong", { text: "Team goal: " }), goal.text) : null,
+    ),
+    el("details", { class: "mc-more" }, el("summary", { text: "More about your role" }), ...roleBody(g)),
+    el("details", { class: "mc-more" }, el("summary", { text: "The full alert" }), narration.node),
+    soundControl(),
+  ], (next) => narration.set(next.game.narration));
 }
 
+/** Between stages: what just happened, and what's wrong now. */
 function buildBriefing(s) {
   const g = s.game;
-  const t = timerRow(s.timer, stageLabel(g));
-  const alert = g.phase === "ALERT";
-  // The role card is open when the role is new (the alert, or after a reassignment); after that your read says what matters.
-  const intel = el("div", { dataset: { role: g.you.role.id } }, roleCard(g, { open: alert }));
-  const narration = liveNarration(g.narration);
+  const r = g.recap;
+  const roleFold = (next) => el("details", { class: "mc-more" }, el("summary", { text: `${next.you.role.icon} Your role: ${next.you.role.name}` }), el("p", {}, el("strong", { text: "Good at: " }), next.you.role.goodAt), ...roleBody(next));
+  const intel = el("div", { dataset: { role: g.you.role.id } }, roleFold(g));
   return screen(
     s,
     [
-      t.node,
-      el("p", { class: "hint", text: alert ? "Learn your role. Stage 1 starts when the timer hits 0." : "Read up. Responses open when the timer hits 0." }),
-      alert ? el("div", { class: "warning", text: "Containment breach" }) : null,
-      alert ? el("p", { class: "phone-prompt", text: g.incident.problem }) : null,
-      alert ? alertFacts(g.incident) : null,
-      !alert && g.recap ? recapCard(g.recap) : null,
+      r && r.stage > 1 ? block("What happened", el("p", { class: "mc-brief-line", text: r.happened.slice(0, 2).join(" ") }), r.vote ? el("p", { class: "muted", text: `🗳 ${r.vote}` }) : null) : null,
+      block("Now", el("p", { class: "phone-prompt", text: r?.now ?? g.incident.problem })),
+      situationEl(g.incident.statuses),
+      g.you.read ? el("p", { class: "mc-read" }, el("span", { class: "mc-read-label", text: `${g.you.role.icon} Your read` }), g.you.read) : null,
       intel,
-      alert ? el("details", { class: "mc-more" }, el("summary", { text: "Full alert" }), narration.node) : null,
     ],
     (next) => {
-      t.set(next.timer);
-      narration.set(next.game.narration);
-      // Only changes when you were reassigned after going down.
+      // Only changes when you were reassigned after going down: open the new role.
       if (next.game.you.role.id !== intel.dataset.role) {
         intel.dataset.role = next.game.you.role.id;
-        intel.replaceChildren(roleCard(next.game, { open: true }));
+        const fold = roleFold(next.game);
+        fold.open = true;
+        intel.replaceChildren(el("section", { class: "mc-job" }, el("p", { class: "mc-block-label", text: "Your new job" }), fold));
       }
     },
   );
@@ -154,12 +163,12 @@ function loadDraft(key) {
   return d && d.key === key ? d : null;
 }
 
+/** What's happening, the box, the kind of move, the button. Risk options fold away. */
 function buildResponse(s, tools) {
   const g = s.game;
   const key = `${g.incident.code}:${g.stage}`;
-  const t = timerRow(s.timer, stageLabel(g));
   const note = el("p", { class: "notice" });
-  const filed = el("p", { class: "notice ok", role: "status" });
+  const filed = el("p", { class: "mc-filed", role: "status" });
   const prior = g.you.response ?? loadDraft(key);
   let tag = prior?.tag ?? null;
   let approach = prior?.approach ?? "standard";
@@ -174,6 +183,7 @@ function buildResponse(s, tools) {
         class: "mc-tag",
         type: "button",
         "aria-pressed": String(tag === id),
+        "aria-label": `${TAG_INFO[id].label}${strong ? " (your role's strength)" : ""}`,
         dataset: { tag: id },
         onclick: () => {
           tag = id;
@@ -187,16 +197,19 @@ function buildResponse(s, tools) {
     );
   });
 
-  const textarea = el("textarea", { id: "mcText", maxlength: String(g.limits.textMax), rows: "3", autocomplete: "off", "aria-describedby": "mcCount", placeholder: "Anything at all. Be specific." });
+  const textarea = el("textarea", { id: "mcText", class: "mc-answer", maxlength: String(g.limits.textMax), rows: "4", autocomplete: "off", "aria-describedby": "mcCount", placeholder: "Anything at all. Be specific." });
   textarea.value = prior?.text ?? "";
+  // The character count only shows near the limit.
   const counter = el("p", { class: "counter", id: "mcCount", "aria-live": "polite" });
   const updateCounter = () => {
-    counter.textContent = `${textarea.value.length}/${g.limits.textMax}`;
-    counter.classList.toggle("near", textarea.value.length > g.limits.textMax - 20);
+    const left = g.limits.textMax - textarea.value.length;
+    counter.textContent = left <= 30 ? `${left} left` : "";
+    counter.classList.toggle("near", left <= 20);
   };
   updateCounter();
   textarea.addEventListener("input", () => (updateCounter(), saveDraft()));
 
+  const riskSummary = el("span");
   const approaches = el(
     "div",
     { class: "choices", role: "radiogroup", "aria-label": "Approach" },
@@ -204,13 +217,23 @@ function buildResponse(s, tools) {
       el(
         "label",
         { class: "choice", title: APPROACH_INFO[a].hint },
-        el("input", { type: "radio", name: "mcApproach", value: a, checked: a === approach, onchange: () => ((approach = a), saveDraft()) }),
+        el("input", { type: "radio", name: "mcApproach", value: a, checked: a === approach, onchange: () => ((approach = a), saveDraft(), paintRisk()) }),
         el("span", { text: APPROACH_INFO[a].label }),
       ),
     ),
   );
-  const sacrifice = el("input", { type: "checkbox", id: "mcSacrifice", checked: prior?.sacrifice === true, onchange: saveDraft });
-  const submit = el("button", { class: "btn big", type: "submit", text: g.you.response ? "Update response" : "File response" });
+  const sacrifice = el("input", { type: "checkbox", id: "mcSacrifice", checked: prior?.sacrifice === true, onchange: () => (saveDraft(), paintRisk()) });
+  const paintRisk = () => (riskSummary.textContent = `Risk: ${APPROACH_INFO[approach].label}${sacrifice.checked ? " · in harm's way" : ""}`);
+  paintRisk();
+  const risk = el(
+    "details",
+    { class: "mc-more mc-risk", open: approach !== "standard" || sacrifice.checked },
+    el("summary", {}, riskSummary),
+    approaches,
+    el("p", { class: "hint", text: "Careful: steadier. Reckless: bigger swing, more chaos." }),
+    el("label", { class: "mc-check", for: "mcSacrifice" }, sacrifice, el("span", { text: " Put myself in harm's way (better odds, might cost a life)" })),
+  );
+  const submit = el("button", { class: "btn big mc-submit", type: "submit", text: "Submit" });
 
   const form = el(
     "form",
@@ -218,8 +241,8 @@ function buildResponse(s, tools) {
       class: "stack",
       onsubmit: async (e) => {
         e.preventDefault();
-        if (!tag) return notice(note, "Pick what kind of response this is.", "error");
         if (!textarea.value.trim()) return notice(note, "Say what you do.", "error"), textarea.focus();
+        if (!tag) return notice(note, "Pick what kind of move it is.", "error");
         submit.disabled = true;
         const result = await tools.request("game:input", {
           action: "respond",
@@ -231,13 +254,12 @@ function buildResponse(s, tools) {
         playCue("response_in");
       },
     },
-    el("p", { class: "label", id: "mcTagLabel", text: "What kind of response?" }),
-    el("div", { class: "mc-tags", role: "group", "aria-labelledby": "mcTagLabel" }, tagButtons),
-    el("label", { for: "mcText", text: "What do you do?" }),
+    el("label", { class: "mc-answer-label", for: "mcText", text: "Your response" }),
     textarea,
     counter,
-    el("fieldset", {}, el("legend", { text: "Approach" }), approaches, el("p", { class: "hint", text: "Careful: steadier. Reckless: bigger swing, more chaos." })),
-    el("label", { class: "mc-check", for: "mcSacrifice" }, sacrifice, el("span", { text: " Put myself in harm's way (better odds, might cost a life)" })),
+    el("p", { class: "label", id: "mcTagLabel", text: "What kind of move?" }),
+    el("div", { class: "mc-tags", role: "group", "aria-labelledby": "mcTagLabel" }, tagButtons),
+    risk,
     submit,
     filed,
     note,
@@ -256,103 +278,84 @@ function buildResponse(s, tools) {
 
   const setFiled = (next) => {
     hasFiled = !!next.game.you.response;
-    filed.textContent = hasFiled ? `Response filed. You can change it until everyone's in (${next.game.progress.submitted}/${next.game.progress.needed}).` : "";
-    submit.textContent = hasFiled ? "Update response" : "File response";
+    const p = next.game.progress;
+    filed.textContent = hasFiled ? `✓ Submitted · ${p.submitted}/${p.needed} in · you can still change it` : "";
+    submit.textContent = hasFiled ? "Update" : "Submit";
     armAutoFile(next.timer);
   };
   setFiled(s);
 
-  // What's happening, what's dangerous, what your role knows, then the form. The rest of the card is below.
-  const risks = g.recap?.risks ?? [];
+  // One risk at most, and not one the headline already says.
+  const now = g.recap?.now ?? g.incident.problem;
+  const warning = (g.recap?.risks ?? []).find((r) => !now.toUpperCase().includes((r.split(" ")[0] ?? r).toUpperCase()));
   return screen(
     s,
     [
-      t.node,
-      el("p", { class: "phone-prompt", text: g.recap?.now ?? g.incident.problem }),
-      risks.length ? el("p", { class: "mc-recap-risks", text: `⚠ ${risks.join(" · ")}` }) : null,
-      readLine(g),
+      el("section", { class: "mc-now" }, el("p", { class: "mc-block-label", text: "What's happening" }), el("p", { class: "phone-prompt", text: now }), warning ? el("p", { class: "mc-recap-risks", text: `⚠ ${warning}` }) : null),
       form,
-      roleCard(g, { read: false }),
     ],
-    (next) => {
-      t.set(next.timer);
-      setFiled(next);
-    },
+    setFiled,
   );
 }
 
-// ------------------------------------------------------------------ consequences and votes
+// ------------------------------------------------------------------ the result and the vote
 
 function buildProcessing(s) {
-  const g = s.game;
-  const t = timerRow(s.timer, stageLabel(g));
-  return screen(s, [t.node, statusCard("⏳", "PROCESSING", "The Incident Director is working out what everyone just did. Watch the host screen.")], (next) => t.set(next.timer));
+  return screen(s, [el("div", { class: "big-status" }, el("div", { class: "icon", "aria-hidden": "true", text: "⏳" }), el("h2", { text: "Working out what happened…" }))]);
 }
 
+/** What you did, what happened, how bad it is now. The rest folds away. */
 function buildConsequence(s) {
   const g = s.game;
   const c = g.consequence;
-  const t = timerRow(s.timer, stageLabel(g));
   const a = g.you.action;
   const mine = g.you.lostLife ? c.lifeLosses.find((l) => l.playerId === g.you.playerId) : null;
   const others = c.actions.filter((x) => x.playerId !== g.you.playerId);
-  const found = c.discoveries;
   const teamLosses = c.lifeLosses.filter((l) => l.playerId !== g.you.playerId).map((l) => `♡ ${l.name} ${l.down ? "is down" : "lost a life"}`);
   const otherChanges = [
     ...c.systemChanges.map((x) => `${x.name}: ${x.to.toUpperCase()}`),
     ...c.personnelChanges.map((x) => `${x.name}: ${x.to.toUpperCase()}`),
     ...c.objectiveChanges.map((x) => `Objective ${x.to}: ${x.text}`),
     ...c.objectivesAdded.map((x) => `New objective: ${x.text}`),
-  ].slice(0, 3);
+  ];
   const left = g.you.lives;
   const report = g.narration.filter((n) => n.type === "consequence" || n.type === "special_event").map((n) => n.text).join(" ");
-  // Most important first: your result, lives, what changed, what's next. The details sit below.
-  return screen(
-    s,
-    [
-      t.node,
-      a
-        ? el("section", { class: "mc-result" }, outcomeStamp(a.outcome, a.outcomeLabel), el("p", { class: "mc-result-summary", text: a.summary }))
-        : el("section", { class: "mc-result" }, el("p", { class: "mc-result-summary", text: "You didn't file a response. The incident didn't wait." })),
-      mine
-        ? el(
-            "div",
-            { class: "mc-life-alert", role: "alert" },
-            el("strong", { text: g.you.down ? "YOU'RE DOWN" : "YOU LOST A LIFE" }),
-            mine.reason ? el("p", { text: mine.reason }) : null,
-            el("p", { text: g.you.down ? "Next stage you're back as someone else, with a new role and 1 life." : `${left} ${left === 1 ? "life" : "lives"} left.` }),
-          )
-        : null,
-      teamLosses.length ? el("p", { class: "mc-team-losses", role: "status", text: teamLosses.join(" · ") }) : null,
-      c.terminated ? el("div", { class: "warning", text: "Entity terminated" }) : null,
+  const you = g.you.response?.text;
+  return screen(s, [
+    you ? el("p", { class: "mc-you-did" }, el("span", { class: "mc-block-label", text: "You" }), you) : null,
+    a
+      ? el("section", { class: "mc-result" }, el("p", { class: "mc-block-label", text: "What happened" }), outcomeStamp(a.outcome, a.outcomeLabel), el("p", { class: "mc-result-summary", text: a.summary }))
+      : el("section", { class: "mc-result" }, el("p", { class: "mc-result-summary", text: "You didn't respond. The incident didn't wait." })),
+    mine
+      ? el(
+          "div",
+          { class: "mc-life-alert", role: "alert" },
+          el("strong", { text: g.you.down ? "YOU'RE DOWN" : "YOU LOST A LIFE" }),
+          mine.reason ? el("p", { text: mine.reason }) : null,
+          el("p", { text: g.you.down ? "Next stage you're back as someone else, with 1 life." : `${left} ${left === 1 ? "life" : "lives"} left.` }),
+        )
+      : null,
+    teamLosses.length ? el("p", { class: "mc-team-losses", role: "status", text: teamLosses.join(" · ") }) : null,
+    c.terminated ? el("div", { class: "warning", text: "Entity terminated" }) : null,
+    situationEl(g.incident.statuses, { label: "Now" }),
+    el(
+      "details",
+      { class: "mc-more" },
+      el("summary", { text: "Details" }),
       statChips(c.statusChanges),
-      c.next ? el("p", { class: "mc-next", text: `Next: ${c.next.replace(/^Next: /, "")}` }) : null,
       ...(a ? whyAndCaused(a) : []),
-      block(
-        "Everyone else",
-        others.length
-          ? el("ul", { class: "mc-quick", "aria-label": "Everyone else" }, others.map((x) => el("li", {}, el("span", { class: "grow", text: `${x.roleIcon} ${x.name}` }), outcomeStamp(x.outcome, x.outcomeLabel))))
-          : null,
-      ),
-      block(
-        "Also changed",
-        otherChanges.length ? el("ul", { class: "mc-recap-changes" }, otherChanges.map((t) => el("li", { text: t }))) : null,
-        found.length ? [factsList(found.slice(0, 2)), found.length > 2 ? el("p", { class: "muted", text: `+${found.length - 2} more on the host screen` }) : null] : null,
-      ),
-      report ? el("details", { class: "mc-more" }, el("summary", { text: "Full report" }), el("p", { class: "muted", text: report })) : null,
-    ],
-    (next) => t.set(next.timer),
-  );
+      others.length ? block("Everyone else", el("ul", { class: "mc-quick" }, others.map((x) => el("li", {}, el("span", { class: "grow", text: `${x.roleIcon} ${x.name}` }), outcomeStamp(x.outcome, x.outcomeLabel))))) : null,
+      otherChanges.length || c.discoveries.length ? block("Also", otherChanges.length ? el("ul", { class: "mc-recap-changes" }, otherChanges.map((t) => el("li", { text: t }))) : null, c.discoveries.length ? factsList(c.discoveries) : null) : null,
+      report ? block("The full report", el("p", { class: "muted", text: report })) : null,
+    ),
+  ]);
 }
 
 function buildVote(s, tools) {
   const g = s.game;
-  const t = timerRow(s.timer, stageLabel(g));
   const note = el("p", { class: "notice" });
-  const locked = el("p", { class: "notice ok", role: "status" });
-  if (!g.you.canVote) {
-    return screen(s, [t.node, statusCard("🗳", "NOTHING TO VOTE ON", "Nobody else acted this stage.")], (next) => t.set(next.timer));
-  }
+  const locked = el("p", { class: "mc-filed", role: "status" });
+  if (!g.you.canVote) return screen(s, [el("div", { class: "big-status" }, el("div", { class: "icon", "aria-hidden": "true", text: "🗳" }), el("h2", { text: "Nothing to vote on" }))]);
   const buttons = g.vote.candidates.map((c) =>
     el(
       "button",
@@ -382,106 +385,71 @@ function buildVote(s, tools) {
       b.classList.toggle("chosen", b.dataset.playerId === vote);
       b.setAttribute("aria-pressed", String(b.dataset.playerId === vote));
     }
-    locked.textContent = "Vote locked in. It's anonymous.";
+    locked.textContent = "✓ Voted";
   };
   apply(s);
-  return screen(
-    s,
-    [
-      t.node,
-      el("p", { class: "phone-prompt", text: "Best move this stage?" }),
-      el("p", { class: "hint", text: "Tap one to vote. It's anonymous, and final." }),
-      el("div", { class: "vote-options" }, buttons),
-      locked,
-      note,
-    ],
-    (next) => {
-      t.set(next.timer);
-      apply(next);
-    },
-  );
+  return screen(s, [el("p", { class: "phone-prompt", text: "Which move helped most?" }), el("div", { class: "vote-options" }, buttons), locked, note], apply);
 }
 
 // ------------------------------------------------------------------ ending and awards
 
-// The finale in beats, like the big screen: the stamp, the report, where you placed, the team, the halls.
+// The ending: the stamp, one line, where you placed. The report and your points fold away.
 function buildOutcome(s) {
   const g = s.game;
   const o = g.outcome;
-  const t = timerRow(s.timer, "Operation complete");
   const mine = o.breakdown.find((b) => b.playerId === g.you.playerId);
   const place = standings(o).find((r) => r.playerId === g.you.playerId);
   const flavor = ENDING_FLAVOR[o.id];
   const report = el("p", { class: "muted", text: o.narration ?? PENDING_REPORT });
-  const card = el(
-    "div",
-    { class: "big-status" },
-    el("div", { class: "icon mc-stamp", "aria-hidden": "true", text: flavor?.icon ?? "⚠" }),
-    el("h2", { class: "mc-stamp", text: o.title }),
-    flavor ? reveal(el("p", { class: "mc-ending-line", text: flavor.line }), 0.7) : null,
-    reveal(report, 1.6),
-  );
   return screen(
     s,
     [
-      t.node,
-      el("div", { class: `mc-finale e-${o.id}` }, card),
+      el(
+        "div",
+        { class: `mc-finale e-${o.id}` },
+        el("div", { class: "big-status" }, el("div", { class: "icon mc-stamp", "aria-hidden": "true", text: flavor?.icon ?? "⚠" }), el("h2", { class: "mc-stamp", text: o.title }), flavor ? reveal(el("p", { class: "mc-ending-line", text: flavor.line }), 0.7) : null),
+      ),
       place
-        ? reveal(
-            el("p", { class: "mc-place" }, el("span", { class: "eyebrow", text: "You placed" }), el("strong", { text: `${MEDALS[place.place - 1] ?? ""} #${place.place} of ${o.breakdown.length}`.trim() }), el("span", { class: "mono", text: `${place.total} pts` })),
-            3,
+        ? reveal(el("p", { class: "mc-place" }, el("span", { class: "eyebrow", text: "You placed" }), el("strong", { text: `${MEDALS[place.place - 1] ?? ""} #${place.place} of ${o.breakdown.length}`.trim() }), el("span", { class: "mono", text: `${place.total} pts` })), 1.6)
+        : null,
+      el("div", { class: "reference" }, el("span", { class: "eyebrow", text: "The entity" }), el("a", { class: "reference-id", href: o.entity.url, target: "_blank", rel: "noopener noreferrer" }, `${o.entity.ref} — ${o.entity.title} →`)),
+      el("details", { class: "mc-more" }, el("summary", { text: "The final report" }), report),
+      mine
+        ? el(
+            "details",
+            { class: "mc-more" },
+            el("summary", { text: "Your points" }),
+            el(
+              "ul",
+              { class: "list" },
+              [
+                ["Impact", mine.impact],
+                ["Chaos", mine.chaos],
+                ["Creativity", mine.creativity],
+                ["Role", mine.role],
+                ["Votes", mine.votes],
+                ["Sacrifice", mine.sacrifice],
+                ["Team", mine.team],
+                ["Total", mine.total],
+              ].map(([label, value]) => el("li", {}, el("span", { class: "grow", text: label }), el("strong", { class: "mono", text: String(value) }))),
+            ),
           )
         : null,
-      beat(4.5, summaryTiles(o)),
-      beat(6.5, hallOfFame(o)),
-      beat(
-        8,
-        el(
-          "div",
-          { class: "reference" },
-          el("span", { class: "eyebrow", text: "The entity" }),
-          el("a", { class: "reference-id", href: o.entity.url, target: "_blank", rel: "noopener noreferrer" }, `${o.entity.ref} — ${o.entity.title} →`),
-        ),
-        mine
-          ? el(
-              "details",
-              {},
-              el("summary", { text: "Your score, point by point" }),
-              el(
-                "ul",
-                { class: "list" },
-                [
-                  ["Impact", mine.impact],
-                  ["Chaos", mine.chaos],
-                  ["Creativity", mine.creativity],
-                  ["Role", mine.role],
-                  ["Votes", mine.votes],
-                  ["Sacrifice", mine.sacrifice],
-                  ["Team", mine.team],
-                  ["Total", mine.total],
-                ].map(([label, value]) => el("li", {}, el("span", { class: "grow", text: label }), el("strong", { class: "mono", text: String(value) }))),
-              ),
-            )
-          : null,
-      ),
     ],
-    (next) => {
-      t.set(next.timer);
-      report.textContent = next.game.outcome.narration ?? PENDING_REPORT;
-    },
+    (next) => (report.textContent = next.game.outcome.narration ?? PENDING_REPORT),
+    { label: "Operation complete" },
   );
 }
 
 function buildAwardSubmit(s, tools) {
   const g = s.game;
-  const t = timerRow(s.timer, "Create an award");
   const note = el("p", { class: "notice" });
   const mine = g.you.awards?.mine?.[0] ?? null;
   const name = el("input", { id: "mcAward", type: "text", maxlength: String(g.limits.awardNameMax), autocomplete: "off", placeholder: "WHY WOULD YOU DO THAT", value: mine?.name ?? "" });
-  const description = el("textarea", { id: "mcAwardDesc", maxlength: String(g.limits.awardDescriptionMax), rows: "2", placeholder: "Optional: what it's for" });
+  const description = el("textarea", { id: "mcAwardDesc", maxlength: String(g.limits.awardDescriptionMax), rows: "2", placeholder: "What it's for (optional)" });
   description.value = mine?.description ?? "";
   const submit = el("button", { class: "btn big", type: "submit", text: mine ? "Update award" : "Create award" });
-  const done = el("p", { class: "notice ok", role: "status" });
+  const done = el("p", { class: "mc-filed", role: "status" });
   const form = el(
     "form",
     {
@@ -498,12 +466,12 @@ function buildAwardSubmit(s, tools) {
         submit.disabled = false;
         if (!result.ok) return notice(note, result.message, "error");
         notice(note, "");
+        playCue("response_in");
       },
     },
     el("p", { class: "phone-prompt", text: "Invent an award. Everyone votes on who gets it." }),
     el("label", { for: "mcAward", text: "Award name" }),
     name,
-    el("label", { for: "mcAwardDesc", text: "Description (optional)" }),
     description,
     submit,
     done,
@@ -511,20 +479,16 @@ function buildAwardSubmit(s, tools) {
   );
   const setDone = (next) => {
     const have = next.game.you.awards?.mine?.[0];
-    done.textContent = have ? `Filed: “${have.name}”. You can still edit it.` : "";
+    done.textContent = have ? `✓ Filed: “${have.name}”` : "";
     submit.textContent = have ? "Update award" : "Create award";
     s = next;
   };
   setDone(s);
-  return screen(s, [t.node, form], (next) => {
-    t.set(next.timer);
-    setDone(next);
-  });
+  return screen(s, [form], setDone, { label: "Awards" });
 }
 
 function buildAwardVote(s, tools) {
   const g = s.game;
-  const t = timerRow(s.timer, "Hand out the awards");
   const note = el("p", { class: "notice" });
   const groups = g.awards.list.map((award) => {
     const buttons = g.awards.recipients.map((r) =>
@@ -559,15 +523,11 @@ function buildAwardVote(s, tools) {
     }
   };
   apply(s);
-  return screen(s, [t.node, el("p", { class: "phone-prompt", text: "Who gets each award? (Not you.)" }), ...groups.map((x) => x.node), note], (next) => {
-    t.set(next.timer);
-    apply(next);
-  });
+  return screen(s, [el("p", { class: "phone-prompt", text: "Who gets each award?" }), ...groups.map((x) => x.node), note], apply, { label: "Awards" });
 }
 
 function buildAwardResults(s) {
   const g = s.game;
-  const t = timerRow(s.timer, "The awards");
   const results = g.awards.results;
   const won = results.filter((a) => a.winners.some((w) => w.playerId === g.you.playerId));
   const step = Math.min(1.6, 8 / Math.max(1, results.length));
@@ -575,21 +535,18 @@ function buildAwardResults(s) {
   return screen(
     s,
     [
-      t.node,
       el(
         "ul",
         { class: "list mc-award-list" },
         results.map((a, i) =>
-          reveal(
-            el("li", {}, el("span", { class: "grow" }, el("span", { "aria-hidden": "true", text: "🏆 " }), el("strong", { text: a.name })), el("span", { text: a.winners.length ? a.winners.map((w) => w.name).join(" & ") : "—" })),
-            0.6 + i * step,
-          ),
+          reveal(el("li", {}, el("span", { class: "grow" }, el("span", { "aria-hidden": "true", text: "🏆 " }), el("strong", { text: a.name })), el("span", { text: a.winners.length ? a.winners.map((w) => w.name).join(" & ") : "—" })), 0.6 + i * step),
         ),
       ),
       won.length ? reveal(el("div", { class: "mc-you-won", role: "status" }, el("span", { "aria-hidden": "true", text: "🏆 " }), `You won ${new Intl.ListFormat("en", { type: "conjunction" }).format(won.map((a) => `“${a.name}”`))}`), after) : null,
-      beat(after + 0.6, el("h3", { text: "Final standings" }), leaderboard(g.outcome, { you: g.you.playerId })),
+      reveal(el("div", { class: "stack" }, el("h3", { text: "Final standings" }), leaderboard(g.outcome, { you: g.you.playerId })), after + 0.6),
     ],
-    (next) => t.set(next.timer),
+    null,
+    { label: "The awards" },
   );
 }
 
@@ -599,8 +556,9 @@ export function render(mount, state, tools) {
   const key = `mycob:${g.incident.code}:${g.phase}:${g.stage}`;
   switch (g.phase) {
     case "ALERT":
+      return mount(key, buildAlert, state);
     case "UPDATE":
-      return mount(key, (s) => buildBriefing(s), state);
+      return mount(key, buildBriefing, state);
     case "RESPONSE":
       return mount(key, (s) => buildResponse(s, tools), state);
     case "PROCESSING":

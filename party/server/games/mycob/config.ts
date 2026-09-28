@@ -171,8 +171,8 @@ export const DEFAULT_MYCOB_CONFIG = {
   timing: {
     /** Read the situation and learn your role. */
     alertMs: 25_000,
-    /** Read the incident status recap and your intel before responses open. */
-    updateMs: 30_000,
+    /** A beat between stages: what just happened and what's wrong now (two lines and a light). */
+    updateMs: 15_000,
     /** Long enough to reread the situation, talk it over, and type something meaningful on a phone. */
     responseMs: 60_000,
     /** The director gets at least this long (so the screen doesn't flash) and at most the max. */

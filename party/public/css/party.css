@@ -2048,7 +2048,6 @@ a.stamp:focus-visible {
 .mc-entity.unknown .mc-entity-name {
   color: var(--danger);
   letter-spacing: 0.3em;
-  animation: flicker 3s infinite;
 }
 
 .mc-stats {
@@ -2260,7 +2259,7 @@ a.stamp:focus-visible {
   font-size: clamp(1.2rem, 2.4vw, 2.6rem);
   letter-spacing: 0.12em;
   color: var(--yellow);
-  animation: blink 1.4s steps(2, start) infinite;
+  animation: blink 2.4s steps(2, start) 3;
 }
 
 .mc-actions {
@@ -2645,9 +2644,26 @@ a.stamp:focus-visible {
 .mc-more summary {
   display: flex;
   align-items: center;
+  gap: 8px;
   min-height: 44px;
   color: var(--muted);
   cursor: pointer;
+  list-style: none;
+}
+
+.mc-more summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A fold says it opens: a chevron that turns. */
+.mc-more summary::before {
+  content: "▸";
+  color: var(--yellow);
+  transition: transform 0.15s;
+}
+
+.mc-more[open] summary::before {
+  transform: rotate(90deg);
 }
 
 .mc-intel summary strong {
@@ -3167,6 +3183,199 @@ a.stamp:focus-visible {
 
 .phone .mc-tags {
   gap: 6px;
+}
+
+/* ------------------------------------------------------------------ My Cob Escaped, simplified */
+/* The phone's one bar: where you are, who you are, how long you have. The timer is the biggest
+   thing on it. */
+
+.mc-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-inline: calc(-1 * var(--gutter));
+  padding: 6px var(--gutter);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.mc-top-left {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mc-top-where {
+  color: var(--yellow);
+  font: 700 0.75rem/1.2 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.mc-top-you {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-family: var(--head);
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+}
+
+.mc-top-timer .timer {
+  font-size: 2.1rem;
+  line-height: 1;
+}
+
+.mc-top-timer .timer.warn .value,
+.mc-top-timer .timer.low .value {
+  animation: mc-tick 1s steps(2, jump-none) infinite;
+}
+
+.mc-phone .phone-prompt {
+  margin: 0;
+}
+
+.mc-block-label {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font: 700 0.72rem/1.2 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.mc-job {
+  padding: 12px;
+  border: 2px solid var(--yellow);
+  background: var(--panel);
+}
+
+.mc-job p {
+  margin: 0 0 4px;
+}
+
+.mc-job-role {
+  font-family: var(--head);
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+}
+
+.mc-job-goal {
+  margin-top: 8px !important;
+}
+
+/* How bad is it: a light and a few words. */
+.mc-situation-meter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 4px solid var(--ok);
+  background: var(--panel-2);
+  font-family: var(--head);
+  letter-spacing: 0.03em;
+}
+
+.mc-situation-meter.l-warn {
+  border-left-color: var(--yellow);
+}
+
+.mc-situation-meter.l-danger {
+  border-left-color: var(--danger);
+  color: #ffd0cb;
+}
+
+.mc-sit-label {
+  margin-right: 4px;
+  color: var(--muted);
+  font: 700 0.72rem/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.mc-answer-label {
+  font-family: var(--head);
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+  color: var(--yellow);
+}
+
+textarea.mc-answer {
+  min-height: 6em;
+  font-size: 1.1rem;
+}
+
+.btn.mc-submit {
+  width: 100%;
+}
+
+.mc-filed {
+  margin: 0;
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.mc-filed:empty {
+  display: none;
+}
+
+.mc-you-did {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 4px solid var(--line);
+  color: var(--muted);
+  font-style: italic;
+}
+
+.mc-you-did .mc-block-label {
+  display: block;
+  font-style: normal;
+}
+
+.mc-brief-line {
+  margin: 0;
+}
+
+.phone .mc-tags {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.phone .mc-tag {
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 6px 2px;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.phone .mc-tag .strong {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+}
+
+.phone .mc-tag {
+  position: relative;
+}
+
+.phone .mc-tag .label {
+  flex: none;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  letter-spacing: 0;
+}
+
+@media (max-width: 400px) {
+  .phone .mc-tags {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 /* The last ten seconds: the countdown pulses, then turns red at five (.low). */

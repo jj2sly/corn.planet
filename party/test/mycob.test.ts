@@ -8,6 +8,7 @@ import { createMyCobGame } from "../server/games/mycob/game.ts";
 import type { GameDefinition } from "../server/games/types.ts";
 import type { Room } from "../server/rooms.ts";
 import { makeRooms, roomWithPlayers, seededRandom, stubCanon, TEST_CANON } from "./helpers.ts";
+import { situationLevel } from "../public/js/games/mycob-shared.js";
 
 /** Views are plain JSON; tests read them loosely. */
 type View = any;
@@ -160,14 +161,14 @@ describe("My Cob Escaped: a whole incident", () => {
     assert.equal(view(room).stage, 2);
   });
 
-  it("times the stage 25 s alert, 30 s update, 60 s response, 35 s consequence, 25 s vote", async () => {
-    assert.deepEqual([T.alertMs, T.updateMs, T.responseMs, T.consequenceMs, T.voteMs], [25_000, 30_000, 60_000, 35_000, 25_000]);
+  it("times the stage 25 s alert, 15 s briefing, 60 s response, 35 s consequence, 25 s vote", async () => {
+    assert.deepEqual([T.alertMs, T.updateMs, T.responseMs, T.consequenceMs, T.voteMs], [25_000, 15_000, 60_000, 35_000, 25_000]);
     const { room, ids } = start({ settings: { length: "standard" } });
     // The server's deadline, as the host screen and every phone receive it.
     const deadlines = () => [room.viewFor({ kind: "host" }), ...ids.map((id) => room.viewFor({ kind: "player", playerId: id }))].map((v) => v.timer!.totalMs);
     assert.deepEqual(new Set(deadlines()), new Set([25_000]));
     await until(room, "UPDATE");
-    assert.deepEqual(new Set(deadlines()), new Set([30_000]));
+    assert.deepEqual(new Set(deadlines()), new Set([15_000]));
     await until(room, "RESPONSE");
     assert.deepEqual(new Set(deadlines()), new Set([60_000]));
     for (const id of ids) room.gameInput(id, "respond", { tag: "CONTAIN", text: "Lock it" });
@@ -445,11 +446,23 @@ describe("My Cob Escaped: stage recap, role cards, sound cues and the finale", (
     await until(room, "CONSEQUENCE");
     const c = view(room).consequence;
     const now = cues();
-    assert.equal(now.includes("success"), c.actions.some((a: View) => a.outcome === "critical" || a.outcome === "success"));
-    assert.equal(now.includes("discovery"), c.discoveries.length > 0);
-    assert.equal(now.includes("alert"), !!(c.newProblem || c.specialEvent), "a new problem or special event sounds the alarm");
-    assert.equal(now.includes("life_lost"), c.lifeLosses.length > 0);
-    assert.equal(now.includes("chaos_up"), c.statusChanges.some((x: View) => x.id === "chaos" && !x.better));
+    // One sound per consequence, the one that matters most.
+    const outcomes = c.actions.map((a: View) => a.outcome);
+    const expected = c.lifeLosses.length
+      ? "life_lost"
+      : outcomes.includes("catastrophe") || (outcomes.length && outcomes.every((o: string) => o === "failure"))
+        ? "major_failure"
+        : c.newProblem || c.specialEvent
+          ? "alert"
+          : outcomes.some((o: string) => o === "critical" || o === "success")
+            ? "success"
+            : c.discoveries.length
+              ? "discovery"
+              : c.statusChanges.some((x: View) => x.id === "chaos" && !x.better)
+                ? "chaos_up"
+                : null;
+    const consequenceCues = now.slice(now.lastIndexOf("response_in") + 1);
+    assert.deepEqual(consequenceCues, expected ? [expected] : [], "one cue for the whole consequence");
     await until(room, "STAGE_VOTE");
     assert.equal(cues().at(-1), "vote_start");
 
@@ -854,5 +867,18 @@ describe("My Cob Escaped: the opening and the closing report", () => {
     const { room } = start({ director, canon: [yellow], config: { unknownEntity: { chance: 1 } } });
     await settle();
     assert.doesNotMatch(JSON.stringify(view(room)), /Big Yellow/);
+  });
+});
+
+describe("My Cob Escaped: the situation at a glance", () => {
+  const st = (pairs: [string, string][]) => pairs.map(([id, tone]) => ({ id, tone }));
+  it("reads green, yellow or red from what makes a situation bad", () => {
+    assert.equal(situationLevel(st([["containment", "ok"], ["chaos", "ok"], ["time", "ok"]])), "ok");
+    // Not knowing much, or being short of kit, isn't the situation going badly.
+    assert.equal(situationLevel(st([["containment", "ok"], ["information", "danger"], ["resources", "danger"]])), "ok");
+    assert.equal(situationLevel(st([["containment", "danger"], ["information", "danger"]])), "warn", "a fresh breach is bad, not the worst");
+    assert.equal(situationLevel(st([["time", "warn"], ["chaos", "warn"]])), "warn");
+    assert.equal(situationLevel(st([["containment", "danger"], ["chaos", "danger"]])), "danger");
+    assert.equal(situationLevel(st([["personnel", "danger"], ["facility", "danger"], ["time", "danger"]])), "danger");
   });
 });

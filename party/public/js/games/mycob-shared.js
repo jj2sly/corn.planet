@@ -53,6 +53,36 @@ export function entityCard(inc) {
   );
 }
 
+const SITUATION = {
+  ok: { icon: "🟢", label: "Under control" },
+  warn: { icon: "🟡", label: "Getting bad" },
+  danger: { icon: "🔴", label: "Everything is going horribly" },
+};
+
+/** What makes a situation bad (not knowing much, or being short of kit, isn't the same thing). */
+const SITUATION_STATS = new Set(["containment", "personnel", "facility", "chaos", "time"]);
+
+/**
+ * How bad is it, in one word, from the incident's statuses. Red when containment is failing and
+ * something else is too, or three things are; yellow when anything is failing or two are slipping.
+ */
+export function situationLevel(statuses) {
+  const relevant = statuses.filter((s) => SITUATION_STATS.has(s.id));
+  const danger = relevant.filter((s) => s.tone === "danger");
+  const warn = relevant.filter((s) => s.tone === "warn").length;
+  const containment = danger.some((s) => s.id === "containment");
+  if (danger.length >= 3 || (containment && danger.length >= 2)) return "danger";
+  if (danger.length || warn >= 2) return "warn";
+  return "ok";
+}
+
+/** The situation at a glance: a light and a few words. The details are on the incident board. */
+export function situationEl(statuses, { label = "Situation" } = {}) {
+  const level = situationLevel(statuses);
+  const s = SITUATION[level];
+  return el("p", { class: `mc-situation-meter l-${level}`, role: "status" }, el("span", { class: "mc-sit-label", text: label }), el("span", { "aria-hidden": "true", text: `${s.icon} ` }), el("strong", { text: s.label }));
+}
+
 export function statusGrid(inc) {
   return el(
     "ul",
@@ -159,41 +189,6 @@ export function block(label, ...nodes) {
   return body.length ? el("section", { class: "mc-block" }, el("p", { class: "mc-block-label", text: label }), ...body) : null;
 }
 
-/** INCIDENT STATUS: situation, what changed, risks, the team, objectives. */
-export function recapCard(recap) {
-  const o = recap.objectives;
-  const team = recap.team;
-  const first = recap.stage === 1;
-  return el(
-    "section",
-    { class: "mc-recap", "aria-label": "Incident status" },
-    el("p", { class: "eyebrow", text: `Incident status · stage ${recap.stage}` }),
-    block("Situation", el("p", { class: "mc-recap-now", text: recap.now }), first ? el("p", { class: "muted", text: recap.happened.join(" ") }) : null),
-    first
-      ? null
-      : block(
-          "Since last stage",
-          el("ul", { class: "mc-recap-happened" }, recap.happened.map((t) => el("li", { text: t }))),
-          recap.vote ? el("p", { class: "mc-recap-vote", text: `🗳 ${recap.vote}` }) : null,
-          recap.changes.length ? el("ul", { class: "mc-recap-changes" }, recap.changes.map((t) => el("li", { text: t }))) : null,
-        ),
-    recap.risks.length ? block("⚠ Risks", el("p", { class: "mc-recap-risks", text: recap.risks.join(" · ") })) : null,
-    block(
-      "Team & objectives",
-      el(
-        "p",
-        { class: "mc-recap-meta" },
-        el("span", { text: `♥ ${team.lives}/${team.maxLives} lives` }),
-        el("span", { text: `▢ ${o.done}/${o.total} objectives` }),
-        el("span", { text: `Primary: ${o.primaryStatus === "active" ? "open" : o.primaryStatus}` }),
-      ),
-      team.lastLife?.length ? el("p", { class: "mc-recap-lastlife", text: `Last life: ${team.lastLife.join(", ")}` }) : null,
-      o.deadline ? el("p", { class: "mc-recap-deadline", text: `⏱ ${o.deadline}` }) : null,
-      team.back.length ? el("p", { class: "muted", text: team.back.join(" · ") }) : null,
-    ),
-  );
-}
-
 /** Status changes as chips: which way each went, and where it is now. */
 export function statChips(changes) {
   if (!changes.length) return null;
@@ -206,29 +201,16 @@ export function statChips(changes) {
   );
 }
 
-/** Your role's one line that matters most right now. */
-export function readLine(g) {
-  return g.you.read ? el("p", { class: "mc-read" }, el("span", { class: "mc-read-label", text: `${g.you.role.icon} Your read` }), g.you.read) : null;
-}
-
-/** Your read, then the card: what your role is for, what only you see, what to try. */
-export function roleCard(g, { open = false, read = true } = {}) {
-  return el("div", { class: "mc-rolebox" }, read ? readLine(g) : null, roleDetails(g, open));
-}
-
-function roleDetails(g, open) {
+/** What your role is best with, what only you know, what to try. */
+export function roleBody(g) {
   const role = g.you.role;
-  return el(
-    "details",
-    { class: "mc-intel", open },
-    el("summary", {}, `${role.icon} Your role: `, el("strong", { text: role.name })),
-    el("p", { class: "mc-role-good" }, el("strong", { text: "Good at: " }), role.goodAt),
+  return [
     el("p", { class: "hint", text: `★ Best with ${role.strongTags.map((t) => `${TAG_INFO[t].icon} ${TAG_INFO[t].label}`).join(", ")}` }),
     g.you.context.filter((section) => section.lines.length).map((section) => el("section", { class: "mc-role-intel" }, el("h3", { text: `${section.title} · only you` }), el("ul", { class: "list" }, section.lines.map((line) => el("li", { text: line }))))),
     el("p", { class: "mc-role-try-label", text: "Try" }),
     el("ul", { class: "mc-role-try" }, role.tryThis.map((t) => el("li", { text: t }))),
     el("p", { class: "muted", text: `${role.blurb} Yours all game.` }),
-  );
+  ];
 }
 
 /** Why your move went the way it did, and which way it pushed things. */

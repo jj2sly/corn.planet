@@ -18,14 +18,12 @@ import {
   outcomeStamp,
   personnelList,
   podium,
-  recapCard,
   reveal,
+  situationEl,
   stampEl,
-  statChips,
   statusGrid,
   summaryTiles,
   systemsList,
-  TAG_INFO,
 } from "./mycob-shared.js";
 import { playNewCues, preloadSounds, soundControl, timerWarning } from "./mycob-sound.js";
 import { speakNew } from "./mycob-voice.js";
@@ -38,16 +36,20 @@ function header(eyebrow, title, timer) {
 
 const stageLabel = (g) => (g.stage ? `Incident ${g.incident.code} · Stage ${g.stage} of ${g.totalStages}` : `Incident ${g.incident.code}`);
 
-/** The incident board down the side: entity, status, systems, objectives, crew. */
+/**
+ * The incident board down the side: what it is, how bad it is, what we're trying to do, who's on
+ * it. The status of every stat, system and staff member folds away under "Full status".
+ */
 function board(g) {
   const inc = g.incident;
+  const open = inc.objectives.filter((o) => o.status === "active");
+  const done = inc.objectives.length - open.length;
   return el(
     "aside",
     { class: "mc-board", "aria-label": "Incident board" },
     entityCard(inc),
-    el("section", {}, el("h3", { text: "Status" }), statusGrid(inc)),
-    el("section", {}, el("h3", { text: "Objectives" }), objectivesList(inc.objectives)),
-    el("section", {}, el("h3", { text: "Facility" }), systemsList(inc)),
+    situationEl(inc.statuses),
+    el("section", {}, el("h3", { text: `Objectives${done ? ` · ${done} resolved` : ""}` }), objectivesList(open.length ? open : inc.objectives)),
     el(
       "section",
       {},
@@ -59,12 +61,23 @@ function board(g) {
           el(
             "li",
             { class: [c.connected ? "" : "offline", c.down ? "down" : ""].join(" ").trim() },
-            el("span", { class: "grow" }, el("strong", { text: c.name }), el("span", { class: "muted", text: ` · ${c.roleIcon} ${c.role}` }), c.identity ? el("span", { class: "muted", text: ` (as ${c.identity})` }) : null),
+            el("span", { class: "grow" }, el("strong", { text: c.name }), el("span", { class: "muted", text: ` · ${c.roleIcon}` })),
             c.submitted === true ? stampEl("filed", "ok") : null,
             c.down ? stampEl("down", "danger") : livesEl(c.lives, g.maxLives),
           ),
         ),
       ),
+    ),
+    el(
+      "details",
+      { class: "mc-more" },
+      el("summary", { text: "Full status" }),
+      statusGrid(inc),
+      el("h3", { text: "Facility" }),
+      systemsList(inc),
+      el("h3", { text: "Personnel" }),
+      personnelList(inc),
+      inc.facts.length ? [el("h3", { text: "What we know" }), factsList(inc.facts)] : null,
     ),
   );
 }
@@ -98,9 +111,9 @@ function situation(inc) {
   return el(
     "div",
     { class: "mc-situation" },
-    el("p", { class: "eyebrow", text: `${inc.breach.name}${inc.breach.entitySpecific ? " · entity-specific" : ""} · ${inc.location.name}` }),
+    el("p", { class: "eyebrow", text: `${inc.breach.name} · ${inc.location.name}` }),
     el("p", { class: "mc-problem", text: inc.problem }),
-    inc.environment.length ? el("ul", { class: "mc-env" }, inc.environment.map((t) => el("li", { text: t }))) : null,
+    inc.environment.length ? el("ul", { class: "mc-env" }, inc.environment.map((t) => el("li", { text: `⚠ ${t}` }))) : null,
     inc.anomalies.length ? el("p", { class: "banner" }, el("strong", { text: "Anomaly: " }), inc.anomalies.map((a) => `${a.name} — ${a.text}`).join(" · ")) : null,
   );
 }
@@ -120,12 +133,11 @@ function buildAlert(s) {
     s,
     [
       head.node,
-      el("div", { class: "warning mc-siren", text: `Containment breach · ${g.incident.breach.name}` }),
-      narration.node,
+      el("div", { class: "warning mc-siren", text: "Containment breach" }),
       situation(g.incident),
-      el("h2", { text: "Temporary assignments" }),
+      narration.node,
+      el("h2", { text: "Your roles" }),
       crew,
-      el("p", { class: "muted", text: "Roles are for this incident only, and everyone keeps theirs until the end." }),
     ],
     (next) => {
       head.setTimer(next.timer);
@@ -138,16 +150,15 @@ function buildAlert(s) {
 function buildUpdate(s) {
   const g = s.game;
   const head = header(stageLabel(g), "INCIDENT UPDATE", s.timer);
-  const facts = g.incident.facts;
+  const r = g.recap;
   return layout(
     s,
     [
       head.node,
-      g.recap ? recapCard(g.recap) : null,
+      r && r.stage > 1 ? el("section", {}, el("h2", { text: "What happened" }), el("ul", { class: "mc-recap-happened" }, r.happened.map((t) => el("li", { text: t }))), r.vote ? el("p", { class: "mc-recap-vote", text: `🗳 ${r.vote}` }) : null) : null,
+      el("div", { class: "prompt-card mc-prompt", text: r?.now ?? g.incident.problem }),
+      r?.risks?.length ? el("p", { class: "mc-recap-risks", text: `⚠ ${r.risks.join(" · ")}` }) : null,
       narrationEl(g.narration),
-      situation(g.incident),
-      facts.length ? el("section", {}, el("h2", { text: "What we know" }), factsList(facts)) : null,
-      el("section", {}, el("h2", { text: "Personnel" }), personnelList(g.incident)),
     ],
     (next) => head.setTimer(next.timer),
   );
@@ -165,12 +176,6 @@ function buildResponse(s) {
     [
       head.node,
       el("div", { class: "prompt-card mc-prompt", text: g.recap?.now ?? g.incident.problem }),
-      situation(g.incident),
-      el(
-        "ul",
-        { class: "mc-taglist", "aria-label": "Response types" },
-        g.tags.map((t) => el("li", {}, el("span", { "aria-hidden": "true", text: TAG_INFO[t].icon }), ` ${TAG_INFO[t].label}`)),
-      ),
       meter,
     ],
     (next) => {
@@ -190,8 +195,7 @@ function buildProcessing(s) {
       el(
         "div",
         { class: "mc-processing" },
-        el("p", { class: "mc-processing-text", text: "INCIDENT DIRECTOR IS WORKING OUT WHAT YOU ALL JUST DID" }),
-        el("p", { class: "muted", text: `${plural(g.processing.actions, "response")} received. Consequences incoming.` }),
+        el("p", { class: "mc-processing-text", text: "WORKING OUT WHAT YOU ALL JUST DID" }),
       ),
     ],
     // The timer shortens once the director has answered.
@@ -199,6 +203,7 @@ function buildProcessing(s) {
   );
 }
 
+/** Each move's result, one line each: the narration above tells the story. */
 function actionCards(consequence) {
   return el(
     "ul",
@@ -207,14 +212,7 @@ function actionCards(consequence) {
       el(
         "li",
         { dataset: { outcome: a.outcome } },
-        el(
-          "div",
-          { class: "row spread" },
-          el("span", {}, el("strong", { text: a.name }), el("span", { class: "muted", text: ` · ${a.roleIcon} ${a.role} · ${TAG_INFO[a.tag].icon} ${TAG_INFO[a.tag].label}` })),
-          outcomeStamp(a.outcome, a.outcomeLabel),
-        ),
-        el("p", { text: a.summary }),
-        a.with.length ? el("ul", { class: "mc-why" }, a.with.map((w) => el("li", { text: w }))) : null,
+        el("div", { class: "row spread" }, el("strong", { text: a.name }), outcomeStamp(a.outcome, a.outcomeLabel)),
       ),
     ),
   );
@@ -228,7 +226,7 @@ function changesPanel(c) {
     ...c.objectivesAdded.map((x) => `New objective: ${x.text}`),
   ];
   if (!items.length) return null;
-  return el("section", { class: "panel quiet" }, el("h3", { text: "Changes" }), el("ul", { class: "mc-changes" }, items.map((t) => el("li", { text: t }))));
+  return el("section", { class: "panel quiet" }, el("h3", { text: "Changes" }), el("ul", { class: "mc-changes" }, items.slice(0, 4).map((t) => el("li", { text: t }))));
 }
 
 function buildConsequence(s) {
@@ -246,11 +244,9 @@ function buildConsequence(s) {
             c.lifeLosses.map((l) => el("p", {}, el("strong", { text: l.down ? `${l.name} IS DOWN` : `${l.name} LOST A LIFE` }), ` — ${l.reason}`)),
           )
         : null,
-      statChips(c.statusChanges),
-      // Lives, discoveries and objective changes have their own panels below.
       narrationEl(g.narration.filter((n) => n.type === "consequence" || n.type === "special_event")),
       actionCards(c),
-      c.discoveries.length ? el("section", {}, el("h2", { text: "Discovered" }), factsList(c.discoveries)) : null,
+      c.discoveries.length ? el("section", {}, el("h2", { text: "Discovered" }), factsList(c.discoveries.slice(0, 2))) : null,
       changesPanel(c),
       el("p", { class: "mc-next", text: c.next }),
     ],
@@ -260,7 +256,7 @@ function buildConsequence(s) {
 
 function buildVote(s) {
   const g = s.game;
-  const head = header(stageLabel(g), "BEST MOVE THIS STAGE?", s.timer);
+  const head = header(stageLabel(g), "WHICH MOVE HELPED MOST?", s.timer);
   const meter = el("p", { class: "vote-meter", role: "status" });
   const setMeter = (next) =>
     meter.replaceChildren("Anonymous votes: ", el("strong", { text: `${next.game.vote.cast} / ${next.game.vote.needed}` }), " · vote on your phone");
@@ -269,7 +265,6 @@ function buildVote(s) {
     s,
     [
       head.node,
-      el("p", { class: "muted", text: "Brilliant, heroic, catastrophic — your call. You can't vote for yourself." }),
       el(
         "ul",
         { class: "mc-actions" },
@@ -350,13 +345,12 @@ function buildOutcome(s) {
     [
       head.node,
       ending.node,
-      beat(3.5, el("h2", { text: "Team status" }), summaryTiles(o), el("p", { class: "muted", text: `Team bonus for everyone: +${o.team}` })),
-      beat(5.5, el("h2", { text: "Final scores" })),
-      podium(o, { at: 6 }),
-      beat(10, hallOfFame(o)),
+      beat(3.5, el("h2", { text: "Final scores" })),
+      podium(o, { at: 4 }),
+      beat(8, hallOfFame(o)),
       beat(
-        11,
-        el("details", { class: "mc-debrief" }, el("summary", { text: "Full debrief" }), breakdownTable(o)),
+        9,
+        el("details", { class: "mc-debrief" }, el("summary", { text: "Full debrief" }), summaryTiles(o), el("p", { class: "muted", text: `Team bonus for everyone: +${o.team}` }), breakdownTable(o)),
         el("p", { class: "muted", text: "Everything that happened in this incident is game-only. The CPI Database is unchanged." }),
       ),
     ],
