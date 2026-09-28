@@ -1,6 +1,6 @@
 // Just enough platformer for Steam My Deck: boxes, solid rects, one-way planks, hazards,
-// water, an exit (which can be locked), and a sideways pull from Thad tilting the Deck. Server-authoritative and deterministic:
-// the same inputs give the same result.
+// water, low-gravity zones, an exit (which can be locked), and a sideways pull from Thad tilting the
+// Deck. Server-authoritative and deterministic: the same inputs give the same result.
 
 import { WORLD, type Rect } from "./levels.ts";
 
@@ -68,8 +68,13 @@ export interface Arena {
   hazards: readonly Rect[];
   planks: readonly Plank[];
   water?: readonly Rect[];
+  /** Where gravity is multiplied by `gravity` (a level's broken physics). */
+  zones?: readonly { rect: Rect; gravity: number }[];
   /** False while the exit is locked (items still to find). */
   exitOpen?: boolean;
+  /** The world's size (default WORLD): you can't leave it sideways, and falling out of it kills. */
+  width?: number;
+  height?: number;
 }
 
 export type StepEvent = "died" | "escaped" | "jumped";
@@ -112,10 +117,14 @@ export function stepBody(b: Body, input: RunnerInput, arena: Arena, tiltAccel: n
     return events;
   }
 
-  // In water when your middle is.
+  // In water when your middle is; in a zone the same way.
   const wet = arena.water?.find((r) => inside(b.x + PHYS.width / 2, b.y + PHYS.height / 2, r));
   b.wet = !!wet;
   if (wet) tiltAccel *= 0.5;
+  const zone = wet ? undefined : arena.zones?.find((z) => inside(b.x + PHYS.width / 2, b.y + PHYS.height / 2, z.rect));
+  const gravity = PHYS.gravity * (zone?.gravity ?? 1);
+  const width = arena.width ?? WORLD.width;
+  const height = arena.height ?? WORLD.height;
 
   if (input.jumpSeq !== b.lastJumpSeq) {
     b.lastJumpSeq = input.jumpSeq;
@@ -151,11 +160,11 @@ export function stepBody(b: Body, input: RunnerInput, arena: Arena, tiltAccel: n
     events.push("jumped");
   }
 
-  b.vy = wet ? Math.min(PHYS.waterMaxFall, b.vy + PHYS.gravity * PHYS.waterGravity * dt) : Math.min(PHYS.maxFall, b.vy + PHYS.gravity * dt);
+  b.vy = wet ? Math.min(PHYS.waterMaxFall, b.vy + PHYS.gravity * PHYS.waterGravity * dt) : Math.min(PHYS.maxFall * (zone ? 0.5 : 1), b.vy + gravity * dt);
 
   // Move and resolve x against solids.
   b.x += b.vx * dt;
-  b.x = Math.max(0, Math.min(WORLD.width - PHYS.width, b.x));
+  b.x = Math.max(0, Math.min(width - PHYS.width, b.x));
   for (const r of arena.platforms) {
     if (!overlaps(b.x, b.y, r)) continue;
     b.x = b.vx > 0 ? r[0] - PHYS.width : r[0] + r[2];
@@ -188,7 +197,7 @@ export function stepBody(b: Body, input: RunnerInput, arena: Arena, tiltAccel: n
   }
 
   b.breath = wet && b.y > wet[1] + 2 ? b.breath + dt : 0;
-  if (b.y > WORLD.height + 40 || b.breath > PHYS.breathS || arena.hazards.some((h) => overlaps(b.x, b.y, h))) {
+  if (b.y > height + 40 || b.breath > PHYS.breathS || arena.hazards.some((h) => overlaps(b.x, b.y, h))) {
     kill(b);
     events.push("died");
   } else if (arena.exitOpen !== false && overlaps(b.x, b.y, arena.exit)) {

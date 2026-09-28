@@ -130,7 +130,7 @@ function roundDevice(s, { left = null, right = null, shoulders = null, className
     update(next) {
       const g = next.game;
       timer.set(next.timer);
-      hh.setStatus({ title: `R${g.round}/${g.totalRounds} · ${PHASE_SHORT[g.phase]}`, battery: battery(g.phase, next.timer) });
+      hh.setStatus({ title: `R${g.round}/${g.totalRounds} · ${g.world.exit === "collapse" ? "COLLAPSING" : PHASE_SHORT[g.phase]}`, battery: g.world.exit === "collapse" ? 0.03 : battery(g.phase, next.timer, g.level.playMs) });
       if (next.paused !== paused) {
         paused = next.paused;
         if (paused) hh.overlay(systemCard({ eyebrow: "SYSTEM", title: "PAUSED", text: "The host display dropped out. Hang on." }), "card");
@@ -462,7 +462,11 @@ function buildThad(s, tools) {
     labels: true,
     onEvent: (type, detail = {}) => {
       if (type === "part") device.hh.notify(`They found ${detail.name} · ${detail.found}/${detail.need}`, { kind: "warn", icon: "🔧" });
-      else if (type === "unlocked") device.hh.notify("They fixed the Deck. The dock is open.", { kind: "danger", icon: "⚠", replace: true });
+      else if (type === "unlocked") device.hh.notify(detail.use ? "They woke the rift. Don't let them reach it." : "They fixed the Deck. The dock is open.", { kind: "danger", icon: "⚠", replace: true });
+      else if (type === "collapse") {
+        device.hh.notify("Someone went into the rift. The world is collapsing: shake the rest loose!", { kind: "danger", icon: "⚠", replace: true, ms: 4000 });
+        device.hh.shake(600);
+      }
     },
   });
   view.update(g);
@@ -492,6 +496,7 @@ function buildRunner(s, tools) {
   const leftBtn = el("button", { type: "button", "aria-label": "Move left", text: "◀" });
   const rightBtn = el("button", { type: "button", "aria-label": "Move right", text: "▶" });
   const upBtn = el("button", { type: "button", "aria-label": "Nudge plank up", text: "▲", disabled: true });
+  // ▼ nudges a plank while you draw; otherwise, in a level with an exit to use, it's how you go in.
   const downBtn = el("button", { type: "button", "aria-label": "Nudge plank down", text: "▼", disabled: true });
   const mapBtn = el("button", { class: "cpi-hh-pill", type: "button", "aria-label": "Toggle the whole-level map", text: "MAP" });
   const undoBtn = faceButton("X", { label: "UNDO", cls: "sd-undo", keyHint: "Z" });
@@ -538,15 +543,36 @@ function buildRunner(s, tools) {
     you: me,
     follow: true,
     labels: "others",
-    onEvent: (type, { mine, strength, name, found, need, title, key, near } = {}) => {
+    onEvent: (type, { mine, strength, name, found, need, title, key, near, text, kind, use } = {}) => {
       if (type === "part") {
-        hh.notify(mine ? `YOU FOUND ${name} · ${found}/${need}` : `FOUND ${name} · ${found}/${need}`, { kind: "ok", icon: "🔧" });
+        hh.notify(mine ? `YOU FOUND ${name} · ${found}/${need}` : `FOUND ${name} · ${found}/${need}`, { kind: "ok", icon: game.level.exitUse ? "◆" : "🔧" });
         if (mine) buzz(40);
+        playSfx("achievement", { volume: mine ? 0.8 : 0.5 });
         return;
       }
       if (type === "unlocked") {
-        hh.notify("DECK REASSEMBLED · GET TO THE DOCK", { kind: "ok", icon: "✓", replace: true });
+        hh.notify(use ? "EXIT ACTIVATED · THE RIFT IS OPEN · ▼ IN IT TO ESCAPE" : "DECK REASSEMBLED · GET TO THE DOCK", { kind: "ok", icon: "✓", replace: true, ms: 3600 });
         hh.flash("ok");
+        return;
+      }
+      if (type === "zone") {
+        hh.notify(text, { kind: kind === "danger" ? "danger" : kind === "warn" ? "warn" : "info", icon: kind === "info" ? "▸" : "⚠", ms: 3400 });
+        if (kind !== "info") playSfx("static", { volume: 0.5 });
+        return;
+      }
+      if (type === "checkpoint") {
+        if (mine) {
+          hh.notify(`CHECKPOINT · ${name} · you'll respawn here`, { kind: "ok", icon: "🛏", ms: 2600 });
+          playSfx("ui_click");
+        }
+        return;
+      }
+      if (type === "collapse") {
+        hh.notify(mine ? "YOU WENT IN · LEVEL COMPLETE · the world is collapsing" : "CORRUPTED EXIT ONLINE · THE WORLD IS COLLAPSING · GET IN THE RIFT", { kind: "danger", icon: "⚠", replace: true, ms: 5000 });
+        hh.flash("danger", 1400);
+        hh.shake(700);
+        playSfx("deck_shake");
+        buzz([80, 40, 80, 40, 160]);
         return;
       }
       if (!mine && type !== "rumble" && type !== "shake") return;
@@ -579,7 +605,7 @@ function buildRunner(s, tools) {
   view.update(g);
 
   // ---- movement: held buttons send on press and release; a heartbeat covers dropped packets
-  const input = { l: 0, r: 0, j: g.you.jumpSeq };
+  const input = { l: 0, r: 0, j: g.you.jumpSeq, u: g.you.useSeq ?? 0 };
   const send = () => tools.stream(input);
   let drawing = false;
   const move = (key, on) => {
@@ -591,10 +617,16 @@ function buildRunner(s, tools) {
     input.j += 1;
     send();
   };
+  /** ▼: go into an exit you have to use (the server checks you're in it and that it's open). */
+  const use = () => {
+    input.u += 1;
+    send();
+    buzz(20);
+  };
   const holdL = holdable(leftBtn, () => (drawing ? nudge(-20, 0) : move("l", true)), () => move("l", false));
   const holdR = holdable(rightBtn, () => (drawing ? nudge(20, 0) : move("r", true)), () => move("r", false));
   tappable(upBtn, () => nudge(0, -20));
-  tappable(downBtn, () => nudge(0, 20));
+  tappable(downBtn, () => (drawing ? nudge(0, 20) : use()));
   tappable(aBtn, () => (drawing ? place() : jump()));
   tappable(bBtn, () => (drawing ? setDrawing(false) : setDrawing(true)));
   tappable(undoBtn, () => undo());
@@ -607,7 +639,11 @@ function buildRunner(s, tools) {
 
   // ---- drawing a plank: the exact plank you'll get, then place it
   let pad = null;
-  const world = () => ({ width: game.level.width, height: game.level.height, minLength: game.limits.plankMin, maxLength: game.limits.plankMax });
+  // What the drawing covers: the whole level, or in a big level the window around you (world view).
+  const world = () => {
+    const win = view.drawWindow;
+    return { width: win.width, height: win.height, minLength: game.limits.plankMin, maxLength: game.limits.plankMax };
+  };
   const preview = (ctx, w, h, d, info) => {
     // Blueprint mode: the level stays visible, with a grid so it reads as "drawing".
     ctx.save();
@@ -630,7 +666,7 @@ function buildRunner(s, tools) {
     const plank = stroke ? plankFromStroke(stroke, world()) : null;
     if (stroke && plank) {
       ctx.save();
-      ctx.scale(w / game.level.width, h / game.level.height);
+      ctx.scale(w / world().width, h / world().height);
       paintPlank(ctx, plank, { color: myColor, ghost: true, time: info.time });
       ctx.restore();
     } else if (stroke && !info.drawing) {
@@ -646,8 +682,10 @@ function buildRunner(s, tools) {
     hh.node.classList.toggle("drawing", on);
     aBtn.querySelector(".cpi-hh-label").textContent = on ? "PLACE" : "JUMP";
     bBtn.querySelector(".cpi-hh-label").textContent = on ? "CANCEL" : "PLANK";
-    upBtn.disabled = downBtn.disabled = !on;
-    view.setMode(on ? "map" : mapBtn.classList.contains("on") ? "map" : "follow");
+    upBtn.disabled = !on;
+    // ▼ nudges while drawing; otherwise it's the exit button (the next state update sets it exactly).
+    downBtn.disabled = on ? false : !game.level.exitUse;
+    view.setMode(on ? "draw" : mapBtn.classList.contains("on") ? "map" : "follow");
     view.setDrawing(on);
     pad?.destroy();
     pad = on
@@ -679,8 +717,7 @@ function buildRunner(s, tools) {
   const nudge = (dx, dy) => {
     const stroke = pad?.drawing.strokes.at(-1);
     if (!stroke) return suggest([dx, dy]);
-    const W = game.level.width;
-    const H = game.level.height;
+    const { width: W, height: H } = world();
     for (const p of stroke.points) {
       p[0] = Math.round(Math.min(1, Math.max(0, p[0] + dx / W)) * 10000) / 10000;
       p[1] = Math.round(Math.min(1, Math.max(0, p[1] + dy / H)) * 10000) / 10000;
@@ -691,8 +728,9 @@ function buildRunner(s, tools) {
     const r = game.world.runners.find((x) => x[0] === me);
     if (!r || !pad) return;
     const [rw, rh] = game.world.size;
+    const [ox, oy] = view.drawWindow.origin;
     pad.drawing.strokes.length = 0;
-    pad.drawing.strokes.push(strokeAhead({ x: r[1], y: r[2], facing: r[3], width: rw, height: rh }, game.level, offset));
+    pad.drawing.strokes.push(strokeAhead({ x: r[1] - ox, y: r[2] - oy, facing: r[3], width: rw, height: rh }, world(), offset));
     pad.redraw();
   };
   const undo = () => pad?.undo();
@@ -708,7 +746,7 @@ function buildRunner(s, tools) {
     if (!stroke || !plankFromStroke(stroke, world())) return reject("Draw a flat line first.");
     placing = true;
     aBtn.disabled = true;
-    const result = await tools.request("game:input", { action: "plank", payload: { drawing: pad.serialize() } });
+    const result = await tools.request("game:input", { action: "plank", payload: { drawing: pad.serialize(), origin: view.drawWindow.origin } });
     placing = false;
     aBtn.disabled = false;
     if (!result.ok) return reject(result.message);
@@ -757,12 +795,14 @@ function buildRunner(s, tools) {
       }
     } else if (k === "m") {
       if (down && !e.repeat) mapBtn.click();
+    } else if (k === "ArrowDown" || k === "s") {
+      if (down && !e.repeat && game.level.exitUse) (press(downBtn), use());
     } else return;
     e.preventDefault();
   };
   window.addEventListener("keydown", onKey);
   window.addEventListener("keyup", onKey);
-  const keys = el("p", { class: "sd-keys", text: "Keys: ← → move · Space jump · E plank (arrows nudge, Enter place) · M map" });
+  const keys = el("p", { class: "sd-keys", text: `Keys: ← → move · Space jump · E plank (arrows nudge, Enter place) · M map${g.level.exitUse ? " · ↓ enter the exit" : ""}` });
 
   const setStatus = (next) => {
     const g2 = next.game;
@@ -772,6 +812,13 @@ function buildRunner(s, tools) {
     const ready = g2.you.plankReadyMs;
     const playing = PLAYING.includes(g2.phase);
     const plank = ready > 0 ? `✏️ in ${Math.ceil(ready / 1000)}s` : "✏️ ready";
+    const goal = g2.level.exitUse && g2.level.items?.length
+      ? g2.world.exit === "collapse"
+        ? "GET IN THE RIFT!"
+        : g2.world.exit === "active"
+          ? "Exit open: go to the rift, ▼ in it"
+          : `${g2.level.itemLabel} ${(g2.world.taken ?? []).filter(Boolean).length}/${g2.level.items.length}`
+      : null;
     status.textContent =
       g2.phase === "RESULTS"
         ? "Round over."
@@ -781,7 +828,13 @@ function buildRunner(s, tools) {
             ? `✓ ESCAPED${r?.escapedMs != null ? ` in ${(r.escapedMs / 1000).toFixed(1)}s` : ""}. Draw planks to help! · ${plank}`
             : state === 1
               ? "💀 Respawning…"
-              : `💀 ${r?.deaths ?? 0} · ${plank}`;
+              : [goal, `💀 ${r?.deaths ?? 0}`, plank].filter(Boolean).join(" · ");
+    // ▼ is live when there's an exit to use and you're still inside to use it.
+    if (!drawing) {
+      downBtn.disabled = !(g2.level.exitUse && playing && state !== 2);
+      downBtn.setAttribute("aria-label", g2.world.exit === "active" ? "Enter the exit" : "Enter the exit (it isn't open yet)");
+      downBtn.classList.toggle("ready", g2.world.exit === "active" || g2.world.exit === "collapse");
+    }
     const cooling = ready > 0;
     bBtn.disabled = !drawing && (cooling || !playing);
     bBtn.classList.toggle("cooling", cooling);

@@ -67,14 +67,44 @@ nothing extra. Rendering never feeds back into the game.
 
 ## The games
 
-Each round drops the runners into a different game running on Thad's Deck, picked at random with no
-repeats (the lobby's "Games" setting, 1 to all of them). Levels are data in
-`server/games/steamdeck/levels.ts`; their look is in `public/js/games/steamdeck-scenery.js` (by level id).
-The intro card shows each game's loading lines.
+Each round drops the runners into a different game running on Thad's Deck. Level 1, The Block World,
+always opens the match; the rest follow at random with no repeats (the lobby's "Games" setting, 1 to all
+of them). Levels are data in `server/games/steamdeck/levels.ts`; their look is in
+`public/js/games/steamdeck-scenery.js` (by level id; The Block World's in `steamdeck-blockworld.js`). The
+intro card shows each game's loading lines.
+
+### Level 1: The Block World
+
+The Deck has launched BLOCKCRAFT, a block-building sandbox, and the world is coming apart. It's 6400 × 2000
+(four screens wide, two deep; the cameras follow the action), with 70 + 50 + 40 s of play.
+
+- **The plains** (spawn): hills, a paddling pond, floating blocks up to a sky stash, and a chunk that never
+  loaded (a magenta-and-black hole: fall in and you're deleted).
+- **Blockton village**: houses, BLOCKMART, a well, a farm with purple crops, a barn, villagers who gossip,
+  and a watchtower. **Fragment 1** is at the top of the tower. A bed in the square is a checkpoint.
+- **The mine and the cave**: a scaffolded shaft down (the village's world border blocks the surface route),
+  a mine camp (checkpoint), a low passage, a lava pit, and a lake under a rock: **fragment 2** is on the lake
+  bed behind it (dive under, mash JUMP to come up). It's dark down there: torches, your glow, the fragment.
+  A scaffold climb leads up and out.
+- **The corrupted chunks**: floating terrain in the wrong colours over the void, a last stable chunk
+  (checkpoint), dead blocks that appear on the chunks as the phases go on, and a zone where physics didn't
+  load (low gravity). **Fragment 3** is on the highest chunk.
+- **The rift** at the edge of the world: a dead frame with three sockets until the team has all 3
+  fragments; then EXIT ACTIVATED. A runner standing in it presses **▼** (↓ or S) to go in.
+
+**Winning**: the fragments are shared (anyone's find counts for everyone; dying never loses them). With
+3 / 3 the rift opens, but walking into it does nothing: the first runner to press ▼ in it completes the
+level for the team, is out, and sets off the **collapse** (12 s: the world tears, the screens say so;
+anyone else can just walk in now). When it runs out, or everyone's out, it's LEVEL COMPLETE and the round
+goes to the results as usual; whoever didn't make it is still inside (Thad's points). If the clock runs
+out first, the level is failed. It can only be completed once.
+
+`node --test scripts/steamdeck-playthrough.ts` plays it start to finish through the real game: routes
+planned with the reachability search's physics, played tick by tick, then ▼, the collapse and round 2.
 
 | Game | What you do | Escalation | Way out |
 |---|---|---|---|
-| **Blockcraft** | Jump the lava pits, drop into the lake, swim under the stone wall (it goes into the water), leap out onto the far bank, climb to the portal | ESCALATION: lava on the shore (jump it straight into the lake). FINAL: the lake floor under the wall turns to magma (swim through, don't sink) | The purple portal |
+| **The Block World** (Level 1) | Explore the plains and the village, find 3 fragments (the watchtower, the cave lake, the highest corrupted chunk) | ESCALATION: dead blocks on the chunks, lava on the lake's shore. FINAL: more dead blocks, magma under the lake rock | The rift: ▼ in it once it's open |
 | **SLIM: The Six Parts** | Dark woods, a flashlight each. Find the six parts of Thad's Deck (shared by the team) | He moves more often and takes you faster each phase; thorns grow on the floor | The repair dock, locked until all six are found |
 | **Fire Kid & Ice Girl** | Temple platforming over lava pits | Spikes arrive | The EXIT door |
 | **Astro Blaster '84** | Climb the arcade cabinet | Spikes arrive | The EXIT door |
@@ -88,17 +118,24 @@ Level features (any level can use them):
 - **The stalker** (`stalker`): appears near a random runner, standing on whatever is there, every few
   seconds (faster each phase). Staying within `reach` of him for `killMs` gets you taken (a normal death:
   respawn). Your phone gets static as he closes in (`you.near`); shared screens get a little.
-- **Hazard kinds** (`kind`: spikes, lava, thorns) only change how a hazard is drawn.
+- **Hazard kinds** (`kind`: spikes, lava, thorns, glitch) only change how a hazard is drawn.
+- **A bigger world** (`size`): the level scrolls. Phones follow you; the big screen and Thad frame
+  everyone still inside; MAP shows the whole world; a plank is drawn over the 1600 × 900 window around you
+  (the phone sends its `origin`). Screens cap their cached layers so a phone doesn't run out of memory.
+- **Its own play time** (`timing`), **checkpoints** (`checkpoints`: touch one and that's where you
+  respawn), **low-gravity zones** (`zones`), and **an exit to use** (`exitUse`: see Level 1).
 - **Achievements**: the Deck pops silly ones (lava death, drowning, first swim, a part found, the portal,
   being taken), on your phone for your own and on the big screen for everyone, once each per round.
 
 Adding a game is two files: its level in `levels.ts` and its look in `steamdeck-scenery.js` (theme by id).
 The lobby's "Games" choice and hint come from `levels.ts` through the game's catalog in `/api/config`.
 
-Every level must be escapable by every character in every phase, without planks or tilt. Check it with
-`node scripts/steamdeck-reach.ts [levelId]` after changing a level or the cast's stats: it searches each
-level with the real physics (`physics.ts`) for each distinct movement in the cast and fails on any exit or
-item nobody can reach. Fire Kid & Ice Girl got three stepping stones for the slowest (Parish, Weller).
+Every level must be escapable by every character in every phase, without planks or tilt, from the spawn
+and from every checkpoint. Check it with `node scripts/steamdeck-reach.ts [levelId]` after changing a level
+or the cast's stats: it searches each level with the real physics (`physics.ts`) for each distinct movement
+in the cast and fails on any exit or item nobody can reach (it checks the FINAL phase, which has every
+hazard the earlier ones do). The Block World takes about ten minutes. Fire Kid & Ice Girl got three
+stepping stones for the slowest (Parish, Weller).
 
 ## The cast and Thad's shake
 

@@ -9,7 +9,7 @@ import { PartyDb } from "../server/db.ts";
 import { PartyError } from "../server/errors.ts";
 import { CAST, dealCast } from "../public/js/games/steamdeck-cast.js";
 import { PLANK, SHAKE, steamDeckGame, TIMING } from "../server/games/steamdeck/game.ts";
-import { LEVELS, type Level } from "../server/games/steamdeck/levels.ts";
+import { checkpointSpawn, LEVELS, type Level } from "../server/games/steamdeck/levels.ts";
 import { jolt, newBody, PHYS, stepBody, type Arena } from "../server/games/steamdeck/physics.ts";
 import type { Room } from "../server/rooms.ts";
 import { makeRooms, roomWithPlayers, stubCanon } from "./helpers.ts";
@@ -43,6 +43,20 @@ function plankDrawing(points: [number, number][]) {
 }
 
 const expectError = (fn: () => unknown, code: string) => assert.throws(fn, (e: unknown) => e instanceof PartyError && e.code === code, code);
+
+/** Swaps this round's level (round 1 is always Level 1) and puts everyone back at its spawn. */
+function useLevel(room: Room, id: string) {
+  const game = (room as any).game;
+  game.level = LEVELS.find((l) => l.id === id);
+  game.taken = (game.level.items ?? []).map(() => false);
+  game.stalker = null;
+  game.stalkerNext = Number.POSITIVE_INFINITY;
+  for (const r of game.runners.values()) {
+    Object.assign(r, { spawn: game.level.spawn, checkpoint: -1 });
+    Object.assign(r.body, newBody(game.level.spawn));
+  }
+  return game;
+}
 
 describe("Steam My Deck", () => {
   beforeEach(() => mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] }));
@@ -122,6 +136,7 @@ describe("Steam My Deck", () => {
     const flat = { drawing: plankDrawing([[0.3, 0.7], [0.4, 0.71], [0.5, 0.7]]) };
     expectError(() => room.gameInput(ids[1]!, "plank", flat), "PHASE_CLOSED");
     until(room, "ESCAPE");
+    useLevel(room, "astro"); // a level the size of the screen: the drawing covers all of it
     expectError(() => room.gameInput(ids[0]!, "plank", flat), "NOT_ALLOWED");
     expectError(() => room.gameInput(ids[1]!, "plank", { drawing: { v: 1, w: 1, h: 1, s: [["plank", 100, 0, 0, [1, 2, 3]]] } }), "INVALID_INPUT");
     expectError(() => room.gameInput(ids[1]!, "plank", { drawing: plankDrawing([[0.5, 0.2], [0.5, 0.8]]) }), "INVALID_INPUT");
@@ -141,7 +156,7 @@ describe("Steam My Deck", () => {
   it("ends the round early when everyone is out, scores it, rotates Thad and records the game", () => {
     const { room, ids, records } = start(["Thad", "Ann", "Bo"], 2);
     until(room, "ESCAPE");
-    const game = (room as any).game;
+    const game = useLevel(room, "slim");
     game.taken = game.taken.map(() => true); // a level with items to find keeps its exit shut until then
     for (const r of game.runners.values()) Object.assign(r.body, { x: game.level.exit[0] + 5, y: game.level.exit[1] + 10, vx: 0, vy: 0 });
     ticks(1);
@@ -237,17 +252,6 @@ describe("Steam My Deck: the games' own rules", () => {
   beforeEach(() => mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] }));
   afterEach(() => mock.timers.reset());
 
-  /** Swaps this round's level (the order is random) and puts everyone back at its spawn. */
-  function useLevel(room: Room, id: string) {
-    const game = (room as any).game;
-    game.level = LEVELS.find((l) => l.id === id);
-    game.taken = (game.level.items ?? []).map(() => false);
-    game.stalker = null;
-    game.stalkerNext = Number.POSITIVE_INFINITY;
-    for (const r of game.runners.values()) Object.assign(r.body, newBody(game.level.spawn));
-    return game;
-  }
-
   it("keeps SLIM's dock shut until the team has found every part", () => {
     const { room, ids } = start();
     until(room, "ESCAPE");
@@ -285,6 +289,155 @@ describe("Steam My Deck: the games' own rules", () => {
     assert.equal(pos(room, ids[1]!)[4], 1, "taken");
     assert.equal(view(room).roster.find((r: View) => r.id === ids[1]).deaths, 1);
     assert.equal(game.stalker, null, "and he's gone for a moment");
+  });
+});
+
+describe("Escape Thad's Steam Deck: Level 1, The Block World", () => {
+  beforeEach(() => mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] }));
+  afterEach(() => mock.timers.reset());
+
+  const BW = LEVELS.find((l) => l.id === "blockworld")!;
+  /** Puts a runner's box on a point (its feet on `y`). */
+  const place = (r: any, x: number, y: number) => Object.assign(r.body, { x: x - PHYS.width / 2, y: y - PHYS.height, vx: 0, vy: 0 });
+  const onItem = (r: any, i: number) => place(r, BW.items![i]!.at[0], BW.items![i]!.at[1] + 18);
+  const inExit = (r: any) => place(r, BW.exit[0] + BW.exit[2] / 2, BW.exit[1] + BW.exit[3]);
+  const press = (room: Room, id: string, seq: number) => room.gameInput(id, "stream", { l: 0, r: 0, j: 0, u: seq });
+
+  function blockWorld(names = ["Thad", "Ann", "Bo"]) {
+    const s = start(names, 3);
+    until(s.room, "ESCAPE");
+    const game = (s.room as any).game;
+    const [ann, bo] = [game.runners.get(s.ids[1]), game.runners.get(s.ids[2])];
+    return { ...s, game, ann, bo };
+  }
+
+  it("opens every match, with its own size and a longer clock", () => {
+    const { room } = start(["Thad", "Ann"], 3);
+    assert.equal(view(room).level.id, "blockworld");
+    assert.deepEqual([view(room).level.width, view(room).level.height], [6400, 2000]);
+    until(room, "ESCAPE");
+    assert.equal(room.viewFor({ kind: "host" }).timer!.totalMs, BW.timing!.escapeMs);
+    assert.deepEqual(view(room).level.playMs, [BW.timing!.escapeMs, BW.timing!.escalationMs, BW.timing!.finalMs]);
+    assert.equal(view(room).level.itemLabel, "CORRUPTED FRAGMENTS");
+  });
+
+  it("keeps the rift shut until the team has all 3 fragments, found by anyone, for everyone", () => {
+    const { room, ids, ann, bo } = blockWorld();
+    inExit(ann);
+    press(room, ids[1]!, 1);
+    ticks(2);
+    assert.equal(view(room).world.exit, "locked");
+    assert.equal(pos(room, ids[1]!)[4], 0, "a shut rift is just a wall of static");
+    onItem(ann, 0);
+    ticks(1);
+    assert.deepEqual(view(room).world.taken, [1, 0, 0], "1 / 3");
+    onItem(bo, 1);
+    ticks(1);
+    assert.deepEqual(view(room, ids[1]).world.taken, [1, 1, 0], "2 / 3: Bo's find counts for Ann too");
+    assert.equal(view(room).world.exit, "locked");
+    onItem(ann, 2);
+    ticks(1);
+    assert.deepEqual(view(room, ids[2]).world.taken, [1, 1, 1], "3 / 3");
+    assert.equal(view(room).world.exit, "active", "EXIT ACTIVATED");
+    assert.equal(view(room).world.exitOpen, true);
+  });
+
+  it("completes only when someone presses ▼ in the open rift, then collapses, then ends the round", () => {
+    const { room, ids, game, ann, bo } = blockWorld();
+    game.taken = [true, true, true];
+    inExit(ann);
+    ticks(5);
+    assert.equal(pos(room, ids[1]!)[4], 0, "standing in it isn't enough");
+    assert.equal(view(room).world.exit, "active");
+    press(room, ids[2]!, 1); // Bo, nowhere near it
+    ticks(1);
+    assert.equal(view(room).world.exit, "active", "▼ anywhere else does nothing");
+    press(room, ids[1]!, 1);
+    ticks(1);
+    assert.equal(view(room).world.exit, "collapse");
+    assert.equal(view(room).world.completedBy, ids[1]);
+    assert.equal(pos(room, ids[1]!)[4], 2, "Ann went in");
+    assert.equal(room.viewFor({ kind: "host" }).timer!.totalMs, BW.exitUse!.collapseMs, "the collapse is the clock now");
+    // Everyone else can just walk in while it collapses; it's already complete, and stays Ann's.
+    inExit(bo);
+    ticks(1);
+    press(room, ids[2]!, 2);
+    ticks(1);
+    const g = view(room);
+    assert.equal(g.phase, "RESULTS", "everyone's out: straight to the results");
+    assert.equal(g.results.completedBy, ids[1]);
+    assert.equal(g.results.escaped, 2);
+    assert.ok(g.results.points[ids[1]!] > g.results.points[ids[2]!], "first out scores more");
+  });
+
+  it("ends when the collapse runs out, with whoever didn't make it still inside", () => {
+    const { room, ids, game, ann } = blockWorld();
+    game.taken = [true, true, true];
+    inExit(ann);
+    press(room, ids[1]!, 1);
+    ticks(1);
+    assert.equal(view(room).world.exit, "collapse");
+    mock.timers.tick(BW.exitUse!.collapseMs);
+    const g = view(room);
+    assert.equal(g.phase, "RESULTS");
+    assert.equal(g.results.completedBy, ids[1]);
+    assert.equal(g.results.escaped, 1);
+    assert.ok(g.results.points[ids[0]!] > 0, "Thad scores for Bo, still in the Deck");
+  });
+
+  it("fails the level if the clock runs out first, and can't be completed after", () => {
+    const { room, ids, game, ann } = blockWorld();
+    for (const phase of ["ESCALATION", "FINAL", "RESULTS"]) {
+      mock.timers.tick(room.viewFor({ kind: "host" }).timer!.remainingMs);
+      assert.equal(view(room).phase, phase);
+    }
+    assert.equal(view(room).results.completedBy, null, "nobody went in: not complete");
+    game.taken = [true, true, true];
+    inExit(ann);
+    press(room, ids[1]!, 5);
+    ticks(2);
+    assert.equal(view(room).results.completedBy, null, "and the results don't change");
+  });
+
+  it("keeps the team's fragments when a runner dies, and respawns them at their last checkpoint", () => {
+    const { room, ids, ann } = blockWorld();
+    onItem(ann, 0);
+    ticks(1);
+    const mine = BW.checkpoints!.find((c) => c.id === "mine")!;
+    place(ann, mine.at[0], mine.at[1]);
+    ticks(1);
+    assert.equal(view(room).roster.find((r: View) => r.id === ids[1]).checkpoint, BW.checkpoints!.indexOf(mine));
+    // Into the cave's lava.
+    place(ann, 4230, 1880);
+    ticks(1);
+    assert.equal(pos(room, ids[1]!)[4], 1, "dead");
+    ticks(40);
+    const [, x, y, , state] = pos(room, ids[1]!);
+    assert.equal(state, 0, "back");
+    const [sx, sy] = checkpointSpawn(mine);
+    assert.ok(Math.abs(x - sx) < 5 && Math.abs(y - sy) < 40, `respawned at the mine camp (${x}, ${y})`);
+    assert.deepEqual(view(room).world.taken, [1, 0, 0], "the fragment's still found");
+    assert.equal(view(room).roster.find((r: View) => r.id === ids[1]).deaths, 1);
+  });
+
+  it("draws planks in the window around you, not over the whole world", () => {
+    const { room, ids, ann } = blockWorld();
+    place(ann, 3000, 1240);
+    ticks(1);
+    const flat = plankDrawing([[0.3, 0.7], [0.4, 0.71], [0.5, 0.7]]);
+    room.gameInput(ids[1]!, "plank", { drawing: flat, origin: [2300, 700] });
+    const [x1, x2, y] = view(room).world.planks[0];
+    assert.deepEqual([x1, x2, y], [480 + 2300, 800 + 2300, 633 + 700], "the window's coordinates, moved to where it is");
+    ticks(PLANK.cooldownMs / TIMING.tickMs + 1);
+    expectError(() => room.gameInput(ids[1]!, "plank", { drawing: flat, origin: [5000, 0] }), "INVALID_INPUT");
+    room.gameInput(ids[1]!, "plank", { drawing: flat });
+    assert.ok(Math.abs(view(room).world.planks[0][0] - (3000 - 800 + 480)) < 20, "no window given: the one around you");
+  });
+
+  it("puts every fragment, checkpoint and the rift inside the world", () => {
+    for (const it of BW.items!) assert.ok(it.at[0] > 0 && it.at[0] < 6400 && it.at[1] > 0 && it.at[1] < 2000, it.id);
+    for (const c of BW.checkpoints!) assert.ok(BW.platforms.some((p) => c.at[1] === p[1] && c.at[0] > p[0] && c.at[0] < p[0] + p[2]), `${c.id} stands on a floor`);
+    assert.ok(BW.platforms.some((p) => p[1] === BW.exit[1] + BW.exit[3] && p[0] <= BW.exit[0] && p[0] + p[2] >= BW.exit[0] + BW.exit[2]), "the rift stands on a floor");
   });
 });
 
@@ -378,6 +531,38 @@ describe("Steam My Deck: physics", () => {
     const out = newBody([1500, 0]);
     assert.ok(run(out, arena(), 0.1).includes("escaped"));
     assert.equal(out.escaped, true);
+  });
+});
+
+describe("Steam My Deck: bigger worlds", () => {
+  const arena = (extra: Partial<Arena> = {}): Arena => ({ spawn: [100, 100], exit: [5000, 0, 50, 50], platforms: [[0, 1800, 6000, 100]], hazards: [], planks: [], width: 6000, height: 2000, ...extra });
+  const jumpHeight = (a: Arena) => {
+    const b = newBody([1000, 1764]);
+    for (let t = 0; t < 1; t += 1 / 80) stepBody(b, { left: false, right: false, jumpSeq: 0 }, a, 0, 1 / 80);
+    const floor = b.y;
+    let top = floor;
+    for (let t = 0; t < 4; t += 1 / 80) {
+      stepBody(b, { left: false, right: false, jumpSeq: 1 }, a, 0, 1 / 80);
+      top = Math.min(top, b.y);
+    }
+    return floor - top;
+  };
+
+  it("jumps far higher where physics isn't loaded", () => {
+    const normal = jumpHeight(arena());
+    const floaty = jumpHeight(arena({ zones: [{ rect: [800, 0, 400, 1800], gravity: 0.35 }] }));
+    assert.ok(normal > 150 && normal < 200, String(normal));
+    assert.ok(floaty > normal * 2.4, `${floaty} vs ${normal}`);
+  });
+
+  it("walks the whole width and dies below the bottom, not the standard level's", () => {
+    const b = newBody([5000, 1764]);
+    for (let t = 0; t < 2; t += 1 / 80) stepBody(b, { left: false, right: true, jumpSeq: 0 }, arena(), 0, 1 / 80);
+    assert.ok(b.x > 5500, "past 1600");
+    const fall = newBody([100, 1200]);
+    const events: string[] = [];
+    for (let t = 0; t < 3 && !events.includes("died"); t += 1 / 80) events.push(...stepBody(fall, { left: false, right: false, jumpSeq: 0 }, arena({ platforms: [] }), 0, 1 / 80));
+    assert.ok(events.includes("died"), "fell out of the world");
   });
 });
 

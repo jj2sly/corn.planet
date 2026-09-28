@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "party",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "cd /Users/jjhughes/Documents/GitHub/corn.planet/party && PORT=3217 HOST=127.0.0.1 exec '/Users/jjhughes/Library/Application Support/com.raycast.macos/NodeJS/runtime/22.22.2/bin/node' server/main.ts"],
+      "port": 3217
+    }
+  ]
+}

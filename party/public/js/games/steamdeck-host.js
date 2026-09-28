@@ -76,10 +76,24 @@ function buildRound(s) {
     rotate: true,
     labels: true,
     onEvent: (type, detail = {}) => {
-      if (type === "part") hh.notify(`FOUND ${detail.name} · ${detail.found}/${detail.need}`, { kind: "ok", icon: "🔧" });
-      else if (type === "unlocked") {
-        hh.notify("DECK REASSEMBLED · THE DOCK IS OPEN", { kind: "ok", icon: "✓", replace: true });
+      if (type === "part") {
+        hh.notify(`FOUND ${detail.name} · ${detail.found}/${detail.need}`, { kind: "ok", icon: g.level.exitUse ? "◆" : "🔧" });
+        playSfx("achievement", { volume: 0.6 });
+      } else if (type === "unlocked") {
+        hh.notify(detail.use ? "EXIT ACTIVATED · THE RIFT AT THE EDGE OF THE WORLD IS OPEN" : "DECK REASSEMBLED · THE DOCK IS OPEN", { kind: "ok", icon: "✓", replace: true, ms: 3600 });
         hh.flash("ok");
+        if (detail.use) hh.overlay(stamp("EXIT ACTIVATED", "ok"), "stamp", { ms: 1600 });
+      } else if (type === "zone") hh.notify(detail.text, { kind: detail.kind === "danger" ? "danger" : detail.kind === "warn" ? "warn" : "info", icon: detail.kind === "info" ? "▸" : "⚠", ms: 3200 });
+      else if (type === "checkpoint") {
+        const who = g.roster.find((r) => r.id === detail.id)?.name ?? "Someone";
+        hh.notify(`${who} · CHECKPOINT: ${detail.name}`, { kind: "info", icon: "🛏", ms: 2000 });
+      } else if (type === "collapse") {
+        const who = g.roster.find((r) => r.id === detail.id)?.name ?? "Someone";
+        hh.overlay(stamp("CORRUPTED EXIT ONLINE", "danger"), "band", { ms: 2600 });
+        hh.notify(`${who} WENT IN · LEVEL COMPLETE · THE WORLD IS COLLAPSING`, { kind: "danger", icon: "⚠", replace: true, ms: 5000 });
+        hh.flash("danger", 1600);
+        hh.shake(900);
+        playSfx("deck_shake");
       } else if (type === "achievement" && !achieved.has(`${detail.id}:${detail.key}`)) {
         // Once per agent per achievement a round: news, not spam.
         achieved.add(`${detail.id}:${detail.key}`);
@@ -130,6 +144,7 @@ function buildRound(s) {
       } else hh.clearOverlay();
     } else if (p === "RESULTS") {
       hh.overlay(roundReport(next), "report");
+      if (live && next.results?.completedBy) setTimeout(() => phase === "RESULTS" && hh.notify("LEVEL COMPLETE", { kind: "ok", icon: "★", replace: true, ms: 4000 }), 200);
       const out = next.results?.escaped ?? 0;
       if (live) hh.flash(out === next.results?.total ? "ok" : out === 0 ? "danger" : "warn");
     }
@@ -168,7 +183,7 @@ function buildRound(s) {
       }
       lastRoster = new Map(g.roster.map((r) => [r.id, r.escapedMs]));
       const connected = next.players.filter((p) => p.connected).length;
-      hh.setStatus({ battery: battery(g.phase, next.timer), signal: next.players.length ? connected / next.players.length : 1 });
+      hh.setStatus({ battery: g.world.exit === "collapse" ? 0.03 : battery(g.phase, next.timer, g.level.playMs), signal: next.players.length ? connected / next.players.length : 1 });
       hh.setTilt(g.world.tilt);
       // The Deck creaks when Thad really leans on it.
       const leaning = Math.abs(g.world.tilt) > 0.75;

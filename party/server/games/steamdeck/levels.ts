@@ -1,12 +1,16 @@
 // The games inside Thad's Steam Deck. Each level is a different "game" the Deck is running; a match
-// plays some of them in a random order. World units: 1600 × 900, y down. Rects are [x, y, w, h].
-// Every level can be escaped without a plank; planks make the short routes possible.
+// opens with the first one here (Level 1) and plays the rest in a random order. World units: 1600 ×
+// 900 unless a level says otherwise (`size`), y down. Rects are [x, y, w, h]. Every level can be
+// escaped without a plank; planks make the short routes possible.
 //
 // Beyond platforms and hazards, a level can have water (swim: jump strokes up, jump at the surface
 // leaps out, too long under drowns you), items to collect (the exit stays shut until the team has
 // found them all), a stalker (someone who appears near a runner and takes them if they linger), and
-// intro lines the Deck shows while the game loads. What they look like is up to the screens
-// (public/js/games/steamdeck-scenery.js); this file is only what's where.
+// intro lines the Deck shows while the game loads. A bigger level can also have its own play time,
+// checkpoints (touch one and you respawn there), low-gravity zones, and an exit you have to *use*
+// (press ▼ in it) once it's active, which sets off a short collapse before the level is complete.
+// What it all looks like is up to the screens (public/js/games/steamdeck-scenery.js); this file is
+// only what's where.
 
 export type Rect = [number, number, number, number];
 export type Phase = "ESCAPE" | "ESCALATION" | "FINAL";
@@ -16,7 +20,7 @@ export interface Hazard {
   /** Active from this phase on. */
   from: Phase;
   /** How it's drawn: it kills the same either way. */
-  kind?: "spikes" | "lava" | "thorns";
+  kind?: "spikes" | "lava" | "thorns" | "glitch";
 }
 
 export interface Item {
@@ -36,52 +40,182 @@ export interface Stalker {
   killMs: Record<Phase, number>;
 }
 
+export interface Checkpoint {
+  id: string;
+  name: string;
+  /** Where you stand: the middle of the floor under it. Touch it and you respawn here. */
+  at: [number, number];
+}
+
+/** Somewhere physics half-works: gravity there is multiplied by `gravity`. */
+export interface Zone {
+  rect: Rect;
+  gravity: number;
+}
+
 export interface Level {
   id: string;
   name: string;
   tagline: string;
   /** What the Deck says while the game loads. */
   intro: string[];
+  /** World size, [width, height]: 1600 × 900 by default. Bigger levels scroll. */
+  size?: [number, number];
+  /** Play time per phase, when a level needs more than the standard 35 + 25 + 15 s. */
+  timing?: { escapeMs: number; escalationMs: number; finalMs: number };
   spawn: [number, number];
   exit: Rect;
   platforms: Rect[];
   hazards: Hazard[];
   water?: Rect[];
   items?: Item[];
+  /** What the items are called on screen, e.g. "CORRUPTED FRAGMENTS" (default "DECK PARTS"). */
+  itemLabel?: string;
   stalker?: Stalker;
+  checkpoints?: Checkpoint[];
+  zones?: Zone[];
+  /**
+   * The exit has to be used: once it's open, a runner standing in it presses ▼. That completes the
+   * level for the team and sets off the collapse: `collapseMs` for everyone else to dive in.
+   */
+  exitUse?: { collapseMs: number };
 }
 
 export const WORLD = { width: 1600, height: 900 } as const;
 
+/** A level's world size. */
+export function sizeOf(level: Level): { width: number; height: number } {
+  return level.size ? { width: level.size[0], height: level.size[1] } : { width: WORLD.width, height: WORLD.height };
+}
+
+/** Where a checkpoint puts you back: standing on its floor, centred on it. */
+export function checkpointSpawn(c: Checkpoint): [number, number] {
+  return [c.at[0] - 14, c.at[1] - 38];
+}
+
+/** A checkpoint's touch box. */
+export function checkpointRect(c: Checkpoint): Rect {
+  return [c.at[0] - 30, c.at[1] - 64, 60, 64];
+}
+
+// ------------------------------------------------------------------ Level 1: The Block World
+
+// A ground column: from `y` all the way to the bottom of the Block World.
+const BOTTOM = 2000;
+const col = (x: number, y: number, w: number): Rect => [x, y, w, BOTTOM - y];
+
+/**
+ * The Deck launched a block-building game, and the world is coming apart. Five areas, left to right
+ * (and down, and up): the plains where you spawn, Blockton village, the mine and the cave under it,
+ * the corrupted chunks floating over the void, and the rift at the edge of the world. Three corrupted
+ * fragments (the village's watchtower, the bottom of the cave lake, the highest corrupted chunk) wake
+ * the rift; then someone has to go in.
+ */
+const BLOCK_WORLD: Level = {
+  id: "blockworld",
+  name: "The Block World",
+  tagline: "Punch trees. Find 3 fragments. Leave through the hole in the world.",
+  intro: [
+    "BLOCKCRAFT · loading world \"THAD\"… 3 errors",
+    "Find the 3 corrupted fragments. The rift at the edge of the world opens when you have them all.",
+    "Then get in it: ▼ (or ↓ / S) at the rift.",
+  ],
+  size: [6400, 2000],
+  timing: { escapeMs: 70_000, escalationMs: 50_000, finalMs: 40_000 },
+  spawn: [80, 1190],
+  exit: [6150, 580, 120, 180],
+  exitUse: { collapseMs: 12_000 },
+  platforms: [
+    // ---- the plains: a hill, a pond, a chunk that didn't load
+    col(0, 1240, 560),
+    col(560, 1200, 160),
+    col(720, 1160, 200),
+    col(920, 1200, 120),
+    col(1040, 1240, 80),
+    [1120, 1290, 260, 710], // the pond's bed: a paddling pond, too shallow to drown in
+    col(1380, 1240, 180),
+    // floating blocks over the hill: the sky stash (optional)
+    [830, 1060, 80, 40],
+    [970, 960, 80, 40],
+    [1110, 880, 140, 40],
+    [1180, 1080, 40, 40],
+    [1300, 1040, 40, 40],
+    // ---- Blockton village
+    col(1680, 1240, 920),
+    [2650, 1200, 40, 40], // a crate by the farm
+    [3140, 1200, 40, 40], // a hay bale by the barn
+    // the watchtower: a zig-zag of floors up to the lookout (fragment 1)
+    [3180, 1140, 90, 20],
+    [3240, 1040, 90, 20],
+    [3160, 940, 90, 20],
+    [3220, 840, 110, 20],
+    // the crust over the cave, the mine shaft through it, and the world border past the village
+    [2600, 1240, 740, 160],
+    [3460, 1240, 60, 160],
+    [3520, 160, 80, 1240],
+    [3600, 1240, 1100, 160],
+    // ---- the mine shaft down, and the cave
+    [3340, 1330, 60, 20],
+    [3400, 1420, 60, 20],
+    [3340, 1510, 60, 20],
+    [2600, 1400, 600, 600], // solid rock west of the cave
+    [3200, 1600, 840, 400], // the mine camp and the passage
+    [3720, 1400, 320, 150], // the passage's low ceiling
+    [4040, 1700, 120, 300],
+    [4160, 1890, 140, 110], // under the lava
+    [4300, 1700, 60, 300],
+    [4360, 1940, 320, 60], // the lake bed
+    [4480, 1400, 60, 420], // the rock the lake goes under
+    [4680, 1700, 220, 300], // the east bank
+    // the climb out
+    [4840, 1610, 60, 20],
+    [4760, 1520, 60, 20],
+    [4840, 1430, 60, 20],
+    [4760, 1340, 60, 20],
+    [4840, 1250, 60, 20],
+    // ---- the corrupted chunks, floating over nothing
+    col(4900, 1160, 280), // the last stable chunk
+    [5240, 1100, 170, 60],
+    [5470, 1020, 150, 60],
+    [5660, 880, 140, 40],
+    [5850, 720, 130, 40],
+    [5660, 540, 140, 40], // fragment 3
+    // ---- the rift at the edge of the world
+    [6060, 760, 280, 40],
+    [6340, 0, 60, 2000],
+  ],
+  water: [
+    [1120, 1256, 260, 34],
+    [4360, 1720, 320, 220],
+  ],
+  hazards: [
+    // A chunk that never loaded: fall in and you're deleted.
+    { rect: [1560, 1320, 120, 680], from: "ESCAPE", kind: "glitch" },
+    { rect: [4160, 1860, 140, 30], from: "ESCAPE", kind: "lava" },
+    // The corruption spreads: dead blocks appear on the chunks (hop them), lava creeps into the cave.
+    { rect: [5320, 1064, 30, 36], from: "ESCALATION", kind: "glitch" },
+    { rect: [4300, 1680, 30, 20], from: "ESCALATION", kind: "lava" },
+    { rect: [5730, 844, 30, 36], from: "ESCALATION", kind: "glitch" },
+    { rect: [4480, 1932, 60, 8], from: "FINAL", kind: "lava" },
+    { rect: [5540, 984, 30, 36], from: "FINAL", kind: "glitch" },
+    { rect: [6100, 724, 30, 36], from: "FINAL", kind: "glitch" },
+  ],
+  items: [
+    { id: "village", name: "VILLAGE FRAGMENT", at: [3290, 815] },
+    { id: "cave", name: "CAVE FRAGMENT", at: [4630, 1905] },
+    { id: "chunks", name: "CORRUPTED FRAGMENT", at: [5730, 515] },
+  ],
+  itemLabel: "CORRUPTED FRAGMENTS",
+  checkpoints: [
+    { id: "village", name: "BLOCKTON VILLAGE", at: [2380, 1240] },
+    { id: "mine", name: "MINE CAMP", at: [3300, 1600] },
+    { id: "chunk", name: "LAST STABLE CHUNK", at: [4980, 1160] },
+  ],
+  zones: [{ rect: [5560, 340, 460, 780], gravity: 0.35 }],
+};
+
 export const LEVELS: readonly Level[] = [
-  {
-    // Blocks, lava, a lake with a stone wall you have to swim under, and a portal out.
-    id: "blockcraft",
-    name: "Blockcraft",
-    tagline: "Punch trees. Avoid lava. Find the portal.",
-    intro: ["Generating terrain…", "Tip: water is fine. Lava is not.", "The wall goes into the lake: swim under it (mash JUMP to swim up)."],
-    spawn: [60, 670],
-    exit: [1520, 410, 70, 100],
-    platforms: [
-      [0, 720, 380, 180],
-      [440, 640, 40, 40],
-      [540, 720, 260, 180],
-      [800, 860, 380, 40],
-      [960, 330, 60, 450],
-      [1180, 720, 230, 180],
-      [1420, 610, 70, 40],
-      [1500, 510, 100, 390],
-    ],
-    water: [[800, 740, 380, 120]],
-    hazards: [
-      { rect: [380, 840, 160, 60], from: "ESCAPE", kind: "lava" },
-      { rect: [1410, 840, 90, 60], from: "ESCAPE", kind: "lava" },
-      // Later, lava creeps onto the shore (jump it, straight into the lake), then the lake floor
-      // under the wall turns to magma: swim through, don't sink through.
-      { rect: [730, 700, 50, 20], from: "ESCALATION", kind: "lava" },
-      { rect: [970, 852, 40, 8], from: "FINAL", kind: "lava" },
-    ],
-  },
+  BLOCK_WORLD,
   {
     // Dark woods, six pieces of Thad's Deck, and someone tall who keeps showing up.
     id: "slim",

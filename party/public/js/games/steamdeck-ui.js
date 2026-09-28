@@ -29,13 +29,15 @@ const PLAY_MS = { ESCAPE: 35_000, ESCALATION: 25_000, FINAL: 15_000 };
 
 /**
  * The Deck's battery is the round's clock: full until play starts, draining to empty as the escape
- * window closes. `timer` is the room timer ({ remainingMs, totalMs }).
+ * window closes. `timer` is the room timer ({ remainingMs, totalMs }); `playMs` the level's own
+ * [escape, escalation, final] lengths when it has them (g.level.playMs).
  */
-export function battery(phase, timer) {
+export function battery(phase, timer, playMs = null) {
   if (!PLAYING.includes(phase)) return phase === "RESULTS" ? 0.03 : 1;
-  const total = PLAY_MS.ESCAPE + PLAY_MS.ESCALATION + PLAY_MS.FINAL;
-  const before = PLAYING.slice(0, PLAYING.indexOf(phase)).reduce((n, p) => n + PLAY_MS[p], 0);
-  const done = before + Math.max(0, (timer?.totalMs ?? PLAY_MS[phase]) - (timer?.remainingMs ?? 0));
+  const ms = playMs ? { ESCAPE: playMs[0], ESCALATION: playMs[1], FINAL: playMs[2] } : PLAY_MS;
+  const total = ms.ESCAPE + ms.ESCALATION + ms.FINAL;
+  const before = PLAYING.slice(0, PLAYING.indexOf(phase)).reduce((n, p) => n + ms[p], 0);
+  const done = before + Math.max(0, (timer?.totalMs ?? ms[phase]) - (timer?.remainingMs ?? 0));
   return Math.max(0.03, 1 - done / total);
 }
 
@@ -212,12 +214,13 @@ export function launchSteps(g, { size = 64 } = {}) {
 export function assignmentBand(g) {
   const role = g.you?.role;
   const tag = role === "thad" ? "YOU'RE THAD" : role === "runner" ? "YOU'RE INSIDE" : `ROUND ${g.round}`;
+  const goal = g.level.exitUse ? `find the ${g.level.items?.length ?? 3} fragments, then the rift` : "reach the EXIT";
   const line =
     role === "thad"
       ? "You hold the Deck. Lean it: ← → , hold L / R, or the slider."
       : role === "runner"
-        ? `${g.thad.name} holds the Deck. Reach the EXIT.`
-        : `${g.thad.name} holds the Deck. Everyone else: reach the EXIT.`;
+        ? `${g.thad.name} holds the Deck. ${goal[0].toUpperCase()}${goal.slice(1)}.`
+        : `${g.thad.name} holds the Deck. Everyone else: ${goal}.`;
   return el("div", { class: "sd-band" }, el("span", { class: "sd-band-tag", text: tag }), el("span", { text: line }));
 }
 
@@ -242,7 +245,7 @@ export function levelCard(g, { howto = [] } = {}) {
 
 /** What a phase change says in the device's notification bar. */
 export function phaseNotice(g) {
-  if (g.phase === "ESCAPE") return { text: "GO! Reach the EXIT", kind: "ok", icon: "▶" };
+  if (g.phase === "ESCAPE") return { text: g.level?.exitUse ? `GO! Find the ${g.level.items?.length ?? 3} fragments` : "GO! Reach the EXIT", kind: "ok", icon: "▶" };
   if (g.phase === "ESCALATION") return { text: `THAD IS ANGRY · ${g.world.maxTilt}° · more spikes`, kind: "warn", icon: "⚠" };
   if (g.phase === "FINAL") return { text: `FINAL WINDOW · ${g.world.maxTilt}° · get out`, kind: "danger", icon: "⚠" };
   if (g.phase === "RESULTS") return { text: "Round over · report filed", kind: "info", icon: "■" };
@@ -306,7 +309,13 @@ export function roundReport(g, { compact = false } = {}) {
   return el(
     "div",
     { class: `sd-report ${compact ? "compact" : ""}`.trim() },
-    el("div", { class: "sd-report-head" }, el("span", { class: "cpi-card-eyebrow", text: `SESSION REPORT · ROUND ${g.round} OF ${g.totalRounds}` }), el("span", { class: `sd-stamp ${v.kind}`, text: v.stamp })),
+    el(
+      "div",
+      { class: "sd-report-head" },
+      el("span", { class: "cpi-card-eyebrow", text: `SESSION REPORT · ROUND ${g.round} OF ${g.totalRounds}` }),
+      g.results?.completedBy ? el("span", { class: "sd-stamp ok", text: "LEVEL COMPLETE" }) : g.level?.exitUse ? el("span", { class: "sd-stamp danger", text: "LEVEL FAILED" }) : null,
+      el("span", { class: `sd-stamp ${v.kind}`, text: v.stamp }),
+    ),
     el("p", { class: "sd-report-line", text: v.line }),
     el(
       "div",

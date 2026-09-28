@@ -14,7 +14,7 @@ import { BOX, createCharacter, drawCharacter } from "../cpi/character.js";
 import { characterOf } from "./steamdeck-ui.js";
 import { createParticles } from "../cpi/particles.js";
 import { fitCanvas } from "../drawing-canvas.js";
-import { MARGIN, paintBackdrop, paintExit, paintHazard, paintItem, paintLive, paintPlank, paintSolids, paintStalker, paintVoid, paintWater, themeFor } from "./steamdeck-scenery.js";
+import { MARGIN, paintBackdrop, paintCheckpoint, paintExit, paintHazard, paintItem, paintLive, paintPlank, paintSolids, paintStalker, paintVoid, paintWater, paintZone, themeFor } from "./steamdeck-scenery.js";
 
 const reducedMotion = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
@@ -25,6 +25,12 @@ const MAX_ZOOM = 2.5;
  * reads as further away, and it's the bigger layer). About 17 MB at most, on a hi-DPI screen. */
 const MAX_CACHE_SCALE = 1.3;
 const MAX_BACKDROP_SCALE = 1;
+/** A big level's caches stay under these many pixels (phones run out of canvas memory). */
+const MAX_SOLIDS_PX = 6e6;
+const MAX_BACKDROP_PX = 2.5e6;
+/** What one screen shows of a level bigger than a screen: a standard level's worth. */
+const VIEW_W = 1600;
+const VIEW_H = 900;
 const SPLATS = ["SPLAT", "BONK", "OOF", "YIKES", "NOPE"];
 
 /** Achievements the Deck pops for silly things (the screens show them, per runner, once a round). */
@@ -35,6 +41,7 @@ export const ACHIEVEMENTS = {
   portal: "Going Deeper",
   taken: "He Was Right Behind You",
   part: "Deck Tech Support",
+  fragment: "Holding Something Cursed",
 };
 
 const inRect = (x, y, [rx, ry, rw, rh]) => x >= rx && x < rx + rw && y >= ry && y < ry + rh;
@@ -53,7 +60,13 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
   let curr = null;
   let raf = 0;
   let levelId = null;
-  let mode = "follow"; // or "map": the whole level (drawing a plank)
+  let mode = "follow"; // "map": the whole level; "draw": where you draw a plank (the whole level, or a big one's window around you)
+  let drawOrigin = [0, 0]; // the drawing window's top-left, in a big level
+  let lastExit = null; // "locked" | "active" | "collapse", last snapshot
+  let collapseAt = 0;
+  const checkpointOf = new Map(); // runner id -> their checkpoint, last snapshot
+  const told = new Set(); // messages already shown (once per level)
+  const secretsFound = new Set(); // "runnerId:key"
   const reduced = reducedMotion();
   const fx = createParticles({ max: rotate ? 180 : 130 });
   const anims = new Map(); // runner id -> animator
@@ -98,6 +111,10 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
 
   const resetLevel = () => {
     anims.clear();
+    told.clear();
+    secretsFound.clear();
+    checkpointOf.clear();
+    lastExit = null;
     planks = new Map();
     hazardState = [];
     primed = false;
@@ -155,7 +172,8 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
           fx.emit("ring", x + rw / 2, y + rh / 2, { color: "rgba(120, 255, 160, 0.9)", grow: 160 });
           fx.emit("text", x + rw / 2, y - 10, { text: "ESCAPED!", size: 28, color: "#9dffb8" });
           if (mine) flash = { until: now() + 0.6, color: "80, 255, 140" };
-          if (themeFor(next.level.id).exit === "portal") emit("achievement", { id, mine, key: "portal", title: ACHIEVEMENTS.portal });
+          const style = themeFor(next.level.id).exit;
+          if (style === "portal" || style === "rift") emit("achievement", { id, mine, key: "portal", title: ACHIEVEMENTS.portal });
         }
         emit(event, { id, mine, strength: event === "land" ? anim.landing : 0 });
       }
@@ -215,16 +233,61 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
         // Whoever was touching it found it.
         const finder = next.world.runners.find((r) => hits(r[1], r[2], rw, rh, [ix - 24, iy - 24, 48, 48]));
         emit("part", { name, found: nowTaken.filter(Boolean).length, need: nowTaken.length, id: finder?.[0], mine: !!finder && finder[0] === you });
-        if (finder) emit("achievement", { id: finder[0], mine: finder[0] === you, key: "part", title: ACHIEVEMENTS.part });
+        const key = name.includes("FRAGMENT") ? "fragment" : "part";
+        if (finder) emit("achievement", { id: finder[0], mine: finder[0] === you, key, title: ACHIEVEMENTS[key] });
       });
     }
     taken = nowTaken.slice();
     const open = next.world.exitOpen !== false;
     if (primed && open && !wasOpen) {
       fx.burst("confetti", next.level.exit[0] + 35, next.level.exit[1] + 30, count(30));
-      emit("unlocked");
+      emit("unlocked", { use: !!next.level.exitUse });
     }
     wasOpen = open;
+    // An exit you have to use: someone used it, and the world starts coming apart.
+    const exitState = next.world.exit ?? null;
+    if (primed && exitState === "collapse" && lastExit !== "collapse") {
+      collapseAt = t;
+      shakeIt(rotate ? 16 : 12, 1.2);
+      flash = { until: now() + 0.9, color: "255, 60, 220" };
+      const [ex, ey, ew, eh] = next.level.exit;
+      fx.burst("confetti", ex + ew / 2, ey + eh / 2, count(40));
+      fx.emit("ring", ex + ew / 2, ey + eh / 2, { color: "rgba(255, 120, 240, 0.9)", grow: 400 });
+      emit("collapse", { id: next.world.completedBy, mine: next.world.completedBy === you });
+    }
+    if (exitState === "collapse" && !collapseAt) collapseAt = t;
+    lastExit = exitState;
+    // Checkpoints: touching one is where you'll wake up.
+    for (const r of next.roster) {
+      const had = checkpointOf.get(r.id);
+      const at = r.checkpoint ?? -1;
+      if (primed && had !== undefined && at !== had && at >= 0) {
+        const [name, cx, cy] = next.level.checkpoints[at];
+        fx.emit("ring", cx, cy - 20, { color: "rgba(255, 230, 140, 0.9)", grow: 120 });
+        emit("checkpoint", { id: r.id, mine: r.id === you, name });
+      }
+      checkpointOf.set(r.id, at);
+    }
+    // The level's own messages and secrets, by where runners are (you, on your phone; anyone on
+    // a shared screen): each message once, each secret once per runner.
+    const theme = themeFor(next.level.id);
+    if ((theme.messages || theme.secrets) && ["ESCAPE", "ESCALATION", "FINAL"].includes(next.phase)) {
+      for (const [id, x, y, , state] of next.world.runners) {
+        if (state !== 0 || (you && id !== you)) continue;
+        const cx = x + rw / 2;
+        const cy = y + rh / 2;
+        (theme.messages ?? []).forEach(([rect, text, kind], i) => {
+          if (told.has(i) || !inRect(cx, cy, rect)) return;
+          told.add(i);
+          emit("zone", { text, kind });
+        });
+        for (const [rect, key, title] of theme.secrets ?? []) {
+          if (secretsFound.has(`${id}:${key}`) || !inRect(cx, cy, rect)) continue;
+          secretsFound.add(`${id}:${key}`);
+          if (primed) emit("achievement", { id, mine: id === you, key: `secret-${key}`, title });
+        }
+      }
+    }
     prevStalker = next.world.stalker ?? prevStalker;
 
     // Thad's shake: a rumble, then the jolt.
@@ -282,12 +345,13 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
 
   const ensureCache = (pxPerUnit) => {
     const L = game.level;
-    const want = Math.min(MAX_CACHE_SCALE, Math.max(0.25, Math.ceil(pxPerUnit * 10) / 10));
+    const area = (L.width + MARGIN * 2) * (L.height + MARGIN * 2);
+    const want = Math.min(MAX_CACHE_SCALE, Math.sqrt(MAX_SOLIDS_PX / area), Math.max(0.25, Math.ceil(pxPerUnit * 10) / 10));
     // Rebuild only for a real change in size, not every step of a zoom.
     if (cache && cache.level === L.id && want <= cache.scale * 1.15 && want >= cache.scale * 0.6) return cache;
     const theme = themeFor(L.id);
     const s = want;
-    const b = Math.min(MAX_BACKDROP_SCALE, s);
+    const b = Math.min(MAX_BACKDROP_SCALE, s, Math.sqrt(MAX_BACKDROP_PX / area));
     const backdrop = layer((L.width + MARGIN * 2) * b, (L.height + MARGIN * 2) * b);
     const bctx = backdrop.getContext("2d");
     bctx.setTransform(b, 0, 0, b, MARGIN * b, MARGIN * b);
@@ -303,15 +367,58 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
 
   // ---------------------------------------------------------------- camera
 
+  const bigLevel = (L) => L.width > VIEW_W * 1.05 || L.height > VIEW_H * 1.05;
+
   const view = (width, height, dt) => {
     const L = game.level;
-    const base = Math.min(width / L.width, height / L.height);
+    const big = bigLevel(L);
+    const winW = Math.min(L.width, VIEW_W);
+    const winH = Math.min(L.height, VIEW_H);
+    // A big level's screen shows a standard level's worth around the action, not the whole world.
+    const base = Math.min(width / winW, height / winH);
     const tilt = tiltNow();
     const angle = rotate ? (tilt * game.world.maxTilt * Math.PI) / 180 : 0;
     let scale = base;
     let cx = L.width / 2;
     let cy = L.height / 2;
-    if (rotate) {
+    const clampTo = (s) => {
+      const halfW = width / (2 * s);
+      const halfH = height / (2 * s);
+      cx = L.width > halfW * 2 ? Math.max(halfW, Math.min(L.width - halfW, cx)) : L.width / 2;
+      cy = L.height > halfH * 2 ? Math.max(halfH, Math.min(L.height - halfH, cy)) : L.height / 2;
+    };
+    const me = big && you ? position(you) : null;
+    if (big && mode === "map") {
+      scale = Math.min(width / L.width, height / L.height);
+    } else if (big && mode === "draw") {
+      cx = drawOrigin[0] + winW / 2;
+      cy = drawOrigin[1] + winH / 2;
+    } else if (big && follow && me && me.state !== 2) {
+      const [rw, rh] = game.world.size;
+      scale = base * Math.max(1, Math.min(MAX_ZOOM, MIN_RUNNER_PX / (base * BOX.w)));
+      cx = me.x + rw / 2 + me.facing * 70;
+      cy = me.y + rh / 2 - 40;
+      clampTo(scale);
+    } else if (big) {
+      // Everyone still inside, in frame: zoomed out as far as half again, then centred on the middle one.
+      const [rw, rh] = game.world.size;
+      let spots = game.world.runners.filter((r) => r[4] === 0).map((r) => position(r[0])).filter(Boolean);
+      if (!spots.length) spots = game.world.runners.filter((r) => r[4] !== 2).map((r) => position(r[0])).filter(Boolean);
+      if (spots.length) {
+        const xs = spots.map((p) => p.x + rw / 2).sort((a, b) => a - b);
+        const ys = spots.map((p) => p.y + rh / 2).sort((a, b) => a - b);
+        const spanW = xs.at(-1) - xs[0] + 500;
+        const spanH = ys.at(-1) - ys[0] + 380;
+        scale = Math.max(base * 0.5, Math.min(base, width / spanW, height / spanH)) * (rotate ? 0.92 : 1);
+        const fits = spanW * scale <= width * 1.02 && spanH * scale <= height * 1.02;
+        cx = fits ? (xs[0] + xs.at(-1)) / 2 : xs[Math.floor(xs.length / 2)];
+        cy = (fits ? (ys[0] + ys.at(-1)) / 2 : ys[Math.floor(ys.length / 2)]) - 30;
+      } else {
+        cx = L.exit[0] + L.exit[2] / 2;
+        cy = L.exit[1] + L.exit[3] / 2;
+      }
+      clampTo(scale);
+    } else if (rotate) {
       // Leaning: zoom out just enough that the level mostly stays on screen.
       const c = Math.abs(Math.cos(angle));
       const s = Math.abs(Math.sin(angle));
@@ -382,17 +489,26 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
     const ox = Math.max(-MARGIN * 0.8, Math.min(MARGIN * 0.8, (v.cx - L.width / 2) * 0.12 + v.tilt * 22));
     const oy = Math.max(-MARGIN * 0.8, Math.min(MARGIN * 0.8, (v.cy - L.height / 2) * 0.12));
     ctx.drawImage(layers.backdrop, -MARGIN + ox, -MARGIN + oy, L.width + MARGIN * 2, L.height + MARGIN * 2);
+    const halfW = width / (2 * v.scale);
+    const halfH = height / (2 * v.scale);
+    const seen = [v.cx - halfW * 1.3, v.cy - halfH * 1.3, halfW * 2.6, halfH * 2.6];
     ctx.save();
     ctx.translate(ox, oy);
-    paintLive(ctx, L, t, theme);
+    paintLive(ctx, L, t, theme, seen);
     ctx.restore();
+    // Pixel-art worlds stay crisp when the cache is scaled up.
+    ctx.imageSmoothingEnabled = !theme.pixel;
     ctx.drawImage(layers.solids, -layers.pad, -layers.pad, L.width + layers.pad * 2, L.height + layers.pad * 2);
+    ctx.imageSmoothingEnabled = true;
+    for (const z of L.zones ?? []) paintZone(ctx, z, t);
+    const myCheckpoint = you ? game.roster.find((r) => r.id === you)?.checkpoint : null;
+    (L.checkpoints ?? []).forEach((c, i) => paintCheckpoint(ctx, c, { active: you ? myCheckpoint === i : game.roster.some((r) => r.checkpoint === i), time: t, style: theme.checkpoint }));
 
     const roster = game.roster;
     const out = roster.filter((r) => r.escapedMs !== null).length;
     const need = (game.world.taken ?? []).length;
     const found = (game.world.taken ?? []).filter(Boolean).length;
-    paintExit(ctx, L.exit, { time: t, urgent: game.phase === "FINAL", out, total: roster.length, style: theme.exit, open: game.world.exitOpen !== false, found, need });
+    paintExit(ctx, L.exit, { time: t, urgent: game.phase === "FINAL", out, total: roster.length, style: theme.exit, open: game.world.exitOpen !== false, found, need, state: game.world.exit });
 
     L.hazards.forEach(([x, y, w, h, live, kind], i) => {
       const armedAt = hazardState[i]?.armedAt ?? -10;
@@ -496,6 +612,50 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
       });
     }
 
+    // Underground (The Block World's cave): dark only where the level says, lit by its torches, the
+    // runners, what's worth finding and the exit.
+    if (theme.darkZones) {
+      dark ??= document.createElement("canvas");
+      if (dark.width !== canvas.width || dark.height !== canvas.height) {
+        dark.width = canvas.width;
+        dark.height = canvas.height;
+      }
+      const d = dark.getContext("2d");
+      d.setTransform(1, 0, 0, 1, 0, 0);
+      d.globalCompositeOperation = "source-over";
+      d.clearRect(0, 0, dark.width, dark.height);
+      d.setTransform(world);
+      const depth = you ? 0.93 : 0.82;
+      for (const [zx, zy, zw, zh] of theme.darkZones) {
+        const g = d.createLinearGradient(0, zy, 0, zy + 90);
+        g.addColorStop(0, "rgba(3, 3, 6, 0)");
+        g.addColorStop(1, `rgba(3, 3, 6, ${depth})`);
+        d.fillStyle = g;
+        d.fillRect(zx, zy, zw, 90);
+        d.fillStyle = `rgba(3, 3, 6, ${depth})`;
+        d.fillRect(zx, zy + 90, zw, zh - 90);
+      }
+      d.setTransform(1, 0, 0, 1, 0, 0);
+      d.globalCompositeOperation = "destination-out";
+      const light = (wx, wy, r) => {
+        const p = world.transformPoint(new DOMPoint(wx, wy));
+        const pr = r * v.scale * dpr;
+        const g = d.createRadialGradient(p.x, p.y, pr * 0.2, p.x, p.y, pr);
+        g.addColorStop(0, "rgba(0,0,0,1)");
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        d.fillStyle = g;
+        d.fillRect(p.x - pr, p.y - pr, pr * 2, pr * 2);
+      };
+      for (const [lx, ly, lr] of theme.lights ?? []) if (Math.abs(lx - v.cx) < halfW * 1.5 + lr && Math.abs(ly - v.cy) < halfH * 1.5 + lr) light(lx, ly, lr);
+      for (const h of heads) light(h.x, h.y + 20, h.id === you ? 230 : 150);
+      (L.items ?? []).forEach(([, ix, iy], i) => !game.world.taken?.[i] && light(ix, iy, 110));
+      d.globalCompositeOperation = "source-over";
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(dark, 0, 0);
+      ctx.restore();
+    }
+
     // ---- screen space: crisp at any zoom or lean
     const toScreen = (x, y) => {
       const p = world.transformPoint(new DOMPoint(x, y));
@@ -532,7 +692,29 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
       }
     }
 
-    if (!rotate && mode === "follow" && follow) exitPointer(ctx, toScreen, L.exit, width, height, labelSize);
+    if (!rotate && mode === "follow" && follow) {
+      // Point at what's next: the nearest thing still to find, then the exit.
+      const me = you && game.world.runners.find((r) => r[0] === you);
+      const left = (L.items ?? []).map(([, ix, iy], i) => [ix, iy, i]).filter(([, , i]) => !game.world.taken?.[i]);
+      let target = null;
+      if (left.length && me) {
+        const [ix, iy] = left.sort((a, b) => Math.hypot(a[0] - me[1], a[1] - me[2]) - Math.hypot(b[0] - me[1], b[1] - me[2]))[0];
+        target = { rect: [ix - 10, iy - 10, 20, 20], label: L.itemLabel === "CORRUPTED FRAGMENTS" ? "FRAGMENT" : "PART" };
+      } else target = { rect: L.exit, label: L.exitUse ? "RIFT" : "EXIT" };
+      exitPointer(ctx, toScreen, target.rect, width, height, labelSize, target.label);
+    }
+    // Standing in an exit you have to use: say how.
+    if (you && game.world.exit === "active" && L.exitUse) {
+      const me = game.world.runners.find((r) => r[0] === you);
+      const head = heads.find((h) => h.id === you);
+      if (me && head && hits(me[1], me[2], rw, rh, L.exit)) {
+        const p = toScreen(head.x, head.y);
+        const bob = Math.sin(t * 6) * 3;
+        ctx.save();
+        pill(ctx, "▼ PRESS DOWN: ENTER THE RIFT", p.x, p.y - labelSize * 2.2 + bob, labelSize * 1.1, "#1a0a24", "#ff9af0");
+        ctx.restore();
+      }
+    }
     if (!rotate && Math.abs(v.tilt) > 0.04) level(ctx, v.tilt, game.world.maxTilt, width, labelSize);
 
     // Static when the stalker is close: your own closeness on a phone, the nearest runner's elsewhere.
@@ -567,20 +749,50 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
       }
     }
 
-    // How many parts are still out there.
+    // How many parts are still out there (or, for an exit to use: what to do now).
     if (L.items?.length) {
       const got = (game.world.taken ?? []).filter(Boolean).length;
+      const all = got === L.items.length;
+      const state = game.world.exit;
       ctx.save();
       ctx.font = `700 ${labelSize}px "Roboto Mono", monospace`;
-      const label = got === L.items.length ? "DECK REASSEMBLED · GO TO THE DOCK" : `DECK PARTS ${got}/${L.items.length}`;
+      const label = L.exitUse
+        ? state === "collapse"
+          ? "THE WORLD IS COLLAPSING · INTO THE RIFT!"
+          : all
+            ? "EXIT ACTIVATED · GO TO THE RIFT · ▼ TO ENTER"
+            : `${L.itemLabel ?? "DECK PARTS"} ${got} / ${L.items.length}`
+        : all
+          ? "DECK REASSEMBLED · GO TO THE DOCK"
+          : `${L.itemLabel ?? "DECK PARTS"} ${got}/${L.items.length}`;
       const w = ctx.measureText(label).width + 16;
-      ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+      ctx.fillStyle = state === "collapse" ? "rgba(90, 0, 70, 0.8)" : "rgba(0, 0, 0, 0.65)";
       roundedRect(ctx, 8, height - labelSize * 2.2 - 6, w, labelSize * 2, labelSize);
       ctx.fill();
-      ctx.fillStyle = got === L.items.length ? "#9dffb8" : "#ffe08a";
+      ctx.fillStyle = state === "collapse" ? "#ffb0f4" : all ? "#9dffb8" : "#ffe08a";
       ctx.textBaseline = "middle";
       ctx.fillText(label, 16, height - labelSize * 1.2 - 6);
       ctx.restore();
+    }
+
+    // The collapse: the world tearing, a magenta edge, blocks falling out of the sky.
+    if (game.world.exit === "collapse") {
+      const k = Math.min(1, (t - collapseAt) / 1.5);
+      const pulse = 0.5 + 0.5 * Math.sin(t * 5);
+      const g = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.25, width / 2, height / 2, Math.max(width, height) * 0.75);
+      g.addColorStop(0, "rgba(255, 40, 200, 0)");
+      g.addColorStop(1, `rgba(255, 40, 200, ${(0.25 + 0.2 * pulse) * k})`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, width, height);
+      if (!reduced) {
+        const beat = Math.floor(t * 12);
+        for (let i = 0; i < 5; i++) {
+          const gy = ((Math.sin(beat * 12.9 + i * 78.2) * 43758.5) % 1 + 1) % 1;
+          ctx.fillStyle = i % 2 ? "rgba(0, 240, 255, 0.18)" : "rgba(255, 0, 200, 0.2)";
+          ctx.fillRect(0, gy * height, width, 3 + (i % 3) * 4);
+        }
+        if (fx.count < fx.max * 0.7 && Math.random() < 0.5) fx.burst("debris", v.cx + (Math.random() - 0.5) * halfW * 2, v.cy - halfH, 1, { angle: Math.PI / 2, spread: 0.4, speed: 200, color: Math.random() < 0.5 ? "#5fb03e" : "#f000c8" });
+      }
     }
 
     if (flash.until > t) {
@@ -602,12 +814,27 @@ export function createWorldView(canvas, { rotate = false, you = null, labels = f
 
   return {
     update,
-    /** "follow" (the camera follows you on small screens) or "map" (the whole level). */
+    /**
+     * "follow" (the camera follows you on small screens), "map" (the whole level) or "draw" (where a
+     * plank drawing goes: the whole level, or in a big level the standard-size window around you).
+     */
     setMode(next) {
-      mode = next === "map" ? "map" : "follow";
+      mode = next === "map" || next === "draw" ? next : "follow";
+      const L = game?.level;
+      const me = you && position(you);
+      if (mode === "draw" && L && me && bigLevel(L)) {
+        const winW = Math.min(L.width, VIEW_W);
+        const winH = Math.min(L.height, VIEW_H);
+        drawOrigin = [Math.round(Math.max(0, Math.min(L.width - winW, me.x + 14 - winW / 2))), Math.round(Math.max(0, Math.min(L.height - winH, me.y + 18 - winH * 0.6)))];
+      } else drawOrigin = [0, 0];
     },
     get mode() {
       return mode;
+    },
+    /** Where the drawing window starts ([0, 0] for a level that fits the screen), and its size. */
+    get drawWindow() {
+      const L = game?.level;
+      return { origin: [...drawOrigin], width: L ? Math.min(L.width, VIEW_W) : VIEW_W, height: L ? Math.min(L.height, VIEW_H) : VIEW_H };
     },
     /** Tells the animator you're drawing (a pencil pose) or not. */
     setDrawing(on) {
@@ -667,8 +894,8 @@ function marker(ctx, x, y, size) {
   ctx.restore();
 }
 
-/** An arrow at the edge of the screen pointing at the exit when it's out of view. */
-function exitPointer(ctx, toScreen, [x, y, w, h], width, height, size) {
+/** An arrow at the edge of the screen pointing at the exit (or `label`) when it's out of view. */
+function exitPointer(ctx, toScreen, [x, y, w, h], width, height, size, label = "EXIT") {
   const p = toScreen(x + w / 2, y + h / 2);
   const inset = 22;
   if (p.x > -10 && p.x < width + 10 && p.y > -10 && p.y < height + 10) return;
@@ -697,7 +924,7 @@ function exitPointer(ctx, toScreen, [x, y, w, h], width, height, size) {
   ctx.font = `700 ${size * 0.75}px "Oswald", Arial, sans-serif`;
   ctx.fillStyle = "#7dff9a";
   ctx.textAlign = "center";
-  ctx.fillText("EXIT", cx, cy + (cy > height / 2 ? -22 : 30));
+  ctx.fillText(label, cx, cy + (cy > height / 2 ? -22 : 30));
   ctx.restore();
 }
 

@@ -8,7 +8,11 @@
 //   paintLive      the few moving scenery bits (screens, lamps, gauges) (every frame, cheap)
 //   paintHazard / paintExit / paintPlank                                (every frame)
 //
-// World units: 1600 × 900, y down (the same as the server).
+// World units: 1600 × 900, y down (the same as the server), unless a level is bigger. A theme can
+// bring its own painters (paintBackdrop, paintSolids, paintLive): The Block World does
+// (steamdeck-blockworld.js).
+
+import { BLOCKWORLD_THEME, paintBed, paintFragment, paintRift } from "./steamdeck-blockworld.js";
 
 export const MARGIN = 90;
 
@@ -21,6 +25,8 @@ const EDGE = "#ffd400"; // every walkable top edge, in every level: "you can sta
 /** Per-level palette and props. Props are data: [type, ...args]; painters are below. */
 export const THEMES = {
   // Each level is a game running on Thad's Deck: original pastiches, not anyone's actual art.
+  blockworld: BLOCKWORLD_THEME,
+  // A plain block game: what a level with no theme of its own gets.
   blockcraft: {
     name: "Blockcraft",
     skin: "grass",
@@ -45,11 +51,7 @@ export const THEMES = {
       ["blockTree", 520, 520],
       ["cartridge", 40, 40, "NOW PLAYING: BLOCKCRAFT"],
     ],
-    decals: [
-      ["sign", 1506, 600, 88, 32, "THAD'S", "plain"],
-      ["sign", 20, 790, 260, 40, "SPAWN · DON'T DIG DOWN", "plain"],
-      ["sign", 560, 790, 220, 40, "SWIM UNDER →", "warn"],
-    ],
+    decals: [],
     live: [["drift", 0, 40]],
   },
   firekid: {
@@ -447,6 +449,7 @@ function cables(ctx, level, theme) {
  * side (for parallax and the rotated view).
  */
 export function paintBackdrop(ctx, level, theme = themeFor(level.id)) {
+  if (theme.paintBackdrop) return theme.paintBackdrop(ctx, level, theme);
   ctx.fillStyle = vgrad(ctx, -MARGIN, H + MARGIN, theme.wall[0], theme.wall[1]);
   ctx.fillRect(-MARGIN, -MARGIN, W + MARGIN * 2, H + MARGIN * 2);
   // A faint panel grid: the inside of a machine.
@@ -636,6 +639,7 @@ function paintSlab(ctx, [x, y, w, h], theme) {
 
 /** The static platform layer, dressed from the collision rects (and only those). */
 export function paintSolids(ctx, level, theme = themeFor(level.id)) {
+  if (theme.paintSolids) return theme.paintSolids(ctx, level, theme);
   level.platforms.forEach((r, i) => (isBlock(r) ? paintBlock(ctx, r, theme, i) : paintSlab(ctx, r, theme)));
   // Signs bolted to the housings.
   for (const [type, ...args] of theme.decals ?? []) PROPS[type]?.(ctx, 0, args, theme);
@@ -725,8 +729,12 @@ const LIVE = {
 
 };
 
-/** The few scenery bits that move. Cheap: a handful of shapes a frame. */
-export function paintLive(ctx, level, time, theme = themeFor(level.id)) {
+/**
+ * The few scenery bits that move. Cheap: a handful of shapes a frame. `view` ([x, y, w, h], world
+ * units) is what's on screen, so a big level only paints what you can see.
+ */
+export function paintLive(ctx, level, time, theme = themeFor(level.id), view = null) {
+  if (theme.paintLive) return theme.paintLive(ctx, level, time, theme, view);
   for (const [type, ...args] of theme.live) LIVE[type]?.(ctx, time, args, theme);
 }
 
@@ -760,6 +768,7 @@ export function paintHazard(ctx, rect, { live, armed = 1, time = 0, theme, kind 
   }
   if (kind === "lava") return paintLava(ctx, rect, time, armed);
   if (kind === "thorns") return paintThorns(ctx, rect, armed);
+  if (kind === "glitch") return paintGlitch(ctx, rect, time, armed);
   const [hot, deep] = theme?.pit ?? ["#ff3b3b", "#2a0508"];
   if (pit) {
     // A shredder at the bottom of the gap, glowing.
@@ -821,6 +830,30 @@ function paintLava(ctx, [x, y, w, h], time, armed) {
   }
   ctx.fillStyle = "rgba(255, 245, 190, 0.8)";
   ctx.fillRect(x, top, w, 2);
+}
+
+/** Glitch: a block of the world that isn't there any more (magenta and black), buzzing. */
+function paintGlitch(ctx, [x, y, w, h], time, armed) {
+  const k = Math.max(0, Math.min(1, armed));
+  const beat = Math.floor(time * 10);
+  ctx.save();
+  ctx.globalAlpha *= 0.4 + 0.6 * k;
+  const size = 10;
+  for (let by = y; by < y + h; by += size) {
+    for (let bx = x; bx < x + w; bx += size) {
+      const flip = hash(bx * 0.3 + by * 0.7 + beat) > 0.85;
+      const odd = (Math.floor((bx - x) / size) + Math.floor((by - y) / size)) % 2;
+      ctx.fillStyle = (odd ^ flip) ? "#0a0a0a" : "#f000c8";
+      ctx.fillRect(bx, by, Math.min(size, x + w - bx), Math.min(size, y + h - by));
+    }
+  }
+  // Slivers of it tearing off.
+  ctx.fillStyle = "rgba(0, 240, 255, 0.55)";
+  ctx.fillRect(x + (hash(beat) - 0.5) * 10, y + hash(beat + 1) * h, w, 3);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+  ctx.restore();
 }
 
 /** Thorns: a thicket of spiky branches. */
@@ -910,8 +943,9 @@ function paintDock(ctx, [x, y, w, h], { time, open, found, need }) {
   text(ctx, open ? "DOCK READY" : `LOCKED ${found}/${need}`, x + w / 2, y + 74, { size: 13, font: MONO, align: "center", color: open ? "#9dffb8" : "#ff8a7a" });
 }
 
-/** A piece of Thad's Deck, glinting, by its name. */
+/** A piece of Thad's Deck, glinting, by its name (or a Block World fragment). */
 export function paintItem(ctx, name, x, y, time) {
+  if (name.includes("FRAGMENT")) return paintFragment(ctx, x, y, time);
   const bob = Math.sin(time * 2.4 + x) * 3;
   const glow = ctx.createRadialGradient(x, y + bob, 2, x, y + bob, 30);
   glow.addColorStop(0, "rgba(255, 230, 140, 0.45)");
@@ -1029,7 +1063,12 @@ function warningMark(ctx, x, y, r, pulse) {
  * The EXIT: a lit door out of the Deck, or the level's own (`style`: "portal", "dock"). `urgent`
  * pulses it (final window); `out` counts escapes; a dock shows `found` of `need` until it's `open`.
  */
-export function paintExit(ctx, [x, y, w, h], { time = 0, urgent = false, out = 0, total = 0, style = "door", open = true, found = 0, need = 0 } = {}) {
+export function paintExit(ctx, [x, y, w, h], { time = 0, urgent = false, out = 0, total = 0, style = "door", open = true, found = 0, need = 0, state = null } = {}) {
+  if (style === "rift") {
+    paintRift(ctx, [x, y, w, h], { time, state: state ?? (open ? "active" : "locked"), found, need });
+    if (total && state === "collapse") text(ctx, `OUT ${out}/${total}`, x + w / 2, y + h + 26, { size: 15, font: MONO, align: "center", color: "rgba(230, 210, 255, 0.9)" });
+    return;
+  }
   if (style === "portal" || style === "dock") {
     if (style === "portal") paintPortal(ctx, [x, y, w, h], time);
     else paintDock(ctx, [x, y, w, h], { time, open, found, need });
@@ -1148,6 +1187,38 @@ export function paintPlank(ctx, { x1, x2, y }, { color = "#ffd400", age = 1, ttl
     ctx.stroke();
     ctx.setLineDash([]);
   }
+  ctx.restore();
+}
+
+/** A checkpoint (`[name, x, y]`, standing on x, y): the level's own look, or a respawn beacon. */
+export function paintCheckpoint(ctx, [name, x, y], { active = false, time = 0, style = null } = {}) {
+  if (style === "bed") return paintBed(ctx, name, x, y, { active, time });
+  ctx.fillStyle = active ? "#7dff9a" : "#6a7078";
+  ctx.fillRect(x - 3, y - 60, 6, 60);
+  ctx.fillRect(x - 12, y - 6, 24, 6);
+  ctx.beginPath();
+  ctx.arc(x, y - 64, 8, 0, Math.PI * 2);
+  ctx.fill();
+  text(ctx, name, x, y - 84, { size: 12, font: MONO, align: "center", color: active ? "#9dffb8" : "rgba(255,255,255,0.6)" });
+}
+
+/** A low-gravity zone (`[x, y, w, h, gravity]`): a shimmering field, things floating up in it. */
+export function paintZone(ctx, [x, y, w, h], time) {
+  ctx.save();
+  ctx.fillStyle = "rgba(0, 220, 255, 0.07)";
+  ctx.fillRect(x, y, w, h);
+  ctx.setLineDash([12, 10]);
+  ctx.lineDashOffset = -time * 24;
+  ctx.strokeStyle = "rgba(0, 230, 255, 0.45)";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(x, y, w, h);
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(170, 250, 255, 0.55)";
+  for (let i = 0; i < 16; i++) {
+    const k = (time * (0.08 + hash(i) * 0.08) + hash(i + 7)) % 1;
+    ctx.fillRect(x + hash(i + 3) * w, y + h - k * h, 4, 10);
+  }
+  text(ctx, "LOW GRAVITY · PHYSICS NOT FOUND", x + w / 2, y + 18, { size: 16, font: MONO, align: "center", color: "rgba(170, 250, 255, 0.85)" });
   ctx.restore();
 }
 
