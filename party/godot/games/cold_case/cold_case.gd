@@ -9,6 +9,7 @@ var look_pitch := 0.0
 var camera: Camera3D
 var fridge_door: Node3D
 var door_open := false
+var interior: Node3D
 var interaction_hint: Label
 var objective_label: Label
 
@@ -19,17 +20,21 @@ func _ready() -> void:
     Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _unhandled_input(event: InputEvent) -> void:
-    if event is InputEventMouseMotion:
+    if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
         rotate_y(-event.relative.x * mouse_sensitivity)
         look_pitch = clamp(look_pitch - event.relative.y * mouse_sensitivity, -1.35, 1.35)
         camera.rotation.x = look_pitch
     elif event is InputEventKey and event.pressed and event.keycode == KEY_E:
-        if _near_fridge():
+        if mission_phase == "INTERIOR_DISCOVERED" and door_open and _near_fridge():
+            _enter_refrigerator()
+        elif mission_phase == "BRIEFING" and _near_fridge():
             _toggle_fridge()
     elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
         Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _physics_process(delta: float) -> void:
+    if mission_phase == "INSIDE":
+        return
     var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
     var direction := (transform.basis * Vector3(input.x, 0, input.y)).normalized()
     position += direction * player_speed * delta
@@ -41,19 +46,33 @@ func _near_fridge() -> bool:
     return global_position.distance_to(fridge_door.global_position) < 2.6
 
 func _toggle_fridge() -> void:
-    door_open = !door_open
-    var target := deg_to_rad(105.0) if door_open else 0.0
+    door_open = true
     var tween := create_tween()
     tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-    tween.tween_property(fridge_door, "rotation:y", target, 0.45)
-    if door_open:
-        mission_phase = "INTERIOR_DISCOVERED"
-        objective_label.text = "OBJECTIVE  //  Enter the refrigerator"
-        interaction_hint.text = "E  ENTER"
-    else:
-        mission_phase = "BRIEFING"
-        objective_label.text = "OBJECTIVE  //  Inspect the refrigerator"
-        interaction_hint.text = "E  OPEN"
+    tween.tween_property(fridge_door, "rotation:y", deg_to_rad(105.0), 0.45)
+    mission_phase = "INTERIOR_DISCOVERED"
+    objective_label.text = "OBJECTIVE  //  Enter the refrigerator"
+    interaction_hint.text = "E  ENTER"
+
+func _enter_refrigerator() -> void:
+    var packed := load("res://games/cold_case/interior.tscn") as PackedScene
+    if packed == null:
+        push_error("Cold Case interior scene could not be loaded.")
+        return
+    interior = packed.instantiate()
+    add_child(interior)
+    mission_phase = "INSIDE"
+    temperature = 4.0
+    objective_label.text = "OBJECTIVE  //  Find the source of the instability"
+    interaction_hint.visible = false
+    camera.position = Vector3(0, 1.65, -3.0)
+    camera.rotation = Vector3.ZERO
+    position = Vector3(0, 0, 0)
+    $World.visible = false
+    var tween := create_tween()
+    camera.position = Vector3(0, 1.65, -9.0)
+    tween.tween_property(camera, "position", Vector3(0, 1.65, -2.0), 1.8)
+    tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 func _build_hud() -> void:
     var layer := CanvasLayer.new()
