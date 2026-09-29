@@ -165,6 +165,5 @@ copyPlayerLink.addEventListener("click", async () => {
 
 
 startGroupNight.addEventListener("click", async () => {
-  startGroupNight.disabled = true;
   await window.cpiDesktop.navigate("party");
 });
