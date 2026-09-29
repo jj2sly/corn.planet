@@ -1,0 +1,42 @@
+{
+  "name": "cpi-party-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop application shell for Corn Planet Party",
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^38.1.2",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.cornplanet.party",
+    "productName": "CPI Party",
+    "files": [
+      "main.mjs",
+      "preload.mjs",
+      "index.html",
+      "renderer.js",
+      "styles.css",
+      "package.json"
+    ],
+    "directories": {
+      "output": "../dist-desktop"
+    },
+    "mac": {
+      "category": "public.app-category.games",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    }
+  }
+}
