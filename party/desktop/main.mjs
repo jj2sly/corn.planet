@@ -190,6 +190,12 @@ function installMenu() {
       submenu: [
         { label: "Command Center", accelerator: "CmdOrCtrl+Shift+H", click: () => goHome() },
         { label: "Party Host", accelerator: "CmdOrCtrl+Shift+P", click: () => navigate("party") },
+        { label: "Corn or Shit — Solo", accelerator: "CmdOrCtrl+Shift+G", click: () => launchPcGame("cornorshit-solo") },
+        {
+          label: "Copy Phone Join Link",
+          accelerator: "CmdOrCtrl+Shift+J",
+          click: () => clipboard.writeText(`${loadSettings().partyBase}/play`),
+        },
         { type: "separator" },
         {
           label: "Reload Current View",
