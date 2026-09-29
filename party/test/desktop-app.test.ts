@@ -236,3 +236,35 @@ test("transient embedded desktop views are destroyed when detached", async () =>
   assert.match(main, /const shouldDestroy = destroy \|\| !retained/);
   assert.match(main, /detached\.webContents\.close\(\)/);
 });
+
+
+test("desktop guides first-run server setup when localhost is unavailable", async () => {
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../desktop/styles.css", import.meta.url), "utf8");
+  assert.match(renderer, /SETUP REQUIRED/);
+  assert.match(renderer, /scrollIntoView/);
+  assert.match(renderer, /connectionCard/);
+  assert.match(styles, /settings-card\.attention/);
+});
+
+test("desktop warns before closing a live retained Party host", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /dialog\.showMessageBox/);
+  assert.match(main, /Party host is still live/);
+  assert.match(main, /Keep Host Running/);
+  assert.match(main, /Close CPI Party/);
+});
+
+test("changing Party server stops a retained host tied to the old server", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /url !== current\.partyBase && hostIsRetained\(\)/);
+  assert.match(main, /stopRetainedHost\(\)/);
+});
+
+test("desktop launch availability combines server state with live-host state", async () => {
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+  assert.match(renderer, /let serverOnline = false/);
+  assert.match(renderer, /let hostRunning = false/);
+  assert.match(renderer, /refreshAvailabilityControls/);
+  assert.match(renderer, /!serverOnline \|\| hostRunning/);
+});
