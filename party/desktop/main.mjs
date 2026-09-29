@@ -500,8 +500,18 @@ ipcMain.handle("cpi:readiness", async () => {
     games: 0,
     canon: 0,
     protocol: 0,
+    phoneUrl: playerJoinUrl(),
     issues: [],
   };
+
+  try {
+    const phone = new URL(result.phoneUrl);
+    if (phone.hostname === "127.0.0.1" || phone.hostname === "localhost") {
+      result.issues.push("Phone join URL is still local-only; connect this computer to the same network as the players or use Railway.");
+    }
+  } catch {
+    result.issues.push("Phone join URL is invalid.");
+  }
 
   try {
     const [healthResponse, gamesResponse, canonResponse] = await Promise.all([
