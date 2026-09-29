@@ -30,6 +30,25 @@ func _request_absolute(method: int, url: String, callback_path: String, payload:
         http.queue_free()
     )
 
+func _request_form_absolute(url: String, callback_path: String, body: String) -> void:
+    var http: HTTPRequest = HTTPRequest.new()
+    add_child(http)
+    var headers: PackedStringArray = PackedStringArray(["Content-Type: application/x-www-form-urlencoded"])
+    var err: int = http.request(url, headers, HTTPClient.METHOD_POST, body)
+    if err != OK:
+        request_completed.emit(callback_path, false, {"error": "HTTP request setup failed", "code": err})
+        http.queue_free()
+        return
+    http.request_completed.connect(func(result: int, code: int, _headers: PackedStringArray, bytes: PackedByteArray):
+        var data: Variant = {}
+        var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+        if parsed != null:
+            data = parsed
+        var ok: bool = result == HTTPRequest.RESULT_SUCCESS and code >= 200 and code < 300
+        request_completed.emit(callback_path, ok, data)
+        http.queue_free()
+    )
+
 func _request(method: int, path: String, payload: Variant = null) -> void:
     var http: HTTPRequest = HTTPRequest.new()
     add_child(http)
@@ -64,6 +83,11 @@ func sign_in_email(email: String, password: String, api_key: String) -> void:
         "password": password,
         "returnSecureToken": true
     })
+
+func refresh_firebase_token(refresh_token: String, api_key: String) -> void:
+    var url := "https://securetoken.googleapis.com/v1/token?key=" + api_key.uri_encode()
+    var body := "grant_type=refresh_token&refresh_token=" + refresh_token.uri_encode()
+    _request_form_absolute(url, "auth:refresh", body)
 
 func set_auth_token(token: String) -> void:
     auth_token = token.strip_edges()
