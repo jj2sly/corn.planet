@@ -4,6 +4,19 @@ const version = document.querySelector("#version");
 const input = document.querySelector("#partyServerInput");
 const save = document.querySelector("#savePartyServer");
 const message = document.querySelector("#serverMessage");
+const SERVER_TARGETS = new Set(["party", "account", "prompts", "hall"]);
+
+function setServerDependentControls(online) {
+  for (const button of document.querySelectorAll("[data-game], [data-pc-game]")) {
+    button.disabled = !online;
+    button.title = online ? "" : "Party server is offline";
+  }
+  for (const button of document.querySelectorAll("[data-target]")) {
+    if (!SERVER_TARGETS.has(button.dataset.target)) continue;
+    button.disabled = !online;
+    button.title = online ? "" : "Party server is offline";
+  }
+}
 
 const navButtons = [...document.querySelectorAll(".rail button")];
 
@@ -60,12 +73,14 @@ async function checkServer() {
     status.classList.add("ok");
     message.textContent = "Party server reachable.";
     message.className = "server-message ok";
+    setServerDependentControls(true);
     return true;
   }
   status.textContent = "SERVER OFFLINE";
   status.classList.add("bad");
   message.textContent = "Could not reach that Party server.";
   message.className = "server-message bad";
+  setServerDependentControls(false);
   return false;
 }
 
