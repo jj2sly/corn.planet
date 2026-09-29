@@ -1,0 +1,36 @@
+CPI PARTY DESKTOP — START HERE
+
+GROUP NIGHT
+1. Open CPI Party.
+2. If the app says SETUP REQUIRED, paste the Railway Party server URL into Party Server and choose SAVE & CHECK.
+3. Wait for GROUP NIGHT READINESS to show:
+   - SERVER: ONLINE
+   - GAMES: 6 / 6
+   - CANON: at least 2 records
+   - PROTOCOL: a number
+4. Use START GROUP NIGHT for the full-screen host display.
+5. Players scan the phone QR or use the copied phone link, then enter the four-letter room code shown by the host.
+6. Choose the game from the Party host screen.
+
+IMPORTANT
+- Do not close CPI Party while a host display is live. The app warns before closing because doing so can pause an active game.
+- If you open another CPI section while hosting, the host display stays connected in the background.
+- Use RETURN TO HOST in the Command Center to get back to it.
+- STOP HOST DISPLAY intentionally disconnects the host display.
+
+LOCAL SERVER
+If the Party server is running locally, the desktop app automatically tries to turn localhost into this computer's LAN IP for the phone QR. Phones still need to be able to reach the computer over the same network.
+
+PC GAME
+PC Games -> Corn or Shit — Solo
+This mode uses keyboard/mouse and live CPI canon. It does not require phones or a room.
+
+CURRENT MULTIPLAYER CATALOG
+- Cornlashing
+- Corn or Shit
+- Entity Auction
+- My Cob Escaped, What Do I Do Now???
+- Escape Thad's Steam Deck
+- Angry Thud's Revenge
+
+Cold Case is not part of the current Group Night build.
