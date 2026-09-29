@@ -9,6 +9,7 @@ var active: bool = false
 var defeated_state: bool = false
 var temperature: float = 4.0
 var drift: float = 0.0
+var extreme_time: float = 0.0
 
 func set_temperature(value: float) -> void:
     temperature = value
@@ -22,6 +23,12 @@ func _process(delta: float) -> void:
         return
     if active:
         drift += delta
+        if absf(temperature - preferred_temperature) >= 12.0:
+            extreme_time += delta
+        else:
+            extreme_time = maxf(0.0, extreme_time - delta * 0.5)
+        if extreme_time >= 4.0:
+            defeat()
         position.y += sin(drift * 4.0) * delta * 0.08
         rotation.y += delta * 0.7
 
