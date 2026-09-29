@@ -127,3 +127,28 @@ describe("minigame framework", () => {
     assert.equal(records[0]!.players.find((p) => p.uid === "uid-a")!.stats.callsMade, 2);
   });
 });
+
+
+describe("engine contract", () => {
+  it("keeps the game lifecycle contract independent from an installed game implementation", () => {
+    const definition: import("../server/engine/game.ts").GameDefinition = {
+      id: "contract-test",
+      name: "Contract Test",
+      tagline: "runtime boundary",
+      description: "",
+      minPlayers: 1,
+      maxPlayers: 8,
+      defaultSettings: {},
+      parseSettings: () => ({}),
+      create: () => ({
+        start() {},
+        handleInput() {},
+        hostAction() {},
+        viewFor() { return null; },
+        playerLeft() {},
+        dispose() {},
+      }),
+    };
+    assert.equal(definition.id, "contract-test");
+  });
+});
