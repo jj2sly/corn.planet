@@ -302,3 +302,18 @@ test("solo Corn or Shit uses same-kind donors and real accuracy", async () => {
   assert.match(game, /correctAnswers/);
   assert.match(game, /accuracy/);
 });
+
+
+test("Escape exits presentation mode without killing the retained host", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /before-input-event/);
+  assert.match(main, /input\.key !== "Escape"/);
+  assert.match(main, /setPresentationMode\(false\)/);
+  assert.doesNotMatch(main, /Escape[\s\S]{0,300}stopRetainedHost/);
+});
+
+test("desktop package includes the Group Night quick-start guide", async () => {
+  const desktop = JSON.parse(await readFile(new URL("../desktop/package.json", import.meta.url), "utf8"));
+  await access(new URL("../desktop/START_HERE.txt", import.meta.url));
+  assert.ok(desktop.build.files.includes("START_HERE.txt"));
+});
