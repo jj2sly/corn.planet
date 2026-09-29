@@ -5,12 +5,23 @@ const input = document.querySelector("#partyServerInput");
 const save = document.querySelector("#savePartyServer");
 const message = document.querySelector("#serverMessage");
 
+const navButtons = [...document.querySelectorAll(".rail [data-target]")];
+
+function paintActiveTarget(target) {
+  for (const button of navButtons) {
+    button.classList.toggle("active", button.dataset.target === target);
+  }
+}
+
 for (const button of document.querySelectorAll("[data-target]")) {
   button.addEventListener("click", () => {
     const target = button.dataset.target;
-    if (target && target !== "home") window.cpiDesktop.navigate(target);
+    if (!target) return;
+    window.cpiDesktop.navigate(target);
   });
 }
+
+window.cpiDesktop.onActiveTarget((target) => paintActiveTarget(target));
 
 for (const button of document.querySelectorAll("[data-game]")) {
   button.addEventListener("click", async () => {
@@ -45,6 +56,7 @@ async function checkServer() {
 }
 
 let config = await window.cpiDesktop.config();
+paintActiveTarget(config.activeTarget || "home");
 partyUrl.textContent = config.partyBase;
 version.textContent = `CPI PARTY DESKTOP v${config.version}`;
 input.value = config.partyBase;
