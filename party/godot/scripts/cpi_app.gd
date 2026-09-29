@@ -1,18 +1,20 @@
 extends Node
 class_name CPIApp
 
+const SessionScript = preload("res://scripts/runtime/session.gd")
+
 var current_game: Node = null
 var current_game_id := ""
 var library: Array[String] = ["cold-case"]
 var menu_layer: CanvasLayer
 var menu_root: Control
-var session: CPISession
+var session: Node
 var online_label: Label
 @export var server_url := "http://127.0.0.1:3000"
 
 func _ready() -> void:
     print("CPI Party native runtime starting")
-    session = CPISession.new()
+    session = SessionScript.new()
     add_child(session)
     session.connected_to_party.connect(_on_party_connected)
     show_library()
@@ -53,7 +55,8 @@ func _build_library_ui() -> void:
     var online := Button.new()
     online.position = Vector2(500, 240)
     online.size = Vector2(300, 78)
-    online.text = "CREATE PARTY ROOM\nNative server bridge"
+    online.text = "CREATE PARTY ROOM
+Native server bridge"
     online.pressed.connect(func(): _create_party_room())
     menu_root.add_child(online)
 
@@ -66,7 +69,8 @@ func _build_library_ui() -> void:
     var cold_case := Button.new()
     cold_case.position = Vector2(70, 240)
     cold_case.size = Vector2(390, 78)
-    cold_case.text = "CPI: COLD CASE\nRefrigerator anomaly deployment"
+    cold_case.text = "CPI: COLD CASE
+Refrigerator anomaly deployment"
     cold_case.add_theme_font_size_override("font_size", 18)
     cold_case.pressed.connect(func(): launch_game("cold-case"))
     menu_root.add_child(cold_case)
@@ -82,7 +86,7 @@ func _create_party_room() -> void:
         online_label.text = "CONNECTING // Party server"
         session.connect_host(server_url)
 
-func _on_party_connected(state: Dictionary) -> void:
+func _on_party_connected(_state: Dictionary) -> void:
     if online_label:
         online_label.text = "ONLINE // ROOM %s" % session.room_code
 
