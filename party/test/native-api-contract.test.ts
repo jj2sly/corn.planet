@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 test("native bridge exposes the expected session endpoints", async () => {
   const source = await readFile(new URL("../server/native-api.ts", import.meta.url), "utf8");
-  const getRoutes = ['"/health"', '"/games"', '"/state"', '"/canon"', '"/canon/:ref"'];
+  const getRoutes = ['"/health"', '"/games"', '"/me"', '"/me/stats"', '"/state"', '"/canon"', '"/canon/:ref"'];
   const postRoutes = ['"/host"', '"/player"', '"/configure"', '"/start"', '"/input"', '"/host-action"', '"/leave"'];
 
   for (const route of getRoutes) {
@@ -20,6 +20,7 @@ test("Godot client uses the native session bridge and catalog", async () => {
   assert.match(source, /X-CPI-Session/);
   assert.match(source, /\/api\/native\/health/);
   assert.match(source, /\/api\/native\/games/);
+  assert.match(source, /\/api\/native\/me/);
   assert.match(source, /\/api\/native\/state/);
   assert.match(source, /\/api\/native\/canon/);
 });
