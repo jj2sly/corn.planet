@@ -8,7 +8,7 @@ import type { CanonService } from "./canon.ts";
 import type { GameDefinition } from "./games/types.ts";
 
 type NativeSession = { token: string; code: string; role: "host" | "player"; playerId?: string; connectionId: string; user: AuthUser | null; createdAt: number };
-type NativeDeps = { rooms: RoomManager; auth: AuthVerifier; db: PartyDb; canon: CanonService; games: ReadonlyMap<string, GameDefinition> };
+type NativeDeps = { rooms: RoomManager; auth: AuthVerifier; db: PartyDb; canon: CanonService; games: ReadonlyMap<string, GameDefinition>; firebase: { apiKey: string; authDomain: string; projectId: string } | null };
 
 function body(req: Request): Record<string, unknown> {
   const value: unknown = req.body;
@@ -28,12 +28,16 @@ async function verifyUser(req: Request, auth: AuthVerifier): Promise<AuthUser | 
   return auth.verify(token);
 }
 
-export function createNativeApi({ rooms, auth, db, canon, games }: NativeDeps): express.Router {
+export function createNativeApi({ rooms, auth, db, canon, games, firebase }: NativeDeps): express.Router {
   const api = express.Router();
   const sessions = new Map<string, NativeSession>();
   api.use(express.json({ limit: "16kb" }));
 
   api.get("/health", (_req, res) => res.json({ ok: true, protocol: 3 }));
+
+  api.get("/auth-config", (_req, res) => {
+    res.json({ mode: auth.mode, firebase });
+  });
 
   api.get("/games", (_req, res) => {
     res.json({
