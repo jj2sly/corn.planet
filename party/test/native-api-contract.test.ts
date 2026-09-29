@@ -56,3 +56,17 @@ test("native registry maps friendly IDs to authoritative server IDs", async () =
     assert.ok(serverIndex > friendlyIndex, `missing server mapping ${server}`);
   }
 });
+
+
+test("native app exposes group-play bridge for complete browser games", async () => {
+  const app = await readFile(new URL("../godot/scripts/cpi_app.gd", import.meta.url), "utf8");
+  const shell = await readFile(new URL("../godot/scripts/app/app_shell.gd", import.meta.url), "utf8");
+  const host = await readFile(new URL("../public/js/host.js", import.meta.url), "utf8");
+
+  assert.match(shell, /launch_group_game_requested/);
+  assert.match(shell, /GROUP PLAY/);
+  assert.match(app, /\/host\?game=/);
+  assert.match(app, /OS\.shell_open/);
+  assert.match(host, /new URLSearchParams\(location\.search\)\.get\("game"\)/);
+  assert.match(host, /room:configure/);
+});
