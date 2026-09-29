@@ -167,6 +167,8 @@ func _on_server_health_changed(ok: bool, protocol: int) -> void:
         notifications.push("PARTY SERVER", "Backend reachable. Protocol %d." % protocol, "success")
     if ok and session:
         session.fetch_games()
+    if ok and identity:
+        identity.load_auth_config()
 
 func _on_game_catalog_updated(games: Array) -> void:
     if shell:
