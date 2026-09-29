@@ -277,6 +277,54 @@ ipcMain.handle("cpi:fetch-canon", async () => {
   }
 });
 
+ipcMain.handle("cpi:readiness", async () => {
+  const current = loadSettings();
+  const result = {
+    server: false,
+    games: 0,
+    canon: 0,
+    protocol: 0,
+    issues: [],
+  };
+
+  try {
+    const [healthResponse, gamesResponse, canonResponse] = await Promise.all([
+      fetch(`${current.partyBase}/api/native/health`, { signal: AbortSignal.timeout(5000) }),
+      fetch(`${current.partyBase}/api/native/games`, { signal: AbortSignal.timeout(5000) }),
+      fetch(`${current.partyBase}/api/native/canon`, { signal: AbortSignal.timeout(8000) }),
+    ]);
+
+    if (healthResponse.ok) {
+      const health = await healthResponse.json();
+      result.server = true;
+      result.protocol = Number(health.protocol || 0);
+    } else {
+      result.issues.push("Native Party bridge health check failed.");
+    }
+
+    if (gamesResponse.ok) {
+      const games = await gamesResponse.json();
+      result.games = Array.isArray(games.games) ? games.games.length : 0;
+      if (result.games < GAME_IDS.size) result.issues.push(`Only ${result.games} of ${GAME_IDS.size} Party games were reported by the server.`);
+    } else {
+      result.issues.push("Game catalog could not be loaded.");
+    }
+
+    if (canonResponse.ok) {
+      const canon = await canonResponse.json();
+      result.canon = Array.isArray(canon.records) ? canon.records.length : Number(canon.status?.records || 0);
+      if (result.canon < 2) result.issues.push("CPI canon is too small for canon-driven games.");
+    } else {
+      result.issues.push("CPI canon could not be loaded.");
+    }
+  } catch (error) {
+    result.issues.push(error instanceof Error ? error.message : "Readiness check failed.");
+  }
+
+  if (!result.server) result.issues.unshift("Party server is offline.");
+  return result;
+});
+
 ipcMain.handle("cpi:check-server", async () => {
   const current = loadSettings();
   try {
