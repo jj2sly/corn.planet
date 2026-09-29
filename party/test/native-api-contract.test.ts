@@ -24,3 +24,14 @@ test("Godot client uses the native session bridge and catalog", async () => {
   assert.match(source, /\/api\/native\/state/);
   assert.match(source, /\/api\/native\/canon/);
 });
+
+
+test("native router is mounted before browser fallback", async () => {
+  const source = await readFile(new URL("../server/app.ts", import.meta.url), "utf8");
+  const nativeIndex = source.indexOf('app.use("/api/native"');
+  const staticIndex = source.indexOf("app.use(express.static");
+  const fallbackIndex = source.indexOf('app.use((_req, res) => res.status(404)');
+  assert.ok(nativeIndex >= 0, "native router is not mounted");
+  assert.ok(staticIndex > nativeIndex, "static middleware must follow the native router");
+  assert.ok(fallbackIndex > nativeIndex, "404 fallback must follow the native router");
+});
