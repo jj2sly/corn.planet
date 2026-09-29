@@ -8,6 +8,7 @@ signal canon_updated(records: Array, status: Dictionary)
 signal canon_record_loaded(record: Dictionary)
 signal request_failed(path: String, message: String)
 signal server_health_changed(ok: bool, protocol: int)
+signal game_catalog_updated(games: Array)
 
 const NetworkClientScript = preload("res://scripts/runtime/network_client.gd")
 
@@ -45,6 +46,9 @@ func _process(delta: float) -> void:
     if poll_elapsed >= poll_interval:
         poll_elapsed = 0.0
         network.fetch_state()
+
+func fetch_games() -> void:
+    network.fetch_games()
 
 func fetch_canon(kind: String = "") -> void:
     network.fetch_canon(kind)
@@ -85,6 +89,10 @@ func _on_request(path: String, ok: bool, data: Variant) -> void:
     if path == "/api/native/health":
         var protocol := int(data.get("protocol", 0)) if data is Dictionary else 0
         server_health_changed.emit(true, protocol)
+    elif path == "/api/native/games":
+        if data is Dictionary:
+            var games_variant: Variant = data.get("games", [])
+            game_catalog_updated.emit(games_variant if games_variant is Array else [])
     elif path == "/api/native/host" or path == "/api/native/player":
         network.session_token = String(data.get("token", ""))
         role = String(data.get("role", ""))
