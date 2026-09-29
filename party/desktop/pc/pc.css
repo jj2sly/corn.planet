@@ -55,3 +55,8 @@ h3 { margin: 5px 0 8px; font-size: 25px; }
 .pc-title > button:disabled { border-color: #33372f; background: #11130f; color: #666c63; cursor: default; }
 .future-title { opacity: .6; }
 @media (max-width: 850px) { .pc-title { grid-template-columns: 1fr; } }
+
+.reveal-actions { display: flex; gap: 10px; align-items: center; }
+.reveal-actions #inspectRecord { min-height: 42px; border: 1px solid #4a5047; background: #10130e; color: #e7e9e4; font-weight: 800; padding: 0 16px; cursor: pointer; }
+.reveal-actions #inspectRecord:hover { border-color: #ffd400; }
+.reveal-actions #inspectRecord:disabled { opacity: .5; cursor: wait; }
