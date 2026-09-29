@@ -80,6 +80,12 @@ static func find_game(game_id: String) -> Dictionary:
             return game
     return {}
 
+static func find_by_server_game_id(server_game_id: String) -> Dictionary:
+    for game: Dictionary in games():
+        if String(game.get("server_game_id", game.get("id", ""))) == server_game_id:
+            return game
+    return {}
+
 static func navigation() -> Array[Dictionary]:
     return [
         {"id": "home", "label": "HOME", "icon": "⌂"},
