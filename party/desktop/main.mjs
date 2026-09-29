@@ -12,6 +12,7 @@ const PC_ROOT_URL = pathToFileURL(path.join(__dirname, "pc") + path.sep).toStrin
 
 let mainWindow = null;
 let contentView = null;
+const retainedViews = new Map();
 let activeTarget = "home";
 let presentationMode = false;
 let settings = null;
@@ -74,15 +75,31 @@ function contentBounds() {
   };
 }
 
-function closeContentView() {
+function detachContentView({ destroy = false } = {}) {
   if (!mainWindow || !contentView) return;
   try {
     mainWindow.contentView.removeChildView(contentView);
   } catch {}
-  try {
-    contentView.webContents.close();
-  } catch {}
+  if (destroy) {
+    for (const [key, view] of retainedViews) {
+      if (view === contentView) retainedViews.delete(key);
+    }
+    try {
+      contentView.webContents.close();
+    } catch {}
+  }
   contentView = null;
+}
+
+function destroyAllContentViews() {
+  if (contentView && ![...retainedViews.values()].includes(contentView)) {
+    try { contentView.webContents.close(); } catch {}
+  }
+  contentView = null;
+  for (const view of retainedViews.values()) {
+    try { view.webContents.close(); } catch {}
+  }
+  retainedViews.clear();
 }
 
 function handleWindowOpen({ url }) {
@@ -95,12 +112,8 @@ function handleWindowOpen({ url }) {
   return { action: "deny" };
 }
 
-function openContent(url, target) {
-  if (!mainWindow) return;
-
-  closeContentView();
-
-  contentView = new WebContentsView({
+function createContentView(target) {
+  const view = new WebContentsView({
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
       contextIsolation: true,
@@ -108,24 +121,31 @@ function openContent(url, target) {
       sandbox: true,
     },
   });
-  contentView.setBackgroundColor("#050607");
-  contentView.setBounds(contentBounds());
-  contentView.webContents.setWindowOpenHandler(handleWindowOpen);
+  view.setBackgroundColor("#050607");
+  view.webContents.setWindowOpenHandler(({ url }) => {
+    const current = loadSettings();
+    if (url.startsWith(current.partyBase) || url.startsWith(current.databaseBase)) {
+      view.webContents.loadURL(url);
+      return { action: "deny" };
+    }
+    void shell.openExternal(url);
+    return { action: "deny" };
+  });
 
-  contentView.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+  view.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return;
-    const failed = activeTarget;
-    closeContentView();
+    if (activeTarget !== target) return;
+    detachContentView({ destroy: target !== "party" });
     activeTarget = "home";
     emitActiveTarget();
     mainWindow?.webContents.send("cpi:content-error", {
-      target: failed,
+      target,
       url: validatedURL,
       message: errorDescription || "Content could not be loaded.",
     });
   });
 
-  contentView.webContents.on("will-navigate", (event, nextUrl) => {
+  view.webContents.on("will-navigate", (event, nextUrl) => {
     const current = loadSettings();
     if (
       nextUrl.startsWith(current.partyBase) ||
@@ -136,10 +156,28 @@ function openContent(url, target) {
     void shell.openExternal(nextUrl);
   });
 
+  return view;
+}
+
+function openContent(url, target, { retain = target === "party" } = {}) {
+  if (!mainWindow) return;
+
+  detachContentView();
+
+  let view = retain ? retainedViews.get(target) : null;
+  if (!view || view.webContents.isDestroyed()) {
+    view = createContentView(target);
+    if (retain) retainedViews.set(target, view);
+  }
+
+  contentView = view;
+  contentView.setBounds(contentBounds());
   mainWindow.contentView.addChildView(contentView);
   activeTarget = target;
   emitActiveTarget();
-  void contentView.webContents.loadURL(url);
+
+  const currentUrl = contentView.webContents.getURL();
+  if (!currentUrl || currentUrl !== url) void contentView.webContents.loadURL(url);
 }
 
 function openPcLibrary() {
@@ -193,7 +231,7 @@ function createWindow() {
   });
 
   mainWindow.on("closed", () => {
-    contentView = null;
+    destroyAllContentViews();
     mainWindow = null;
   });
 
@@ -204,7 +242,7 @@ function goHome() {
   if (!mainWindow) return;
   setPresentationMode(false);
   if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false);
-  closeContentView();
+  detachContentView();
   activeTarget = "home";
   emitActiveTarget();
 }
