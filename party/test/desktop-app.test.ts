@@ -178,3 +178,26 @@ test("readiness verifies the exact six authoritative Party game ids", async () =
   }
   assert.match(main, /Missing Party games/);
 });
+
+
+test("desktop keeps Party host alive while navigating other app sections", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
+
+  assert.match(main, /retainedViews/);
+  assert.match(main, /retain = target === "party"/);
+  assert.match(main, /cpi:host-state/);
+  assert.match(main, /cpi:return-host/);
+  assert.match(preload, /hostStatus/);
+  assert.match(renderer, /paintHostState/);
+  assert.match(html, /HOST DISPLAY LIVE/);
+});
+
+test("returning to retained Party host does not force a reload", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /forceNavigate = false/);
+  assert.match(main, /!reused \|\| forceNavigate \|\| !currentUrl/);
+  assert.match(main, /forceNavigate: true/);
+});
