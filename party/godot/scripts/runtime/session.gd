@@ -13,6 +13,7 @@ signal identity_updated(profile: Dictionary)
 signal stats_updated(stats: Dictionary)
 signal auth_config_updated(config: Dictionary)
 signal auth_token_received(token: String)
+signal auth_session_received(auth_session: Dictionary)
 
 const NetworkClientScript = preload("res://scripts/runtime/network_client.gd")
 
@@ -35,6 +36,9 @@ func fetch_auth_config() -> void:
 
 func sign_in_email(email: String, password: String, api_key: String) -> void:
     network.sign_in_email(email, password, api_key)
+
+func refresh_auth_token(refresh_token: String, api_key: String) -> void:
+    network.refresh_firebase_token(refresh_token, api_key)
 
 func set_auth_token(token: String) -> void:
     network.set_auth_token(token)
@@ -112,6 +116,22 @@ func _on_request(path: String, ok: bool, data: Variant) -> void:
             if not token.is_empty():
                 network.set_auth_token(token)
                 auth_token_received.emit(token)
+                auth_session_received.emit({
+                    "id_token": token,
+                    "refresh_token": String(data.get("refreshToken", "")),
+                    "expires_in": int(String(data.get("expiresIn", "3600")).to_int())
+                })
+    elif path == "auth:refresh":
+        if data is Dictionary:
+            var refreshed := String(data.get("id_token", ""))
+            if not refreshed.is_empty():
+                network.set_auth_token(refreshed)
+                auth_token_received.emit(refreshed)
+                auth_session_received.emit({
+                    "id_token": refreshed,
+                    "refresh_token": String(data.get("refresh_token", "")),
+                    "expires_in": int(String(data.get("expires_in", "3600")).to_int())
+                })
     elif path == "/api/native/me":
         if data is Dictionary:
             identity_updated.emit(data)
