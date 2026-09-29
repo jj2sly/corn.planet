@@ -7,6 +7,7 @@ signal disconnected_from_party()
 signal canon_updated(records: Array, status: Dictionary)
 signal canon_record_loaded(record: Dictionary)
 signal request_failed(path: String, message: String)
+signal server_health_changed(ok: bool, protocol: int)
 
 const NetworkClientScript = preload("res://scripts/runtime/network_client.gd")
 
@@ -23,6 +24,11 @@ func _ready() -> void:
     network = NetworkClientScript.new()
     add_child(network)
     network.request_completed.connect(_on_request)
+
+func check_health(url := "") -> void:
+    if not url.is_empty():
+        network.configure(url)
+    network.check_health()
 
 func connect_host(url := "http://127.0.0.1:3000") -> void:
     network.configure(url)
@@ -75,7 +81,10 @@ func _on_request(path: String, ok: bool, data: Variant) -> void:
             message = String(data.get("error", data.get("message", message)))
         request_failed.emit(path, message)
         return
-    if path == "/api/native/host" or path == "/api/native/player":
+    if path == "/api/native/health":
+        var protocol := int(data.get("protocol", 0)) if data is Dictionary else 0
+        server_health_changed.emit(true, protocol)
+    elif path == "/api/native/host" or path == "/api/native/player":
         network.session_token = String(data.get("token", ""))
         role = String(data.get("role", ""))
         room_code = String(data.get("code", ""))
