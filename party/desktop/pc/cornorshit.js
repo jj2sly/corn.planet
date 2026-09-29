@@ -34,6 +34,7 @@ let locked = false;
 function scalar(value) {
   if (typeof value === "string") {
     const text = value.trim().replace(/\s+/g, " ");
+    if (text.includes("[REDACTED]") || text.includes("[CLASSIFIED]") || text.includes("[COSMIC ERASED]")) return null;
     if (text.length >= 2 && text.length <= 120 && !/^https?:\/\//i.test(text)) return text;
   }
   if (typeof value === "number" || typeof value === "boolean") return String(value);
