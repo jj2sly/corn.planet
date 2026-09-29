@@ -6,6 +6,7 @@ signal state_updated(state: Dictionary)
 signal disconnected_from_party()
 signal canon_updated(records: Array, status: Dictionary)
 signal canon_record_loaded(record: Dictionary)
+signal request_failed(path: String, message: String)
 
 const NetworkClientScript = preload("res://scripts/runtime/network_client.gd")
 
@@ -60,12 +61,19 @@ func leave() -> void:
     role = ""
     room_code = ""
     player_id = ""
+    display_name = ""
+    last_state = {}
+    disconnected_from_party.emit()
 
 func send_input(action: String, payload: Variant = {}) -> void:
     network.send_input(action, payload)
 
 func _on_request(path: String, ok: bool, data: Variant) -> void:
     if not ok:
+        var message := "Request failed"
+        if data is Dictionary:
+            message = String(data.get("error", data.get("message", message)))
+        request_failed.emit(path, message)
         return
     if path == "/api/native/host" or path == "/api/native/player":
         network.session_token = String(data.get("token", ""))
