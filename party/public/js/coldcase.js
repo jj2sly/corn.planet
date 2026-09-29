@@ -1,6 +1,6 @@
 const canvas=document.querySelector("#view"),gl=canvas.getContext("webgl");
 const start=document.querySelector("#start"),begin=document.querySelector("#begin"),objective=document.querySelector("#objective"),tempEl=document.querySelector("#temp"),prompt=document.querySelector("#prompt"),repair=document.querySelector("#repair"),repairText=document.querySelector("#repairText"),repairButtons=document.querySelector("#repairButtons");
-let started=false,room="KITCHEN",temperature=21,repairStep=0,doorOpen=false,last=0;
+let started=false,room="KITCHEN",temperature=21,repairStep=0,doorOpen=false,powerRestored=false,milkAwake=false,milkPulse=0,last=0;
 const rooms={KITCHEN:{w:16,d:14,h:7,color:[.56,.52,.45]},FRIDGE_ENTRANCE:{w:18,d:18,h:9,color:[.25,.31,.34]},PANTRY:{w:22,d:20,h:9,color:[.25,.29,.25]},POWER_ROOM:{w:18,d:16,h:9,color:[.18,.21,.22]}};
 const p={x:0,y:1.6,z:4,yaw:0,pitch:0,forward:0,right:0,sprint:false};
 const keys=new Set();
@@ -27,15 +27,15 @@ box(0,-1,0,q.w,1,q.d,[.16,.18,.18]);box(0,q.h,0,q.w,.4,q.d,[.2,.22,.22]);
 box(0,q.h/2,-q.d/2,q.w,q.h,.4,[.3,.32,.32]);box(-q.w/2,q.h/2,0,.4,q.h,q.d,[.3,.32,.32]);box(q.w/2,q.h/2,0,.4,q.h,q.d,[.3,.32,.32]);
 if(room==="KITCHEN"){box(4,2,-2,3.2,6,3,[.72,.73,.7]);box(2.3,2,-2,.15,5.5,2.6,[.45,.6,.62]);box(-2,0,2,7,1,2,[.35,.36,.34]);}
 if(room==="FRIDGE_ENTRANCE"){for(let z=-6;z<=6;z+=4){box(-5,1,z,1,4,3,[.42,.43,.4]);box(5,1,z,1,4,3,[.42,.43,.4]);}}
-if(room==="PANTRY"){for(const x of [-6,0,6]){box(x,1,0,1,5,16,[.32,.28,.2]);box(x,.1,0,1.3,.15,16,[.55,.5,.4]);}box(3.5,1.2,1.5,1,2.4,1,[.92,.92,.84]);box(3.5,2.1,1.5,1.05,.5,1.02,[.65,.82,.9]);}
-if(room==="POWER_ROOM"){box(0,2,-7.4,3.5,3,.5,[.08,.09,.09]);box(0,2,-7.05,2.8,2.3,.08,[.8,.58,.05]);}
+if(room==="PANTRY"){for(const x of [-6,0,6]){box(x,1,0,1,5,16,[.32,.28,.2]);box(x,.1,0,1.3,.15,16,[.55,.5,.4]);}box(3.5,1.2,1.5,1,2.4,1,[.92,.92,.84]);box(3.5,2.1,1.5,1.05,.5,1.02,[.65,.82,.9]);if(milkAwake){milkPulse+=.045;box(3.5,1.2+Math.sin(milkPulse)*.12,1.5,1.05,2.4,1,[.95,.95,.88]);}}
+if(room==="POWER_ROOM"){box(0,2,-7.4,3.5,3,.5,[.08,.09,.09]);box(0,2,-7.05,2.8,2.3,.08,powerRestored?[.15,.85,.4]:[.8,.58,.05]);box(-3,2,-6.8,.25,4,.25,[.55,.1,.08]);box(3,2,-6.8,.25,4,.25,[.1,.55,.65]);}
 prompt.textContent=room==="KITCHEN"&&!doorOpen&&p.z<1&&p.x>1?"[E] OPEN REFRIGERATOR":room==="FRIDGE_ENTRANCE"&&p.z<-6?"[E] ENTER PANTRY":room==="PANTRY"&&p.z<-7?"[E] ENTER POWER ROOM":room==="PANTRY"&&p.x>2&&p.x<5&&p.z<3?"[E] ADJUST TEMPERATURE":room==="POWER_ROOM"&&p.z<-5?"[E] OPEN POWER PANEL":"";}
 function interact(){if(room==="KITCHEN"&&p.z<1&&p.x>1){room="FRIDGE_ENTRANCE";p.x=0;p.z=7;temperature=4;objective.textContent="OBJECTIVE: Explore the impossible refrigerator interior";return}
 if(room==="FRIDGE_ENTRANCE"&&p.z<-6){room="PANTRY";p.x=0;p.z=7;temperature=6;objective.textContent="OBJECTIVE: Investigate the pantry";return}
 if(room==="PANTRY"&&p.z<-7){room="POWER_ROOM";p.x=0;p.z=6;temperature=8;objective.textContent="OBJECTIVE: Restore main power";return}
-if(room==="PANTRY"&&p.x>2&&p.x<5&&p.z<3){temperature=temperature<5?12:3;objective.textContent="OBJECTIVE: The milk reacted. Find the power system";return}
+if(room==="PANTRY"&&p.x>2&&p.x<5&&p.z<3){temperature=temperature<5?12:3;milkAwake=true;milkPulse=1;objective.textContent=temperature>8?"OBJECTIVE: The milk changed when warmed. Find the power system":"OBJECTIVE: The milk is reacting to the cold. Find the power system";return}
 if(room==="POWER_ROOM"&&p.z<-5){repair.hidden=false;renderRepair();}}
-function renderRepair(){const labels=["OPEN PANEL","COMPONENT A","COMPONENT B","RESET"];repairText.textContent=repairStep===0?"Open the panel.":repairStep===1?"Install component A.":repairStep===2?"Install component B.":"Reset the main breaker.";repairButtons.replaceChildren();labels.forEach((x,i)=>{const b=document.createElement("button");b.className="repair-btn";b.textContent=x;b.disabled=i!==repairStep;b.onclick=()=>{repairStep++;if(repairStep===4){repair.hidden=true;objective.textContent="OBJECTIVE: POWER RESTORED — CONTINUE DEEPER";temperature=8}else renderRepair()};repairButtons.append(b)})}
+function renderRepair(){const labels=["OPEN PANEL","COMPONENT A","COMPONENT B","RESET"];repairText.textContent=repairStep===0?"Open the panel.":repairStep===1?"Install component A.":repairStep===2?"Install component B.":"Reset the main breaker.";repairButtons.replaceChildren();labels.forEach((x,i)=>{const b=document.createElement("button");b.className="repair-btn";b.textContent=x;b.disabled=i!==repairStep;b.onclick=()=>{repairStep++;if(repairStep===4){repair.hidden=true;powerRestored=true;objective.textContent="OBJECTIVE: POWER RESTORED — THE REFRIGERATOR IS CHANGING";temperature=8}else renderRepair()};repairButtons.append(b)})}
 addEventListener("keydown",e=>{keys.add(e.code);if(e.code==="KeyE"&&!e.repeat&&started)interact()});addEventListener("keyup",e=>keys.delete(e.code));
 canvas.addEventListener("click",()=>canvas.requestPointerLock?.());document.addEventListener("mousemove",e=>{if(document.pointerLockElement===canvas){p.yaw-=e.movementX*.002;p.pitch=Math.max(-1.2,Math.min(1.2,p.pitch-e.movementY*.002))}});
 begin.onclick=()=>{started=true;start.hidden=true;objective.textContent="OBJECTIVE: Enter the refrigerator";canvas.requestPointerLock?.();};
