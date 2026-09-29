@@ -78,14 +78,9 @@ func start_game() -> void:
     network.start_game()
 
 func leave() -> void:
+    if network.session_token.is_empty():
+        return
     network.leave()
-    network.session_token = ""
-    role = ""
-    room_code = ""
-    player_id = ""
-    display_name = ""
-    last_state = {}
-    disconnected_from_party.emit()
 
 func send_input(action: String, payload: Variant = {}) -> void:
     network.send_input(action, payload)
@@ -118,7 +113,7 @@ func _on_request(path: String, ok: bool, data: Variant) -> void:
         display_name = String(data.get("name", ""))
         last_state = data.get("state", {})
         connected_to_party.emit(last_state)
-    elif path == "/api/native/state":
+    elif path == "/api/native/state" or path == "/api/native/configure" or path == "/api/native/start":
         last_state = data if data is Dictionary else {}
         state_updated.emit(last_state)
     elif path == "/api/native/canon":
@@ -128,6 +123,14 @@ func _on_request(path: String, ok: bool, data: Variant) -> void:
             var records: Array = records_variant if records_variant is Array else []
             var status: Dictionary = status_variant if status_variant is Dictionary else {}
             canon_updated.emit(records, status)
+    elif path == "/api/native/leave":
+        role = ""
+        room_code = ""
+        player_id = ""
+        display_name = ""
+        last_state = {}
+        network.session_token = ""
+        disconnected_from_party.emit()
     elif path.begins_with("/api/native/canon/"):
         if data is Dictionary:
             canon_record_loaded.emit(data)
