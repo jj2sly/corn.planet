@@ -1,13 +1,27 @@
 extends Node3D
 class_name ColdCasePantry
 
-var temperature := 4.0
-var milk_awake := false
-var player_near_milk := false
+var temperature: float = 4.0
+var milk_awake: bool = false
+var player_near_milk: bool = false
+var control_light: OmniLight3D
+var control_pulse: float = 0.0
 
 func _ready() -> void:
+    control_light = OmniLight3D.new()
+    control_light.position = Vector3(4.3, 2.4, -0.7)
+    control_light.omni_range = 5.0
+    control_light.light_energy = 1.5
+    control_light.light_color = Color(0.2, 0.75, 1.0)
+    add_child(control_light)
     _build_shelves()
     _build_temperature_control()
+
+func _process(delta: float) -> void:
+    control_pulse += delta
+    if control_light != null:
+        control_light.light_energy = 1.2 + sin(control_pulse * 2.0) * 0.25
+    temperature = move_toward(temperature, 4.0, delta * 0.2)
 
 func _build_shelves() -> void:
     var box := BoxMesh.new()
