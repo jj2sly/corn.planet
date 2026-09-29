@@ -251,15 +251,32 @@ func _show_rooms() -> void:
     label(p, Vector2(24, 60), "Create a room for the current client and invite\nother CPI Party players.", 12)
     button(p, Rect2(24, 125, 190, 36), "CREATE PARTY ROOM", create_room_requested.emit)
     label(p, Vector2(24, 172), "The existing server bridge remains authoritative.", 10, MUTED)
-    var r := panel(Rect2(645, 0, 325, 205))
+    var r := panel(Rect2(645, 0, 325, 250))
     label(r, Vector2(20, 20), "JOIN", 12, ACCENT)
     label(r, Vector2(20, 50), "ROOM CODE", 11, MUTED)
     var code := LineEdit.new()
-    code.position = Vector2(20, 75)
+    code.position = Vector2(20, 72)
     code.size = Vector2(285, 34)
     code.placeholder_text = "ABCD"
+    code.max_length = 4
+    code.text = String(app_state.last_room_code) if app_state else ""
     r.add_child(code)
-    button(r, Rect2(20, 125, 120, 32), "JOIN ROOM", func(): status_label.text = "JOIN FLOW READY")
+
+    label(r, Vector2(20, 120), "DISPLAY NAME", 11, MUTED)
+    var name := LineEdit.new()
+    name.position = Vector2(20, 142)
+    name.size = Vector2(285, 34)
+    name.placeholder_text = "CPI OPERATIVE"
+    name.text = String(app_state.display_name) if app_state else "CPI OPERATIVE"
+    r.add_child(name)
+
+    button(r, Rect2(20, 192, 120, 32), "JOIN ROOM", func():
+        if session:
+            session.connect_player(code.text.strip_edges().to_upper(), name.text.strip_edges(), app_state.server_url if app_state else "http://127.0.0.1:3000")
+        if app_state:
+            app_state.set_display_name(name.text)
+        status_label.text = "CONNECTING // ROOM %s" % code.text.strip_edges().to_upper()
+    )
 
 func _show_profile() -> void:
     title_label.text = "PROFILE"
