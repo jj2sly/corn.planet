@@ -95,3 +95,6 @@ footer { display: flex; justify-content: space-between; margin-top: 24px; color:
 .host-live-actions { display: flex; gap: 8px; align-items: center; }
 .host-live .danger { border-color: #663535; background: #1a0c0c; color: #e4b1b1; }
 .host-live .danger:hover { border-color: #a95151; }
+
+.settings-card.attention { border-color: #ffd400; box-shadow: 0 0 0 1px rgba(255,212,0,.18), 0 18px 60px rgba(0,0,0,.28); }
+.settings-card.attention .eyebrow { color: #ffd400; }
