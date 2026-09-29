@@ -2,6 +2,7 @@ extends Control
 class_name CPIAppShell
 
 signal launch_game_requested(game_id: String)
+signal launch_group_game_requested(game_id: String)
 signal create_room_requested()
 signal section_changed(section: String)
 signal canon_record_requested(ref: String)
@@ -318,8 +319,13 @@ func _render_game_cards() -> void:
                 _show_games()
         )
         var has_native_scene := not String(game["scene"]).is_empty()
-        var action_text := "LAUNCH" if has_native_scene else ("OPEN ROOM" if server_ready else "UNAVAILABLE")
-        var action_button := button(card, Rect2(342, 64, 103, 26), action_text, func(id: String = game_id): launch_game_requested.emit(id))
+        var action_text := "LAUNCH" if has_native_scene else ("GROUP PLAY" if server_ready else "UNAVAILABLE")
+        var action_button := button(card, Rect2(330, 64, 115, 26), action_text, func(id: String = game_id):
+            if has_native_scene:
+                launch_game_requested.emit(id)
+            else:
+                launch_group_game_requested.emit(id)
+        )
         action_button.disabled = not has_native_scene and not server_ready
         visible_index += 1
 
