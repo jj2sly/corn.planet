@@ -72,7 +72,7 @@ func _move_player(delta: float) -> void:
     position += direction * player_speed * delta
     position.x = clamp(position.x, -6.0, 6.0)
     position.y = 0.0
-    position.z = clamp(position.z, -70.0, 4.0)
+    position.z = clamp(position.z, -90.0, 4.0)
 
 func _update_zone_state(delta: float) -> void:
     if mission_phase == "BRIEFING":
