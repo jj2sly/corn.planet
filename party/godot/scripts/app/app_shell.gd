@@ -3,6 +3,7 @@ class_name CPIAppShell
 
 signal launch_game_requested(game_id: String)
 signal create_room_requested()
+signal section_changed(section: String)
 
 const RegistryScript = preload("res://scripts/app/app_registry.gd")
 
@@ -165,6 +166,7 @@ func set_canon_records(records: Array, status: Dictionary) -> void:
 
 func show_section(section: String) -> void:
     active_section = section
+    section_changed.emit(section)
     clear_content()
     match section:
         "home":
