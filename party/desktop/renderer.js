@@ -7,6 +7,7 @@ const version = document.querySelector("#version");
 const input = document.querySelector("#partyServerInput");
 const save = document.querySelector("#savePartyServer");
 const message = document.querySelector("#serverMessage");
+const connectionCard = document.querySelector(".settings-card");
 const copyPlayerLink = document.querySelector("#copyPlayerLink");
 const playerQr = document.querySelector("#playerQr");
 const playerJoinUrl = document.querySelector("#playerJoinUrl");
@@ -145,6 +146,7 @@ async function checkServer() {
     status.classList.add("ok");
     message.textContent = "Party server reachable.";
     message.className = "server-message ok";
+    connectionCard?.classList.remove("attention");
     setServerDependentControls(true);
     return true;
   }
@@ -156,6 +158,12 @@ async function checkServer() {
     ? "No local Party server is running. Paste the Railway Party URL below, then SAVE & CHECK."
     : "Could not reach that Party server. Check the URL or Railway deployment.";
   message.className = "server-message bad";
+  connectionCard?.classList.toggle("attention", localDefault);
+  if (localDefault) {
+    status.textContent = "SETUP REQUIRED";
+    input.focus();
+    setTimeout(() => connectionCard?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+  }
   setServerDependentControls(false);
   return false;
 }
