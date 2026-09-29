@@ -40,6 +40,11 @@ var core_repaired := false
 var milk_defeated := false
 var health: float = 100.0
 var damage_cooldown: float = 0.0
+var core_instability: float = 0.0
+var extraction_alarm: float = 0.0
+var extraction_active: bool = false
+var debrief_layer: CanvasLayer
+var last_zone: String = "KITCHEN"
 
 func _ready() -> void:
     player_body = $Player
@@ -74,6 +79,9 @@ func _physics_process(delta: float) -> void:
     _move_player(delta)
     _update_zone_state(delta)
     _update_survival(delta)
+    _update_core_instability(delta)
+    if extraction_active:
+        extraction_alarm = maxf(0.0, extraction_alarm - delta)
     if milk != null and not milk_defeated:
         var active_milk: ColdCaseMilk = milk as ColdCaseMilk
         if active_milk != null and active_milk.defeated_state:
@@ -142,16 +150,34 @@ func _update_zone_state(delta: float) -> void:
         status_label.text = "ZONE  //  DEEP INTERIOR"
     elif mission_phase == "DEEP_INTERIOR" and player_body.position.z < -72.0:
         mission_phase = "STABILIZING"
+        core_instability = 0.35
         objective_label.text = "OBJECTIVE  //  Repair the refrigerator core"
         status_label.text = "SYSTEM  //  CORE INSTABILITY"
-    elif mission_phase == "STABILIZING" and core_repaired and player_body.position.z > -63.0:
+    elif mission_phase == "STABILIZING" and core_repaired:
         mission_phase = "STABILIZED"
-        objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
-        status_label.text = "SYSTEM  //  STABILIZED"
+        extraction_active = true
+        extraction_alarm = 30.0
+        objective_label.text = "OBJECTIVE  //  EXTRACTION — RETURN TO THE ORIGINAL DOOR"
+        status_label.text = "ALARM  //  REFRIGERATOR STABILIZED — EXTRACT NOW"
         temperature = -2.0
     if mission_phase == "STABILIZED" and player_body.position.z > -1.0 and not final_report_shown:
         _complete_mission()
+    if mission_phase == "STABILIZED" and extraction_alarm <= 0.0 and not final_report_shown:
+        status_label.text = "ALARM  //  EXTRACTION WINDOW EXPIRED"
+        health = maxf(1.0, health - delta * 8.0)
 
+
+func _update_core_instability(delta: float) -> void:
+    if mission_phase != "STABILIZING":
+        return
+    core_instability = minf(1.0, core_instability + delta * 0.012)
+    if deep_interior != null:
+        var deep_script: ColdCaseDeepInterior = deep_interior as ColdCaseDeepInterior
+        if deep_script != null:
+            deep_script.instability = core_instability
+    if core_instability > 0.72:
+        status_label.text = "WARNING  //  CORE INSTABILITY %03d%%" % int(core_instability * 100.0)
+        temperature = move_toward(temperature, -18.0, delta * 0.4)
 
 func _update_survival(delta: float) -> void:
     damage_cooldown = maxf(0.0, damage_cooldown - delta)
@@ -351,6 +377,11 @@ func _interact_core() -> void:
 
 func _on_core_repaired() -> void:
     core_repaired = true
+    core_instability = 0.0
+    if deep_interior != null:
+        var deep_script: ColdCaseDeepInterior = deep_interior as ColdCaseDeepInterior
+        if deep_script != null:
+            deep_script.stabilize()
     temperature = -2.0
     status_label.text = "SYSTEM  //  CORE STABILIZED"
     objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
