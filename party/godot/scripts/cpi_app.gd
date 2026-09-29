@@ -31,7 +31,9 @@ func _build_shell() -> void:
     shell.launch_game_requested.connect(launch_game)
     shell.create_room_requested.connect(_create_party_room)
     shell.section_changed.connect(_on_section_changed)
+    shell.canon_record_requested.connect(_on_canon_record_requested)
     session.canon_updated.connect(_on_canon_updated)
+    session.canon_record_loaded.connect(_on_canon_record_loaded)
 
 func _create_party_room() -> void:
     if session:
@@ -46,6 +48,14 @@ func _on_party_connected(_state: Dictionary) -> void:
 func _on_section_changed(section: String) -> void:
     if section == "database" and session:
         session.fetch_canon()
+
+func _on_canon_record_requested(ref: String) -> void:
+    if session:
+        session.fetch_canon_record(ref)
+
+func _on_canon_record_loaded(record: Dictionary) -> void:
+    if shell:
+        shell.show_canon_record(record)
 
 func _on_canon_updated(records: Array, status: Dictionary) -> void:
     if shell:
