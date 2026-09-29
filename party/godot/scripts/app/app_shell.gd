@@ -22,6 +22,7 @@ var canon_records: Array = []
 var canon_status: Dictionary = {}
 var database_search := ""
 var game_search := ""
+var server_game_ids: Dictionary = {}
 
 const BG := Color(0.012, 0.015, 0.018)
 const PANEL := Color(0.035, 0.041, 0.047)
@@ -171,6 +172,17 @@ func set_status(value: String) -> void:
     if status_label:
         status_label.text = value
 
+func set_server_games(games: Array) -> void:
+    server_game_ids.clear()
+    for game_variant: Variant in games:
+        if game_variant is Dictionary:
+            var game: Dictionary = game_variant
+            server_game_ids[String(game.get("id", ""))] = game
+    if active_section == "games":
+        _show_games()
+    elif active_section == "home":
+        _show_home()
+
 func set_canon_records(records: Array, status: Dictionary) -> void:
     canon_records = records
     canon_status = status
@@ -235,7 +247,7 @@ func _show_home() -> void:
     label(activity, Vector2(20, 48), "CLIENT", 9, MUTED)
     label(activity, Vector2(150, 48), "GODOT NATIVE", 11)
     label(activity, Vector2(20, 76), "GAME REGISTRY", 9, MUTED)
-    label(activity, Vector2(150, 76), "%d modules" % RegistryScript.games().size(), 11)
+    label(activity, Vector2(150, 76), "%d local / %d server" % [RegistryScript.games().size(), server_game_ids.size()], 11)
     label(activity, Vector2(20, 104), "CANON BRIDGE", 9, MUTED)
     label(activity, Vector2(150, 104), "READ-ONLY // READY", 11)
     label(activity, Vector2(520, 48), "PROFILE", 9, MUTED)
@@ -284,7 +296,9 @@ func _render_game_cards() -> void:
         label(card, Vector2(18, 12), String(game["category"]), 9, ACCENT)
         label(card, Vector2(18, 30), ("%s  ★" if favorite else "%s") % String(game["name"]), 16)
         label(card, Vector2(18, 56), String(game["description"]), 10, MUTED)
-        label(card, Vector2(18, 78), "%s  //  %s" % [String(game["players"]), String(game["status"])], 9, MUTED)
+        var server_ready := server_game_ids.has(game_id)
+        var availability := "SERVER READY" if server_ready else String(game["status"])
+        label(card, Vector2(18, 78), "%s  //  %s" % [String(game["players"]), availability], 9, MUTED)
         button(card, Rect2(300, 14, 34, 26), "★" if favorite else "☆", func(id: String = game_id):
             if app_state:
                 app_state.toggle_favorite(id)
