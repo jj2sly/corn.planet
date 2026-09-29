@@ -99,6 +99,7 @@ func _build_shell() -> void:
     shell.setup(session, app_state, notifications, identity, services)
     shell.launch_game_requested.connect(launch_game)
     shell.launch_group_game_requested.connect(launch_group_game)
+    shell.launch_party_host_requested.connect(launch_party_host)
     shell.create_room_requested.connect(_create_party_room)
     shell.section_changed.connect(_on_section_changed)
     shell.canon_record_requested.connect(_on_canon_record_requested)
@@ -209,6 +210,14 @@ func _on_module_failed(game_id: String, reason: String) -> void:
         shell.set_status("MODULE ERROR // %s" % game_id.to_upper())
     if notifications:
         notifications.push("MODULE ERROR", "%s: %s" % [game_id, reason], "error")
+
+func launch_party_host() -> void:
+    var base := String(app_state.server_url if app_state else server_url).trim_suffix("/")
+    OS.shell_open(base + "/host")
+    if shell:
+        shell.set_status("GROUP NIGHT // HOST OPENED")
+    if notifications:
+        notifications.push("GROUP NIGHT", "Opened the full Corn Planet Party host.", "success")
 
 func launch_group_game(game_id: String) -> void:
     var metadata: Dictionary = module_manager.request_launch(game_id) if module_manager else {}
