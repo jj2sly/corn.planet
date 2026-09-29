@@ -113,8 +113,7 @@ func _interact() -> void:
         return
 
     if mission_phase == "INTERIOR_DISCOVERED" and position.z < -0.8:
-        mission_phase = "INSIDE"
-        objective_label.text = "OBJECTIVE  //  Explore the refrigerator"
+        _enter_refrigerator()
         return
 
     if mission_phase == "PANTRY" and _near_milk():
@@ -209,7 +208,7 @@ func _near_milk() -> bool:
     return milk != null and global_position.distance_to(milk.global_position) < 3.0
 
 func _near_power_panel() -> bool:
-    return power_room != null and global_position.distance_to(power_room.global_position + Vector3(0, 1.6, 3.9)) < 3.5
+    return power_room != null and global_position.distance_to(power_room.global_position + Vector3(0, 1.6, -3.9)) < 3.5
 
 func _near_freezer_unit() -> bool:
     return freezer != null and global_position.distance_to(freezer.global_position + Vector3(0, 2.0, -7.0)) < 3.5
