@@ -9,6 +9,7 @@ const DEFAULT_DATABASE_URL = process.env.CPI_DATABASE_URL?.trim() || "https://jj
 
 let mainWindow = null;
 let settings = null;
+const GAME_IDS = new Set(["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]);
 
 function cleanBase(value) {
   return String(value || "").trim().replace(/\/+$/, "");
@@ -148,6 +149,26 @@ ipcMain.handle("cpi:config", () => ({
   ...loadSettings(),
   version: app.getVersion(),
 }));
+
+ipcMain.handle("cpi:launch-game", (_event, gameId) => {
+  const id = String(gameId);
+  if (!GAME_IDS.has(id)) throw new Error("Unknown CPI Party game");
+  const current = loadSettings();
+  if (mainWindow) mainWindow.loadURL(`${current.partyBase}/host?game=${encodeURIComponent(id)}`);
+  return true;
+});
+
+ipcMain.handle("cpi:check-server", async () => {
+  const current = loadSettings();
+  try {
+    const response = await fetch(`${current.partyBase}/healthz`, { signal: AbortSignal.timeout(5000) });
+    if (!response.ok) return { ok: false, status: response.status };
+    const data = await response.json();
+    return { ok: true, data };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Connection failed" };
+  }
+});
 
 ipcMain.handle("cpi:set-party-url", (_event, value) => {
   const url = cleanBase(value);
