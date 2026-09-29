@@ -1,11 +1,14 @@
 # Corn Planet Party
 
 Phone-controlled multiplayer party games from the **Corn Planet Institution**.
-One screen hosts (laptop or TV), 3–8 agents play on their phones. Four games so far:
-**Cornlashing** (anonymous incident reports, head-to-head votes, points), **Corn or Shit**
-(one claim is in the CPI Database, one was made up — call it), **Entity Auction** (bid Kernels
-on sealed containment bays without knowing which CPI entity is inside) and **My Cob Escaped, What
-Do I Do Now???** (a CPI entity got out; type what you do, the Incident Director decides what happens).
+One screen hosts (laptop, TV, or the CPI Party desktop app) while agents use their phones.
+The current multiplayer catalog is **Cornlashing**, **Corn or Shit**, **Entity Auction**,
+**My Cob Escaped, What Do I Do Now???**, **Escape Thad's Steam Deck**, and
+**Angry Thud's Revenge**.
+
+The desktop application in `desktop/` wraps the full Party platform, CPI Database, accounts,
+prompts/moderation and Hall of Fame into one PC app. It also includes **Corn or Shit — Solo**,
+a keyboard-and-mouse PC mode that uses the live CPI canon without requiring phones or a room.
 
 > **Players:** open the site on your phone → enter the 4-letter code → pick a name → play.
 > **Host:** open `/host` on the big screen → show the code → start the operation.
