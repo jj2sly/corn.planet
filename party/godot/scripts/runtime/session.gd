@@ -11,6 +11,8 @@ signal server_health_changed(ok: bool, protocol: int)
 signal game_catalog_updated(games: Array)
 signal identity_updated(profile: Dictionary)
 signal stats_updated(stats: Dictionary)
+signal auth_config_updated(config: Dictionary)
+signal auth_token_received(token: String)
 
 const NetworkClientScript = preload("res://scripts/runtime/network_client.gd")
 
@@ -27,6 +29,12 @@ func _ready() -> void:
     network = NetworkClientScript.new()
     add_child(network)
     network.request_completed.connect(_on_request)
+
+func fetch_auth_config() -> void:
+    network.fetch_auth_config()
+
+func sign_in_email(email: String, password: String, api_key: String) -> void:
+    network.sign_in_email(email, password, api_key)
 
 func set_auth_token(token: String) -> void:
     network.set_auth_token(token)
@@ -95,6 +103,15 @@ func _on_request(path: String, ok: bool, data: Variant) -> void:
     if path == "/api/native/health":
         var protocol := int(data.get("protocol", 0)) if data is Dictionary else 0
         server_health_changed.emit(true, protocol)
+    elif path == "/api/native/auth-config":
+        if data is Dictionary:
+            auth_config_updated.emit(data)
+    elif path == "auth:signin":
+        if data is Dictionary:
+            var token := String(data.get("idToken", ""))
+            if not token.is_empty():
+                network.set_auth_token(token)
+                auth_token_received.emit(token)
     elif path == "/api/native/me":
         if data is Dictionary:
             identity_updated.emit(data)
