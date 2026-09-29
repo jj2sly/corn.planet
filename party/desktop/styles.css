@@ -59,3 +59,18 @@ footer { display: flex; justify-content: space-between; margin-top: 24px; color:
 .games button small { color: #7f878d; margin-top: 6px; font-size: 10px; }
 .games button:disabled { opacity: .5; cursor: wait; }
 @media (max-width: 1100px) { .games { grid-template-columns: repeat(2, 1fr); } }
+
+.readiness-card { margin-top: 18px; border: 1px solid #282d31; background: #0d100d; padding: 20px; }
+.readiness-card .section-head { margin-bottom: 14px; }
+.readiness-card .section-head button { min-height: 34px; border: 1px solid #3b4038; background: #121611; color: #e5e7e9; padding: 0 13px; cursor: pointer; }
+.readiness-card .section-head button:hover { border-color: #ffd400; }
+.readiness-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.readiness-grid > div { border: 1px solid #272c26; background: #080a08; padding: 12px; }
+.readiness-grid span { display: block; color: #6f766d; font-size: 8px; letter-spacing: .14em; margin-bottom: 6px; }
+.readiness-grid strong { font-size: 15px; }
+.ready-ok { color: #ffd400; }
+.ready-bad { color: #d48f8f; }
+.readiness-issues { min-height: 20px; margin: 12px 0 0; font-size: 10px; letter-spacing: .04em; }
+.readiness-issues.ok { color: #ffd400; }
+.readiness-issues.bad { color: #d48f8f; }
+@media (max-width: 1100px) { .readiness-grid { grid-template-columns: repeat(2, 1fr); } }
