@@ -37,6 +37,15 @@ func create_host() -> void:
 func join_player(code: String, name: String) -> void:
     _request(HTTPClient.METHOD_POST, "/api/native/player", {"code": code, "name": name})
 
+func fetch_canon(kind: String = "") -> void:
+    var path := "/api/native/canon"
+    if not kind.is_empty():
+        path += "?kind=" + kind.uri_encode()
+    _request(HTTPClient.METHOD_GET, path)
+
+func fetch_canon_record(ref: String) -> void:
+    _request(HTTPClient.METHOD_GET, "/api/native/canon/" + ref.uri_encode())
+
 func fetch_state() -> void:
     _request(HTTPClient.METHOD_GET, "/api/native/state")
 
