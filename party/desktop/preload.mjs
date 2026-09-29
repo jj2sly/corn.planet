@@ -3,6 +3,8 @@ import { contextBridge, ipcRenderer } from "electron";
 if (globalThis.location?.protocol === "file:") {
   contextBridge.exposeInMainWorld("cpiDesktop", {
     navigate: (target) => ipcRenderer.invoke("cpi:navigate", target),
+    startPresentationHost: () => ipcRenderer.invoke("cpi:start-presentation-host"),
+    togglePresentation: () => ipcRenderer.invoke("cpi:toggle-presentation"),
     launchGame: (gameId) => ipcRenderer.invoke("cpi:launch-game", gameId),
     launchPcGame: (gameId) => ipcRenderer.invoke("cpi:launch-pc-game", gameId),
     fetchCanon: () => ipcRenderer.invoke("cpi:fetch-canon"),
@@ -20,6 +22,11 @@ if (globalThis.location?.protocol === "file:") {
       const handler = (_event, detail) => callback(detail);
       ipcRenderer.on("cpi:content-error", handler);
       return () => ipcRenderer.removeListener("cpi:content-error", handler);
+    },
+    onPresentationMode: (callback) => {
+      const handler = (_event, enabled) => callback(Boolean(enabled));
+      ipcRenderer.on("cpi:presentation-mode", handler);
+      return () => ipcRenderer.removeListener("cpi:presentation-mode", handler);
     },
   });
 }
