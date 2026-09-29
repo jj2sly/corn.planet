@@ -66,6 +66,11 @@ mesh = SubResource("CoreCoil")
 material_override = SubResource("CoreMaterial")
 position = Vector3(0, 1.8, -10)
 
+[node name="HazardLight" type="OmniLight3D" parent="."]
+position = Vector3(0, 4, -4)
+omni_range = 10.0
+light_energy = 0.3
+
 [node name="CoreLight" type="OmniLight3D" parent="."]
 position = Vector3(0, 2.0, -10)
 omni_range = 12.0
