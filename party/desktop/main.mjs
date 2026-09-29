@@ -50,20 +50,34 @@ function saveSettings() {
   fs.writeFileSync(settingsPath(), JSON.stringify(settings, null, 2), "utf8");
 }
 
+function privateIpv4Score(address) {
+  if (/^192\.168\./.test(address)) return 3;
+  if (/^10\./.test(address)) return 3;
+  const match = /^172\.(\d+)\./.exec(address);
+  if (match && Number(match[1]) >= 16 && Number(match[1]) <= 31) return 3;
+  if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(address)) return 1;
+  return 2;
+}
+
+function bestLanIpv4() {
+  const candidates = [];
+  for (const addresses of Object.values(networkInterfaces())) {
+    for (const address of addresses ?? []) {
+      if (address.family !== "IPv4" || address.internal) continue;
+      candidates.push(address.address);
+    }
+  }
+  candidates.sort((a, b) => privateIpv4Score(b) - privateIpv4Score(a));
+  return candidates[0] || null;
+}
+
 function playerJoinUrl() {
   const current = loadSettings();
   try {
     const url = new URL(current.partyBase);
-    if (url.hostname === "127.0.0.1" || url.hostname === "localhost") {
-      for (const addresses of Object.values(networkInterfaces())) {
-        for (const address of addresses ?? []) {
-          if (address.family === "IPv4" && !address.internal) {
-            url.hostname = address.address;
-            break;
-          }
-        }
-        if (url.hostname !== "127.0.0.1" && url.hostname !== "localhost") break;
-      }
+    if (["127.0.0.1", "localhost", "0.0.0.0"].includes(url.hostname)) {
+      const lan = bestLanIpv4();
+      if (lan) url.hostname = lan;
     }
     url.pathname = "/play";
     url.search = "";
@@ -506,7 +520,7 @@ ipcMain.handle("cpi:readiness", async () => {
 
   try {
     const phone = new URL(result.phoneUrl);
-    if (phone.hostname === "127.0.0.1" || phone.hostname === "localhost") {
+    if (["127.0.0.1", "localhost", "0.0.0.0"].includes(phone.hostname)) {
       result.issues.push("Phone join URL is still local-only; connect this computer to the same network as the players or use Railway.");
     }
   } catch {
