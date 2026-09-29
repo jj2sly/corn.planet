@@ -34,3 +34,19 @@ test("desktop app keeps Party content inside the application window", async () =
   assert.match(main, /CPI Database/);
   assert.match(main, /cpi:set-party-url/);
 });
+
+
+test("desktop command center exposes all six group games", async () => {
+  const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
+  for (const id of ["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]) {
+    assert.ok(html.includes(`data-game="${id}"`), `missing desktop game card ${id}`);
+  }
+});
+
+test("desktop health check runs in the Electron main process", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+  assert.match(main, /cpi:check-server/);
+  assert.match(renderer, /cpiDesktop\.checkServer/);
+  assert.doesNotMatch(renderer, /fetch\(/);
+});
