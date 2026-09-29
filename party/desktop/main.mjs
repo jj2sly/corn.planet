@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, WebContentsView, clipboard, ipcMain, powerSaveBlocker, shell } from "electron";
+import { app, BrowserWindow, Menu, WebContentsView, clipboard, dialog, ipcMain, powerSaveBlocker, shell } from "electron";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
@@ -16,6 +16,7 @@ const retainedViews = new Map();
 let activeTarget = "home";
 let presentationMode = false;
 let presentationBlockerId = null;
+let allowWindowClose = false;
 let settings = null;
 
 const GAME_IDS = new Set(["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]);
@@ -278,6 +279,26 @@ function createWindow() {
     if (contentView) contentView.setBounds(contentBounds());
   });
 
+  mainWindow.on("close", async (event) => {
+    if (allowWindowClose || !hostIsRetained()) return;
+    event.preventDefault();
+
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: "warning",
+      buttons: ["Keep Host Running", "Close CPI Party"],
+      defaultId: 0,
+      cancelId: 0,
+      title: "Party host is still live",
+      message: "A Party host display is still connected.",
+      detail: "Closing CPI Party can pause an active game until another host display reconnects.",
+    });
+
+    if (result.response === 1) {
+      allowWindowClose = true;
+      mainWindow.close();
+    }
+  });
+
   mainWindow.on("closed", () => {
     destroyAllContentViews();
     mainWindow = null;
@@ -512,7 +533,11 @@ ipcMain.handle("cpi:check-server", async () => {
 ipcMain.handle("cpi:set-party-url", (_event, value) => {
   const url = cleanBase(value);
   if (!/^https?:\/\//i.test(url)) throw new Error("Party server URL must start with http:// or https://");
-  settings = { ...loadSettings(), partyBase: url };
+
+  const current = loadSettings();
+  if (url !== current.partyBase && hostIsRetained()) stopRetainedHost();
+
+  settings = { ...current, partyBase: url };
   saveSettings();
   return { ...settings };
 });
