@@ -11,6 +11,8 @@ var room_code := ""
 var player_id := ""
 var display_name := ""
 var last_state: Dictionary = {}
+var poll_elapsed := 0.0
+var poll_interval := 0.5
 
 func _ready() -> void:
     network = CPINetworkClient.new()
@@ -24,6 +26,14 @@ func connect_host(url := "http://127.0.0.1:3000") -> void:
 func connect_player(code: String, name: String, url := "http://127.0.0.1:3000") -> void:
     network.configure(url)
     network.join_player(code, name)
+
+func _process(delta: float) -> void:
+    if network == null or network.session_token.is_empty():
+        return
+    poll_elapsed += delta
+    if poll_elapsed >= poll_interval:
+        poll_elapsed = 0.0
+        network.fetch_state()
 
 func poll() -> void:
     if not network.session_token.is_empty():
