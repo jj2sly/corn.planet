@@ -4,14 +4,14 @@ class_name ColdCaseCoreRepair
 signal step_changed(step: int, label: String)
 signal completed()
 
-const STEPS := ["ALIGN COILS", "RESTORE PRESSURE", "STABILIZE TEMPERATURE", "HOLD CORE"]
-var step := 0
-var active := true
+const STEPS: Array[String] = ["ALIGN COILS", "RESTORE PRESSURE", "STABILIZE TEMPERATURE", "HOLD CORE"]
+var step: int = 0
+var active: bool = true
 
 func interact() -> String:
     if not active:
         return "CORE STABLE"
-    var label := STEPS[step]
+    var label: String = STEPS[step]
     step += 1
     if step >= STEPS.size():
         step = STEPS.size()
