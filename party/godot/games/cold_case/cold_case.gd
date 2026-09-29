@@ -19,6 +19,7 @@ var milk: Node3D
 var outpost: Node3D
 var deep_interior: Node3D
 var checkpoint: Node3D
+var core_repair: Node
 
 var interaction_hint: Label
 var objective_label: Label
@@ -30,11 +31,15 @@ var cooling_repaired := false
 var outpost_discovered := false
 var checkpoint_active := false
 var final_report_shown := false
+var core_repaired := false
 
 func _ready() -> void:
     camera = $Camera
     fridge_door = $World/Refrigerator/Door
     _build_hud()
+    core_repair = load("res://games/cold_case/core_repair.gd").new()
+    add_child(core_repair)
+    core_repair.completed.connect(_on_core_repaired)
     Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -109,19 +114,13 @@ func _update_zone_state(delta: float) -> void:
         status_label.text = "ZONE  //  DEEP INTERIOR"
     elif mission_phase == "DEEP_INTERIOR" and position.z < -72.0:
         mission_phase = "STABILIZING"
-        objective_label.text = "OBJECTIVE  //  Stabilize the refrigerator core"
+        objective_label.text = "OBJECTIVE  //  Repair the refrigerator core"
         status_label.text = "SYSTEM  //  CORE INSTABILITY"
-    elif mission_phase == "STABILIZING" and position.z > -63.0:
+    elif mission_phase == "STABILIZING" and core_repaired and position.z > -63.0:
         mission_phase = "STABILIZED"
         objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
         status_label.text = "SYSTEM  //  STABILIZED"
         temperature = -2.0
-    elif mission_phase == "FREEZER" and cooling_repaired:
-        mission_phase = "STABILIZED"
-        objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
-        status_label.text = "SYSTEM  //  STABILIZED"
-        temperature = -2.0
-
     if mission_phase == "STABILIZED" and position.z > -1.0 and not final_report_shown:
         _complete_mission()
 
@@ -157,6 +156,10 @@ func _interact() -> void:
 
     if mission_phase == "DEEP_INTERIOR" and _near_outpost():
         _discover_outpost()
+        return
+
+    if mission_phase == "STABILIZING":
+        _interact_core()
         return
 
     if mission_phase == "FREEZER" and _near_freezer_unit():
@@ -241,6 +244,8 @@ func _has_interaction() -> bool:
         return _near_freezer_unit()
     if mission_phase == "DEEP_INTERIOR":
         return _near_outpost()
+    if mission_phase == "STABILIZING":
+        return true
     return false
 
 func _near_fridge() -> bool:
@@ -263,6 +268,18 @@ func _discover_outpost() -> void:
     script.discover()
     objective_label.text = "OBJECTIVE  //  Continue toward the refrigerator core"
     status_label.text = "TECHNICIAN AREA  //  OUTPOST DISCOVERED"
+
+func _interact_core() -> void:
+    if core_repair == null:
+        return
+    status_label.text = "CORE REPAIR  //  " + core_repair.interact()
+    objective_label.text = "OBJECTIVE  //  " + ("Complete core stabilization" if not core_repaired else "Return to the refrigerator door")
+
+func _on_core_repaired() -> void:
+    core_repaired = true
+    temperature = -2.0
+    status_label.text = "SYSTEM  //  CORE STABILIZED"
+    objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
 
 func _near_freezer_unit() -> bool:
     return freezer != null and global_position.distance_to(freezer.global_position + Vector3(0, 2.0, -7.0)) < 3.5
