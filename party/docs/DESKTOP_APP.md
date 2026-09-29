@@ -30,6 +30,7 @@ From `party/`:
 
 ```bash
 npm install
+npm --prefix desktop install
 npm run dev
 ```
 
@@ -48,6 +49,12 @@ Open the Command Center and enter the Railway Party URL in **Party Server**. The
 No password or Firebase credential is stored in the desktop settings file.
 
 ## Package the desktop app
+
+Install desktop dependencies once:
+
+```bash
+npm --prefix desktop install
+```
 
 Development package:
 
