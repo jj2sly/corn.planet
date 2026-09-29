@@ -51,3 +51,27 @@ test("desktop health check runs in the Electron main process", async () => {
   assert.match(renderer, /cpiDesktop\.checkServer/);
   assert.doesNotMatch(renderer, /fetch\(/);
 });
+
+
+test("desktop app ships the solo Corn or Shit PC game", async () => {
+  const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const desktop = JSON.parse(await readFile(new URL("../desktop/package.json", import.meta.url), "utf8"));
+
+  await access(new URL("../desktop/pc/cornorshit.html", import.meta.url));
+  await access(new URL("../desktop/pc/cornorshit.js", import.meta.url));
+  await access(new URL("../desktop/pc/pc.css", import.meta.url));
+
+  assert.match(html, /data-pc-game="cornorshit-solo"/);
+  assert.match(main, /cpi:launch-pc-game/);
+  assert.match(main, /cpi:fetch-canon/);
+  assert.ok(desktop.build.files.includes("pc/**/*"));
+});
+
+test("desktop uses a persistent CPI shell with embedded content views", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /WebContentsView/);
+  assert.match(main, /addChildView/);
+  assert.match(main, /SIDEBAR_WIDTH/);
+  assert.match(main, /cpi:active-target/);
+});
