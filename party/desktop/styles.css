@@ -77,3 +77,7 @@ footer { display: flex; justify-content: space-between; margin-top: 24px; color:
 
 .server-form button.secondary { border-color: #3b4038; background: #121611; color: #e5e7e9; font-weight: 700; }
 .server-form button.secondary:hover { border-color: #ffd400; }
+
+.readiness-actions { display: flex; gap: 8px; align-items: center; }
+.readiness-card .section-head .primary-ready { border-color: #ffd400; background: #ffd400; color: #090a08; font-weight: 900; }
+.readiness-card .section-head .primary-ready:disabled { border-color: #33372f; background: #11130f; color: #686e65; cursor: not-allowed; }
