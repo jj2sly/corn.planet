@@ -43,6 +43,9 @@ jobs:
       - name: Build desktop distributable
         run: npm run dist
 
+      - name: Copy Group Night guide beside installer
+        run: node -e "require('fs').copyFileSync('START_HERE.txt','../dist-desktop/START_HERE.txt')"
+
       - name: Upload desktop artifact
         uses: actions/upload-artifact@v4
         with:
