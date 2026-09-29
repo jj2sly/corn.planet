@@ -27,6 +27,8 @@ var objective_label: Label
 var temp_label: Label
 var status_label: Label
 var health_label: Label
+var briefing_overlay: ColorRect
+var briefing_active: bool = true
 
 var power_repaired := false
 var cooling_repaired := false
@@ -42,12 +44,19 @@ func _ready() -> void:
     camera = $Player/Camera
     fridge_door = $World/Refrigerator/Door
     _build_hud()
+    _build_briefing()
     core_repair = load("res://games/cold_case/core_repair.gd").new()
     add_child(core_repair)
     core_repair.completed.connect(_on_core_repaired)
     Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _unhandled_input(event: InputEvent) -> void:
+    if briefing_active and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
+        briefing_active = false
+        if briefing_overlay != null:
+            briefing_overlay.queue_free()
+        Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+        return
     if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
         player_body.rotate_y(-event.relative.x * mouse_sensitivity)
         look_pitch = clamp(look_pitch - event.relative.y * mouse_sensitivity, -1.35, 1.35)
@@ -399,7 +408,8 @@ func _show_final_report() -> void:
     body.size = Vector2(700, 270)
     body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     body.add_theme_font_size_override("font_size", 16)
-    body.text = "CASE  //  COLD CASE\\nSTATUS  //  STABILIZED — MONITORING REQUIRED\\n\\nSYSTEMS REPAIRED  //  POWER / COOLING / CORE\\nTECHNICIAN  //  CHUCK LOCATED\\nANOMALY  //  REFRIGERATOR REMAINS UNDER OBSERVATION\\nFINAL READING  //  -273.15 C\\n\\nNOTE  //  CASE REMAINS OPEN"
+    var technician_status: String = "CHUCK LOCATED" if outpost_discovered else "NOT LOCATED"
+    body.text = "CASE  //  COLD CASE\\nSTATUS  //  STABILIZED — MONITORING REQUIRED\\n\\nSYSTEMS REPAIRED  //  POWER / COOLING / CORE\\nTECHNICIAN  //  " + technician_status + "\\nANOMALY  //  REFRIGERATOR REMAINS UNDER OBSERVATION\\nFINAL READING  //  -273.15 C\\n\\nNOTE  //  CASE REMAINS OPEN"
     panel.add_child(body)
 
     var close_button: Button = Button.new()
@@ -408,3 +418,36 @@ func _show_final_report() -> void:
     close_button.text = "RETURN TO CPI PARTY"
     close_button.pressed.connect(func(): panel.queue_free())
     panel.add_child(close_button)
+
+func _build_briefing() -> void:
+    briefing_overlay = ColorRect.new()
+    briefing_overlay.position = Vector2(180, 110)
+    briefing_overlay.size = Vector2(920, 500)
+    briefing_overlay.color = Color(0.015, 0.02, 0.023, 0.97)
+    add_child(briefing_overlay)
+
+    var header: Label = Label.new()
+    header.position = Vector2(42, 30)
+    header.text = "CPST // FIELD DEPLOYMENT BRIEFING"
+    header.add_theme_font_size_override("font_size", 28)
+    briefing_overlay.add_child(header)
+
+    var case_label: Label = Label.new()
+    case_label.position = Vector2(44, 82)
+    case_label.text = "CASE  COLD CASE     PRIORITY  UNRESOLVED"
+    case_label.add_theme_font_size_override("font_size", 14)
+    briefing_overlay.add_child(case_label)
+
+    var brief: Label = Label.new()
+    brief.position = Vector2(44, 132)
+    brief.size = Vector2(820, 250)
+    brief.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    brief.add_theme_font_size_override("font_size", 18)
+    brief.text = "A CPI refrigerator has developed anomalous internal behavior.\\n\\nEnter the appliance, restore its damaged systems, investigate the deeper interior, and stabilize the refrigerator.\\n\\nThe interior is largely uncharted. Temperature conditions may change the environment and the behavior of food inside.\\n\\nA CPI technician named Chuck was the last known technician assigned to the appliance. Locate him if possible.\\n\\nPRIMARY DIRECTIVE  //  STABILIZE THE REFRIGERATOR\\nEXTRACTION  //  RETURN THROUGH THE ORIGINAL DOOR"
+    briefing_overlay.add_child(brief)
+
+    var prompt: Label = Label.new()
+    prompt.position = Vector2(44, 420)
+    prompt.text = "E  //  ACCEPT BRIEFING AND BEGIN DEPLOYMENT"
+    prompt.add_theme_font_size_override("font_size", 17)
+    briefing_overlay.add_child(prompt)
