@@ -412,14 +412,14 @@ func _show_final_report() -> void:
     body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     body.add_theme_font_size_override("font_size", 16)
     var technician_status: String = "CHUCK LOCATED" if outpost_discovered else "NOT LOCATED"
-    body.text = "CASE  //  COLD CASE\\nSTATUS  //  STABILIZED — MONITORING REQUIRED\\n\\nSYSTEMS REPAIRED  //  POWER / COOLING / CORE\\nTECHNICIAN  //  " + technician_status + "\\nANOMALY  //  REFRIGERATOR REMAINS UNDER OBSERVATION\\nFINAL READING  //  -273.15 C\\n\\nNOTE  //  CASE REMAINS OPEN"
+    body.text = "CASE  //  COLD CASE\nSTATUS  //  STABILIZED — MONITORING REQUIRED\n\nSYSTEMS REPAIRED  //  POWER / COOLING / CORE\nTECHNICIAN  //  " + technician_status + "\nANOMALY  //  REFRIGERATOR REMAINS UNDER OBSERVATION\nFINAL READING  //  -273.15 C\n\nNOTE  //  CASE REMAINS OPEN"
     panel.add_child(body)
 
     var close_button: Button = Button.new()
     close_button.position = Vector2(36, 365)
     close_button.size = Vector2(210, 42)
     close_button.text = "RETURN TO CPI PARTY"
-    close_button.pressed.connect(func(): panel.queue_free())
+    close_button.pressed.connect(func(): report_layer.queue_free())
     panel.add_child(close_button)
 
 func _build_briefing() -> void:
@@ -448,7 +448,7 @@ func _build_briefing() -> void:
     brief.size = Vector2(820, 250)
     brief.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     brief.add_theme_font_size_override("font_size", 18)
-    brief.text = "A CPI refrigerator has developed anomalous internal behavior.\\n\\nEnter the appliance, restore its damaged systems, investigate the deeper interior, and stabilize the refrigerator.\\n\\nThe interior is largely uncharted. Temperature conditions may change the environment and the behavior of food inside.\\n\\nA CPI technician named Chuck was the last known technician assigned to the appliance. Locate him if possible.\\n\\nPRIMARY DIRECTIVE  //  STABILIZE THE REFRIGERATOR\\nEXTRACTION  //  RETURN THROUGH THE ORIGINAL DOOR"
+    brief.text = "A CPI refrigerator has developed anomalous internal behavior.\n\nEnter the appliance, restore its damaged systems, investigate the deeper interior, and stabilize the refrigerator.\n\nThe interior is largely uncharted. Temperature conditions may change the environment and the behavior of food inside.\n\nA CPI technician named Chuck was the last known technician assigned to the appliance. Locate him if possible.\n\nPRIMARY DIRECTIVE  //  STABILIZE THE REFRIGERATOR\nEXTRACTION  //  RETURN THROUGH THE ORIGINAL DOOR"
     briefing_overlay.add_child(brief)
 
     var prompt: Label = Label.new()
