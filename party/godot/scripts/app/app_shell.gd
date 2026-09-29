@@ -16,22 +16,24 @@ var nav_buttons: Dictionary = {}
 var active_section := "home"
 var session: Node
 var app_state: Node
+var notifications: Node
 
 var canon_records: Array = []
 var canon_status: Dictionary = {}
 var database_search := ""
+var game_search := ""
 
 const BG := Color(0.012, 0.015, 0.018)
 const PANEL := Color(0.035, 0.041, 0.047)
-const PANEL_2 := Color(0.055, 0.062, 0.070)
 const LINE := Color(0.15, 0.17, 0.19)
 const TEXT := Color(0.88, 0.89, 0.90)
 const MUTED := Color(0.48, 0.51, 0.54)
 const ACCENT := Color(1.0, 0.83, 0.0)
 
-func setup(p_session: Node, p_state: Node) -> void:
+func setup(p_session: Node, p_state: Node, p_notifications: Node = null) -> void:
     session = p_session
     app_state = p_state
+    notifications = p_notifications
     _build_shell()
     show_section("home")
 
@@ -64,8 +66,8 @@ func _build_shell() -> void:
     add_child(brand_detail)
 
     status_label = Label.new()
-    status_label.position = Vector2(1000, 25)
-    status_label.size = Vector2(240, 24)
+    status_label.position = Vector2(940, 25)
+    status_label.size = Vector2(300, 24)
     status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
     status_label.text = "OFFLINE // LOCAL CLIENT"
     status_label.add_theme_font_size_override("font_size", 11)
@@ -88,20 +90,20 @@ func _build_shell() -> void:
     var nav: Array[Dictionary] = RegistryScript.navigation()
     for i: int in nav.size():
         var item: Dictionary = nav[i]
-        var button := Button.new()
-        button.position = Vector2(14, 62 + i * 50)
-        button.size = Vector2(190, 42)
-        button.text = "  %s    %s" % [String(item["icon"]), String(item["label"])]
-        button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-        button.add_theme_font_size_override("font_size", 12)
-        button.add_theme_color_override("font_color", TEXT)
-        button.pressed.connect(func(section: String = String(item["id"])): show_section(section))
-        sidebar.add_child(button)
-        nav_buttons[String(item["id"])] = button
+        var nav_button := Button.new()
+        nav_button.position = Vector2(14, 62 + i * 50)
+        nav_button.size = Vector2(190, 42)
+        nav_button.text = "  %s    %s" % [String(item["icon"]), String(item["label"])]
+        nav_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+        nav_button.add_theme_font_size_override("font_size", 12)
+        nav_button.add_theme_color_override("font_color", TEXT)
+        nav_button.pressed.connect(func(section: String = String(item["id"])): show_section(section))
+        sidebar.add_child(nav_button)
+        nav_buttons[String(item["id"])] = nav_button
 
     var side_footer := Label.new()
     side_footer.position = Vector2(24, 570)
-    side_footer.text = "CPST NETWORK\nAUTHORIZED PERSONNEL\nCLIENT v0.1"
+    side_footer.text = "CPST NETWORK\nAUTHORIZED PERSONNEL\nCLIENT v0.2"
     side_footer.add_theme_font_size_override("font_size", 9)
     side_footer.add_theme_color_override("font_color", MUTED)
     sidebar.add_child(side_footer)
@@ -163,6 +165,10 @@ func button(parent: Control, rect: Rect2, text_value: String, callback: Callable
     parent.add_child(b)
     return b
 
+func set_status(value: String) -> void:
+    if status_label:
+        status_label.text = value
+
 func set_canon_records(records: Array, status: Dictionary) -> void:
     canon_records = records
     canon_status = status
@@ -209,16 +215,16 @@ func _show_home() -> void:
 
     var cards := [
         ["GAMES", "%d MODULES" % RegistryScript.games().size(), "Launch party games and missions.", "games"],
-        ["CPST DATABASE", "%d RECORDS" % canon_records.size(), "Read institution canon and records.", "database"],
+        ["CPI DATABASE", "%d RECORDS" % canon_records.size(), "Read institution canon and records.", "database"],
         ["ROOMS", "MULTIPLAYER", "Create, join and resume sessions.", "rooms"]
     ]
     for i: int in cards.size():
-        var c: Array = cards[i]
-        var p := panel(Rect2(i * 320.0, 185, 300, 145))
-        label(p, Vector2(20, 18), String(c[0]), 11, ACCENT)
-        label(p, Vector2(20, 45), String(c[1]), 19)
-        label(p, Vector2(20, 78), String(c[2]), 11, MUTED)
-        button(p, Rect2(20, 105, 120, 26), "OPEN", func(target: String = String(c[3])): show_section(target))
+        var card_data: Array = cards[i]
+        var card := panel(Rect2(i * 320.0, 185, 300, 145))
+        label(card, Vector2(20, 18), String(card_data[0]), 11, ACCENT)
+        label(card, Vector2(20, 45), String(card_data[1]), 19)
+        label(card, Vector2(20, 78), String(card_data[2]), 11, MUTED)
+        button(card, Rect2(20, 105, 120, 26), "OPEN", func(target: String = String(card_data[3])): show_section(target))
 
     var activity := panel(Rect2(0, 350, 970, 145))
     label(activity, Vector2(20, 18), "PLATFORM STATUS", 11, ACCENT)
@@ -238,48 +244,55 @@ func _show_home() -> void:
 func _show_games() -> void:
     title_label.text = "GAME LIBRARY"
     section_label.text = "CPST // ALL MODULES"
+
     var search := LineEdit.new()
     search.position = Vector2(0, 0)
-    search.size = Vector2(970, 34)
+    search.size = Vector2(700, 34)
     search.placeholder_text = "SEARCH GAMES..."
+    search.text = game_search
+    search.text_changed.connect(func(value: String):
+        game_search = value
+        _render_game_cards()
+    )
     content.add_child(search)
-    var games: Array[Dictionary] = RegistryScript.games()
-    for i: int in games.size():
-        var g: Dictionary = games[i]
-        var row: int = i / 2
-        var col: int = i % 2
-        var p := panel(Rect2(col * 485.0, 48 + row * 118.0, 465, 105))
-        label(p, Vector2(18, 12), String(g["category"]), 9, ACCENT)
-        label(p, Vector2(18, 30), String(g["name"]), 16)
-        label(p, Vector2(18, 56), String(g["description"]), 10, MUTED)
-        label(p, Vector2(18, 78), "%s  //  %s" % [String(g["players"]), String(g["status"])], 9, MUTED)
-        if not String(g["scene"]).is_empty():
-            button(p, Rect2(335, 64, 110, 26), "LAUNCH", func(id: String = String(g["id"])): launch_game_requested.emit(id))
-        else:
-            button(p, Rect2(335, 64, 110, 26), "OPEN ROOM", func(): show_section("rooms"))
 
-func show_canon_record(record: Dictionary) -> void:
-    clear_content()
-    title_label.text = String(record.get("ref", "CANON RECORD"))
-    section_label.text = "CPI // CANON RECORD"
-    var p := panel(Rect2(0, 0, 970, 470))
-    label(p, Vector2(24, 22), String(record.get("title", "UNTITLED")), 24, ACCENT)
-    label(p, Vector2(24, 62), String(record.get("kind", "canon")).to_upper(), 10, MUTED)
-    var fields_variant: Variant = record.get("fields", {})
-    if fields_variant is Dictionary:
-        var fields: Dictionary = fields_variant
-        var y := 105.0
-        for key: Variant in fields.keys():
-            label(p, Vector2(24, y), String(key).to_upper(), 9, MUTED)
-            label(p, Vector2(180, y), String(fields[key]), 11)
-            y += 48.0
-            if y > 405.0:
-                break
-    button(p, Rect2(24, 425, 140, 30), "BACK TO DATABASE", func(): show_section("database"))
+    var recent_count := app_state.recent_games.size() if app_state else 0
+    label(content, Vector2(730, 9), "%d RECENT" % recent_count, 10, MUTED)
+    _render_game_cards()
+
+func _render_game_cards() -> void:
+    for child: Node in content.get_children():
+        if child.position.y >= 42:
+            child.queue_free()
+
+    var query := game_search.strip_edges().to_lower()
+    var visible_index := 0
+    for game: Dictionary in RegistryScript.games():
+        var haystack := "%s %s %s" % [String(game["name"]), String(game["category"]), String(game["description"])]
+        if not query.is_empty() and not haystack.to_lower().contains(query):
+            continue
+
+        var row: int = visible_index / 2
+        var col: int = visible_index % 2
+        var card := panel(Rect2(col * 485.0, 48 + row * 118.0, 465, 105))
+        var game_id := String(game["id"])
+        var favorite := app_state.is_favorite(game_id) if app_state else false
+        label(card, Vector2(18, 12), String(game["category"]), 9, ACCENT)
+        label(card, Vector2(18, 30), ("%s  ★" if favorite else "%s") % String(game["name"]), 16)
+        label(card, Vector2(18, 56), String(game["description"]), 10, MUTED)
+        label(card, Vector2(18, 78), "%s  //  %s" % [String(game["players"]), String(game["status"])], 9, MUTED)
+        button(card, Rect2(300, 14, 34, 26), "★" if favorite else "☆", func(id: String = game_id):
+            if app_state:
+                app_state.toggle_favorite(id)
+                _show_games()
+        )
+        button(card, Rect2(342, 64, 103, 26), "LAUNCH" if not String(game["scene"]).is_empty() else "OPEN ROOM", func(id: String = game_id): launch_game_requested.emit(id))
+        visible_index += 1
 
 func _show_database() -> void:
-    title_label.text = "CPST DATABASE"
+    title_label.text = "CPI DATABASE"
     section_label.text = "CPI // READ-ONLY CANON"
+
     var toolbar := panel(Rect2(0, 0, 970, 72))
     var search := LineEdit.new()
     search.position = Vector2(18, 18)
@@ -294,7 +307,7 @@ func _show_database() -> void:
     button(toolbar, Rect2(535, 18, 155, 34), "REFRESH CANON", func():
         if session:
             session.fetch_canon()
-        status_label.text = "LOADING // CPST CANON"
+        set_status("LOADING // CPI CANON")
     )
     label(toolbar, Vector2(715, 27), "%d LOADED" % canon_records.size(), 10, MUTED)
     _render_database_cards()
@@ -303,6 +316,7 @@ func _render_database_cards() -> void:
     for child: Node in content.get_children():
         if child.position.y >= 80:
             child.queue_free()
+
     var query := database_search.strip_edges().to_lower()
     var visible_index := 0
     for record_variant: Variant in canon_records:
@@ -320,20 +334,46 @@ func _render_database_cards() -> void:
         label(card, Vector2(330, 12), String(record.get("kind", "canon")).to_upper(), 9, MUTED)
         button(card, Rect2(330, 31, 115, 28), "VIEW RECORD", func(ref: String = String(record.get("ref", ""))): canon_record_requested.emit(ref))
         visible_index += 1
+
     if visible_index == 0:
         var empty := panel(Rect2(0, 90, 970, 100))
         label(empty, Vector2(20, 20), "NO MATCHING RECORDS", 16, ACCENT)
         label(empty, Vector2(20, 52), "Refresh the canon or change the search.", 10, MUTED)
 
+func show_canon_record(record: Dictionary) -> void:
+    clear_content()
+    title_label.text = String(record.get("ref", "CANON RECORD"))
+    section_label.text = "CPI // CANON RECORD"
+
+    var record_panel := panel(Rect2(0, 0, 970, 470))
+    label(record_panel, Vector2(24, 22), String(record.get("title", "UNTITLED")), 24, ACCENT)
+    label(record_panel, Vector2(24, 62), String(record.get("kind", "canon")).to_upper(), 10, MUTED)
+
+    var fields_variant: Variant = record.get("fields", {})
+    if fields_variant is Dictionary:
+        var fields: Dictionary = fields_variant
+        var y := 105.0
+        for key: Variant in fields.keys():
+            label(record_panel, Vector2(24, y), String(key).to_upper(), 9, MUTED)
+            var value_label := label(record_panel, Vector2(180, y), String(fields[key]), 11)
+            value_label.size = Vector2(740, 44)
+            value_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+            y += 48.0
+            if y > 405.0:
+                break
+
+    button(record_panel, Rect2(24, 425, 150, 30), "BACK TO DATABASE", func(): show_section("database"))
+
 func _show_rooms() -> void:
     title_label.text = "PARTY ROOMS"
     section_label.text = "CPI PARTY // SESSION CONTROL"
+
     var create := panel(Rect2(0, 0, 470, 255))
     label(create, Vector2(24, 22), "HOST A PARTY", 20, ACCENT)
     label(create, Vector2(24, 60), "Start a server-authoritative room and\nbecome the host.", 12)
     button(create, Rect2(24, 125, 190, 38), "CREATE PARTY ROOM", func():
         create_room_requested.emit()
-        status_label.text = "CREATING // PARTY ROOM"
+        set_status("CREATING // PARTY ROOM")
     )
     label(create, Vector2(24, 184), "SERVER", 9, MUTED)
     label(create, Vector2(24, 204), String(app_state.server_url) if app_state else "LOCAL", 10)
@@ -349,6 +389,7 @@ func _show_rooms() -> void:
     code.max_length = 4
     code.text = String(app_state.last_room_code) if app_state else ""
     join.add_child(code)
+
     label(join, Vector2(230, 96), "DISPLAY NAME", 9, MUTED)
     var name := LineEdit.new()
     name.position = Vector2(230, 114)
@@ -356,13 +397,14 @@ func _show_rooms() -> void:
     name.placeholder_text = "CPI OPERATIVE"
     name.text = String(app_state.display_name) if app_state else "CPI OPERATIVE"
     join.add_child(name)
+
     button(join, Rect2(24, 170, 130, 34), "JOIN ROOM", func():
         if session:
             session.connect_player(code.text.strip_edges().to_upper(), name.text.strip_edges(), app_state.server_url if app_state else "http://127.0.0.1:3000")
         if app_state:
             app_state.set_display_name(name.text)
             app_state.remember_room(code.text.strip_edges().to_upper())
-        status_label.text = "CONNECTING // ROOM %s" % code.text.strip_edges().to_upper()
+        set_status("CONNECTING // ROOM %s" % code.text.strip_edges().to_upper())
     )
     button(join, Rect2(166, 170, 130, 34), "USE LAST ROOM", func():
         code.text = String(app_state.last_room_code) if app_state else ""
@@ -380,41 +422,44 @@ func _show_rooms() -> void:
 func _show_profile() -> void:
     title_label.text = "PROFILE"
     section_label.text = "CPI // PERSONNEL FILE"
-    var p := panel(Rect2(0, 0, 620, 280))
-    label(p, Vector2(24, 22), "LOCAL OPERATIVE PROFILE", 20, ACCENT)
-    label(p, Vector2(24, 65), "DISPLAY NAME", 9, MUTED)
+
+    var profile := panel(Rect2(0, 0, 620, 280))
+    label(profile, Vector2(24, 22), "LOCAL OPERATIVE PROFILE", 20, ACCENT)
+    label(profile, Vector2(24, 65), "DISPLAY NAME", 9, MUTED)
+
     var name := LineEdit.new()
     name.position = Vector2(24, 85)
     name.size = Vector2(330, 34)
     name.text = String(app_state.display_name) if app_state else "CPI OPERATIVE"
-    p.add_child(name)
-    button(p, Rect2(24, 135, 150, 32), "SAVE PROFILE", func():
+    profile.add_child(name)
+
+    button(profile, Rect2(24, 135, 150, 32), "SAVE PROFILE", func():
         if app_state:
             app_state.set_display_name(name.text)
-        status_label.text = "PROFILE SAVED"
+        set_status("PROFILE SAVED")
     )
-    label(p, Vector2(24, 195), "ACCOUNT", 9, MUTED)
-    label(p, Vector2(24, 215), "Native CPI identity // local profile", 11)
-    label(p, Vector2(390, 65), "ACTIVITY", 9, MUTED)
-    label(p, Vector2(390, 85), "GAMES", 11)
-    label(p, Vector2(470, 85), "0", 16, ACCENT)
-    label(p, Vector2(390, 120), "ACHIEVEMENTS", 11)
-    label(p, Vector2(470, 120), "0", 16, ACCENT)
-    label(p, Vector2(390, 155), "KERNELS", 11)
-    label(p, Vector2(470, 155), "0", 16, ACCENT)
+
+    label(profile, Vector2(24, 195), "ACCOUNT", 9, MUTED)
+    label(profile, Vector2(24, 215), "Native CPI identity // local profile", 11)
+    label(profile, Vector2(390, 65), "LIBRARY", 9, MUTED)
+    label(profile, Vector2(390, 85), "%d RECENT" % (app_state.recent_games.size() if app_state else 0), 14, ACCENT)
+    label(profile, Vector2(390, 120), "%d FAVORITES" % (app_state.favorite_games.size() if app_state else 0), 14, ACCENT)
 
 func _show_settings() -> void:
     title_label.text = "SETTINGS"
     section_label.text = "CPI // CLIENT CONFIGURATION"
-    var p := panel(Rect2(0, 0, 700, 340))
-    label(p, Vector2(24, 22), "CLIENT SETTINGS", 20, ACCENT)
-    label(p, Vector2(24, 65), "SERVER URL", 9, MUTED)
+
+    var settings_panel := panel(Rect2(0, 0, 700, 340))
+    label(settings_panel, Vector2(24, 22), "CLIENT SETTINGS", 20, ACCENT)
+    label(settings_panel, Vector2(24, 65), "SERVER URL", 9, MUTED)
+
     var server := LineEdit.new()
     server.position = Vector2(24, 85)
     server.size = Vector2(520, 34)
     server.text = String(app_state.server_url) if app_state else "http://127.0.0.1:3000"
-    p.add_child(server)
-    label(p, Vector2(24, 145), "QUALITY PROFILE", 9, MUTED)
+    settings_panel.add_child(server)
+
+    label(settings_panel, Vector2(24, 145), "QUALITY PROFILE", 9, MUTED)
     var quality := OptionButton.new()
     quality.position = Vector2(24, 165)
     quality.size = Vector2(220, 34)
@@ -426,8 +471,9 @@ func _show_settings() -> void:
             if quality.get_item_text(i) == String(app_state.quality):
                 quality.select(i)
                 break
-    p.add_child(quality)
-    label(p, Vector2(280, 145), "MASTER VOLUME", 9, MUTED)
+    settings_panel.add_child(quality)
+
+    label(settings_panel, Vector2(280, 145), "MASTER VOLUME", 9, MUTED)
     var volume := HSlider.new()
     volume.position = Vector2(280, 165)
     volume.size = Vector2(260, 34)
@@ -435,147 +481,14 @@ func _show_settings() -> void:
     volume.max_value = 1.0
     volume.step = 0.05
     volume.value = float(app_state.master_volume) if app_state else 1.0
-    p.add_child(volume)
-    button(p, Rect2(24, 225, 160, 34), "SAVE SETTINGS", func():
+    settings_panel.add_child(volume)
+
+    button(settings_panel, Rect2(24, 225, 160, 34), "SAVE SETTINGS", func():
         if app_state:
             app_state.set_server_url(server.text)
             app_state.set_quality(quality.get_item_text(quality.selected))
             app_state.master_volume = volume.value
             app_state.save_state()
-        status_label.text = "SETTINGS SAVED"
+        set_status("SETTINGS SAVED")
     )
-    label(p, Vector2(24, 292), "These settings are shared by every native CPI module.", 10, MUTED)
-
-func show_canon_record(record: Dictionary) -> void:
-    clear_content()
-    title_label.text = String(record.get("ref", "CANON RECORD"))
-    section_label.text = "CPI // CANON RECORD"
-    var p := panel(Rect2(0, 0, 970, 470))
-    label(p, Vector2(24, 22), String(record.get("title", "UNTITLED")), 24, ACCENT)
-    label(p, Vector2(24, 62), String(record.get("kind", "canon")).to_upper(), 10, MUTED)
-    var fields_variant: Variant = record.get("fields", {})
-    if fields_variant is Dictionary:
-        var fields: Dictionary = fields_variant
-        var y := 105.0
-        for key: Variant in fields.keys():
-            label(p, Vector2(24, y), String(key).to_upper(), 9, MUTED)
-            label(p, Vector2(180, y), String(fields[key]), 11)
-            y += 48.0
-            if y > 405.0:
-                break
-    button(p, Rect2(24, 425, 140, 30), "BACK TO DATABASE", func(): show_section("database"))
-
-func _show_database() -> void:
-    title_label.text = "CPST DATABASE"
-    section_label.text = "CPI // CANON RECORDS"
-
-    var p := panel(Rect2(0, 0, 970, 120))
-    label(p, Vector2(20, 18), "CANON SNAPSHOT", 12, ACCENT)
-    var record_count: int = canon_records.size()
-    var loaded: int = int(canon_status.get("records", record_count))
-    label(p, Vector2(20, 46), "%d RECORDS LOADED" % loaded, 20)
-    label(p, Vector2(20, 78), "Read-only native view. Redacted material stays redacted.", 10, MUTED)
-    button(p, Rect2(730, 42, 190, 34), "REFRESH CANON", func():
-        if session:
-            session.fetch_canon()
-        status_label.text = "LOADING // CPST CANON"
-    )
-
-    if record_count == 0:
-        var empty := panel(Rect2(0, 145, 970, 145))
-        label(empty, Vector2(20, 20), "NO LOCAL SNAPSHOT YET", 18, ACCENT)
-        label(empty, Vector2(20, 55), "Connect to the Party server and refresh the canon to populate the native database.", 11, MUTED)
-        button(empty, Rect2(20, 92, 180, 30), "OPEN WEB DATABASE", func(): OS.shell_open("https://jj2sly.github.io/corn.planet"))
-        return
-
-    var shown: int = mini(record_count, 8)
-    for i: int in shown:
-        var record_variant: Variant = canon_records[i]
-        if not record_variant is Dictionary:
-            continue
-        var record: Dictionary = record_variant
-        var row: int = i / 2
-        var col: int = i % 2
-        var card := panel(Rect2(col * 485.0, 145 + row * 92.0, 465, 78))
-        label(card, Vector2(15, 12), String(record.get("ref", "UNKNOWN")), 10, ACCENT)
-        label(card, Vector2(15, 31), String(record.get("title", "UNTITLED")), 14)
-        label(card, Vector2(330, 14), String(record.get("kind", "canon")).to_upper(), 9, MUTED)
-        button(card, Rect2(330, 31, 115, 28), "VIEW RECORD", func(ref: String = String(record.get("ref", ""))): canon_record_requested.emit(ref))
-
-func _show_rooms() -> void:
-    title_label.text = "ROOMS"
-    section_label.text = "CPI PARTY // MULTIPLAYER"
-    var p := panel(Rect2(0, 0, 620, 205))
-    label(p, Vector2(24, 22), "PARTY SESSION", 20, ACCENT)
-    label(p, Vector2(24, 60), "Create a room for the current client and invite\nother CPI Party players.", 12)
-    button(p, Rect2(24, 125, 190, 36), "CREATE PARTY ROOM", create_room_requested.emit)
-    label(p, Vector2(24, 172), "The existing server bridge remains authoritative.", 10, MUTED)
-    var r := panel(Rect2(645, 0, 325, 250))
-    label(r, Vector2(20, 20), "JOIN", 12, ACCENT)
-    label(r, Vector2(20, 50), "ROOM CODE", 11, MUTED)
-    var code := LineEdit.new()
-    code.position = Vector2(20, 72)
-    code.size = Vector2(285, 34)
-    code.placeholder_text = "ABCD"
-    code.max_length = 4
-    code.text = String(app_state.last_room_code) if app_state else ""
-    r.add_child(code)
-
-    label(r, Vector2(20, 120), "DISPLAY NAME", 11, MUTED)
-    var name := LineEdit.new()
-    name.position = Vector2(20, 142)
-    name.size = Vector2(285, 34)
-    name.placeholder_text = "CPI OPERATIVE"
-    name.text = String(app_state.display_name) if app_state else "CPI OPERATIVE"
-    r.add_child(name)
-
-    button(r, Rect2(20, 192, 120, 32), "JOIN ROOM", func():
-        if session:
-            session.connect_player(code.text.strip_edges().to_upper(), name.text.strip_edges(), app_state.server_url if app_state else "http://127.0.0.1:3000")
-        if app_state:
-            app_state.set_display_name(name.text)
-        status_label.text = "CONNECTING // ROOM %s" % code.text.strip_edges().to_upper()
-    )
-
-func _show_profile() -> void:
-    title_label.text = "PROFILE"
-    section_label.text = "CPI // PERSONNEL"
-    var p := panel(Rect2(0, 0, 620, 250))
-    label(p, Vector2(24, 22), "LOCAL PROFILE", 20, ACCENT)
-    label(p, Vector2(24, 62), "DISPLAY NAME", 10, MUTED)
-    label(p, Vector2(24, 82), String(app_state.display_name) if app_state else "CPI OPERATIVE", 16)
-    label(p, Vector2(24, 125), "ACCOUNT", 10, MUTED)
-    label(p, Vector2(24, 145), "Native client profile", 12)
-    label(p, Vector2(330, 62), "STATS", 10, MUTED)
-    label(p, Vector2(330, 82), "0 GAMES", 16)
-    label(p, Vector2(330, 125), "ACHIEVEMENTS", 10, MUTED)
-    label(p, Vector2(330, 145), "0 UNLOCKED", 12)
-    label(p, Vector2(24, 205), "Account sync will use the existing CPI identity system.", 10, MUTED)
-
-func _show_settings() -> void:
-    title_label.text = "SETTINGS"
-    section_label.text = "CPI // CLIENT CONFIGURATION"
-    var p := panel(Rect2(0, 0, 620, 280))
-    label(p, Vector2(24, 22), "CLIENT", 20, ACCENT)
-    label(p, Vector2(24, 65), "SERVER URL", 10, MUTED)
-    var server := LineEdit.new()
-    server.position = Vector2(24, 87)
-    server.size = Vector2(420, 34)
-    server.text = String(app_state.server_url) if app_state else "http://127.0.0.1:3000"
-    p.add_child(server)
-    label(p, Vector2(24, 145), "QUALITY", 10, MUTED)
-    var quality := OptionButton.new()
-    quality.position = Vector2(24, 167)
-    quality.size = Vector2(200, 34)
-    quality.add_item("AUTO")
-    quality.add_item("PERFORMANCE")
-    quality.add_item("QUALITY")
-    quality.select(quality.get_item_index(String(app_state.quality))) if app_state else 0
-    p.add_child(quality)
-    button(p, Rect2(24, 220, 140, 30), "SAVE SETTINGS", func():
-        if app_state:
-            app_state.set_server_url(server.text)
-            app_state.set_quality(quality.get_item_text(quality.selected))
-        status_label.text = "SETTINGS SAVED"
-    )
-    label(p, Vector2(180, 228), "Shared settings apply across every module.", 10, MUTED)
+    label(settings_panel, Vector2(24, 292), "These settings are shared by every native CPI module.", 10, MUTED)
