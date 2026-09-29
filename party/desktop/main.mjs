@@ -335,8 +335,10 @@ ipcMain.handle("cpi:readiness", async () => {
 
     if (gamesResponse.ok) {
       const games = await gamesResponse.json();
-      result.games = Array.isArray(games.games) ? games.games.length : 0;
-      if (result.games < GAME_IDS.size) result.issues.push(`Only ${result.games} of ${GAME_IDS.size} Party games were reported by the server.`);
+      const installedIds = new Set(Array.isArray(games.games) ? games.games.map((game) => String(game?.id || "")) : []);
+      result.games = [...GAME_IDS].filter((id) => installedIds.has(id)).length;
+      const missing = [...GAME_IDS].filter((id) => !installedIds.has(id));
+      if (missing.length) result.issues.push(`Missing Party games: ${missing.join(", ")}.`);
     } else {
       result.issues.push("Game catalog could not be loaded.");
     }
