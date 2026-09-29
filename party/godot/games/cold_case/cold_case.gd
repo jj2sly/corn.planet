@@ -8,6 +8,7 @@ var mouse_sensitivity := 0.0025
 var look_pitch := 0.0
 
 var camera: Camera3D
+var player_body: CharacterBody3D
 var fridge_door: Node3D
 var door_open := false
 
@@ -34,7 +35,8 @@ var final_report_shown := false
 var core_repaired := false
 
 func _ready() -> void:
-    camera = $Camera
+    player_body = $Player
+    camera = $Player/Camera
     fridge_door = $World/Refrigerator/Door
     _build_hud()
     core_repair = load("res://games/cold_case/core_repair.gd").new()
@@ -44,7 +46,7 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
     if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-        rotate_y(-event.relative.x * mouse_sensitivity)
+        player_body.rotate_y(-event.relative.x * mouse_sensitivity)
         look_pitch = clamp(look_pitch - event.relative.y * mouse_sensitivity, -1.35, 1.35)
         camera.rotation.x = look_pitch
     elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
@@ -61,8 +63,8 @@ func _physics_process(delta: float) -> void:
     interaction_hint.visible = _has_interaction()
 
 func _move_player(delta: float) -> void:
-    var x := 0.0
-    var z := 0.0
+    var x: float = 0.0
+    var z: float = 0.0
     if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
         x -= 1.0
     if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
@@ -72,12 +74,15 @@ func _move_player(delta: float) -> void:
     if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
         z += 1.0
 
-    var input := Vector2(x, z).normalized()
-    var direction := (transform.basis * Vector3(input.x, 0, input.y)).normalized()
-    position += direction * player_speed * delta
-    position.x = clamp(position.x, -6.0, 6.0)
-    position.y = 0.0
-    position.z = clamp(position.z, -90.0, 4.0)
+    var input: Vector2 = Vector2(x, z).normalized()
+    var direction: Vector3 = (player_body.transform.basis * Vector3(input.x, 0, input.y)).normalized()
+    player_body.velocity.x = direction.x * player_speed
+    player_body.velocity.z = direction.z * player_speed
+    player_body.velocity.y = 0.0
+    player_body.move_and_slide()
+    player_body.position.x = clamp(player_body.position.x, -5.5, 5.5)
+    player_body.position.y = 1.0
+    player_body.position.z = clamp(player_body.position.z, -88.0, 2.0)
 
 func _update_zone_state(delta: float) -> void:
     if mission_phase == "BRIEFING":
@@ -89,39 +94,39 @@ func _update_zone_state(delta: float) -> void:
 
     if mission_phase == "INTERIOR_DISCOVERED":
         temperature = move_toward(temperature, 4.0, delta * 0.7)
-        if position.z < -1.0:
+        if player_body.position.z < -1.0:
             mission_phase = "INSIDE"
             objective_label.text = "OBJECTIVE  //  Explore the refrigerator"
         return
 
-    temperature = move_toward(temperature, -2.0 if position.z < -50.0 else 4.0, delta * 0.15)
+    temperature = move_toward(temperature, -2.0 if player_body.position.z < -50.0 else 4.0, delta * 0.15)
 
-    if position.z < -12.0 and mission_phase == "INSIDE":
+    if player_body.position.z < -12.0 and mission_phase == "INSIDE":
         mission_phase = "PANTRY"
         objective_label.text = "OBJECTIVE  //  Investigate the food storage"
         status_label.text = "ZONE  //  PANTRY"
-    elif position.z < -30.0 and mission_phase == "PANTRY":
+    elif player_body.position.z < -30.0 and mission_phase == "PANTRY":
         mission_phase = "POWER"
         objective_label.text = "OBJECTIVE  //  Restore refrigerator power"
         status_label.text = "ZONE  //  POWER SYSTEM"
-    elif position.z < -49.0 and mission_phase == "POWER" and power_repaired:
+    elif player_body.position.z < -49.0 and mission_phase == "POWER" and power_repaired:
         mission_phase = "FREEZER"
         objective_label.text = "OBJECTIVE  //  Repair the cooling system"
         status_label.text = "ZONE  //  FREEZER CAVERN"
-    elif position.z < -63.0 and mission_phase == "FREEZER" and cooling_repaired:
+    elif player_body.position.z < -63.0 and mission_phase == "FREEZER" and cooling_repaired:
         mission_phase = "DEEP_INTERIOR"
         objective_label.text = "OBJECTIVE  //  Investigate the deeper anomaly"
         status_label.text = "ZONE  //  DEEP INTERIOR"
-    elif mission_phase == "DEEP_INTERIOR" and position.z < -72.0:
+    elif mission_phase == "DEEP_INTERIOR" and player_body.position.z < -72.0:
         mission_phase = "STABILIZING"
         objective_label.text = "OBJECTIVE  //  Repair the refrigerator core"
         status_label.text = "SYSTEM  //  CORE INSTABILITY"
-    elif mission_phase == "STABILIZING" and core_repaired and position.z > -63.0:
+    elif mission_phase == "STABILIZING" and core_repaired and player_body.position.z > -63.0:
         mission_phase = "STABILIZED"
         objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
         status_label.text = "SYSTEM  //  STABILIZED"
         temperature = -2.0
-    if mission_phase == "STABILIZED" and position.z > -1.0 and not final_report_shown:
+    if mission_phase == "STABILIZED" and player_body.position.z > -1.0 and not final_report_shown:
         _complete_mission()
 
 func _interact() -> void:
@@ -129,7 +134,7 @@ func _interact() -> void:
         _toggle_fridge()
         return
 
-    if mission_phase == "INTERIOR_DISCOVERED" and position.z < -0.8:
+    if mission_phase == "INTERIOR_DISCOVERED" and player_body.position.z < -0.8:
         _enter_refrigerator()
         return
 
@@ -158,7 +163,7 @@ func _interact() -> void:
         _discover_outpost()
         return
 
-    if mission_phase == "STABILIZING":
+    if mission_phase == "STABILIZING" and _near_core():
         _interact_core()
         return
 
@@ -245,20 +250,20 @@ func _has_interaction() -> bool:
     if mission_phase == "DEEP_INTERIOR":
         return _near_outpost()
     if mission_phase == "STABILIZING":
-        return true
+        return _near_core()
     return false
 
 func _near_fridge() -> bool:
-    return global_position.distance_to(fridge_door.global_position) < 2.8
+    return player_body.global_position.distance_to(fridge_door.global_position) < 2.8
 
 func _near_milk() -> bool:
-    return milk != null and global_position.distance_to(milk.global_position) < 3.0
+    return milk != null and player_body.global_position.distance_to(milk.global_position) < 3.0
 
 func _near_power_panel() -> bool:
-    return power_room != null and global_position.distance_to(power_room.global_position + Vector3(0, 1.6, -3.9)) < 3.5
+    return power_room != null and player_body.global_position.distance_to(power_room.global_position + Vector3(0, 1.6, -3.9)) < 3.5
 
 func _near_outpost() -> bool:
-    return outpost != null and global_position.distance_to(outpost.global_position + Vector3(0, 0.8, -4.0)) < 4.0
+    return outpost != null and player_body.global_position.distance_to(outpost.global_position + Vector3(0, 0.8, -4.0)) < 4.0
 
 func _discover_outpost() -> void:
     if outpost_discovered:
@@ -268,6 +273,9 @@ func _discover_outpost() -> void:
     script.discover()
     objective_label.text = "OBJECTIVE  //  Continue toward the refrigerator core"
     status_label.text = "TECHNICIAN AREA  //  OUTPOST DISCOVERED"
+
+func _near_core() -> bool:
+    return deep_interior != null and player_body.global_position.distance_to(deep_interior.global_position + Vector3(0, 1.0, -4.0)) < 4.0
 
 func _interact_core() -> void:
     if core_repair == null:
@@ -282,7 +290,7 @@ func _on_core_repaired() -> void:
     objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
 
 func _near_freezer_unit() -> bool:
-    return freezer != null and global_position.distance_to(freezer.global_position + Vector3(0, 2.0, -7.0)) < 3.5
+    return freezer != null and player_body.global_position.distance_to(freezer.global_position + Vector3(0, 2.0, -7.0)) < 3.5
 
 func _enter_refrigerator() -> void:
     if interior == null:
@@ -292,9 +300,7 @@ func _enter_refrigerator() -> void:
     objective_label.text = "OBJECTIVE  //  Explore the refrigerator"
     status_label.text = "ZONE  //  INTERIOR"
     $World.visible = false
-    camera.position = Vector3(0, 1.65, 3.0)
-    var tween := create_tween()
-    tween.tween_property(camera, "position", Vector3(0, 1.65, -1.0), 1.4)
+    camera.position = Vector3(0, 0.65, 0.0)
     tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 func _complete_mission() -> void:
@@ -303,6 +309,7 @@ func _complete_mission() -> void:
     objective_label.text = "MISSION COMPLETE  //  REFRIGERATOR STABILIZED"
     status_label.text = "FINAL READING  //  -273.15 C"
     interaction_hint.visible = false
+    _show_final_report()
 
 func _build_hud() -> void:
     var layer := CanvasLayer.new()
@@ -331,3 +338,31 @@ func _build_hud() -> void:
     interaction_hint.add_theme_font_size_override("font_size", 18)
     interaction_hint.visible = false
     layer.add_child(interaction_hint)
+
+func _show_final_report() -> void:
+    var panel: ColorRect = ColorRect.new()
+    panel.position = Vector2(250, 150)
+    panel.size = Vector2(780, 430)
+    panel.color = Color(0.02, 0.025, 0.028, 0.96)
+    add_child(panel)
+
+    var title: Label = Label.new()
+    title.position = Vector2(34, 26)
+    title.text = "CPST // MISSION DEBRIEF"
+    title.add_theme_font_size_override("font_size", 26)
+    panel.add_child(title)
+
+    var body: Label = Label.new()
+    body.position = Vector2(36, 82)
+    body.size = Vector2(700, 270)
+    body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    body.add_theme_font_size_override("font_size", 16)
+    body.text = "CASE  //  COLD CASE\\nSTATUS  //  STABILIZED — MONITORING REQUIRED\\n\\nSYSTEMS REPAIRED  //  POWER / COOLING / CORE\\nTECHNICIAN  //  CHUCK LOCATED\\nANOMALY  //  REFRIGERATOR REMAINS UNDER OBSERVATION\\nFINAL READING  //  -273.15 C\\n\\nNOTE  //  CASE REMAINS OPEN"
+    panel.add_child(body)
+
+    var close_button: Button = Button.new()
+    close_button.position = Vector2(36, 365)
+    close_button.size = Vector2(210, 42)
+    close_button.text = "RETURN TO CPI PARTY"
+    close_button.pressed.connect(func(): panel.queue_free())
+    panel.add_child(close_button)
