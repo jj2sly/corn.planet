@@ -15,15 +15,16 @@ test("desktop app shell files exist", async () => {
 });
 
 test("desktop package scripts and build targets are configured", async () => {
-  const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
-  assert.equal(pkg.main, "desktop/main.mjs");
-  assert.equal(pkg.scripts.desktop, "electron desktop/main.mjs");
-  assert.ok(pkg.scripts["desktop:pack"]);
-  assert.ok(pkg.scripts["desktop:dist"]);
-  assert.ok(pkg.devDependencies.electron);
-  assert.ok(pkg.devDependencies["electron-builder"]);
-  assert.ok(pkg.build.win.target.includes("portable"));
-  assert.ok(pkg.build.mac.target.includes("dmg"));
+  const root = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  const desktop = JSON.parse(await readFile(new URL("../desktop/package.json", import.meta.url), "utf8"));
+  assert.equal(root.scripts.desktop, "npm --prefix desktop run start");
+  assert.ok(root.scripts["desktop:pack"]);
+  assert.ok(root.scripts["desktop:dist"]);
+  assert.equal(desktop.main, "main.mjs");
+  assert.ok(desktop.devDependencies.electron);
+  assert.ok(desktop.devDependencies["electron-builder"]);
+  assert.ok(desktop.build.win.target.includes("portable"));
+  assert.ok(desktop.build.mac.target.includes("dmg"));
 });
 
 test("desktop app keeps Party content inside the application window", async () => {
