@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, WebContentsView, ipcMain, shell } from "electron";
+import { app, BrowserWindow, Menu, WebContentsView, clipboard, ipcMain, shell } from "electron";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
@@ -244,6 +244,12 @@ function installMenu() {
 ipcMain.handle("cpi:navigate", (_event, target) => {
   navigate(String(target));
   return true;
+});
+
+ipcMain.handle("cpi:copy-player-link", () => {
+  const url = `${loadSettings().partyBase}/play`;
+  clipboard.writeText(url);
+  return url;
 });
 
 ipcMain.handle("cpi:config", () => ({
