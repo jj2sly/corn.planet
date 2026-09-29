@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Menu, WebContentsView, ipcMain, shell } from "electron";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -14,6 +14,7 @@ let activeTarget = "home";
 let settings = null;
 
 const GAME_IDS = new Set(["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]);
+const PC_GAME_IDS = new Set(["cornorshit-solo"]);
 
 function cleanBase(value) {
   return String(value || "").trim().replace(/\/+$/, "");
@@ -97,6 +98,7 @@ function openContent(url, target) {
 
   contentView = new WebContentsView({
     webPreferences: {
+      preload: path.join(__dirname, "preload.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -108,7 +110,11 @@ function openContent(url, target) {
 
   contentView.webContents.on("will-navigate", (event, nextUrl) => {
     const current = loadSettings();
-    if (nextUrl.startsWith(current.partyBase) || nextUrl.startsWith(current.databaseBase)) return;
+    if (
+      nextUrl.startsWith(current.partyBase) ||
+      nextUrl.startsWith(current.databaseBase) ||
+      nextUrl.startsWith("file://")
+    ) return;
     event.preventDefault();
     void shell.openExternal(nextUrl);
   });
@@ -117,6 +123,14 @@ function openContent(url, target) {
   activeTarget = target;
   emitActiveTarget();
   void contentView.webContents.loadURL(url);
+}
+
+function launchPcGame(gameId) {
+  if (!PC_GAME_IDS.has(gameId)) throw new Error("Unknown CPI PC game");
+  if (gameId === "cornorshit-solo") {
+    const url = pathToFileURL(path.join(__dirname, "pc", "cornorshit.html")).toString();
+    openContent(url, "pc-games");
+  }
 }
 
 function createWindow() {
@@ -244,6 +258,23 @@ ipcMain.handle("cpi:launch-game", (_event, gameId) => {
   const current = loadSettings();
   openContent(`${current.partyBase}/host?game=${encodeURIComponent(id)}`, "party");
   return true;
+});
+
+ipcMain.handle("cpi:launch-pc-game", (_event, gameId) => {
+  launchPcGame(String(gameId));
+  return true;
+});
+
+ipcMain.handle("cpi:fetch-canon", async () => {
+  const current = loadSettings();
+  try {
+    const response = await fetch(`${current.partyBase}/api/native/canon`, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return { ok: false, status: response.status };
+    const data = await response.json();
+    return { ok: true, data };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Canon request failed" };
+  }
 });
 
 ipcMain.handle("cpi:check-server", async () => {
