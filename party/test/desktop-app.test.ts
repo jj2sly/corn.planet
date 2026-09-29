@@ -123,3 +123,21 @@ test("desktop command center can copy the phone join link", async () => {
   assert.match(main, /\/play/);
   assert.match(html, /COPY PHONE LINK/);
 });
+
+
+test("desktop shell recovers from embedded content load failures", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+
+  assert.match(main, /did-fail-load/);
+  assert.match(main, /cpi:content-error/);
+  assert.match(preload, /onContentError/);
+  assert.match(renderer, /CONTENT LOAD FAILED/);
+});
+
+test("desktop package uses current Electron generation for WebContentsView shell", async () => {
+  const desktop = JSON.parse(await readFile(new URL("../desktop/package.json", import.meta.url), "utf8"));
+  assert.match(desktop.devDependencies.electron, /^\^44\./);
+  assert.match(desktop.devDependencies["electron-builder"], /^\^26\.15\./);
+});
