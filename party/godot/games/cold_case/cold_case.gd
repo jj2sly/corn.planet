@@ -347,7 +347,6 @@ func _enter_refrigerator() -> void:
     status_label.text = "ZONE  //  INTERIOR"
     $World.visible = false
     camera.position = Vector3(0, 0.65, 0.0)
-    tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 func _complete_mission() -> void:
     final_report_shown = true
