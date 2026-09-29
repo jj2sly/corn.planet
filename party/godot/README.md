@@ -1,18 +1,36 @@
 # CPI Party Godot Client
 
-This is the native 3D client foundation for CPI Party.
+The native 3D client for CPI Party. It is being built alongside the existing browser party client so the server/game architecture can migrate without throwing away working systems.
 
-## Purpose
+## Current state
 
-The Godot client is intentionally being built alongside the existing web Party client. The web client remains playable and is the rapid prototype/debug target. Godot becomes the full 3D/native runtime.
+Phase 1 (native foundation) is in place:
+- native CPI Party library shell
+- Cold Case kitchen and refrigerator entry
+- interconnected interior, pantry, power, freezer, deep interior, outpost, and checkpoint scenes
+- first-person keyboard/mouse movement
+- temperature progression
+- food encounter foundation
+- power and cooling repair puzzles
+- technician outpost foundation
+- core repair interaction
+- mission completion/debrief foundation
+- shared native runtime, quality, session, and input modules
 
-## First target
+Phase 2 (server bridge) is in place:
+- native host room creation
+- native player room joining
+- session tokens
+- authoritative room-state polling
+- native game input forwarding
+- host action forwarding
+- host configuration/start endpoints
+- native session leave
+- same Party RoomManager and game state as the browser client
 
-CPI: Cold Case.
+See `party/docs/NATIVE_APP_BRIDGE.md` for the transport contract.
 
-The first migration target is the kitchen -> refrigerator -> interior path. Existing Cold Case gameplay logic is the specification; it is not being discarded.
-
-## Architecture
+## Authority boundary
 
 Godot owns:
 - 3D rendering
@@ -23,28 +41,31 @@ Godot owns:
 - particles
 - local input
 - camera
-- physics
+- physics presentation
 - device quality
+- local presentation of authoritative state
 
-The existing Party server owns:
-- rooms
+The Party server owns:
 - accounts
+- rooms
 - multiplayer authority
-- persistent data
+- timers
 - game/session state
+- scores
+- persistent data
 - statistics
+- canon access
 
-Do not duplicate server authority in the client.
+Never move authority into the Godot client just to make a feature easier.
 
-## Development order
+## Development direction
 
-1. Native app shell
-2. Cold Case kitchen scene
-3. First-person controller
-4. Refrigerator interaction
-5. Interior/pantry
-6. Server session bridge
-7. Multiplayer player replication
-8. Food/temperature
-9. Repair systems
-10. Full mission
+1. Finish Cold Case gameplay depth and multiplayer replication.
+2. Replace polling with a native realtime transport where needed.
+3. Add authenticated app sign-in.
+4. Add shared CPI Party account/profile UI.
+5. Migrate existing party games behind the native game-library shell.
+6. Add platform-specific input and quality profiles.
+7. Export the same Godot project for desktop and mobile targets.
+
+The browser client remains the fallback/debug implementation during migration.
