@@ -102,3 +102,24 @@ test("desktop readiness diagnostics cover server games and canon", async () => {
   assert.match(main, /\/api\/native\/canon/);
   assert.match(html, /GROUP NIGHT READINESS/);
 });
+
+
+test("desktop PC Games library routes through the persistent shell", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const shell = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
+  const library = await readFile(new URL("../desktop/pc/index.html", import.meta.url), "utf8");
+
+  assert.match(main, /openPcLibrary/);
+  assert.match(main, /target === "pc-games"/);
+  assert.match(shell, /data-target="pc-games"/);
+  assert.match(library, /Corn or Shit — Solo/);
+  assert.match(library, /data-pc-game="cornorshit-solo"/);
+});
+
+test("desktop command center can copy the phone join link", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
+  assert.match(main, /cpi:copy-player-link/);
+  assert.match(main, /\/play/);
+  assert.match(html, /COPY PHONE LINK/);
+});
