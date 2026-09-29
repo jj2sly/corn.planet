@@ -4,15 +4,15 @@ class_name ColdCaseMilk
 signal awakened
 signal defeated
 
-var preferred_temperature := 4.0
-var active := false
-var defeated_state := false
-var temperature := 4.0
-var drift := 0.0
+var preferred_temperature: float = 4.0
+var active: bool = false
+var defeated_state: bool = false
+var temperature: float = 4.0
+var drift: float = 0.0
 
 func set_temperature(value: float) -> void:
     temperature = value
-    var extreme := abs(temperature - preferred_temperature) >= 10.0
+    var extreme: bool = abs(temperature - preferred_temperature) >= 10.0
     if extreme and not active and not defeated_state:
         active = true
         awakened.emit()
