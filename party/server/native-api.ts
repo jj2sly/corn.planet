@@ -51,6 +51,27 @@ export function createNativeApi({ rooms, auth, db, canon, games }: NativeDeps): 
     });
   });
 
+  api.get("/me", async (req, res) => {
+    try {
+      const current = await verifyUser(req, auth);
+      if (!current) throw new PartyError("AUTH_REQUIRED");
+      const displayName = db.ensureProfile(current.uid, defaultDisplayName(current.uid));
+      res.json({ uid: current.uid, displayName, role: current.role, isModerator: current.isModerator });
+    } catch (err) {
+      res.status(401).json(toClientError(err));
+    }
+  });
+
+  api.get("/me/stats", async (req, res) => {
+    try {
+      const current = await verifyUser(req, auth);
+      if (!current) throw new PartyError("AUTH_REQUIRED");
+      res.json(db.getUserStats(current.uid));
+    } catch (err) {
+      res.status(401).json(toClientError(err));
+    }
+  });
+
   api.get("/canon", (req, res) => {
     const kind = req.query.kind;
     const records = typeof kind === "string" && (kind === "entity" || kind === "incident" || kind === "personnel")
