@@ -122,7 +122,20 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
   });
   realtime = createRealtime({ io, rooms, auth, db, trustProxy: options.trustProxy ?? false });
   // Native Godot clients use the same RoomManager through a small session-token HTTP bridge.
-  app.use("/api/native", createNativeApi({ rooms, auth, db, canon, games: options.games ?? GAMES }));
+  app.use(
+    "/api/native",
+    createNativeApi({
+      rooms,
+      auth,
+      db,
+      canon,
+      games: options.games ?? GAMES,
+      firebase:
+        authConfig.mode === "firebase"
+          ? { apiKey: authConfig.apiKey, authDomain: authConfig.authDomain, projectId: authConfig.projectId }
+          : null,
+    }),
+  );
 
   // Browser assets and the catch-all 404 must stay after every API router,
   // including /api/native, or they intercept native client requests.
