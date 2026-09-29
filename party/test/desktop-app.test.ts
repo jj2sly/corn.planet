@@ -88,6 +88,7 @@ test("desktop JavaScript parses without syntax errors", async () => {
     new URL("../desktop/preload.mjs", import.meta.url),
     new URL("../desktop/renderer.js", import.meta.url),
     new URL("../desktop/pc/cornorshit.js", import.meta.url),
+    new URL("../desktop/pc/library.js", import.meta.url),
   ]) {
     await execFileAsync(process.execPath, ["--check", fileURLToPath(file)]);
   }
@@ -154,4 +155,26 @@ test("desktop Group Night presentation mode fills the host display", async () =>
   assert.match(main, /SIDEBAR_WIDTH/);
   assert.match(preload, /startPresentationHost/);
   assert.match(renderer, /startPresentationHost/);
+});
+
+
+test("desktop Group Night panel generates a phone QR", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
+  const desktop = JSON.parse(await readFile(new URL("../desktop/package.json", import.meta.url), "utf8"));
+
+  assert.equal(desktop.dependencies.qrcode, "^1.5.4");
+  assert.match(main, /QRCode\.toDataURL/);
+  assert.match(main, /cpi:player-qr/);
+  assert.match(preload, /playerQr/);
+  assert.match(html, /id="playerQr"/);
+});
+
+test("readiness verifies the exact six authoritative Party game ids", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  for (const id of ["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]) {
+    assert.ok(main.includes(`"${id}"`), `readiness missing ${id}`);
+  }
+  assert.match(main, /Missing Party games/);
 });
