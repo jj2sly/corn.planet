@@ -1,6 +1,6 @@
 {
   "name": "cpi-party-desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Desktop application shell for Corn Planet Party",
   "type": "module",
@@ -8,7 +8,8 @@
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "check": "node --check main.mjs && node --check preload.mjs && node --check renderer.js && node --check pc/library.js && node --check pc/cornorshit.js"
   },
   "devDependencies": {
     "electron": "^44.4.5",
