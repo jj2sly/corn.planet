@@ -15,6 +15,8 @@ import * as thud from "./games/thud-host.js";
 
 const RENDERERS = { chaos, cornorshit, entityauction, mycob, steamdeck, thud };
 const SESSION_KEY = "cpst-party:host";
+const requestedGame = new URLSearchParams(location.search).get("game");
+let requestedGameHandled = false;
 
 const stage = $("#stage");
 const mount = createMount(stage);
@@ -172,6 +174,14 @@ async function skip() {
 
 function onState(next) {
   state = next;
+
+  if (!requestedGameHandled && state.status === "LOBBY" && requestedGame && config?.games?.some((g) => g.id === requestedGame)) {
+    requestedGameHandled = true;
+    if (state.config.gameId !== requestedGame) {
+      void conn.request("room:configure", { gameId: requestedGame });
+    }
+  }
+
   const info = gameInfo(state.config.gameId);
   if (state.status !== lastStatus) {
     announce(state.status === "LOBBY" ? `${PLATFORM_NAME}: home` : state.status === "IN_GAME" ? `Launching ${info?.title ?? "the game"}` : "Final debrief");
