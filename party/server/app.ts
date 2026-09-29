@@ -99,14 +99,6 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
     const code = /^[A-Za-z]{4}$/.test(req.params.code) ? req.params.code.toUpperCase() : "";
     res.redirect(302, `/play${code ? `?code=${code}` : ""}`);
   });
-  app.use(express.static(PUBLIC_DIR, { index: false, extensions: ["html"] }));
-  app.use((_req, res) => res.status(404).sendFile("404.html", { root: PUBLIC_DIR }));
-  // Never show stack traces to visitors, whatever NODE_ENV is.
-  app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error("[corn-planet-party] request error:", err);
-    if (!res.headersSent) res.status(500).type("text/plain").send("Corn Planet Party encountered an error. Try again.");
-  });
-
   const http = createServer(app);
   const io = new Server(http, {
     serveClient: true,
@@ -131,6 +123,16 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
   realtime = createRealtime({ io, rooms, auth, db, trustProxy: options.trustProxy ?? false });
   // Native Godot clients use the same RoomManager through a small session-token HTTP bridge.
   app.use("/api/native", createNativeApi({ rooms, auth, db, canon, games: options.games ?? GAMES }));
+
+  // Browser assets and the catch-all 404 must stay after every API router,
+  // including /api/native, or they intercept native client requests.
+  app.use(express.static(PUBLIC_DIR, { index: false, extensions: ["html"] }));
+  app.use((_req, res) => res.status(404).sendFile("404.html", { root: PUBLIC_DIR }));
+  // Never show stack traces to visitors, whatever NODE_ENV is.
+  app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error("[corn-planet-party] request error:", err);
+    if (!res.headersSent) res.status(500).type("text/plain").send("Corn Planet Party encountered an error. Try again.");
+  });
 
   const cleanupTimer = setInterval(() => rooms.cleanup(), 15_000);
   cleanupTimer.unref();
