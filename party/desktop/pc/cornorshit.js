@@ -29,6 +29,7 @@ let rounds = [];
 let roundIndex = 0;
 let score = 0;
 let streak = 0;
+let correctAnswers = 0;
 let locked = false;
 
 function scalar(value) {
@@ -82,7 +83,7 @@ function buildCandidates(allRecords) {
     if (!sourceFields.size) continue;
 
     for (const donor of shuffled(allRecords)) {
-      if (donor === source) continue;
+      if (donor === source || donor.kind !== source.kind) continue;
       const donorFields = usableFields(donor);
       const shared = [...sourceFields.keys()].filter((key) => donorFields.has(key) && donorFields.get(key) !== sourceFields.get(key));
       if (!shared.length) continue;
@@ -138,6 +139,7 @@ function choose(index) {
   const correct = index === current.correctIndex;
 
   if (correct) {
+    correctAnswers += 1;
     streak += 1;
     score += POINTS + Math.min(50, Math.max(0, streak - 1) * 10);
     resultLabel.textContent = "DOCUMENTED";
@@ -175,9 +177,8 @@ function showFinish() {
   play.classList.add("hidden");
   finish.classList.remove("hidden");
   finalScore.textContent = String(score);
-  const maxBase = rounds.length * POINTS;
-  const percent = maxBase ? Math.min(100, Math.round((score / maxBase) * 100)) : 0;
-  finalDetail.textContent = `${rounds.length} records reviewed. Base accuracy score equivalent: ${percent}%.`;
+  const percent = rounds.length ? Math.round((correctAnswers / rounds.length) * 100) : 0;
+  finalDetail.textContent = `${correctAnswers} of ${rounds.length} records called correctly — ${percent}% accuracy.`;
 }
 
 function start() {
@@ -194,6 +195,7 @@ function start() {
   roundIndex = 0;
   score = 0;
   streak = 0;
+  correctAnswers = 0;
   scoreEl.textContent = "0";
   boot.classList.add("hidden");
   finish.classList.add("hidden");
