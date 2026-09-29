@@ -21,6 +21,7 @@ const startGroupNight = document.querySelector("#startGroupNight");
 const SERVER_TARGETS = new Set(["party", "account", "prompts", "hall"]);
 let serverOnline = false;
 let hostRunning = false;
+let healthCheckInFlight = false;
 
 function refreshAvailabilityControls() {
   for (const button of document.querySelectorAll("[data-game]")) {
@@ -154,9 +155,13 @@ async function runReadiness() {
   rerunReadiness.disabled = false;
 }
 
-async function checkServer() {
-  status.className = "status";
-  status.textContent = "CHECKING SERVER…";
+async function checkServer({ quiet = false } = {}) {
+  if (healthCheckInFlight) return serverOnline;
+  healthCheckInFlight = true;
+  if (!quiet) {
+    status.className = "status";
+    status.textContent = "CHECKING SERVER…";
+  }
   const result = await window.cpiDesktop.checkServer();
   if (result.ok) {
     const health = result.data || {};
@@ -166,6 +171,7 @@ async function checkServer() {
     message.className = "server-message ok";
     connectionCard?.classList.remove("attention");
     setServerDependentControls(true);
+    healthCheckInFlight = false;
     return true;
   }
   status.textContent = "SERVER OFFLINE";
@@ -183,6 +189,7 @@ async function checkServer() {
     setTimeout(() => connectionCard?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
   }
   setServerDependentControls(false);
+  healthCheckInFlight = false;
   return false;
 }
 
@@ -243,3 +250,7 @@ stopHostDisplay.addEventListener("click", async () => {
   message.textContent = "Host display stopped.";
   message.className = "server-message ok";
 });
+
+
+setInterval(() => void checkServer({ quiet: true }), 30_000);
+setInterval(() => void runReadiness(), 120_000);
