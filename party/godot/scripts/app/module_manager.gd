@@ -5,6 +5,7 @@ signal module_launch_requested(game_id: String)
 signal module_started(game_id: String, module: Node)
 signal module_stopped(game_id: String)
 signal module_failed(game_id: String, reason: String)
+signal module_exit_requested(game_id: String)
 
 const RegistryScript = preload("res://scripts/app/app_registry.gd")
 const GameModuleScript = preload("res://scripts/app/game_module.gd")
@@ -45,6 +46,17 @@ func launch_native_scene(metadata: Dictionary, parent: Node) -> Node:
     active_module = packed.instantiate()
     active_game_id = game_id
     parent.add_child(active_module)
+
+    if active_module.has_method("bind_platform"):
+        active_module.call("bind_platform", metadata, services, session)
+    elif active_module.has_method("configure_platform"):
+        active_module.call("configure_platform", metadata, services, session)
+
+    if active_module.has_signal("exit_requested"):
+        active_module.connect("exit_requested", func():
+            module_exit_requested.emit(active_game_id)
+        )
+
     pending_game_id = ""
     module_started.emit(active_game_id, active_module)
     return active_module
