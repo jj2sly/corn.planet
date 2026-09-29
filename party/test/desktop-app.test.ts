@@ -318,3 +318,21 @@ test("desktop package includes the Group Night quick-start guide", async () => {
   await access(new URL("../desktop/START_HERE.txt", import.meta.url));
   assert.ok(desktop.build.files.includes("START_HERE.txt"));
 });
+
+
+test("desktop monitors Party health without stealing focus", async () => {
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+  assert.match(renderer, /setInterval\(\(\) => void checkServer\(\{ quiet: true \}\), 30_000\)/);
+  assert.match(renderer, /setInterval\(\(\) => void runReadiness\(\), 120_000\)/);
+  assert.match(renderer, /if \(!quiet\)/);
+  assert.match(renderer, /healthCheckInFlight/);
+});
+
+test("desktop phone join resolver prefers private LAN ranges", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /privateIpv4Score/);
+  assert.match(main, /192\\\.168/);
+  assert.match(main, /10\\\./);
+  assert.match(main, /172\\\.\(\\d\+\)/);
+  assert.match(main, /bestLanIpv4/);
+});
