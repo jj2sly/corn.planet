@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, WebContentsView, clipboard, dialog, ipcMain, powerSaveBlocker, shell } from "electron";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import fs from "node:fs";
+import { networkInterfaces } from "node:os";
 import path from "node:path";
 import QRCode from "qrcode";
 
@@ -47,6 +48,30 @@ function loadSettings() {
 function saveSettings() {
   fs.mkdirSync(path.dirname(settingsPath()), { recursive: true });
   fs.writeFileSync(settingsPath(), JSON.stringify(settings, null, 2), "utf8");
+}
+
+function playerJoinUrl() {
+  const current = loadSettings();
+  try {
+    const url = new URL(current.partyBase);
+    if (url.hostname === "127.0.0.1" || url.hostname === "localhost") {
+      for (const addresses of Object.values(networkInterfaces())) {
+        for (const address of addresses ?? []) {
+          if (address.family === "IPv4" && !address.internal) {
+            url.hostname = address.address;
+            break;
+          }
+        }
+        if (url.hostname !== "127.0.0.1" && url.hostname !== "localhost") break;
+      }
+    }
+    url.pathname = "/play";
+    url.search = "";
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return `${current.partyBase}/play`;
+  }
 }
 
 function destination(target) {
@@ -341,7 +366,7 @@ function installMenu() {
         {
           label: "Copy Phone Join Link",
           accelerator: "CmdOrCtrl+Shift+J",
-          click: () => clipboard.writeText(`${loadSettings().partyBase}/play`),
+          click: () => clipboard.writeText(playerJoinUrl()),
         },
         { type: "separator" },
         {
@@ -420,7 +445,7 @@ ipcMain.handle("cpi:start-presentation-host", () => {
 ipcMain.handle("cpi:toggle-presentation", () => setPresentationMode(!presentationMode));
 
 ipcMain.handle("cpi:player-qr", async () => {
-  const url = `${loadSettings().partyBase}/play`;
+  const url = playerJoinUrl();
   const dataUrl = await QRCode.toDataURL(url, {
     errorCorrectionLevel: "M",
     margin: 1,
@@ -431,7 +456,7 @@ ipcMain.handle("cpi:player-qr", async () => {
 });
 
 ipcMain.handle("cpi:copy-player-link", () => {
-  const url = `${loadSettings().partyBase}/play`;
+  const url = playerJoinUrl();
   clipboard.writeText(url);
   return url;
 });
