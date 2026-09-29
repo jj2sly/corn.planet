@@ -73,6 +73,8 @@ func _physics_process(delta: float) -> void:
     _move_player(delta)
     _update_zone_state(delta)
     _update_survival(delta)
+    if mission_phase == "BRIEFING" and not door_open and _near_fridge():
+        _toggle_fridge()
     temp_label.text = "TEMP  //  %0.1f C" % temperature
     health_label.text = "VITALS  //  %03d%%" % int(health)
     interaction_hint.visible = _has_interaction()
