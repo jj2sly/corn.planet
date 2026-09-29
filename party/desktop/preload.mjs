@@ -11,6 +11,7 @@ if (globalThis.location?.protocol === "file:") {
     launchGame: (gameId) => ipcRenderer.invoke("cpi:launch-game", gameId),
     launchPcGame: (gameId) => ipcRenderer.invoke("cpi:launch-pc-game", gameId),
     fetchCanon: () => ipcRenderer.invoke("cpi:fetch-canon"),
+    openCanonUrl: (url) => ipcRenderer.invoke("cpi:open-canon-url", url),
     checkServer: () => ipcRenderer.invoke("cpi:check-server"),
     readiness: () => ipcRenderer.invoke("cpi:readiness"),
     config: () => ipcRenderer.invoke("cpi:config"),
