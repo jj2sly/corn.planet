@@ -6,9 +6,14 @@ var current_game_id := ""
 var library: Array[String] = ["cold-case"]
 var menu_layer: CanvasLayer
 var menu_root: Control
+var session: CPISession
+var online_label: Label
 
 func _ready() -> void:
     print("CPI Party native runtime starting")
+    session = CPISession.new()
+    add_child(session)
+    session.connected_to_party.connect(_on_party_connected)
     show_library()
 
 func _build_library_ui() -> void:
@@ -44,6 +49,19 @@ func _build_library_ui() -> void:
     mission.add_theme_font_size_override("font_size", 13)
     menu_root.add_child(mission)
 
+    var online := Button.new()
+    online.position = Vector2(500, 240)
+    online.size = Vector2(300, 78)
+    online.text = "CREATE PARTY ROOM\nNative server bridge"
+    online.pressed.connect(func(): _create_party_room())
+    menu_root.add_child(online)
+
+    online_label = Label.new()
+    online_label.position = Vector2(500, 330)
+    online_label.text = "OFFLINE // native session not connected"
+    online_label.add_theme_font_size_override("font_size", 13)
+    menu_root.add_child(online_label)
+
     var cold_case := Button.new()
     cold_case.position = Vector2(70, 240)
     cold_case.size = Vector2(390, 78)
@@ -57,6 +75,15 @@ func _build_library_ui() -> void:
     footer.text = "CPST // AUTHORIZED PERSONNEL ONLY"
     footer.add_theme_font_size_override("font_size", 12)
     menu_root.add_child(footer)
+
+func _create_party_room() -> void:
+    if session:
+        online_label.text = "CONNECTING // Party server"
+        session.connect_host("http://127.0.0.1:3000")
+
+func _on_party_connected(state: Dictionary) -> void:
+    if online_label:
+        online_label.text = "ONLINE // ROOM %s" % session.room_code
 
 func show_library() -> void:
     current_game_id = ""
