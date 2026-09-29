@@ -228,3 +228,11 @@ test("presentation mode prevents the host display from sleeping", async () => {
   assert.match(main, /prevent-display-sleep/);
   assert.match(main, /powerSaveBlocker\.stop/);
 });
+
+
+test("transient embedded desktop views are destroyed when detached", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /const retained = \[\.\.\.retainedViews\.values\(\)\]\.includes\(detached\)/);
+  assert.match(main, /const shouldDestroy = destroy \|\| !retained/);
+  assert.match(main, /detached\.webContents\.close\(\)/);
+});
