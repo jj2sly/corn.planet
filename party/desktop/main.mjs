@@ -8,6 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PARTY_URL = process.env.CPI_PARTY_URL?.trim() || "http://127.0.0.1:3000";
 const DEFAULT_DATABASE_URL = process.env.CPI_DATABASE_URL?.trim() || "https://jj2sly.github.io/corn.planet";
 const SIDEBAR_WIDTH = 220;
+const PC_ROOT_URL = pathToFileURL(path.join(__dirname, "pc") + path.sep).toString();
 
 let mainWindow = null;
 let contentView = null;
@@ -129,7 +130,7 @@ function openContent(url, target) {
     if (
       nextUrl.startsWith(current.partyBase) ||
       nextUrl.startsWith(current.databaseBase) ||
-      nextUrl.startsWith("file://")
+      nextUrl.startsWith(PC_ROOT_URL)
     ) return;
     event.preventDefault();
     void shell.openExternal(nextUrl);
