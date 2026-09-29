@@ -8,6 +8,7 @@ var menu_layer: CanvasLayer
 var menu_root: Control
 var session: CPISession
 var online_label: Label
+@export var server_url := "http://127.0.0.1:3000"
 
 func _ready() -> void:
     print("CPI Party native runtime starting")
@@ -79,7 +80,7 @@ func _build_library_ui() -> void:
 func _create_party_room() -> void:
     if session:
         online_label.text = "CONNECTING // Party server"
-        session.connect_host("http://127.0.0.1:3000")
+        session.connect_host(server_url)
 
 func _on_party_connected(state: Dictionary) -> void:
     if online_label:
