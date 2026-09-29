@@ -186,6 +186,13 @@ function createContentView(target) {
     return { action: "deny" };
   });
 
+  view.webContents.on("before-input-event", (event, input) => {
+    if (!presentationMode || input.type !== "keyDown" || input.key !== "Escape") return;
+    event.preventDefault();
+    setPresentationMode(false);
+    if (mainWindow?.isFullScreen()) mainWindow.setFullScreen(false);
+  });
+
   view.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return;
     if (activeTarget !== target) return;
