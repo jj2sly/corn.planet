@@ -141,3 +141,17 @@ test("desktop package uses current Electron generation for WebContentsView shell
   assert.match(desktop.devDependencies.electron, /^\^44\./);
   assert.match(desktop.devDependencies["electron-builder"], /^\^26\.15\./);
 });
+
+
+test("desktop Group Night presentation mode fills the host display", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+
+  assert.match(main, /presentationMode/);
+  assert.match(main, /startPresentationHost/);
+  assert.match(main, /setFullScreen\(true\)/);
+  assert.match(main, /SIDEBAR_WIDTH/);
+  assert.match(preload, /startPresentationHost/);
+  assert.match(renderer, /startPresentationHost/);
+});
