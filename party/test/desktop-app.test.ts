@@ -139,8 +139,9 @@ test("desktop shell recovers from embedded content load failures", async () => {
 
 test("desktop package uses current Electron generation for WebContentsView shell", async () => {
   const desktop = JSON.parse(await readFile(new URL("../desktop/package.json", import.meta.url), "utf8"));
-  assert.match(desktop.devDependencies.electron, /^\^44\./);
-  assert.match(desktop.devDependencies["electron-builder"], /^\^26\.15\./);
+  assert.equal(desktop.devDependencies.electron, "44.4.5");
+  assert.equal(desktop.devDependencies["electron-builder"], "26.15.3");
+  assert.equal(desktop.dependencies.qrcode, "1.5.4");
 });
 
 
@@ -164,7 +165,7 @@ test("desktop Group Night panel generates a phone QR", async () => {
   const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
   const desktop = JSON.parse(await readFile(new URL("../desktop/package.json", import.meta.url), "utf8"));
 
-  assert.equal(desktop.dependencies.qrcode, "^1.5.4");
+  assert.equal(desktop.dependencies.qrcode, "1.5.4");
   assert.match(main, /QRCode\.toDataURL/);
   assert.match(main, /cpi:player-qr/);
   assert.match(preload, /playerQr/);
