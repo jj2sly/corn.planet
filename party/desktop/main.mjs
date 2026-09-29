@@ -108,6 +108,19 @@ function openContent(url, target) {
   contentView.setBounds(contentBounds());
   contentView.webContents.setWindowOpenHandler(handleWindowOpen);
 
+  contentView.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (!isMainFrame || errorCode === -3) return;
+    const failed = activeTarget;
+    closeContentView();
+    activeTarget = "home";
+    emitActiveTarget();
+    mainWindow?.webContents.send("cpi:content-error", {
+      target: failed,
+      url: validatedURL,
+      message: errorDescription || "Content could not be loaded.",
+    });
+  });
+
   contentView.webContents.on("will-navigate", (event, nextUrl) => {
     const current = loadSettings();
     if (
