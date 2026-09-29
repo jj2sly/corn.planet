@@ -18,6 +18,21 @@ albedo_color = Color(0.3, 0.36, 0.38, 1)
 metallic = 0.85
 roughness = 0.3
 
+[sub_resource type="BoxMesh" id="Pipe"]
+size = Vector3(0.28, 0.28, 5.5)
+
+[sub_resource type="StandardMaterial3D" id="PipeMetal"]
+albedo_color = Color(0.22, 0.28, 0.3, 1)
+metallic = 0.92
+roughness = 0.22
+
+[sub_resource type="BoxMesh" id="Frost"]
+size = Vector3(0.9, 0.12, 0.9)
+
+[sub_resource type="StandardMaterial3D" id="FrostMat"]
+albedo_color = Color(0.78, 0.9, 0.95, 1)
+roughness = 0.18
+
 [node name="FridgeInterior" type="Node3D"]
 script = ExtResource("1")
 [node name="Floor" type="MeshInstance3D" parent="."]
@@ -64,6 +79,28 @@ position = Vector3(0, 3.1, -7)
 mesh = SubResource("Shelf")
 material_override = SubResource("ShelfMetal")
 position = Vector3(0, 4.8, -11)
+
+[node name="PipeLeft" type="MeshInstance3D" parent="."]
+mesh = SubResource("Pipe")
+material_override = SubResource("PipeMetal")
+position = Vector3(-4.8, 5.4, -8)
+rotation_degrees = Vector3(0, 90, 0)
+
+[node name="PipeRight" type="MeshInstance3D" parent="."]
+mesh = SubResource("Pipe")
+material_override = SubResource("PipeMetal")
+position = Vector3(4.8, 5.4, -8)
+rotation_degrees = Vector3(0, 90, 0)
+
+[node name="FrostA" type="MeshInstance3D" parent="."]
+mesh = SubResource("Frost")
+material_override = SubResource("FrostMat")
+position = Vector3(-5.8, 0.35, -5)
+
+[node name="FrostB" type="MeshInstance3D" parent="."]
+mesh = SubResource("Frost")
+material_override = SubResource("FrostMat")
+position = Vector3(5.6, 0.35, -10)
 
 [node name="DoorFrameLight" type="OmniLight3D" parent="."]
 position = Vector3(0, 3.5, 0)
