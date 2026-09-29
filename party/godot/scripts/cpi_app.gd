@@ -108,7 +108,10 @@ func _on_party_state(_state: Dictionary) -> void:
 
 func _on_server_health_changed(ok: bool, protocol: int) -> void:
     if shell:
-        shell.set_status("SERVER ONLINE // PROTOCOL %d" % protocol if ok else "SERVER OFFLINE")
+        if ok:
+            shell.set_status("SERVER ONLINE // PROTOCOL %d" % protocol)
+        else:
+            shell.set_status("SERVER OFFLINE")
     if notifications and ok:
         notifications.push("PARTY SERVER", "Backend reachable. Protocol %d." % protocol, "success")
 
