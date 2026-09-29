@@ -41,7 +41,7 @@ footer { display: flex; justify-content: space-between; margin-top: 24px; color:
 
 .settings-card { margin-top: 18px; border: 1px solid #282d31; background: #0e1113; padding: 20px; display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; align-items: center; }
 .settings-card h3 { margin-top: 6px; }
-.server-form { display: grid; grid-template-columns: 1fr 140px; gap: 10px; }
+.server-form { display: grid; grid-template-columns: 1fr 140px 150px; gap: 10px; }
 .server-form input { min-height: 42px; border: 1px solid #30353a; background: #080a0c; color: #e5e7e9; padding: 0 12px; font: inherit; }
 .server-form button { border: 1px solid #ffd400; background: #ffd400; color: #090b0d; font-weight: 800; cursor: pointer; }
 .server-message { grid-column: 2; margin: -10px 0 0; min-height: 18px; font-size: 11px; }
@@ -74,3 +74,6 @@ footer { display: flex; justify-content: space-between; margin-top: 24px; color:
 .readiness-issues.ok { color: #ffd400; }
 .readiness-issues.bad { color: #d48f8f; }
 @media (max-width: 1100px) { .readiness-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.server-form button.secondary { border-color: #3b4038; background: #121611; color: #e5e7e9; font-weight: 700; }
+.server-form button.secondary:hover { border-color: #ffd400; }
