@@ -87,6 +87,7 @@ func _ready() -> void:
     module_manager.module_started.connect(_on_module_started)
     module_manager.module_stopped.connect(_on_module_stopped)
     module_manager.module_failed.connect(_on_module_failed)
+    module_manager.module_exit_requested.connect(_on_module_exit_requested)
 
     _build_shell()
     notifications.push("CPI PARTY", "Native platform initialized.", "success")
@@ -197,6 +198,9 @@ func _on_module_stopped(game_id: String) -> void:
     if notifications:
         notifications.push("MODULE CLOSED", game_id.to_upper(), "info")
 
+func _on_module_exit_requested(_game_id: String) -> void:
+    return_to_platform()
+
 func _on_module_failed(game_id: String, reason: String) -> void:
     if shell:
         shell.set_status("MODULE ERROR // %s" % game_id.to_upper())
@@ -240,3 +244,11 @@ func return_to_platform() -> void:
     if shell:
         shell.visible = true
         shell.show_section("games")
+
+
+func _unhandled_input(event: InputEvent) -> void:
+    if current_game == null:
+        return
+    if event.is_action_pressed("ui_cancel"):
+        return_to_platform()
+        get_viewport().set_input_as_handled()
