@@ -45,6 +45,10 @@ var extraction_alarm: float = 0.0
 var extraction_active: bool = false
 var debrief_layer: CanvasLayer
 var last_zone: String = "KITCHEN"
+var chuck_assistance: bool = false
+var core_repair_step: int = 0
+var core_repair_lock: float = 0.0
+var return_detail_changed: bool = false
 
 func _ready() -> void:
     player_body = $Player
@@ -80,6 +84,7 @@ func _physics_process(delta: float) -> void:
     _update_zone_state(delta)
     _update_survival(delta)
     _update_core_instability(delta)
+    core_repair_lock = maxf(0.0, core_repair_lock - delta)
     if extraction_active:
         extraction_alarm = maxf(0.0, extraction_alarm - delta)
     if milk != null and not milk_defeated:
@@ -162,6 +167,7 @@ func _update_zone_state(delta: float) -> void:
         temperature = -2.0
     if mission_phase == "STABILIZED" and player_body.position.z > -1.0 and not final_report_shown:
         _complete_mission()
+        return_detail_changed = true
     if mission_phase == "STABILIZED" and extraction_alarm <= 0.0 and not final_report_shown:
         status_label.text = "ALARM  //  EXTRACTION WINDOW EXPIRED"
         health = maxf(1.0, health - delta * 8.0)
@@ -361,8 +367,9 @@ func _discover_outpost() -> void:
     if outpost_discovered:
         return
     outpost_discovered = true
-    var script := outpost as ColdCaseOutpost
+    var script: ColdCaseOutpost = outpost as ColdCaseOutpost
     script.discover()
+    chuck_assistance = true
     objective_label.text = "OBJECTIVE  //  Continue toward the refrigerator core"
     status_label.text = "TECHNICIAN AREA  //  OUTPOST DISCOVERED"
 
@@ -370,10 +377,19 @@ func _near_core() -> bool:
     return deep_interior != null and player_body.global_position.distance_to(deep_interior.global_position + Vector3(0, 1.0, -4.0)) < 4.0
 
 func _interact_core() -> void:
-    if core_repair == null:
+    if core_repair == null or core_repair_lock > 0.0:
         return
-    status_label.text = "CORE REPAIR  //  " + core_repair.interact()
-    objective_label.text = "OBJECTIVE  //  " + ("Complete core stabilization" if not core_repaired else "Return to the refrigerator door")
+    core_repair_lock = 0.6
+    core_repair_step += 1
+    var result: String = core_repair.interact()
+    status_label.text = "CORE REPAIR  //  " + result
+    if not core_repaired:
+        objective_label.text = "OBJECTIVE  //  COMPLETE CORE REPAIR STEP %d/4" % min(core_repair_step, 4)
+        core_instability = minf(1.0, core_instability + 0.04)
+        if chuck_assistance:
+            core_instability = maxf(0.0, core_instability - 0.015)
+    else:
+        objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
 
 func _on_core_repaired() -> void:
     core_repaired = true
@@ -463,7 +479,8 @@ func _show_final_report() -> void:
     body.add_theme_font_size_override("font_size", 16)
     var technician_status: String = "CHUCK LOCATED" if outpost_discovered else "NOT LOCATED"
     var food_status: String = "MILK NEUTRALIZED" if milk_defeated else "MILK ACTIVE"
-    body.text = "CASE  //  COLD CASE\nSTATUS  //  STABILIZED — MONITORING REQUIRED\n\nSYSTEMS REPAIRED  //  POWER / COOLING / CORE\nTECHNICIAN  //  " + technician_status + "\nFOOD THREAT  //  " + food_status + "\nANOMALY  //  REFRIGERATOR REMAINS UNDER OBSERVATION\nFINAL READING  //  -273.15 C\n\nNOTE  //  CASE REMAINS OPEN"
+    var assistance_status: String = "CHUCK ASSISTED CORE REPAIR" if chuck_assistance else "NO TECHNICIAN ASSISTANCE"
+    body.text = "CASE  //  COLD CASE\nSTATUS  //  STABILIZED — MONITORING REQUIRED\n\nSYSTEMS REPAIRED  //  POWER / COOLING / CORE\nTECHNICIAN  //  " + technician_status + "\nASSISTANCE  //  " + assistance_status + "\nFOOD THREAT  //  " + food_status + "\nANOMALY  //  REFRIGERATOR REMAINS UNDER OBSERVATION\nFINAL READING  //  -273.15 C\n\nNOTE  //  CASE REMAINS OPEN"
     panel.add_child(body)
 
     var close_button: Button = Button.new()
