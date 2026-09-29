@@ -63,6 +63,15 @@ function emitActiveTarget() {
   mainWindow?.webContents.send("cpi:active-target", activeTarget);
 }
 
+function hostIsRetained() {
+  const host = retainedViews.get("party");
+  return Boolean(host && !host.webContents.isDestroyed());
+}
+
+function emitHostState() {
+  mainWindow?.webContents.send("cpi:host-state", { running: hostIsRetained(), active: activeTarget === "party" });
+}
+
 function contentBounds() {
   if (!mainWindow) return { x: SIDEBAR_WIDTH, y: 0, width: 1000, height: 700 };
   const [width, height] = mainWindow.getContentSize();
@@ -89,6 +98,7 @@ function detachContentView({ destroy = false } = {}) {
     } catch {}
   }
   contentView = null;
+  emitHostState();
 }
 
 function destroyAllContentViews() {
@@ -100,6 +110,7 @@ function destroyAllContentViews() {
     try { view.webContents.close(); } catch {}
   }
   retainedViews.clear();
+  emitHostState();
 }
 
 function createContentView(target) {
@@ -166,6 +177,7 @@ function openContent(url, target, { retain = target === "party", forceNavigate =
   mainWindow.contentView.addChildView(contentView);
   activeTarget = target;
   emitActiveTarget();
+  emitHostState();
 
   const currentUrl = contentView.webContents.getURL();
   if (!reused || forceNavigate || !currentUrl) void contentView.webContents.loadURL(url);
@@ -236,6 +248,7 @@ function goHome() {
   detachContentView();
   activeTarget = "home";
   emitActiveTarget();
+  emitHostState();
 }
 
 function navigate(target) {
@@ -322,6 +335,13 @@ function installMenu() {
 
 ipcMain.handle("cpi:navigate", (_event, target) => {
   navigate(String(target));
+  return true;
+});
+
+ipcMain.handle("cpi:host-status", () => ({ running: hostIsRetained(), active: activeTarget === "party" }));
+
+ipcMain.handle("cpi:return-host", () => {
+  navigate("party");
   return true;
 });
 
