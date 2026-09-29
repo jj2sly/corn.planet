@@ -13,6 +13,7 @@ var status_label: Label
 var nav_buttons: Dictionary = {}
 var active_section := "home"
 var session: Node
+var app_state: Node
 
 const BG := Color(0.012, 0.015, 0.018)
 const PANEL := Color(0.035, 0.041, 0.047)
@@ -22,8 +23,9 @@ const TEXT := Color(0.88, 0.89, 0.90)
 const MUTED := Color(0.48, 0.51, 0.54)
 const ACCENT := Color(1.0, 0.83, 0.0)
 
-func setup(p_session: Node) -> void:
+func setup(p_session: Node, p_state: Node) -> void:
     session = p_session
+    app_state = p_state
     _build_shell()
     show_section("home")
 
@@ -265,7 +267,7 @@ func _show_profile() -> void:
     var p := panel(Rect2(0, 0, 620, 250))
     label(p, Vector2(24, 22), "LOCAL PROFILE", 20, ACCENT)
     label(p, Vector2(24, 62), "DISPLAY NAME", 10, MUTED)
-    label(p, Vector2(24, 82), "CPI OPERATIVE", 16)
+    label(p, Vector2(24, 82), String(app_state.display_name) if app_state else "CPI OPERATIVE", 16)
     label(p, Vector2(24, 125), "ACCOUNT", 10, MUTED)
     label(p, Vector2(24, 145), "Native client profile", 12)
     label(p, Vector2(330, 62), "STATS", 10, MUTED)
@@ -283,7 +285,7 @@ func _show_settings() -> void:
     var server := LineEdit.new()
     server.position = Vector2(24, 87)
     server.size = Vector2(420, 34)
-    server.text = "http://127.0.0.1:3000"
+    server.text = String(app_state.server_url) if app_state else "http://127.0.0.1:3000"
     p.add_child(server)
     label(p, Vector2(24, 145), "QUALITY", 10, MUTED)
     var quality := OptionButton.new()
@@ -292,5 +294,12 @@ func _show_settings() -> void:
     quality.add_item("AUTO")
     quality.add_item("PERFORMANCE")
     quality.add_item("QUALITY")
+    quality.select(quality.get_item_index(String(app_state.quality))) if app_state else 0
     p.add_child(quality)
-    label(p, Vector2(24, 225), "More client-wide settings will live here instead of inside individual games.", 10, MUTED)
+    button(p, Rect2(24, 220, 140, 30), "SAVE SETTINGS", func():
+        if app_state:
+            app_state.set_server_url(server.text)
+            app_state.set_quality(quality.get_item_text(quality.selected))
+        status_label.text = "SETTINGS SAVED"
+    )
+    label(p, Vector2(180, 228), "Shared settings apply across every module.", 10, MUTED)
