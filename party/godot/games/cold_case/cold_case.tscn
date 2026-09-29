@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource path="res://games/cold_case/cold_case.gd" type="Script" id="1"]
 
@@ -21,6 +21,16 @@ roughness = 0.55
 
 [sub_resource type="BoxMesh" id="Box"]
 size = Vector3(1, 1, 1)
+
+[sub_resource type="CapsuleShape3D" id="PlayerShape"]
+radius = 0.38
+height = 1.8
+
+[sub_resource type="BoxShape3D" id="CorridorFloorShape"]
+size = Vector3(12, 0.2, 94)
+
+[sub_resource type="BoxShape3D" id="CorridorWallShape"]
+size = Vector3(0.3, 3.5, 94)
 
 [node name="ColdCase" type="Node3D"]
 script = ExtResource("1")
@@ -71,9 +81,30 @@ material_override = SubResource("MatFridge")
 scale = Vector3(0.12, 1.5, 0.18)
 position = Vector3(0.75, 0, 0.8)
 
-[node name="Camera" type="Camera3D" parent="."]
-position = Vector3(0, 1.65, 4.0)
+[node name="Player" type="CharacterBody3D" parent="."]
+position = Vector3(0, 1.0, 2.0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
+position = Vector3(0, 0, 0)
+shape = SubResource("PlayerShape")
+
+[node name="Camera" type="Camera3D" parent="Player"]
+position = Vector3(0, 0.65, 0)
 current = true
+
+[node name="CorridorCollision" type="StaticBody3D" parent="."]
+
+[node name="Floor" type="CollisionShape3D" parent="CorridorCollision"]
+position = Vector3(0, -0.1, -43)
+shape = SubResource("CorridorFloorShape")
+
+[node name="LeftWall" type="CollisionShape3D" parent="CorridorCollision"]
+position = Vector3(-6, 1.75, -43)
+shape = SubResource("CorridorWallShape")
+
+[node name="RightWall" type="CollisionShape3D" parent="CorridorCollision"]
+position = Vector3(6, 1.75, -43)
+shape = SubResource("CorridorWallShape")
 
 [node name="Light" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-55, -25, 0)
