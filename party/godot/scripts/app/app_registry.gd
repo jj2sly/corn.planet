@@ -4,6 +4,15 @@ class_name CPIAppRegistry
 static func games() -> Array[Dictionary]:
     return [
         {
+            "id": "cornlashing",
+            "name": "CORNLASHING",
+            "category": "PARTY",
+            "description": "Write anonymous incident reports and vote on who caused the breach.",
+            "players": "3–8",
+            "status": "AVAILABLE",
+            "scene": ""
+        },
+        {
             "id": "corn-or-shit",
             "name": "CORN OR SHIT",
             "category": "PARTY",
