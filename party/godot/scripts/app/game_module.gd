@@ -14,6 +14,10 @@ var services: Node
 var session: Node
 var running := false
 
+func bind_platform(p_metadata: Dictionary, p_services: Node, p_session: Node) -> void:
+    configure(p_metadata, p_services)
+    start(p_session)
+
 func configure(p_metadata: Dictionary, p_services: Node = null) -> void:
     metadata = p_metadata.duplicate(true)
     game_id = String(metadata.get("id", ""))
