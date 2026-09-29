@@ -111,7 +111,8 @@ func _update_zone_state(delta: float) -> void:
 
     if mission_phase == "INTERIOR_DISCOVERED":
         temperature = move_toward(temperature, 4.0, delta * 0.7)
-        if player_body.position.z < -1.0:
+        var doorway_distance: float = player_body.global_position.distance_to(fridge_door.global_position)
+        if player_body.global_position.z < -0.2 or doorway_distance < 3.2:
             _enter_refrigerator()
         return
 
