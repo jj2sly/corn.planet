@@ -2,6 +2,7 @@
 config/name="CPI Party"
 config/description="Corn Planet Party native client"
 run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.5", "GL Compatibility")
 
 [display]
 window/size/viewport_width=1280
@@ -14,29 +15,3 @@ window/stretch/mode="canvas_items"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/default_filters/use_nearest_mipmap_filter=false
-
-[input]
-move_forward={
-"deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":87)]
-}
-move_back={
-"deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":83)]
-}
-move_left={
-"deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":65)]
-}
-move_right={
-"deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":68)]
-}
-interact={
-"deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":69)]
-}
-
-[application]
-config/name="CPI Party"
-config/features=PackedStringArray("4.5", "GL Compatibility")
