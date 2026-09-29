@@ -317,7 +317,10 @@ func _render_game_cards() -> void:
                 app_state.toggle_favorite(id)
                 _show_games()
         )
-        button(card, Rect2(342, 64, 103, 26), "LAUNCH" if not String(game["scene"]).is_empty() else "OPEN ROOM", func(id: String = game_id): launch_game_requested.emit(id))
+        var has_native_scene := not String(game["scene"]).is_empty()
+        var action_text := "LAUNCH" if has_native_scene else ("OPEN ROOM" if server_ready else "UNAVAILABLE")
+        var action_button := button(card, Rect2(342, 64, 103, 26), action_text, func(id: String = game_id): launch_game_requested.emit(id))
+        action_button.disabled = not has_native_scene and not server_ready
         visible_index += 1
 
 func _show_database() -> void:
