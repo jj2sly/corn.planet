@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource path="res://games/cold_case/freezer.gd" type="Script" id="1"]
 
@@ -9,6 +9,14 @@ size = Vector3(1, 1, 1)
 albedo_color = Color(0.62, 0.78, 0.84, 1)
 metallic = 0.25
 roughness = 0.42
+
+[sub_resource type="StandardMaterial3D" id="CoolingMetal"]
+albedo_color = Color(0.18, 0.24, 0.26, 1)
+metallic = 0.9
+roughness = 0.24
+
+[sub_resource type="BoxMesh" id="Pipe"]
+size = Vector3(0.3, 0.3, 6.0)
 
 [node name="Freezer" type="Node3D"]
 script = ExtResource("1")
@@ -27,7 +35,7 @@ position = Vector3(0, 8, -8)
 
 [node name="CoolingUnit" type="MeshInstance3D" parent="."]
 mesh = SubResource("Box")
-material_override = SubResource("Ice")
+material_override = SubResource("CoolingMetal")
 scale = Vector3(3.5, 4.0, 1.2)
 position = Vector3(0, 2, -7)
 
@@ -35,3 +43,19 @@ position = Vector3(0, 2, -7)
 position = Vector3(0, 6, -4)
 omni_range = 22.0
 light_energy = 3.5
+
+[node name="PipeA" type="MeshInstance3D" parent="."]
+mesh = SubResource("Pipe")
+material_override = SubResource("CoolingMetal")
+position = Vector3(-3.2, 4.0, -7)
+
+[node name="PipeB" type="MeshInstance3D" parent="."]
+mesh = SubResource("Pipe")
+material_override = SubResource("CoolingMetal")
+position = Vector3(3.2, 4.0, -7)
+
+[node name="FrostLight" type="OmniLight3D" parent="."]
+position = Vector3(0, 3, -10)
+omni_range = 12.0
+light_energy = 1.4
+light_color = Color(0.45, 0.8, 1, 1)
