@@ -268,3 +268,37 @@ test("desktop launch availability combines server state with live-host state", a
   assert.match(renderer, /refreshAvailabilityControls/);
   assert.match(renderer, /!serverOnline \|\| hostRunning/);
 });
+
+
+test("desktop resolves local phone join links to a LAN address", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /networkInterfaces/);
+  assert.match(main, /bestLanIpv4/);
+  assert.match(main, /privateIpv4Score/);
+  assert.match(main, /192\\\.168/);
+  assert.match(main, /playerJoinUrl/);
+});
+
+test("readiness warns if the phone join URL is still local-only", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /Phone join URL is still local-only/);
+  assert.match(main, /phoneUrl: playerJoinUrl\(\)/);
+});
+
+test("solo Corn or Shit can verify a reveal against the CPI Database", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const html = await readFile(new URL("../desktop/pc/cornorshit.html", import.meta.url), "utf8");
+  const game = await readFile(new URL("../desktop/pc/cornorshit.js", import.meta.url), "utf8");
+  assert.match(main, /cpi:open-canon-url/);
+  assert.match(preload, /openCanonUrl/);
+  assert.match(html, /VIEW CPI RECORD/);
+  assert.match(game, /openCanonUrl/);
+});
+
+test("solo Corn or Shit uses same-kind donors and real accuracy", async () => {
+  const game = await readFile(new URL("../desktop/pc/cornorshit.js", import.meta.url), "utf8");
+  assert.match(game, /donor\.kind !== source\.kind/);
+  assert.match(game, /correctAnswers/);
+  assert.match(game, /accuracy/);
+});
