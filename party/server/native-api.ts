@@ -4,9 +4,10 @@ import { defaultDisplayName, bearerToken, type AuthUser, type AuthVerifier } fro
 import { PartyError, toClientError } from "./errors.ts";
 import type { PartyDb } from "./db.ts";
 import type { RoomManager } from "./rooms.ts";
+import type { CanonService } from "./canon.ts";
 
 type NativeSession = { token: string; code: string; role: "host" | "player"; playerId?: string; connectionId: string; user: AuthUser | null; createdAt: number };
-type NativeDeps = { rooms: RoomManager; auth: AuthVerifier; db: PartyDb };
+type NativeDeps = { rooms: RoomManager; auth: AuthVerifier; db: PartyDb; canon: CanonService };
 
 function body(req: Request): Record<string, unknown> {
   const value: unknown = req.body;
@@ -26,12 +27,32 @@ async function verifyUser(req: Request, auth: AuthVerifier): Promise<AuthUser | 
   return auth.verify(token);
 }
 
-export function createNativeApi({ rooms, auth, db }: NativeDeps): express.Router {
+export function createNativeApi({ rooms, auth, db, canon }: NativeDeps): express.Router {
   const api = express.Router();
   const sessions = new Map<string, NativeSession>();
   api.use(express.json({ limit: "16kb" }));
 
-  api.get("/health", (_req, res) => res.json({ ok: true, protocol: 1 }));
+  api.get("/health", (_req, res) => res.json({ ok: true, protocol: 2 }));
+
+  api.get("/canon", (req, res) => {
+    const kind = req.query.kind;
+    const records = typeof kind === "string" && (kind === "entity" || kind === "incident" || kind === "personnel")
+      ? canon.byKind(kind)
+      : canon.all();
+    res.json({
+      records,
+      status: canon.status(),
+    });
+  });
+
+  api.get("/canon/:ref", (req, res) => {
+    const record = canon.get(req.params.ref);
+    if (!record) {
+      res.status(404).json({ error: "CANON_NOT_FOUND" });
+      return;
+    }
+    res.json(record);
+  });
 
   api.post("/host", async (req, res) => {
     const user = await verifyUser(req, auth);
