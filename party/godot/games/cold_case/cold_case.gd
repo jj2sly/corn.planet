@@ -53,6 +53,8 @@ var ice_cream: Node3D
 var ice_cream_defeated: bool = false
 var ice_cream_extreme_time: float = 0.0
 var extraction_flash: float = 0.0
+var scanner_label: Label
+var alert_label: Label
 
 func _ready() -> void:
     player_body = $Player
@@ -100,6 +102,10 @@ func _physics_process(delta: float) -> void:
     if mission_phase == "BRIEFING" and not door_open and _near_fridge():
         _toggle_fridge()
     temp_label.text = "TEMP  //  %0.1f C" % temperature
+    if scanner_label != null:
+        scanner_label.text = "CPST SCANNER  //  %s  //  DEPTH %02dM" % [mission_phase, int(absf(player_body.position.z))]
+    if alert_label != null:
+        alert_label.text = "CORE ALERT" if core_instability > 0.72 else ("EXTRACTION %02dS" % int(extraction_alarm) if extraction_active else "SYSTEMS NOMINAL")
     health_label.text = "VITALS  //  %03d%%" % int(health)
     interaction_hint.visible = _has_interaction()
 
@@ -485,6 +491,18 @@ func _build_hud() -> void:
     status_label.add_theme_font_size_override("font_size", 15)
     status_label.text = "ZONE  //  KITCHEN"
     layer.add_child(status_label)
+
+    scanner_label = Label.new()
+    scanner_label.position = Vector2(32, 150)
+    scanner_label.add_theme_font_size_override("font_size", 13)
+    scanner_label.text = "CPST SCANNER  //  LINKED"
+    layer.add_child(scanner_label)
+
+    alert_label = Label.new()
+    alert_label.position = Vector2(880, 28)
+    alert_label.add_theme_font_size_override("font_size", 16)
+    alert_label.text = "SYSTEMS NOMINAL"
+    layer.add_child(alert_label)
 
     health_label = Label.new()
     health_label.position = Vector2(32, 120)
