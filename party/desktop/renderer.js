@@ -140,7 +140,11 @@ async function checkServer() {
   }
   status.textContent = "SERVER OFFLINE";
   status.classList.add("bad");
-  message.textContent = "Could not reach that Party server.";
+  const configured = String(input.value || config?.partyBase || "");
+  const localDefault = /\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(configured.replace(/\/+$/, ""));
+  message.textContent = localDefault
+    ? "No local Party server is running. Paste the Railway Party URL below, then SAVE & CHECK."
+    : "Could not reach that Party server. Check the URL or Railway deployment.";
   message.className = "server-message bad";
   setServerDependentControls(false);
   return false;
