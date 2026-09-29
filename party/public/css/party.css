@@ -7503,6 +7503,10 @@ body:has(.deck-hub-phone) .sr-only {
   color: #9fe4ff;
 }
 
+.deck-cover-badge.solo {
+  color: #ffd27a;
+}
+
 .deck-cover.s-mini .deck-cover-badge {
   display: none;
 }
@@ -7521,6 +7525,10 @@ body:has(.deck-hub-phone) .sr-only {
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+a.deck-tile {
+  text-decoration: none;
 }
 
 .deck-tile:hover .deck-cover,

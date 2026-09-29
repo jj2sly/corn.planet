@@ -83,6 +83,26 @@ export function libraryEntry(game) {
   });
 }
 
+/**
+ * Standalone games: a page of their own that opens from the library (no session or phones needed),
+ * rather than a room game from the server's registry.
+ */
+export const SOLO_GAMES = Object.freeze([
+  Object.freeze({
+    id: "coldcase",
+    href: "/coldcase",
+    title: "CPI: Cold Case",
+    tagline: "Something is living in the refrigerator.",
+    description: "A first-person CPST field operation. Step through the anomalous refrigerator, restore the power and find out what is keeping the milk cold.",
+    genre: "First-person horror",
+    players: "1 player",
+    length: "Prototype",
+    controls: ["WASD / stick move", "Mouse / swipe look", "E / INTERACT"],
+    art: Object.freeze({ from: "#0d2733", to: "#03090d", accent: "#8fe9ff", glyph: "❄", motif: "scan" }),
+    shelf: "solo",
+  }),
+]);
+
 /** The whole library: handheld games first, then party games, each shelf in registry order. */
 export function libraryFrom(games) {
   const entries = (Array.isArray(games) ? games : []).filter((g) => g && g.id).map(libraryEntry);

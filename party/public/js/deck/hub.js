@@ -15,7 +15,7 @@
 import { el, notice, plural } from "../common.js";
 import { bootScreen, createHandheld, dpad, faceButton } from "../cpi/handheld.js";
 import { playSfx } from "../games/mycob-sound.js";
-import { gameInfo, homeOrder, library, pagesFor, PLATFORM, SHELVES, spatialMove } from "./library.js";
+import { gameInfo, homeOrder, library, pagesFor, PLATFORM, SHELVES, SOLO_GAMES, spatialMove } from "./library.js";
 import { avatar, cover, facts, recentGames, reducedMotion, settingsPanel, titleCard } from "./ui.js";
 
 /** Fires on press (a game button's feel), and on Enter / Space for keyboards; never steals focus. */
@@ -322,7 +322,29 @@ export function buildHub(s, opts) {
         el("ul", { class: "deck-grid" }, games.map((g) => el("li", {}, tile(g)))),
       );
     });
-    return { node: el("div", { class: "deck-library" }, el("p", { class: "deck-kicker", text: `LIBRARY · ${library().length} INSTALLED` }), ...blocks) };
+    const solo = el(
+      "section",
+      { class: "deck-shelf", "aria-labelledby": "deck-shelf-solo" },
+      el("header", { class: "deck-row-head" }, el("h2", { id: "deck-shelf-solo", text: "SOLO" }), el("span", { class: "deck-row-count", text: plural(SOLO_GAMES.length, "game") })),
+      el("p", { class: "deck-hint", text: "Play on this screen, on your own. Opens in a new tab; your session stays put" }),
+      el(
+        "ul",
+        { class: "deck-grid" },
+        SOLO_GAMES.map((g) =>
+          el(
+            "li",
+            {},
+            el(
+              "a",
+              { class: "deck-tile s-tile", href: g.href, target: "_blank", rel: "noopener", "data-nav": "", dataset: { key: `solo:${g.id}` }, "aria-label": `${g.title}. ${g.genre}, ${g.players}. Opens in a new tab.` },
+              cover(g, { size: "tile", label: true }),
+              el("span", { class: "deck-tile-meta", "aria-hidden": "true" }, el("span", { class: "deck-tile-sub", text: `${g.genre} · ${g.players}` })),
+            ),
+          ),
+        ),
+      ),
+    );
+    return { node: el("div", { class: "deck-library" }, el("p", { class: "deck-kicker", text: `LIBRARY · ${library().length + SOLO_GAMES.length} INSTALLED` }), ...blocks, solo) };
   }
 
   function cardPage(id) {

@@ -88,7 +88,7 @@ export function cover(info, { size = "tile", label = true } = {}) {
   }
   node.append(el("span", { class: "deck-cover-shine", "aria-hidden": "true" }));
   if (label) node.append(el("span", { class: "deck-cover-title", "aria-hidden": "true", text: info.title }));
-  node.append(el("span", { class: `deck-cover-badge ${info.shelf}`, "aria-hidden": "true", text: info.shelf === "handheld" ? "HANDHELD" : "PARTY" }));
+  node.append(el("span", { class: `deck-cover-badge ${info.shelf}`, "aria-hidden": "true", text: info.shelf === "handheld" ? "HANDHELD" : info.shelf === "solo" ? "SOLO" : "PARTY" }));
   return node;
 }
 

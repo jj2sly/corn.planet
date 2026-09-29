@@ -28,7 +28,13 @@ export const COLD_CASE_PROTOTYPE:ColdCaseLevel={
    box("p-s1",[-6,1,0],[1,5,16],"shelf"),box("p-s2",[0,1,0],[1,5,16],"shelf"),
    box("p-s3",[6,1,0],[1,5,16],"shelf"),box("power-door",[0,2,-9.45],[4,5,.4],"metal")
   ]},
-  {id:"FREEZER",name:"Frozen Cavern",temperature:-12,boxes:[\n   box("f-floor",[0,-1.5,0],[26,1,24],"floor"),box("f-back",[0,4,-12],[26,11,1],"wall"),\n   box("f-left",[-13,4,0],[1,11,24],"wall"),box("f-right",[13,4,0],[1,11,24],"wall"),\n   box("f-shelf-l",[-7,1,0],[1,6,18],"shelf"),box("f-shelf-r",[7,1,0],[1,6,18],"shelf"),\n   box("f-vent",[0,3,-8],[5,.5,1],"metal")\n  ]},\n  {id:"POWER_ROOM",name:"Power Room",temperature:8,boxes:[
+  {id:"FREEZER",name:"Frozen Cavern",temperature:-12,boxes:[
+   box("f-floor",[0,-1.5,0],[26,1,24],"floor"),box("f-back",[0,4,-12],[26,11,1],"wall"),
+   box("f-left",[-13,4,0],[1,11,24],"wall"),box("f-right",[13,4,0],[1,11,24],"wall"),
+   box("f-shelf-l",[-7,1,0],[1,6,18],"shelf"),box("f-shelf-r",[7,1,0],[1,6,18],"shelf"),
+   box("f-vent",[0,3,-8],[5,.5,1],"metal")
+  ]},
+  {id:"POWER_ROOM",name:"Power Room",temperature:8,boxes:[
    box("e-floor",[0,-1.5,0],[18,1,16],"floor"),box("e-back",[0,3,-8],[18,9,1],"wall"),
    box("e-left",[-9,3,0],[1,9,16],"wall"),box("e-right",[9,3,0],[1,9,16],"wall"),
    box("power-panel",[0,2,-7.4],[3.5,3,.5],"panel")
