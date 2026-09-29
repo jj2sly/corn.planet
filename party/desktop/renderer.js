@@ -1,4 +1,6 @@
 const status = document.querySelector("#serverStatus");
+const hostLiveBanner = document.querySelector("#hostLiveBanner");
+const returnToHost = document.querySelector("#returnToHost");
 const partyUrl = document.querySelector("#partyUrl");
 const version = document.querySelector("#version");
 const input = document.querySelector("#partyServerInput");
@@ -37,6 +39,12 @@ function paintActiveTarget(target) {
   }
 }
 
+function paintHostState(detail) {
+  const running = Boolean(detail?.running);
+  const active = Boolean(detail?.active);
+  hostLiveBanner.classList.toggle("hidden", !running || active);
+}
+
 for (const button of document.querySelectorAll("[data-target]")) {
   button.addEventListener("click", () => {
     const target = button.dataset.target;
@@ -46,6 +54,7 @@ for (const button of document.querySelectorAll("[data-target]")) {
 }
 
 window.cpiDesktop.onActiveTarget((target) => paintActiveTarget(target));
+window.cpiDesktop.onHostState((detail) => paintHostState(detail));
 window.cpiDesktop.onPresentationMode((enabled) => {
   document.body.classList.toggle("presentation-mode", enabled);
 });
@@ -152,6 +161,7 @@ async function checkServer() {
 
 let config = await window.cpiDesktop.config();
 paintActiveTarget(config.activeTarget || "home");
+paintHostState(await window.cpiDesktop.hostStatus());
 partyUrl.textContent = config.partyBase;
 version.textContent = `CPI PARTY DESKTOP v${config.version}`;
 input.value = config.partyBase;
@@ -190,4 +200,9 @@ copyPlayerLink.addEventListener("click", async () => {
 
 startGroupNight.addEventListener("click", async () => {
   await window.cpiDesktop.startPresentationHost();
+});
+
+
+returnToHost.addEventListener("click", async () => {
+  await window.cpiDesktop.returnHost();
 });
