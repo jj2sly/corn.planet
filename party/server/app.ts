@@ -130,7 +130,7 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
   });
   realtime = createRealtime({ io, rooms, auth, db, trustProxy: options.trustProxy ?? false });
   // Native Godot clients use the same RoomManager through a small session-token HTTP bridge.
-  app.use("/api/native", createNativeApi({ rooms, auth, db, canon }));
+  app.use("/api/native", createNativeApi({ rooms, auth, db, canon, games: options.games ?? GAMES }));
 
   const cleanupTimer = setInterval(() => rooms.cleanup(), 15_000);
   cleanupTimer.unref();
