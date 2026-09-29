@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CPI Party</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="module" src="./renderer.js"></script>
+</head>
+<body>
+  <aside class="rail">
+    <div>
+      <div class="brand-mark">CPI</div>
+      <div class="brand-copy">CORN PLANET<br />INSTITUTION</div>
+    </div>
+    <nav>
+      <button data-target="home" class="active">COMMAND</button>
+      <button data-target="party">PARTY HOST</button>
+      <button data-target="database">CPI DATABASE</button>
+      <button data-target="account">ACCOUNT</button>
+      <button data-target="prompts">PROMPTS</button>
+      <button data-target="hall">HALL OF FAME</button>
+    </nav>
+    <div class="rail-foot">CPST NETWORK<br />DESKTOP CLIENT</div>
+  </aside>
+
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">CPI PARTY // DESKTOP APPLICATION</p>
+        <h1>COMMAND CENTER</h1>
+      </div>
+      <div id="serverStatus" class="status">CHECKING SERVER…</div>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow accent">GROUP FUNCTION READY</p>
+        <h2>Everything in one app.</h2>
+        <p>Run the full Corn Planet Party host, manage CPI content, view the database, accounts, prompts and Hall of Fame without bouncing between browser tabs.</p>
+        <div class="actions">
+          <button class="primary" data-target="party">OPEN PARTY HOST</button>
+          <button data-target="database">OPEN CPI DATABASE</button>
+        </div>
+      </div>
+      <div class="hero-stat">
+        <span>PARTY CATALOG</span>
+        <strong>6</strong>
+        <small>server games</small>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article>
+        <p class="eyebrow accent">PLAY</p>
+        <h3>Corn Planet Party</h3>
+        <p>Host all current multiplayer games. Players still join from their phones with the room code.</p>
+        <button data-target="party">LAUNCH HOST</button>
+      </article>
+      <article>
+        <p class="eyebrow accent">CANON</p>
+        <h3>CPI Database</h3>
+        <p>Open entities, incidents, personnel and the rest of the CPI canon inside the desktop app.</p>
+        <button data-target="database">OPEN DATABASE</button>
+      </article>
+      <article>
+        <p class="eyebrow accent">PERSONNEL</p>
+        <h3>Account & Stats</h3>
+        <p>Use the existing CPI account system, review Party statistics and history.</p>
+        <button data-target="account">OPEN ACCOUNT</button>
+      </article>
+      <article>
+        <p class="eyebrow accent">CONTENT</p>
+        <h3>Prompts & Moderation</h3>
+        <p>Manage group prompts, packs, ratings, moderation and Entity Auction effects.</p>
+        <button data-target="prompts">OPEN PROMPTS</button>
+      </article>
+      <article>
+        <p class="eyebrow accent">ARCHIVE</p>
+        <h3>Hall of Fame</h3>
+        <p>Review the group's best moments and canon promotion workflow.</p>
+        <button data-target="hall">OPEN HALL</button>
+      </article>
+      <article class="future">
+        <p class="eyebrow">PC GAME</p>
+        <h3>Native Games</h3>
+        <p>The desktop shell is ready to launch standalone PC-native CPI games as they are added. Cold Case is no longer on the Friday critical path.</p>
+        <button disabled>COMING NEXT</button>
+      </article>
+    </section>
+
+    <footer>
+      <span id="partyUrl"></span>
+      <span id="version"></span>
+    </footer>
+  </main>
+</body>
+</html>
