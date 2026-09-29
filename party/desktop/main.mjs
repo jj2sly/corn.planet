@@ -59,8 +59,13 @@ function destination(target) {
   return destinations[target] || null;
 }
 
+function sendToShell(channel, payload) {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
+  mainWindow.webContents.send(channel, payload);
+}
+
 function emitActiveTarget() {
-  mainWindow?.webContents.send("cpi:active-target", activeTarget);
+  sendToShell("cpi:active-target", activeTarget);
 }
 
 function hostIsRetained() {
@@ -69,7 +74,7 @@ function hostIsRetained() {
 }
 
 function emitHostState() {
-  mainWindow?.webContents.send("cpi:host-state", { running: hostIsRetained(), active: activeTarget === "party" });
+  sendToShell("cpi:host-state", { running: hostIsRetained(), active: activeTarget === "party" });
 }
 
 function contentBounds() {
@@ -139,7 +144,7 @@ function createContentView(target) {
     detachContentView({ destroy: true });
     activeTarget = "home";
     emitActiveTarget();
-    mainWindow?.webContents.send("cpi:content-error", {
+    sendToShell("cpi:content-error", {
       target,
       url: validatedURL,
       message: errorDescription || "Content could not be loaded.",
@@ -199,7 +204,7 @@ function launchPcGame(gameId) {
 function setPresentationMode(enabled) {
   presentationMode = Boolean(enabled);
   if (contentView) contentView.setBounds(contentBounds());
-  mainWindow?.webContents.send("cpi:presentation-mode", presentationMode);
+  sendToShell("cpi:presentation-mode", presentationMode);
   return presentationMode;
 }
 
