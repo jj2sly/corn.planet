@@ -54,6 +54,10 @@ func set_quality(value: String) -> void:
     quality = value
     save_state()
 
+func set_master_volume(value: float) -> void:
+    master_volume = clampf(value, 0.0, 1.0)
+    save_state()
+
 func remember_room(code: String) -> void:
     last_room_code = code
     save_state()
