@@ -34,7 +34,12 @@ export const COLD_CASE_PROTOTYPE:ColdCaseLevel={
    box("f-shelf-l",[-7,1,0],[1,6,18],"shelf"),box("f-shelf-r",[7,1,0],[1,6,18],"shelf"),
    box("f-vent",[0,3,-8],[5,.5,1],"metal")
   ]},
-  {id:"TECHNICIAN_OUTPOST",name:"Technician Outpost",temperature:4,boxes:[\n   box("t-floor",[0,-1.5,0],[20,1,18],"floor"),box("t-back",[0,3,-9],[20,9,1],"wall"),\n   box("t-left",[-10,3,0],[1,9,18],"wall"),box("t-right",[10,3,0],[1,9,18],"wall"),\n   box("t-bench",[0,0,1],[8,1.5,2],"metal"),box("t-board",[0,2.5,-7.8],[6,3,.3],"panel")\n  ]},\n  {id:"POWER_ROOM",name:"Power Room",temperature:8,boxes:[
+  {id:"TECHNICIAN_OUTPOST",name:"Technician Outpost",temperature:4,boxes:[
+   box("t-floor",[0,-1.5,0],[20,1,18],"floor"),box("t-back",[0,3,-9],[20,9,1],"wall"),
+   box("t-left",[-10,3,0],[1,9,18],"wall"),box("t-right",[10,3,0],[1,9,18],"wall"),
+   box("t-bench",[0,0,1],[8,1.5,2],"metal"),box("t-board",[0,2.5,-7.8],[6,3,.3],"panel")
+  ]},
+  {id:"POWER_ROOM",name:"Power Room",temperature:8,boxes:[
    box("e-floor",[0,-1.5,0],[18,1,16],"floor"),box("e-back",[0,3,-8],[18,9,1],"wall"),
    box("e-left",[-9,3,0],[1,9,16],"wall"),box("e-right",[9,3,0],[1,9,16],"wall"),
    box("power-panel",[0,2,-7.4],[3.5,3,.5],"panel")
