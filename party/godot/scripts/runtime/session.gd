@@ -4,6 +4,8 @@ class_name CPISession
 signal connected_to_party(state: Dictionary)
 signal state_updated(state: Dictionary)
 signal disconnected_from_party()
+signal canon_updated(records: Array, status: Dictionary)
+signal canon_record_loaded(record: Dictionary)
 
 const NetworkClientScript = preload("res://scripts/runtime/network_client.gd")
 
@@ -37,6 +39,12 @@ func _process(delta: float) -> void:
         poll_elapsed = 0.0
         network.fetch_state()
 
+func fetch_canon(kind: String = "") -> void:
+    network.fetch_canon(kind)
+
+func fetch_canon_record(ref: String) -> void:
+    network.fetch_canon_record(ref)
+
 func poll() -> void:
     if not network.session_token.is_empty():
         network.fetch_state()
@@ -58,3 +66,13 @@ func _on_request(path: String, ok: bool, data: Variant) -> void:
     elif path == "/api/native/state":
         last_state = data if data is Dictionary else {}
         state_updated.emit(last_state)
+    elif path == "/api/native/canon":
+        if data is Dictionary:
+            var records_variant: Variant = data.get("records", [])
+            var status_variant: Variant = data.get("status", {})
+            var records: Array = records_variant if records_variant is Array else []
+            var status: Dictionary = status_variant if status_variant is Dictionary else {}
+            canon_updated.emit(records, status)
+    elif path.begins_with("/api/native/canon/"):
+        if data is Dictionary:
+            canon_record_loaded.emit(data)
