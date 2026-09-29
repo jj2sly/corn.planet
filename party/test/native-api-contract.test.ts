@@ -36,3 +36,22 @@ test("native router is mounted before browser fallback", async () => {
   assert.ok(staticIndex > nativeIndex, "static middleware must follow the native router");
   assert.ok(fallbackIndex > nativeIndex, "404 fallback must follow the native router");
 });
+
+
+test("native registry maps friendly IDs to authoritative server IDs", async () => {
+  const source = await readFile(new URL("../godot/scripts/app/app_registry.gd", import.meta.url), "utf8");
+  for (const mapping of [
+    ['"id": "cornlashing"', '"server_game_id": "chaos"'],
+    ['"id": "corn-or-shit"', '"server_game_id": "cornorshit"'],
+    ['"id": "entity-auction"', '"server_game_id": "entityauction"'],
+    ['"id": "my-cob-escaped"', '"server_game_id": "mycob"'],
+    ['"id": "steam-my-deck"', '"server_game_id": "steamdeck"'],
+    ['"id": "angry-thuds-revenge"', '"server_game_id": "thud"'],
+  ]) {
+    const [friendly, server] = mapping;
+    const friendlyIndex = source.indexOf(friendly);
+    const serverIndex = source.indexOf(server, friendlyIndex);
+    assert.ok(friendlyIndex >= 0, `missing native id ${friendly}`);
+    assert.ok(serverIndex > friendlyIndex, `missing server mapping ${server}`);
+  }
+});
