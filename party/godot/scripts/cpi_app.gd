@@ -98,6 +98,7 @@ func _build_shell() -> void:
     add_child(shell)
     shell.setup(session, app_state, notifications, identity, services)
     shell.launch_game_requested.connect(launch_game)
+    shell.launch_group_game_requested.connect(launch_group_game)
     shell.create_room_requested.connect(_create_party_room)
     shell.section_changed.connect(_on_section_changed)
     shell.canon_record_requested.connect(_on_canon_record_requested)
@@ -208,6 +209,21 @@ func _on_module_failed(game_id: String, reason: String) -> void:
         shell.set_status("MODULE ERROR // %s" % game_id.to_upper())
     if notifications:
         notifications.push("MODULE ERROR", "%s: %s" % [game_id, reason], "error")
+
+func launch_group_game(game_id: String) -> void:
+    var metadata: Dictionary = module_manager.request_launch(game_id) if module_manager else {}
+    if metadata.is_empty():
+        return
+    var server_game_id := String(metadata.get("server_game_id", game_id))
+    var base := String(app_state.server_url if app_state else server_url).trim_suffix("/")
+    var url := "%s/host?game=%s" % [base, server_game_id.uri_encode()]
+    OS.shell_open(url)
+    if app_state:
+        app_state.remember_game(game_id)
+    if shell:
+        shell.set_status("%s // GROUP PLAY OPENED" % String(metadata.get("name", game_id)).to_upper())
+    if notifications:
+        notifications.push("GROUP PLAY", "Opened %s host lobby." % String(metadata.get("name", game_id)), "success")
 
 func show_library() -> void:
     if shell:
