@@ -47,8 +47,7 @@
       "target": [
         "AppImage"
       ]
-    },
-    "artifactName": "CPI-Party-${version}-${os}-${arch}.${ext}"
+    }
   },
   "dependencies": {
     "qrcode": "^1.5.4"
