@@ -45,6 +45,11 @@ function paintHostState(detail) {
   const running = Boolean(detail?.running);
   const active = Boolean(detail?.active);
   hostLiveBanner.classList.toggle("hidden", !running || active);
+
+  for (const button of document.querySelectorAll("[data-game]")) {
+    button.disabled = running;
+    button.title = running ? "A Party host is already live. Return to the host to choose another game." : "";
+  }
 }
 
 for (const button of document.querySelectorAll("[data-target]")) {
