@@ -23,6 +23,7 @@
       "index.html",
       "renderer.js",
       "styles.css",
+      "pc/**/*",
       "package.json"
     ],
     "directories": {
@@ -30,13 +31,21 @@
     },
     "mac": {
       "category": "public.app-category.games",
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
     "linux": {
-      "target": ["AppImage"]
+      "target": [
+        "AppImage"
+      ]
     }
   }
 }
