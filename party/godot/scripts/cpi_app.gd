@@ -8,6 +8,9 @@ const PlatformServicesScript = preload("res://scripts/app/platform_services.gd")
 const NotificationCenterScript = preload("res://scripts/app/notification_center.gd")
 const ModuleManagerScript = preload("res://scripts/app/module_manager.gd")
 const IdentityServiceScript = preload("res://scripts/app/identity_service.gd")
+const AudioServiceScript = preload("res://scripts/app/audio_service.gd")
+const QualityServiceScript = preload("res://scripts/app/quality_service.gd")
+const NavigationServiceScript = preload("res://scripts/app/navigation_service.gd")
 
 var current_game: Node = null
 var current_game_id := ""
@@ -18,6 +21,9 @@ var services: Node
 var notifications: Node
 var module_manager: Node
 var identity: Node
+var audio_service: Node
+var quality_service: Node
+var navigation: Node
 
 @export var server_url := "http://127.0.0.1:3000"
 
@@ -45,11 +51,29 @@ func _ready() -> void:
     add_child(identity)
     identity.setup(session)
 
+    audio_service = AudioServiceScript.new()
+    add_child(audio_service)
+    audio_service.setup(app_state)
+
+    quality_service = QualityServiceScript.new()
+    add_child(quality_service)
+    quality_service.setup(app_state)
+
+    navigation = NavigationServiceScript.new()
+    add_child(navigation)
+    navigation.section_requested.connect(_on_navigation_section_requested)
+    navigation.library_requested.connect(show_library)
+    navigation.platform_return_requested.connect(return_to_platform)
+    navigation.game_requested.connect(launch_game)
+
     services.register_service("state", app_state)
     services.register_service("notifications", notifications)
     services.register_service("session", session)
     services.register_service("modules", module_manager)
     services.register_service("identity", identity)
+    services.register_service("audio", audio_service)
+    services.register_service("quality", quality_service)
+    services.register_service("navigation", navigation)
 
     session.connected_to_party.connect(_on_party_connected)
     session.state_updated.connect(_on_party_state)
@@ -70,12 +94,16 @@ func _ready() -> void:
 func _build_shell() -> void:
     shell = AppShellScript.new()
     add_child(shell)
-    shell.setup(session, app_state, notifications, identity)
+    shell.setup(session, app_state, notifications, identity, services)
     shell.launch_game_requested.connect(launch_game)
     shell.create_room_requested.connect(_create_party_room)
     shell.section_changed.connect(_on_section_changed)
     shell.canon_record_requested.connect(_on_canon_record_requested)
     services.register_service("shell", shell)
+
+func _on_navigation_section_requested(section: String) -> void:
+    if shell:
+        shell.show_section(section)
 
 func _create_party_room() -> void:
     if session:
