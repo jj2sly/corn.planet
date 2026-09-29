@@ -4,6 +4,7 @@ class_name CPIAppShell
 signal launch_game_requested(game_id: String)
 signal create_room_requested()
 signal section_changed(section: String)
+signal canon_record_requested(ref: String)
 
 const RegistryScript = preload("res://scripts/app/app_registry.gd")
 
@@ -238,6 +239,25 @@ func _show_games() -> void:
         else:
             button(p, Rect2(335, 64, 110, 26), "OPEN", func(): show_section("rooms"))
 
+func show_canon_record(record: Dictionary) -> void:
+    clear_content()
+    title_label.text = String(record.get("ref", "CANON RECORD"))
+    section_label.text = "CPI // CANON RECORD"
+    var p := panel(Rect2(0, 0, 970, 470))
+    label(p, Vector2(24, 22), String(record.get("title", "UNTITLED")), 24, ACCENT)
+    label(p, Vector2(24, 62), String(record.get("kind", "canon")).to_upper(), 10, MUTED)
+    var fields_variant: Variant = record.get("fields", {})
+    if fields_variant is Dictionary:
+        var fields: Dictionary = fields_variant
+        var y := 105.0
+        for key: Variant in fields.keys():
+            label(p, Vector2(24, y), String(key).to_upper(), 9, MUTED)
+            label(p, Vector2(180, y), String(fields[key]), 11)
+            y += 48.0
+            if y > 405.0:
+                break
+    button(p, Rect2(24, 425, 140, 30), "BACK TO DATABASE", func(): show_section("database"))
+
 func _show_database() -> void:
     title_label.text = "CPST DATABASE"
     section_label.text = "CPI // CANON RECORDS"
@@ -273,7 +293,7 @@ func _show_database() -> void:
         label(card, Vector2(15, 12), String(record.get("ref", "UNKNOWN")), 10, ACCENT)
         label(card, Vector2(15, 31), String(record.get("title", "UNTITLED")), 14)
         label(card, Vector2(330, 14), String(record.get("kind", "canon")).to_upper(), 9, MUTED)
-        label(card, Vector2(330, 36), "VIEW RECORD", 9, TEXT)
+        button(card, Rect2(330, 31, 115, 28), "VIEW RECORD", func(ref: String = String(record.get("ref", ""))): canon_record_requested.emit(ref))
 
 func _show_rooms() -> void:
     title_label.text = "ROOMS"
