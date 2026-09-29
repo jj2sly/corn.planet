@@ -31,6 +31,9 @@ func _request(method: int, path: String, payload: Variant = null) -> void:
         http.queue_free()
     )
 
+func check_health() -> void:
+    _request(HTTPClient.METHOD_GET, "/api/native/health")
+
 func create_host() -> void:
     _request(HTTPClient.METHOD_POST, "/api/native/host", {})
 
