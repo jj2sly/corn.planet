@@ -77,5 +77,5 @@ func stop_active() -> void:
 
 func make_module_contract(metadata: Dictionary) -> Node:
     var module: Node = GameModuleScript.new()
-    module.configure(metadata)
+    module.configure(metadata, services)
     return module
