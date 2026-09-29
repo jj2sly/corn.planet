@@ -18,6 +18,7 @@ var session: Node
 var app_state: Node
 var notifications: Node
 var identity: Node
+var services: Node
 
 var canon_records: Array = []
 var canon_status: Dictionary = {}
@@ -32,11 +33,12 @@ const TEXT := Color(0.88, 0.89, 0.90)
 const MUTED := Color(0.48, 0.51, 0.54)
 const ACCENT := Color(1.0, 0.83, 0.0)
 
-func setup(p_session: Node, p_state: Node, p_notifications: Node = null, p_identity: Node = null) -> void:
+func setup(p_session: Node, p_state: Node, p_notifications: Node = null, p_identity: Node = null, p_services: Node = null) -> void:
     session = p_session
     app_state = p_state
     notifications = p_notifications
     identity = p_identity
+    services = p_services
     if notifications and notifications.has_signal("notification_added"):
         notifications.notification_added.connect(_on_notification_added)
     if identity and identity.has_signal("identity_changed"):
@@ -591,9 +593,18 @@ func _show_settings() -> void:
     button(settings_panel, Rect2(24, 225, 160, 34), "SAVE SETTINGS", func():
         if app_state:
             app_state.set_server_url(server.text)
+        if services:
+            var quality_service := services.get_service("quality")
+            if quality_service:
+                quality_service.set_quality(quality.get_item_text(quality.selected))
+            var audio_service := services.get_service("audio")
+            if audio_service:
+                audio_service.set_master_volume(volume.value)
+        elif app_state:
             app_state.set_quality(quality.get_item_text(quality.selected))
-            app_state.master_volume = volume.value
-            app_state.save_state()
-        set_status("SETTINGS SAVED")
+            app_state.set_master_volume(volume.value)
+        if session:
+            session.check_health(server.text)
+        set_status("SETTINGS SAVED // CHECKING SERVER")
     )
     label(settings_panel, Vector2(24, 292), "These settings are shared by every native CPI module.", 10, MUTED)
