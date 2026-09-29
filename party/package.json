@@ -12,7 +12,10 @@
     "dev": "node --env-file-if-exists=.env --watch server/main.ts",
     "typecheck": "tsc --noEmit -p .",
     "test": "node --test --test-concurrency=1 \"test/**/*.test.ts\"",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test",
+    "desktop": "electron desktop/main.mjs",
+    "desktop:pack": "electron-builder --dir",
+    "desktop:dist": "electron-builder"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",
@@ -24,6 +27,38 @@
     "@types/express": "^5.0.6",
     "@types/node": "^24.13.5",
     "socket.io-client": "^4.8.3",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "electron": "^38.1.2",
+    "electron-builder": "^26.0.12"
+  },
+  "main": "desktop/main.mjs",
+  "build": {
+    "appId": "com.cornplanet.party",
+    "productName": "CPI Party",
+    "files": [
+      "desktop/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist-desktop"
+    },
+    "mac": {
+      "category": "public.app-category.games",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
   }
 }
