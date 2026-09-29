@@ -4,6 +4,7 @@ class_name ColdCasePantry
 var temperature: float = 4.0
 var milk_awake: bool = false
 var player_near_milk: bool = false
+var control_target: float = 4.0
 var control_light: OmniLight3D
 var control_pulse: float = 0.0
 
@@ -21,7 +22,7 @@ func _process(delta: float) -> void:
     control_pulse += delta
     if control_light != null:
         control_light.light_energy = 1.2 + sin(control_pulse * 2.0) * 0.25
-    temperature = move_toward(temperature, 4.0, delta * 0.2)
+    temperature = move_toward(temperature, control_target, delta * 0.35)
 
 func _build_shelves() -> void:
     var box := BoxMesh.new()
@@ -76,6 +77,20 @@ func _food_material(index: int) -> StandardMaterial3D:
 
 func set_temperature(value: float) -> void:
     temperature = clamp(value, -25.0, 25.0)
+    control_target = temperature
+
+func cycle_temperature_control() -> String:
+    var targets: Array[float] = [4.0, 14.0, -8.0, -18.0]
+    var closest_index: int = 0
+    var closest_distance: float = absf(control_target - targets[0])
+    for i in range(1, targets.size()):
+        var distance: float = absf(control_target - targets[i])
+        if distance < closest_distance:
+            closest_index = i
+            closest_distance = distance
+    var next_index: int = (closest_index + 1) % targets.size()
+    control_target = targets[next_index]
+    return "TEMP CONTROL  //  TARGET %0.1f C" % control_target
 
 func tick_temperature(delta: float) -> void:
     temperature = move_toward(temperature, 4.0, delta * 0.2)
@@ -83,3 +98,6 @@ func tick_temperature(delta: float) -> void:
 func trigger_milk_response() -> void:
     if temperature > 10.0 or temperature < -5.0:
         milk_awake = true
+
+func is_temperature_extreme() -> bool:
+    return temperature > 10.0 or temperature < -5.0
