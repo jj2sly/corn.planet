@@ -19,6 +19,7 @@ The command center links to and keeps these experiences inside the Electron wind
 - CPI account and stats
 - Prompts and moderation
 - Hall of Fame
+- Corn or Shit — Solo (PC keyboard/mouse mode using live CPI canon)
 
 Players still use their phones for multiplayer controllers.
 
@@ -78,7 +79,13 @@ Artifacts are written to `party/dist-desktop/`.
 
 ## Architecture
 
-The Electron application is the container.
+The Electron application is the container. A persistent CPI sidebar stays visible while Party,
+Database and account pages run in an embedded content view, so remote content does not replace the
+desktop shell.
+
+The Command Center includes a Group Night readiness check for server health, installed games,
+native protocol and loaded canon. It also includes a one-click copy button for the phone join URL.
+
 
 The authoritative Corn Planet Party server remains the existing Node/Socket.IO server on Railway. Existing host/player renderers stay the source of truth for the six multiplayer games.
 
