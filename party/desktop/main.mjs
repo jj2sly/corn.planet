@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, WebContentsView, clipboard, ipcMain, shell } 
 import { fileURLToPath, pathToFileURL } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
+import QRCode from "qrcode";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PARTY_URL = process.env.CPI_PARTY_URL?.trim() || "http://127.0.0.1:3000";
@@ -300,6 +301,17 @@ ipcMain.handle("cpi:start-presentation-host", () => {
 });
 
 ipcMain.handle("cpi:toggle-presentation", () => setPresentationMode(!presentationMode));
+
+ipcMain.handle("cpi:player-qr", async () => {
+  const url = `${loadSettings().partyBase}/play`;
+  const dataUrl = await QRCode.toDataURL(url, {
+    errorCorrectionLevel: "M",
+    margin: 1,
+    width: 240,
+    color: { dark: "#050607", light: "#ffd400" },
+  });
+  return { url, dataUrl };
+});
 
 ipcMain.handle("cpi:copy-player-link", () => {
   const url = `${loadSettings().partyBase}/play`;
