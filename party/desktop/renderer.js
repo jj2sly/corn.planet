@@ -44,6 +44,10 @@ for (const button of document.querySelectorAll("[data-target]")) {
 }
 
 window.cpiDesktop.onActiveTarget((target) => paintActiveTarget(target));
+window.cpiDesktop.onPresentationMode((enabled) => {
+  document.body.classList.toggle("presentation-mode", enabled);
+});
+
 window.cpiDesktop.onContentError((detail) => {
   status.className = "status bad";
   status.textContent = "CONTENT LOAD FAILED";
@@ -165,5 +169,5 @@ copyPlayerLink.addEventListener("click", async () => {
 
 
 startGroupNight.addEventListener("click", async () => {
-  await window.cpiDesktop.navigate("party");
+  await window.cpiDesktop.startPresentationHost();
 });
