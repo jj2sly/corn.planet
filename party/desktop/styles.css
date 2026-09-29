@@ -91,3 +91,7 @@ footer { display: flex; justify-content: space-between; margin-top: 24px; color:
 .host-live { margin: -10px 0 18px; border: 1px solid #665600; background: #171400; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .host-live strong { font-size: 12px; }
 .host-live button { min-height: 34px; border: 1px solid #ffd400; background: #ffd400; color: #090a08; font-weight: 900; padding: 0 14px; cursor: pointer; }
+
+.host-live-actions { display: flex; gap: 8px; align-items: center; }
+.host-live .danger { border-color: #663535; background: #1a0c0c; color: #e4b1b1; }
+.host-live .danger:hover { border-color: #a95151; }
