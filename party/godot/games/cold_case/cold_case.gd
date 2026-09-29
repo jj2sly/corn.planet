@@ -37,6 +37,7 @@ var outpost_discovered := false
 var checkpoint_active := false
 var final_report_shown := false
 var core_repaired := false
+var milk_defeated := false
 var health: float = 100.0
 var damage_cooldown: float = 0.0
 
@@ -73,6 +74,11 @@ func _physics_process(delta: float) -> void:
     _move_player(delta)
     _update_zone_state(delta)
     _update_survival(delta)
+    if milk != null and not milk_defeated:
+        var active_milk: ColdCaseMilk = milk as ColdCaseMilk
+        if active_milk != null and active_milk.defeated_state:
+            milk_defeated = true
+            status_label.text = "THREAT  //  MILK CARTON NEUTRALIZED"
     if mission_phase == "BRIEFING" and not door_open and _near_fridge():
         _toggle_fridge()
     temp_label.text = "TEMP  //  %0.1f C" % temperature
@@ -152,7 +158,7 @@ func _update_survival(delta: float) -> void:
     if milk == null or mission_phase == "BRIEFING" or mission_phase == "COMPLETE":
         return
     var milk_script: ColdCaseMilk = milk as ColdCaseMilk
-    if milk_script == null or not milk_script.active:
+    if milk_script == null or not milk_script.active or milk_script.defeated_state:
         return
     var distance: float = player_body.global_position.distance_to(milk_script.global_position)
     if distance < 1.8 and damage_cooldown <= 0.0:
