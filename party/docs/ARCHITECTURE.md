@@ -72,7 +72,7 @@ a frontend framework, firebase-admin (heavy; token verification only needs publi
 | `ratelimit.ts` | Tiny fixed-window rate limiter |
 | `canon.ts` | Read-only access to the CPI Database: fetch, cache, strip redactions ([CANON.md](CANON.md)) |
 | `promotion.ts` | Hall of Fame → canon: the prefilled Records Division link, and linking moments to the records filed from them |
-| `games/types.ts` | The minigame contract |
+| `engine/game.ts` | Stable runtime-facing game contracts: GameContext, GameDefinition, GameInstance, viewer-safe state and shared game metadata |\n| `games/types.ts` | Compatibility re-export of the runtime game contracts |
 | `games/registry.ts` | List of installed games |
 | `games/chaos.ts` | Cornlashing |
 | `games/claims.ts` | Turning a canon record into one true and one fabricated claim |
@@ -156,7 +156,7 @@ Every client event is `socket.emit(event, payload, ack)` and gets `{ ok: true, .
 
 ## 6. Minigame framework
 
-A game is a `GameDefinition` (id, name, description, min/max players, settings parser, `create`)
+A game is a `GameDefinition` (defined in `server/engine/game.ts`: id, name, description, min/max players, settings parser, `create`)
 that produces a `GameInstance`:
 
 ```ts
@@ -179,7 +179,7 @@ game's `abortDetails()` record if it has one, and never counts towards stats. A 
 of lobby choices (My Cob Escaped's modes and lengths) through `/api/config`. Rooms, networking,
 reconnects, pausing, scoreboards and stats persistence are all generic — a new game only
 implements its own phases and views, plus host/phone renderers in `public/js/games/<id>-*.js`.
-`test/framework.test.ts` runs a second, unrelated game through the same rooms to keep this true;
+`test/framework.test.ts` runs a second, unrelated game through the same rooms, while the engine contract test imports the canonical definitions directly to keep this true;
 [ADDING_A_GAME.md](ADDING_A_GAME.md) is the step-by-step guide.
 
 Games reach CPI canon through `ctx.canon` (list / sample / get / used). It is read-only: a game can
