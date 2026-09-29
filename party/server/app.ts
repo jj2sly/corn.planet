@@ -11,6 +11,7 @@ import { GAMES } from "./games/registry.ts";
 import type { GameDefinition } from "./games/types.ts";
 import { createRealtime } from "./realtime.ts";
 import { RoomManager } from "./rooms.ts";
+import { createNativeApi } from "./native-api.ts";
 
 export interface PartyServerOptions {
   db: PartyDb;
@@ -128,6 +129,8 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
     onClose: (room, reason) => realtime?.onRoomClose(room, reason),
   });
   realtime = createRealtime({ io, rooms, auth, db, trustProxy: options.trustProxy ?? false });
+  // Native Godot clients use the same RoomManager through a small session-token HTTP bridge.
+  app.use("/api/native", createNativeApi({ rooms, auth, db }));
 
   const cleanupTimer = setInterval(() => rooms.cleanup(), 15_000);
   cleanupTimer.unref();
