@@ -46,3 +46,12 @@ h3 { margin: 5px 0 8px; font-size: 25px; }
   .game { padding: 24px; }
   .options, .source-grid { grid-template-columns: 1fr; }
 }
+
+.pc-library { display: grid; gap: 16px; }
+.pc-title { border: 1px solid #30342e; background: #0b0d0a; padding: 22px; display: grid; grid-template-columns: 1fr 180px; gap: 24px; align-items: center; }
+.pc-title h2 { margin-top: 6px; }
+.pc-title ul { color: #92998f; margin: 14px 0 0; padding-left: 18px; line-height: 1.7; font-size: 12px; }
+.pc-title > button { min-height: 52px; border: 1px solid #ffd400; background: #ffd400; color: #090a08; font-weight: 900; cursor: pointer; }
+.pc-title > button:disabled { border-color: #33372f; background: #11130f; color: #666c63; cursor: default; }
+.future-title { opacity: .6; }
+@media (max-width: 850px) { .pc-title { grid-template-columns: 1fr; } }
