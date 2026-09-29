@@ -52,6 +52,7 @@ const PAGES: Record<string, string> = {
   "/account": "account.html",
   "/prompts": "prompts.html",
   "/hall": "hall.html",
+  "/coldcase": "coldcase.html",
 };
 
 export function createPartyServer(options: PartyServerOptions): PartyServer {
