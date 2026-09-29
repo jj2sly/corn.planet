@@ -34,6 +34,8 @@ func setup(p_session: Node, p_state: Node, p_notifications: Node = null) -> void
     session = p_session
     app_state = p_state
     notifications = p_notifications
+    if notifications and notifications.has_signal("notification_added"):
+        notifications.notification_added.connect(_on_notification_added)
     _build_shell()
     show_section("home")
 
@@ -190,6 +192,8 @@ func show_section(section: String) -> void:
             _show_rooms()
         "profile":
             _show_profile()
+        "notifications":
+            _show_notifications()
         "settings":
             _show_settings()
         _:
@@ -444,6 +448,40 @@ func _show_profile() -> void:
     label(profile, Vector2(390, 65), "LIBRARY", 9, MUTED)
     label(profile, Vector2(390, 85), "%d RECENT" % (app_state.recent_games.size() if app_state else 0), 14, ACCENT)
     label(profile, Vector2(390, 120), "%d FAVORITES" % (app_state.favorite_games.size() if app_state else 0), 14, ACCENT)
+
+func _on_notification_added(_notification: Dictionary) -> void:
+    if active_section == "notifications":
+        _show_notifications()
+
+func _show_notifications() -> void:
+    clear_content()
+    title_label.text = "NOTIFICATIONS"
+    section_label.text = "CPI // SYSTEM ACTIVITY"
+
+    var toolbar := panel(Rect2(0, 0, 970, 70))
+    label(toolbar, Vector2(20, 18), "ACTIVITY CENTER", 16, ACCENT)
+    label(toolbar, Vector2(20, 42), "Platform, network and module events.", 10, MUTED)
+    if notifications:
+        button(toolbar, Rect2(790, 18, 150, 32), "CLEAR ALL", func():
+            notifications.clear()
+            _show_notifications()
+        )
+
+    var items: Array[Dictionary] = notifications.recent(8) if notifications else []
+    if items.is_empty():
+        var empty := panel(Rect2(0, 90, 970, 100))
+        label(empty, Vector2(20, 20), "NO NOTIFICATIONS", 16, ACCENT)
+        label(empty, Vector2(20, 52), "System activity will appear here.", 10, MUTED)
+        return
+
+    for i: int in items.size():
+        var item: Dictionary = items[i]
+        var row := panel(Rect2(0, 84 + i * 52.0, 970, 44))
+        var level := String(item.get("level", "info")).to_upper()
+        label(row, Vector2(14, 8), level, 9, ACCENT if level == "SUCCESS" else MUTED)
+        label(row, Vector2(90, 7), String(item.get("title", "CPI")), 11)
+        label(row, Vector2(285, 7), String(item.get("message", "")), 10, MUTED)
+        label(row, Vector2(800, 7), String(item.get("created_at", "")), 9, MUTED)
 
 func _show_settings() -> void:
     title_label.text = "SETTINGS"
