@@ -157,6 +157,12 @@ func button(parent: Control, rect: Rect2, text_value: String, callback: Callable
     parent.add_child(b)
     return b
 
+func set_canon_records(records: Array, status: Dictionary) -> void:
+    canon_records = records
+    canon_status = status
+    if active_section == "database":
+        _show_database()
+
 func show_section(section: String) -> void:
     active_section = section
     clear_content()
@@ -233,15 +239,39 @@ func _show_games() -> void:
 func _show_database() -> void:
     title_label.text = "CPST DATABASE"
     section_label.text = "CPI // CANON RECORDS"
-    var p := panel(Rect2(0, 0, 620, 205))
-    label(p, Vector2(24, 22), "CORN PLANET INSTITUTION DATABASE", 20, ACCENT)
-    label(p, Vector2(24, 60), "The canonical entity database remains the source of truth.", 12)
-    label(p, Vector2(24, 92), "The native client will eventually expose search, entity records,\nclassification, containment and CPST activity directly.", 11, MUTED)
-    button(p, Rect2(24, 150, 180, 34), "OPEN DATABASE SITE", func(): OS.shell_open("https://jj2sly.github.io/corn.planet"))
-    var q := panel(Rect2(645, 0, 325, 205))
-    label(q, Vector2(20, 20), "NATIVE DATABASE", 12, ACCENT)
-    label(q, Vector2(20, 50), "COMING NEXT", 18)
-    label(q, Vector2(20, 85), "Search\nEntity viewer\nRedaction renderer\nCPST activity", 11, MUTED)
+
+    var p := panel(Rect2(0, 0, 970, 120))
+    label(p, Vector2(20, 18), "CANON SNAPSHOT", 12, ACCENT)
+    var record_count: int = canon_records.size()
+    var loaded: int = int(canon_status.get("records", record_count))
+    label(p, Vector2(20, 46), "%d RECORDS LOADED" % loaded, 20)
+    label(p, Vector2(20, 78), "Read-only native view. Redacted material stays redacted.", 10, MUTED)
+    button(p, Rect2(730, 42, 190, 34), "REFRESH CANON", func():
+        if session:
+            session.fetch_canon()
+        status_label.text = "LOADING // CPST CANON"
+    )
+
+    if record_count == 0:
+        var empty := panel(Rect2(0, 145, 970, 145))
+        label(empty, Vector2(20, 20), "NO LOCAL SNAPSHOT YET", 18, ACCENT)
+        label(empty, Vector2(20, 55), "Connect to the Party server and refresh the canon to populate the native database.", 11, MUTED)
+        button(empty, Rect2(20, 92, 180, 30), "OPEN WEB DATABASE", func(): OS.shell_open("https://jj2sly.github.io/corn.planet"))
+        return
+
+    var shown: int = mini(record_count, 8)
+    for i: int in shown:
+        var record_variant: Variant = canon_records[i]
+        if not record_variant is Dictionary:
+            continue
+        var record: Dictionary = record_variant
+        var row: int = i / 2
+        var col: int = i % 2
+        var card := panel(Rect2(col * 485.0, 145 + row * 92.0, 465, 78))
+        label(card, Vector2(15, 12), String(record.get("ref", "UNKNOWN")), 10, ACCENT)
+        label(card, Vector2(15, 31), String(record.get("title", "UNTITLED")), 14)
+        label(card, Vector2(330, 14), String(record.get("kind", "canon")).to_upper(), 9, MUTED)
+        label(card, Vector2(330, 36), "VIEW RECORD", 9, TEXT)
 
 func _show_rooms() -> void:
     title_label.text = "ROOMS"
