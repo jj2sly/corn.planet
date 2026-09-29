@@ -3,15 +3,21 @@ class_name CPIApp
 
 const SessionScript = preload("res://scripts/runtime/session.gd")
 const AppShellScript = preload("res://scripts/app/app_shell.gd")
+const AppStateScript = preload("res://scripts/app/app_state.gd")
 
 var current_game: Node = null
 var current_game_id := ""
 var session: Node
+var app_state: Node
 var shell: Control
 @export var server_url := "http://127.0.0.1:3000"
 
 func _ready() -> void:
     print("CPI Party native platform starting")
+    app_state = AppStateScript.new()
+    add_child(app_state)
+    server_url = app_state.server_url
+
     session = SessionScript.new()
     add_child(session)
     session.connected_to_party.connect(_on_party_connected)
@@ -21,16 +27,18 @@ func _ready() -> void:
 func _build_shell() -> void:
     shell = AppShellScript.new()
     add_child(shell)
-    shell.setup(session)
+    shell.setup(session, app_state)
     shell.launch_game_requested.connect(launch_game)
     shell.create_room_requested.connect(_create_party_room)
 
 func _create_party_room() -> void:
     if session:
-        session.connect_host(server_url)
+        session.connect_host(app_state.server_url if app_state else server_url)
 
 func _on_party_connected(_state: Dictionary) -> void:
     if shell:
+        if app_state:
+            app_state.remember_room(session.room_code)
         shell.status_label.text = "ONLINE // ROOM %s" % session.room_code
 
 func _on_party_state(_state: Dictionary) -> void:
