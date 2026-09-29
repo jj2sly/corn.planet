@@ -201,3 +201,30 @@ test("returning to retained Party host does not force a reload", async () => {
   assert.match(main, /!reused \|\| forceNavigate \|\| !currentUrl/);
   assert.match(main, /forceNavigate: true/);
 });
+
+
+test("desktop can explicitly stop a retained Party host", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
+
+  assert.match(main, /stopRetainedHost/);
+  assert.match(main, /cpi:stop-host/);
+  assert.match(preload, /stopHost/);
+  assert.match(renderer, /stopHostDisplay/);
+  assert.match(html, /STOP HOST DISPLAY/);
+});
+
+test("desktop prevents duplicate app hosts", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /requestSingleInstanceLock/);
+  assert.match(main, /second-instance/);
+});
+
+test("presentation mode prevents the host display from sleeping", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /powerSaveBlocker/);
+  assert.match(main, /prevent-display-sleep/);
+  assert.match(main, /powerSaveBlocker\.stop/);
+});
