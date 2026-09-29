@@ -12,6 +12,7 @@ if (globalThis.location?.protocol === "file:") {
     readiness: () => ipcRenderer.invoke("cpi:readiness"),
     config: () => ipcRenderer.invoke("cpi:config"),
     copyPlayerLink: () => ipcRenderer.invoke("cpi:copy-player-link"),
+    playerQr: () => ipcRenderer.invoke("cpi:player-qr"),
     setPartyUrl: (value) => ipcRenderer.invoke("cpi:set-party-url", value),
     onActiveTarget: (callback) => {
       const handler = (_event, target) => callback(target);
