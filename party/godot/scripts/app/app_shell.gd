@@ -17,6 +17,7 @@ var active_section := "home"
 var session: Node
 var app_state: Node
 var notifications: Node
+var identity: Node
 
 var canon_records: Array = []
 var canon_status: Dictionary = {}
@@ -31,12 +32,17 @@ const TEXT := Color(0.88, 0.89, 0.90)
 const MUTED := Color(0.48, 0.51, 0.54)
 const ACCENT := Color(1.0, 0.83, 0.0)
 
-func setup(p_session: Node, p_state: Node, p_notifications: Node = null) -> void:
+func setup(p_session: Node, p_state: Node, p_notifications: Node = null, p_identity: Node = null) -> void:
     session = p_session
     app_state = p_state
     notifications = p_notifications
+    identity = p_identity
     if notifications and notifications.has_signal("notification_added"):
         notifications.notification_added.connect(_on_notification_added)
+    if identity and identity.has_signal("identity_changed"):
+        identity.identity_changed.connect(_on_identity_changed)
+    if identity and identity.has_signal("stats_changed"):
+        identity.stats_changed.connect(_on_stats_changed)
     _build_shell()
     show_section("home")
 
@@ -437,31 +443,76 @@ func _show_rooms() -> void:
     label(current, Vector2(20, 108), "STATUS", 9, MUTED)
     label(current, Vector2(140, 108), "SERVER AUTHORITATIVE", 11, ACCENT)
 
+func _on_identity_changed(_profile: Dictionary) -> void:
+    if active_section == "profile":
+        _show_profile()
+
+func _on_stats_changed(_stats: Dictionary) -> void:
+    if active_section == "profile":
+        _show_profile()
+
 func _show_profile() -> void:
+    clear_content()
     title_label.text = "PROFILE"
     section_label.text = "CPI // PERSONNEL FILE"
 
-    var profile := panel(Rect2(0, 0, 620, 280))
-    label(profile, Vector2(24, 22), "LOCAL OPERATIVE PROFILE", 20, ACCENT)
-    label(profile, Vector2(24, 65), "DISPLAY NAME", 9, MUTED)
+    var account_profile: Dictionary = identity.profile if identity and identity.is_signed_in() else {}
+    var account_stats: Dictionary = identity.stats if identity else {}
+    var signed_in := not account_profile.is_empty()
 
+    var profile := panel(Rect2(0, 0, 620, 300))
+    label(profile, Vector2(24, 22), "CPI OPERATIVE PROFILE", 20, ACCENT)
+    label(profile, Vector2(24, 58), "ACCOUNT STATUS", 9, MUTED)
+    label(profile, Vector2(24, 78), "AUTHENTICATED" if signed_in else "LOCAL GUEST", 13, ACCENT if signed_in else TEXT)
+
+    label(profile, Vector2(24, 118), "DISPLAY NAME", 9, MUTED)
     var name := LineEdit.new()
-    name.position = Vector2(24, 85)
+    name.position = Vector2(24, 138)
     name.size = Vector2(330, 34)
-    name.text = String(app_state.display_name) if app_state else "CPI OPERATIVE"
+    name.text = String(account_profile.get("displayName", app_state.display_name if app_state else "CPI OPERATIVE"))
+    name.editable = not signed_in
     profile.add_child(name)
 
-    button(profile, Rect2(24, 135, 150, 32), "SAVE PROFILE", func():
-        if app_state:
-            app_state.set_display_name(name.text)
-        set_status("PROFILE SAVED")
-    )
+    if signed_in:
+        label(profile, Vector2(390, 58), "CLEARANCE", 9, MUTED)
+        label(profile, Vector2(390, 78), String(account_profile.get("role", "VIEWER")), 13)
+        label(profile, Vector2(390, 118), "USER ID", 9, MUTED)
+        label(profile, Vector2(390, 138), String(account_profile.get("uid", "UNKNOWN")).left(18), 10, MUTED)
+        button(profile, Rect2(24, 195, 140, 32), "REFRESH ACCOUNT", func():
+            if identity:
+                identity.refresh()
+            set_status("REFRESHING // CPI ACCOUNT")
+        )
+        button(profile, Rect2(178, 195, 120, 32), "SIGN OUT", func():
+            if identity:
+                identity.sign_out()
+            set_status("SIGNED OUT // LOCAL PROFILE")
+        )
+    else:
+        button(profile, Rect2(24, 195, 150, 32), "SAVE LOCAL NAME", func():
+            if app_state:
+                app_state.set_display_name(name.text)
+            set_status("PROFILE SAVED")
+        )
+        label(profile, Vector2(24, 248), "CPI account sign-in transport is ready; token acquisition UI is the next auth step.", 10, MUTED)
 
-    label(profile, Vector2(24, 195), "ACCOUNT", 9, MUTED)
-    label(profile, Vector2(24, 215), "Native CPI identity // local profile", 11)
-    label(profile, Vector2(390, 65), "LIBRARY", 9, MUTED)
-    label(profile, Vector2(390, 85), "%d RECENT" % (app_state.recent_games.size() if app_state else 0), 14, ACCENT)
-    label(profile, Vector2(390, 120), "%d FAVORITES" % (app_state.favorite_games.size() if app_state else 0), 14, ACCENT)
+    var stats_panel := panel(Rect2(645, 0, 325, 300))
+    label(stats_panel, Vector2(20, 22), "ACTIVITY", 12, ACCENT)
+    label(stats_panel, Vector2(20, 58), "RECENT MODULES", 9, MUTED)
+    label(stats_panel, Vector2(180, 56), str(app_state.recent_games.size() if app_state else 0), 16)
+    label(stats_panel, Vector2(20, 92), "FAVORITES", 9, MUTED)
+    label(stats_panel, Vector2(180, 90), str(app_state.favorite_games.size() if app_state else 0), 16)
+    label(stats_panel, Vector2(20, 132), "SERVER STATS", 9, MUTED)
+    if signed_in and not account_stats.is_empty():
+        var y := 154.0
+        for key: Variant in account_stats.keys():
+            label(stats_panel, Vector2(20, y), String(key).to_upper(), 9, MUTED)
+            label(stats_panel, Vector2(180, y), String(account_stats[key]), 11)
+            y += 28.0
+            if y > 258.0:
+                break
+    else:
+        label(stats_panel, Vector2(20, 158), "Sign in to load persistent CPI Party stats.", 10, MUTED)
 
 func _on_notification_added(_notification: Dictionary) -> void:
     if active_section == "notifications":
