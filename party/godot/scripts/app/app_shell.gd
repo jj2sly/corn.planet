@@ -436,13 +436,26 @@ func _show_rooms() -> void:
         code.text = String(app_state.last_room_code) if app_state else ""
     )
 
-    var current := panel(Rect2(0, 280, 970, 180))
+    var current := panel(Rect2(0, 280, 970, 205))
     var connected := session and not session.room_code.is_empty()
-    var module_id := ""
-    if services:
+    var state: Dictionary = session.last_state if connected and session.last_state is Dictionary else {}
+    var config_variant: Variant = state.get("config", {})
+    var config: Dictionary = config_variant if config_variant is Dictionary else {}
+    var module_id := String(config.get("gameId", ""))
+    if module_id.is_empty() and services:
         var modules := services.get_service("modules")
         if modules:
             module_id = String(modules.active_game_id if not modules.active_game_id.is_empty() else modules.pending_game_id)
+
+    var players_variant: Variant = state.get("players", [])
+    var players: Array = players_variant if players_variant is Array else []
+    var room_status := String(state.get("status", "LOBBY" if connected else "OFFLINE"))
+    var max_players := int(state.get("maxPlayers", 8))
+    var timer_variant: Variant = state.get("timer", null)
+    var timer_text := "—"
+    if timer_variant is Dictionary:
+        var timer: Dictionary = timer_variant
+        timer_text = "%ds" % int(ceil(float(timer.get("remainingMs", 0)) / 1000.0))
 
     label(current, Vector2(20, 18), "CURRENT SESSION", 11, ACCENT)
     label(current, Vector2(20, 48), "ROOM", 9, MUTED)
@@ -451,16 +464,26 @@ func _show_rooms() -> void:
     label(current, Vector2(140, 78), session.role.to_upper() if connected else "—", 12)
     label(current, Vector2(20, 108), "MODULE", 9, MUTED)
     label(current, Vector2(140, 108), module_id.to_upper() if not module_id.is_empty() else "NONE SELECTED", 11)
-    label(current, Vector2(20, 138), "AUTHORITY", 9, MUTED)
-    label(current, Vector2(140, 138), "SERVER", 11, ACCENT)
+    label(current, Vector2(20, 138), "STATE", 9, MUTED)
+    label(current, Vector2(140, 138), room_status, 11, ACCENT if room_status == "IN_GAME" else TEXT)
+    label(current, Vector2(20, 168), "PLAYERS", 9, MUTED)
+    label(current, Vector2(140, 168), "%d / %d" % [players.size(), max_players], 11)
+
+    label(current, Vector2(390, 48), "TIMER", 9, MUTED)
+    label(current, Vector2(470, 48), timer_text, 12)
+    label(current, Vector2(390, 78), "HOST", 9, MUTED)
+    label(current, Vector2(470, 78), "CONNECTED" if bool(state.get("hostConnected", false)) else "OFFLINE", 11)
+    label(current, Vector2(390, 108), "STEP", 9, MUTED)
+    label(current, Vector2(470, 108), str(state.get("step", 0)), 11)
+    label(current, Vector2(390, 138), "AUTHORITY", 9, MUTED)
+    label(current, Vector2(470, 138), "SERVER", 11, ACCENT)
 
     if connected:
         button(current, Rect2(650, 48, 130, 34), "LEAVE ROOM", func():
             session.leave()
-            set_status("OFFLINE // LEFT ROOM")
-            _show_rooms()
+            set_status("LEAVING // ROOM")
         )
-        if session.role == "host" and not module_id.is_empty():
+        if session.role == "host" and not module_id.is_empty() and room_status == "LOBBY":
             button(current, Rect2(795, 48, 145, 34), "START GAME", func():
                 session.start_game()
                 set_status("STARTING // %s" % module_id.to_upper())
