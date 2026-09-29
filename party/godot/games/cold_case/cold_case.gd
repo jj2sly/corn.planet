@@ -28,6 +28,7 @@ var temp_label: Label
 var status_label: Label
 var health_label: Label
 var briefing_overlay: ColorRect
+var briefing_layer: CanvasLayer
 var briefing_active: bool = true
 
 var power_repaired := false
@@ -54,7 +55,7 @@ func _unhandled_input(event: InputEvent) -> void:
     if briefing_active and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
         briefing_active = false
         if briefing_overlay != null:
-            briefing_overlay.queue_free()
+            briefing_layer.queue_free()
         Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
         return
     if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
@@ -391,11 +392,13 @@ func _build_hud() -> void:
     layer.add_child(interaction_hint)
 
 func _show_final_report() -> void:
+    var report_layer: CanvasLayer = CanvasLayer.new()
+    add_child(report_layer)
     var panel: ColorRect = ColorRect.new()
     panel.position = Vector2(250, 150)
     panel.size = Vector2(780, 430)
     panel.color = Color(0.02, 0.025, 0.028, 0.96)
-    add_child(panel)
+    report_layer.add_child(panel)
 
     var title: Label = Label.new()
     title.position = Vector2(34, 26)
@@ -420,11 +423,13 @@ func _show_final_report() -> void:
     panel.add_child(close_button)
 
 func _build_briefing() -> void:
+    briefing_layer = CanvasLayer.new()
+    add_child(briefing_layer)
     briefing_overlay = ColorRect.new()
     briefing_overlay.position = Vector2(180, 110)
     briefing_overlay.size = Vector2(920, 500)
     briefing_overlay.color = Color(0.015, 0.02, 0.023, 0.97)
-    add_child(briefing_overlay)
+    briefing_layer.add_child(briefing_overlay)
 
     var header: Label = Label.new()
     header.position = Vector2(42, 30)
