@@ -4,6 +4,7 @@ const version = document.querySelector("#version");
 const input = document.querySelector("#partyServerInput");
 const save = document.querySelector("#savePartyServer");
 const message = document.querySelector("#serverMessage");
+const copyPlayerLink = document.querySelector("#copyPlayerLink");
 const readyServer = document.querySelector("#readyServer");
 const readyGames = document.querySelector("#readyGames");
 const readyCanon = document.querySelector("#readyCanon");
@@ -144,3 +145,10 @@ save.addEventListener("click", async () => {
 
 
 rerunReadiness.addEventListener("click", runReadiness);
+
+
+copyPlayerLink.addEventListener("click", async () => {
+  const url = await window.cpiDesktop.copyPlayerLink();
+  message.textContent = `Copied ${url}`;
+  message.className = "server-message ok";
+});
