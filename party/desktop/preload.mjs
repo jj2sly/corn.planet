@@ -16,5 +16,10 @@ if (globalThis.location?.protocol === "file:") {
       ipcRenderer.on("cpi:active-target", handler);
       return () => ipcRenderer.removeListener("cpi:active-target", handler);
     },
+    onContentError: (callback) => {
+      const handler = (_event, detail) => callback(detail);
+      ipcRenderer.on("cpi:content-error", handler);
+      return () => ipcRenderer.removeListener("cpi:content-error", handler);
+    },
   });
 }
