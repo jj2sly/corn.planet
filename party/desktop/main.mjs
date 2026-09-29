@@ -189,6 +189,28 @@ function openContent(url, target, { retain = target === "party", forceNavigate =
   if (!reused || forceNavigate || !currentUrl) void contentView.webContents.loadURL(url);
 }
 
+function stopRetainedHost() {
+  const host = retainedViews.get("party");
+  if (!host) return false;
+
+  if (contentView === host && mainWindow) {
+    try { mainWindow.contentView.removeChildView(host); } catch {}
+    contentView = null;
+  }
+
+  retainedViews.delete("party");
+  try { host.webContents.close(); } catch {}
+
+  if (activeTarget === "party") {
+    activeTarget = "home";
+    emitActiveTarget();
+  }
+  setPresentationMode(false);
+  if (mainWindow?.isFullScreen()) mainWindow.setFullScreen(false);
+  emitHostState();
+  return true;
+}
+
 function openPcLibrary() {
   const url = pathToFileURL(path.join(__dirname, "pc", "index.html")).toString();
   openContent(url, "pc-games");
@@ -355,6 +377,7 @@ ipcMain.handle("cpi:navigate", (_event, target) => {
 });
 
 ipcMain.handle("cpi:host-status", () => ({ running: hostIsRetained(), active: activeTarget === "party" }));
+ipcMain.handle("cpi:stop-host", () => stopRetainedHost());
 
 ipcMain.handle("cpi:return-host", () => {
   navigate("party");
