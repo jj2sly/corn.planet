@@ -11,6 +11,7 @@ const readyCanon = document.querySelector("#readyCanon");
 const readyProtocol = document.querySelector("#readyProtocol");
 const readinessIssues = document.querySelector("#readinessIssues");
 const rerunReadiness = document.querySelector("#rerunReadiness");
+const startGroupNight = document.querySelector("#startGroupNight");
 const SERVER_TARGETS = new Set(["party", "account", "prompts", "hall"]);
 
 function setServerDependentControls(online) {
@@ -93,8 +94,11 @@ async function runReadiness() {
   readyProtocol.textContent = result.protocol ? String(result.protocol) : "—";
   readyProtocol.className = result.protocol ? "ready-ok" : "ready-bad";
 
-  if (result.issues?.length) {
-    readinessIssues.textContent = result.issues.join(" • ");
+  const ready = result.server && result.games >= 6 && result.canon >= 2 && !(result.issues?.length);
+  startGroupNight.disabled = !ready;
+
+  if (!ready) {
+    readinessIssues.textContent = result.issues?.length ? result.issues.join(" • ") : "Group Night requirements are not met yet.";
     readinessIssues.className = "readiness-issues bad";
   } else {
     readinessIssues.textContent = "READY FOR GROUP NIGHT";
@@ -157,4 +161,10 @@ copyPlayerLink.addEventListener("click", async () => {
   const url = await window.cpiDesktop.copyPlayerLink();
   message.textContent = `Copied ${url}`;
   message.className = "server-message ok";
+});
+
+
+startGroupNight.addEventListener("click", async () => {
+  startGroupNight.disabled = true;
+  await window.cpiDesktop.navigate("party");
 });
