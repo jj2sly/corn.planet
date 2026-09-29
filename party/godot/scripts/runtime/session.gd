@@ -9,6 +9,8 @@ signal canon_record_loaded(record: Dictionary)
 signal request_failed(path: String, message: String)
 signal server_health_changed(ok: bool, protocol: int)
 signal game_catalog_updated(games: Array)
+signal identity_updated(profile: Dictionary)
+signal stats_updated(stats: Dictionary)
 
 const NetworkClientScript = preload("res://scripts/runtime/network_client.gd")
 
@@ -25,6 +27,15 @@ func _ready() -> void:
     network = NetworkClientScript.new()
     add_child(network)
     network.request_completed.connect(_on_request)
+
+func set_auth_token(token: String) -> void:
+    network.set_auth_token(token)
+
+func fetch_identity() -> void:
+    network.fetch_identity()
+
+func fetch_stats() -> void:
+    network.fetch_stats()
 
 func check_health(url := "") -> void:
     if not url.is_empty():
@@ -89,6 +100,12 @@ func _on_request(path: String, ok: bool, data: Variant) -> void:
     if path == "/api/native/health":
         var protocol := int(data.get("protocol", 0)) if data is Dictionary else 0
         server_health_changed.emit(true, protocol)
+    elif path == "/api/native/me":
+        if data is Dictionary:
+            identity_updated.emit(data)
+    elif path == "/api/native/me/stats":
+        if data is Dictionary:
+            stats_updated.emit(data)
     elif path == "/api/native/games":
         if data is Dictionary:
             var games_variant: Variant = data.get("games", [])
