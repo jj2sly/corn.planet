@@ -5,6 +5,8 @@ const input = document.querySelector("#partyServerInput");
 const save = document.querySelector("#savePartyServer");
 const message = document.querySelector("#serverMessage");
 const copyPlayerLink = document.querySelector("#copyPlayerLink");
+const playerQr = document.querySelector("#playerQr");
+const playerJoinUrl = document.querySelector("#playerJoinUrl");
 const readyServer = document.querySelector("#readyServer");
 const readyGames = document.querySelector("#readyGames");
 const readyCanon = document.querySelector("#readyCanon");
@@ -81,6 +83,18 @@ for (const button of document.querySelectorAll("[data-game]")) {
   });
 }
 
+async function refreshPlayerQr() {
+  try {
+    const qr = await window.cpiDesktop.playerQr();
+    playerQr.src = qr.dataUrl;
+    playerQr.hidden = false;
+    playerJoinUrl.textContent = qr.url;
+  } catch {
+    playerQr.hidden = true;
+    playerJoinUrl.textContent = "QR unavailable";
+  }
+}
+
 async function runReadiness() {
   rerunReadiness.disabled = true;
   readinessIssues.textContent = "Checking Party server, game catalog and CPI canon…";
@@ -139,6 +153,7 @@ version.textContent = `CPI PARTY DESKTOP v${config.version}`;
 input.value = config.partyBase;
 await checkServer();
 await runReadiness();
+await refreshPlayerQr();
 
 save.addEventListener("click", async () => {
   save.disabled = true;
@@ -149,6 +164,7 @@ save.addEventListener("click", async () => {
     partyUrl.textContent = config.partyBase;
     await checkServer();
     await runReadiness();
+    await refreshPlayerQr();
   } catch (error) {
     message.textContent = error?.message || "That server URL is not valid.";
     message.className = "server-message bad";
