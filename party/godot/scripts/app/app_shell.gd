@@ -491,6 +491,24 @@ func _show_rooms() -> void:
     label(current, Vector2(390, 138), "AUTHORITY", 9, MUTED)
     label(current, Vector2(470, 138), "SERVER", 11, ACCENT)
 
+    label(current, Vector2(650, 100), "ROSTER", 9, MUTED)
+    var roster_y := 122.0
+    var shown_players := mini(players.size(), 4)
+    for i: int in shown_players:
+        var player_variant: Variant = players[i]
+        if not player_variant is Dictionary:
+            continue
+        var player: Dictionary = player_variant
+        var player_name := String(player.get("name", "AGENT"))
+        var player_score := int(player.get("score", 0))
+        var connection_mark := "●" if bool(player.get("connected", false)) else "○"
+        label(current, Vector2(650, roster_y), "%s %s" % [connection_mark, player_name.left(16)], 10)
+        label(current, Vector2(865, roster_y), str(player_score), 10, MUTED)
+        roster_y += 18.0
+
+    if players.size() > shown_players:
+        label(current, Vector2(650, roster_y), "+%d MORE" % (players.size() - shown_players), 9, MUTED)
+
     if connected:
         button(current, Rect2(650, 48, 130, 34), "LEAVE ROOM", func():
             session.leave()
