@@ -7,6 +7,7 @@ if (globalThis.location?.protocol === "file:") {
     launchPcGame: (gameId) => ipcRenderer.invoke("cpi:launch-pc-game", gameId),
     fetchCanon: () => ipcRenderer.invoke("cpi:fetch-canon"),
     checkServer: () => ipcRenderer.invoke("cpi:check-server"),
+    readiness: () => ipcRenderer.invoke("cpi:readiness"),
     config: () => ipcRenderer.invoke("cpi:config"),
     setPartyUrl: (value) => ipcRenderer.invoke("cpi:set-party-url", value),
     onActiveTarget: (callback) => {
