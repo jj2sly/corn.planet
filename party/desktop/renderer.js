@@ -5,11 +5,12 @@ const input = document.querySelector("#partyServerInput");
 const save = document.querySelector("#savePartyServer");
 const message = document.querySelector("#serverMessage");
 
-const navButtons = [...document.querySelectorAll(".rail [data-target]")];
+const navButtons = [...document.querySelectorAll(".rail button")];
 
 function paintActiveTarget(target) {
   for (const button of navButtons) {
-    button.classList.toggle("active", button.dataset.target === target);
+    const section = button.dataset.target || button.dataset.section;
+    button.classList.toggle("active", section === target);
   }
 }
 
@@ -22,6 +23,19 @@ for (const button of document.querySelectorAll("[data-target]")) {
 }
 
 window.cpiDesktop.onActiveTarget((target) => paintActiveTarget(target));
+
+for (const button of document.querySelectorAll("[data-pc-game]")) {
+  button.addEventListener("click", async () => {
+    const gameId = button.dataset.pcGame;
+    if (!gameId) return;
+    button.disabled = true;
+    try {
+      await window.cpiDesktop.launchPcGame(gameId);
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
 
 for (const button of document.querySelectorAll("[data-game]")) {
   button.addEventListener("click", async () => {
