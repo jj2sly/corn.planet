@@ -26,6 +26,7 @@ var interaction_hint: Label
 var objective_label: Label
 var temp_label: Label
 var status_label: Label
+var health_label: Label
 
 var power_repaired := false
 var cooling_repaired := false
@@ -33,6 +34,8 @@ var outpost_discovered := false
 var checkpoint_active := false
 var final_report_shown := false
 var core_repaired := false
+var health: float = 100.0
+var damage_cooldown: float = 0.0
 
 func _ready() -> void:
     player_body = $Player
@@ -59,7 +62,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
     _move_player(delta)
     _update_zone_state(delta)
+    _update_survival(delta)
     temp_label.text = "TEMP  //  %0.1f C" % temperature
+    health_label.text = "VITALS  //  %03d%%" % int(health)
     interaction_hint.visible = _has_interaction()
 
 func _move_player(delta: float) -> void:
@@ -129,6 +134,33 @@ func _update_zone_state(delta: float) -> void:
     if mission_phase == "STABILIZED" and player_body.position.z > -1.0 and not final_report_shown:
         _complete_mission()
 
+
+func _update_survival(delta: float) -> void:
+    damage_cooldown = maxf(0.0, damage_cooldown - delta)
+    if milk == null or mission_phase == "BRIEFING" or mission_phase == "COMPLETE":
+        return
+    var milk_script: ColdCaseMilk = milk as ColdCaseMilk
+    if milk_script == null or not milk_script.active:
+        return
+    var distance: float = player_body.global_position.distance_to(milk_script.global_position)
+    if distance < 1.8 and damage_cooldown <= 0.0:
+        health = maxf(0.0, health - 10.0)
+        damage_cooldown = 0.8
+        status_label.text = "THREAT  //  FOOD CONTACT  -10"
+        if health <= 0.0:
+            _respawn_player()
+
+func _respawn_player() -> void:
+    health = 100.0
+    damage_cooldown = 1.5
+    var respawn_position: Vector3 = Vector3(0, 1.0, 2.0)
+    if checkpoint != null:
+        var checkpoint_script: ColdCaseCheckpoint = checkpoint as ColdCaseCheckpoint
+        if checkpoint_script != null and checkpoint_script.is_active():
+            respawn_position = checkpoint.global_position + Vector3(0, 1.0, 2.0)
+    player_body.global_position = respawn_position
+    status_label.text = "CPST  //  RESPONDED AT LAST STABILIZED CHECKPOINT"
+
 func _interact() -> void:
     if mission_phase == "BRIEFING" and _near_fridge():
         _toggle_fridge()
@@ -155,6 +187,10 @@ func _interact() -> void:
         status_label.text = "REPAIR  //  " + power_script.current_step()
         if power_script.repaired:
             power_repaired = true
+            if checkpoint != null:
+                var checkpoint_script: ColdCaseCheckpoint = checkpoint as ColdCaseCheckpoint
+                if checkpoint_script != null:
+                    checkpoint_script.activate()
             objective_label.text = "OBJECTIVE  //  Reach the deeper cooling system"
             status_label.text = "SYSTEM  //  POWER RESTORED"
         return
@@ -331,6 +367,12 @@ func _build_hud() -> void:
     status_label.add_theme_font_size_override("font_size", 15)
     status_label.text = "ZONE  //  KITCHEN"
     layer.add_child(status_label)
+
+    health_label = Label.new()
+    health_label.position = Vector2(32, 120)
+    health_label.add_theme_font_size_override("font_size", 15)
+    health_label.text = "VITALS  //  100%"
+    layer.add_child(health_label)
 
     interaction_hint = Label.new()
     interaction_hint.position = Vector2(540, 620)
