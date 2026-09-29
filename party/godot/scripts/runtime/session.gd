@@ -64,6 +64,7 @@ func start_game() -> void:
 
 func leave() -> void:
     network.leave()
+    network.session_token = ""
     role = ""
     room_code = ""
     player_id = ""
