@@ -58,14 +58,29 @@ The Party server owns:
 
 Never move authority into the Godot client just to make a feature easier.
 
-## Development direction
+## Platform direction
 
-1. Finish Cold Case gameplay depth and multiplayer replication.
-2. Replace polling with a native realtime transport where needed.
-3. Add authenticated app sign-in.
-4. Add shared CPI Party account/profile UI.
-5. Migrate existing party games behind the native game-library shell.
+The native client is now being treated as the actual CPI application, not a Cold Case launcher. The shell owns:
+- Home / command center
+- game library and module registry
+- party-room control
+- CPST Database read-only canon access
+- local personnel profile
+- shared client settings
+- the shared native session/runtime boundary
+
+Game modules plug into this shell instead of creating their own account, room, settings, or canon systems.
+
+### Migration order
+
+1. Keep the application shell and shared runtime stable.
+2. Move existing Party games behind the native module contract one at a time.
+3. Replace temporary module placeholders with their real native gameplay when ready.
+4. Add authenticated CPI identity and server-backed profile/stat persistence.
+5. Replace state polling with native realtime transport where needed.
 6. Add platform-specific input and quality profiles.
 7. Export the same Godot project for desktop and mobile targets.
+
+The browser client remains the fallback/debug implementation during migration.
 
 The browser client remains the fallback/debug implementation during migration.
