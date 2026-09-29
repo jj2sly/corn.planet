@@ -4,6 +4,12 @@ const version = document.querySelector("#version");
 const input = document.querySelector("#partyServerInput");
 const save = document.querySelector("#savePartyServer");
 const message = document.querySelector("#serverMessage");
+const readyServer = document.querySelector("#readyServer");
+const readyGames = document.querySelector("#readyGames");
+const readyCanon = document.querySelector("#readyCanon");
+const readyProtocol = document.querySelector("#readyProtocol");
+const readinessIssues = document.querySelector("#readinessIssues");
+const rerunReadiness = document.querySelector("#rerunReadiness");
 const SERVER_TARGETS = new Set(["party", "account", "prompts", "hall"]);
 
 function setServerDependentControls(online) {
@@ -63,6 +69,33 @@ for (const button of document.querySelectorAll("[data-game]")) {
   });
 }
 
+async function runReadiness() {
+  rerunReadiness.disabled = true;
+  readinessIssues.textContent = "Checking Party server, game catalog and CPI canon…";
+  const result = await window.cpiDesktop.readiness();
+
+  readyServer.textContent = result.server ? "ONLINE" : "OFFLINE";
+  readyServer.className = result.server ? "ready-ok" : "ready-bad";
+
+  readyGames.textContent = `${result.games} / 6`;
+  readyGames.className = result.games >= 6 ? "ready-ok" : "ready-bad";
+
+  readyCanon.textContent = String(result.canon);
+  readyCanon.className = result.canon >= 2 ? "ready-ok" : "ready-bad";
+
+  readyProtocol.textContent = result.protocol ? String(result.protocol) : "—";
+  readyProtocol.className = result.protocol ? "ready-ok" : "ready-bad";
+
+  if (result.issues?.length) {
+    readinessIssues.textContent = result.issues.join(" • ");
+    readinessIssues.className = "readiness-issues bad";
+  } else {
+    readinessIssues.textContent = "READY FOR GROUP NIGHT";
+    readinessIssues.className = "readiness-issues ok";
+  }
+  rerunReadiness.disabled = false;
+}
+
 async function checkServer() {
   status.className = "status";
   status.textContent = "CHECKING SERVER…";
@@ -90,6 +123,7 @@ partyUrl.textContent = config.partyBase;
 version.textContent = `CPI PARTY DESKTOP v${config.version}`;
 input.value = config.partyBase;
 await checkServer();
+await runReadiness();
 
 save.addEventListener("click", async () => {
   save.disabled = true;
@@ -99,6 +133,7 @@ save.addEventListener("click", async () => {
     input.value = config.partyBase;
     partyUrl.textContent = config.partyBase;
     await checkServer();
+    await runReadiness();
   } catch (error) {
     message.textContent = error?.message || "That server URL is not valid.";
     message.className = "server-message bad";
@@ -106,3 +141,6 @@ save.addEventListener("click", async () => {
     save.disabled = false;
   }
 });
+
+
+rerunReadiness.addEventListener("click", runReadiness);
