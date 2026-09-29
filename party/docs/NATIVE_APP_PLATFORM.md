@@ -80,3 +80,29 @@ The app checks backend health at startup and then discovers the installed server
 - Do not duplicate the CPI Database into a second writable canon source.
 - Do not make individual games responsible for platform navigation or account management.
 - Do not merge the party branch into the CPI Database production branch.
+
+
+## Group Night bridge
+
+For near-term group sessions, the native CPI app does not wait for every browser game to be rewritten in Godot.
+
+The Game Library exposes server-backed games as **GROUP PLAY**. The app opens the existing full host experience with a direct game deep-link:
+
+`/host?game=<server-game-id>`
+
+The browser host creates/resumes the authoritative room, preselects the requested game, and keeps using the complete existing host and phone renderers.
+
+The Command Center also exposes **GROUP NIGHT**, which opens the complete Party host/library directly.
+
+Current group-play catalog:
+
+- Cornlashing (`chaos`)
+- Corn or Shit (`cornorshit`)
+- Entity Auction (`entityauction`)
+- My Cob Escaped (`mycob`)
+- Escape Thad's Steam Deck (`steamdeck`)
+- Angry Thud's Revenge (`thud`)
+
+CPI: Cold Case remains a native playable-alpha module.
+
+This bridge is intentional: it keeps all existing playable content available while individual games are migrated to native modules without putting group sessions behind the migration schedule.
