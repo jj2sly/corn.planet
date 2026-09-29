@@ -8,6 +8,8 @@ test("native bridge exposes the expected session endpoints", async () => {
     '"/host"',
     '"/player"',
     '"/state"',
+    '"/canon"',
+    '"/canon/:ref"',
     '"/configure"',
     '"/start"',
     '"/input"',
@@ -22,4 +24,5 @@ test("Godot client uses the native session header", async () => {
   const source = await readFile(new URL("../godot/scripts/runtime/network_client.gd", import.meta.url), "utf8");
   assert.match(source, /X-CPI-Session/);
   assert.match(source, /\/api\/native\/state/);
+  assert.match(source, /\/api\/native\/canon/);
 });
