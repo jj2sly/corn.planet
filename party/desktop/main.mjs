@@ -126,8 +126,20 @@ function installMenu() {
     {
       label: "View",
       submenu: [
-        { role: "back" },
-        { role: "forward" },
+        {
+          label: "Back",
+          accelerator: "Alt+Left",
+          click: () => {
+            if (mainWindow?.webContents.canGoBack()) mainWindow.webContents.goBack();
+          },
+        },
+        {
+          label: "Forward",
+          accelerator: "Alt+Right",
+          click: () => {
+            if (mainWindow?.webContents.canGoForward()) mainWindow.webContents.goForward();
+          },
+        },
         { type: "separator" },
         { role: "resetZoom" },
         { role: "zoomIn" },
