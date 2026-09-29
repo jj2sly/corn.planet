@@ -185,8 +185,10 @@ async function checkServer({ quiet = false } = {}) {
   connectionCard?.classList.toggle("attention", localDefault);
   if (localDefault) {
     status.textContent = "SETUP REQUIRED";
-    input.focus();
-    setTimeout(() => connectionCard?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+    if (!quiet) {
+      input.focus();
+      setTimeout(() => connectionCard?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+    }
   }
   setServerDependentControls(false);
   healthCheckInFlight = false;
