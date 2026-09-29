@@ -5,19 +5,22 @@ signal request_completed(path: String, ok: bool, data: Variant)
 
 var base_url := "http://127.0.0.1:3000"
 var session_token := ""
-var active := false
 
 func configure(url: String) -> void:
     base_url = url.trim_suffix("/")
 
-func _request(method: HTTPClient.Method, path: String, payload: Variant = null) -> void:
+func _request(method: int, path: String, payload: Variant = null) -> void:
     var http := HTTPRequest.new()
     add_child(http)
     var headers := PackedStringArray(["Content-Type: application/json"])
     if not session_token.is_empty():
         headers.append("X-CPI-Session: " + session_token)
     var body := "" if payload == null else JSON.stringify(payload)
-    http.request(base_url + path, headers, method, body)
+    var err := http.request(base_url + path, headers, method, body)
+    if err != OK:
+        request_completed.emit(path, false, {"error": "HTTP request setup failed", "code": err})
+        http.queue_free()
+        return
     http.request_completed.connect(func(result: int, code: int, _headers: PackedStringArray, bytes: PackedByteArray):
         var data: Variant = {}
         var parsed := JSON.parse_string(bytes.get_string_from_utf8())
