@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
+
+const execFileAsync = promisify(execFile);
 
 test("desktop app shell files exist", async () => {
   for (const file of [
@@ -74,4 +79,26 @@ test("desktop uses a persistent CPI shell with embedded content views", async ()
   assert.match(main, /addChildView/);
   assert.match(main, /SIDEBAR_WIDTH/);
   assert.match(main, /cpi:active-target/);
+});
+
+
+test("desktop JavaScript parses without syntax errors", async () => {
+  for (const file of [
+    new URL("../desktop/main.mjs", import.meta.url),
+    new URL("../desktop/preload.mjs", import.meta.url),
+    new URL("../desktop/renderer.js", import.meta.url),
+    new URL("../desktop/pc/cornorshit.js", import.meta.url),
+  ]) {
+    await execFileAsync(process.execPath, ["--check", fileURLToPath(file)]);
+  }
+});
+
+
+test("desktop readiness diagnostics cover server games and canon", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
+  assert.match(main, /cpi:readiness/);
+  assert.match(main, /\/api\/native\/games/);
+  assert.match(main, /\/api\/native\/canon/);
+  assert.match(html, /GROUP NIGHT READINESS/);
 });
