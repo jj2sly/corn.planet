@@ -87,3 +87,7 @@ footer { display: flex; justify-content: space-between; margin-top: 24px; color:
 .join-panel strong { display: block; margin: 5px 0 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all; color: #e7e8e4; }
 .join-panel p:last-child { margin: 0; font-size: 10px; }
 @media (max-width: 700px) { .join-panel { grid-template-columns: 1fr; } }
+
+.host-live { margin: -10px 0 18px; border: 1px solid #665600; background: #171400; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.host-live strong { font-size: 12px; }
+.host-live button { min-height: 34px; border: 1px solid #ffd400; background: #ffd400; color: #090a08; font-weight: 900; padding: 0 14px; cursor: pointer; }
