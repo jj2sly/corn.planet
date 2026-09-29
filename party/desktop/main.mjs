@@ -11,6 +11,7 @@ const SIDEBAR_WIDTH = 220;
 let mainWindow = null;
 let contentView = null;
 let activeTarget = "home";
+let presentationMode = false;
 let settings = null;
 
 const GAME_IDS = new Set(["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]);
@@ -62,10 +63,11 @@ function emitActiveTarget() {
 function contentBounds() {
   if (!mainWindow) return { x: SIDEBAR_WIDTH, y: 0, width: 1000, height: 700 };
   const [width, height] = mainWindow.getContentSize();
+  const sidebar = presentationMode ? 0 : SIDEBAR_WIDTH;
   return {
-    x: SIDEBAR_WIDTH,
+    x: sidebar,
     y: 0,
-    width: Math.max(1, width - SIDEBAR_WIDTH),
+    width: Math.max(1, width - sidebar),
     height: Math.max(1, height),
   };
 }
@@ -151,6 +153,19 @@ function launchPcGame(gameId) {
   }
 }
 
+function setPresentationMode(enabled) {
+  presentationMode = Boolean(enabled);
+  if (contentView) contentView.setBounds(contentBounds());
+  mainWindow?.webContents.send("cpi:presentation-mode", presentationMode);
+  return presentationMode;
+}
+
+function startPresentationHost() {
+  navigate("party");
+  setPresentationMode(true);
+  mainWindow?.setFullScreen(true);
+}
+
 function createWindow() {
   loadSettings();
 
@@ -185,6 +200,8 @@ function createWindow() {
 
 function goHome() {
   if (!mainWindow) return;
+  setPresentationMode(false);
+  if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false);
   closeContentView();
   activeTarget = "home";
   emitActiveTarget();
@@ -209,6 +226,7 @@ function installMenu() {
       submenu: [
         { label: "Command Center", accelerator: "CmdOrCtrl+Shift+H", click: () => goHome() },
         { label: "Party Host", accelerator: "CmdOrCtrl+Shift+P", click: () => navigate("party") },
+        { label: "Presentation Host", accelerator: "CmdOrCtrl+Shift+Enter", click: () => startPresentationHost() },
         { label: "Corn or Shit — Solo", accelerator: "CmdOrCtrl+Shift+G", click: () => launchPcGame("cornorshit-solo") },
         {
           label: "Copy Phone Join Link",
@@ -255,6 +273,11 @@ function installMenu() {
           },
         },
         { type: "separator" },
+        {
+          label: "Toggle Presentation Mode",
+          accelerator: "CmdOrCtrl+Shift+F",
+          click: () => setPresentationMode(!presentationMode),
+        },
         { role: "resetZoom" },
         { role: "zoomIn" },
         { role: "zoomOut" },
@@ -271,6 +294,13 @@ ipcMain.handle("cpi:navigate", (_event, target) => {
   return true;
 });
 
+ipcMain.handle("cpi:start-presentation-host", () => {
+  startPresentationHost();
+  return true;
+});
+
+ipcMain.handle("cpi:toggle-presentation", () => setPresentationMode(!presentationMode));
+
 ipcMain.handle("cpi:copy-player-link", () => {
   const url = `${loadSettings().partyBase}/play`;
   clipboard.writeText(url);
@@ -280,6 +310,7 @@ ipcMain.handle("cpi:copy-player-link", () => {
 ipcMain.handle("cpi:config", () => ({
   ...loadSettings(),
   activeTarget,
+  presentationMode,
   version: app.getVersion(),
 }));
 
