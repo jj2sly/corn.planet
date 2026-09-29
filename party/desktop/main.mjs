@@ -125,6 +125,11 @@ function openContent(url, target) {
   void contentView.webContents.loadURL(url);
 }
 
+function openPcLibrary() {
+  const url = pathToFileURL(path.join(__dirname, "pc", "index.html")).toString();
+  openContent(url, "pc-games");
+}
+
 function launchPcGame(gameId) {
   if (!PC_GAME_IDS.has(gameId)) throw new Error("Unknown CPI PC game");
   if (gameId === "cornorshit-solo") {
@@ -175,6 +180,7 @@ function goHome() {
 function navigate(target) {
   if (!mainWindow) return;
   if (target === "home") return goHome();
+  if (target === "pc-games") return openPcLibrary();
   const url = destination(target);
   if (url) openContent(url, target);
 }
