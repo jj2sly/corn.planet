@@ -5,7 +5,9 @@ signal connected_to_party(state: Dictionary)
 signal state_updated(state: Dictionary)
 signal disconnected_from_party()
 
-var network: CPINetworkClient
+const NetworkClientScript = preload("res://scripts/runtime/network_client.gd")
+
+var network: Node
 var role := ""
 var room_code := ""
 var player_id := ""
@@ -15,7 +17,7 @@ var poll_elapsed := 0.0
 var poll_interval := 0.5
 
 func _ready() -> void:
-    network = CPINetworkClient.new()
+    network = NetworkClientScript.new()
     add_child(network)
     network.request_completed.connect(_on_request)
 
