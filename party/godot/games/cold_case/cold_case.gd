@@ -16,6 +16,9 @@ var pantry: Node3D
 var power_room: Node3D
 var freezer: Node3D
 var milk: Node3D
+var outpost: Node3D
+var deep_interior: Node3D
+var checkpoint: Node3D
 
 var interaction_hint: Label
 var objective_label: Label
@@ -24,6 +27,8 @@ var status_label: Label
 
 var power_repaired := false
 var cooling_repaired := false
+var outpost_discovered := false
+var checkpoint_active := false
 var final_report_shown := false
 
 func _ready() -> void:
@@ -98,6 +103,19 @@ func _update_zone_state(delta: float) -> void:
         mission_phase = "FREEZER"
         objective_label.text = "OBJECTIVE  //  Repair the cooling system"
         status_label.text = "ZONE  //  FREEZER CAVERN"
+    elif position.z < -63.0 and mission_phase == "FREEZER" and cooling_repaired:
+        mission_phase = "DEEP_INTERIOR"
+        objective_label.text = "OBJECTIVE  //  Investigate the deeper anomaly"
+        status_label.text = "ZONE  //  DEEP INTERIOR"
+    elif mission_phase == "DEEP_INTERIOR" and position.z < -72.0:
+        mission_phase = "STABILIZING"
+        objective_label.text = "OBJECTIVE  //  Stabilize the refrigerator core"
+        status_label.text = "SYSTEM  //  CORE INSTABILITY"
+    elif mission_phase == "STABILIZING" and position.z > -63.0:
+        mission_phase = "STABILIZED"
+        objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
+        status_label.text = "SYSTEM  //  STABILIZED"
+        temperature = -2.0
     elif mission_phase == "FREEZER" and cooling_repaired:
         mission_phase = "STABILIZED"
         objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
@@ -135,6 +153,10 @@ func _interact() -> void:
             power_repaired = true
             objective_label.text = "OBJECTIVE  //  Reach the deeper cooling system"
             status_label.text = "SYSTEM  //  POWER RESTORED"
+        return
+
+    if mission_phase == "DEEP_INTERIOR" and _near_outpost():
+        _discover_outpost()
         return
 
     if mission_phase == "FREEZER" and _near_freezer_unit():
@@ -182,6 +204,24 @@ func _build_interior() -> void:
         freezer.position = Vector3(0, 0, -52)
         add_child(freezer)
 
+    var deep_scene := load("res://games/cold_case/deep_interior.tscn") as PackedScene
+    if deep_scene:
+        deep_interior = deep_scene.instantiate()
+        deep_interior.position = Vector3(0, 0, -68)
+        add_child(deep_interior)
+
+    var outpost_scene := load("res://games/cold_case/outpost.tscn") as PackedScene
+    if outpost_scene:
+        outpost = outpost_scene.instantiate()
+        outpost.position = Vector3(0, 0, -61)
+        add_child(outpost)
+
+    var checkpoint_scene := load("res://games/cold_case/checkpoint.tscn") as PackedScene
+    if checkpoint_scene:
+        checkpoint = checkpoint_scene.instantiate()
+        checkpoint.position = Vector3(0, 0, -50)
+        add_child(checkpoint)
+
     var milk_scene := load("res://games/cold_case/milk.tscn") as PackedScene
     if milk_scene:
         milk = milk_scene.instantiate()
@@ -199,6 +239,8 @@ func _has_interaction() -> bool:
         return _near_power_panel()
     if mission_phase == "FREEZER":
         return _near_freezer_unit()
+    if mission_phase == "DEEP_INTERIOR":
+        return _near_outpost()
     return false
 
 func _near_fridge() -> bool:
@@ -209,6 +251,18 @@ func _near_milk() -> bool:
 
 func _near_power_panel() -> bool:
     return power_room != null and global_position.distance_to(power_room.global_position + Vector3(0, 1.6, -3.9)) < 3.5
+
+func _near_outpost() -> bool:
+    return outpost != null and global_position.distance_to(outpost.global_position + Vector3(0, 0.8, -4.0)) < 4.0
+
+func _discover_outpost() -> void:
+    if outpost_discovered:
+        return
+    outpost_discovered = true
+    var script := outpost as ColdCaseOutpost
+    script.discover()
+    objective_label.text = "OBJECTIVE  //  Continue toward the refrigerator core"
+    status_label.text = "TECHNICIAN AREA  //  OUTPOST DISCOVERED"
 
 func _near_freezer_unit() -> bool:
     return freezer != null and global_position.distance_to(freezer.global_position + Vector3(0, 2.0, -7.0)) < 3.5
