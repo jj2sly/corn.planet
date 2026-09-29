@@ -50,6 +50,7 @@ func _ready() -> void:
     session.canon_record_loaded.connect(_on_canon_record_loaded)
     session.request_failed.connect(_on_request_failed)
     session.server_health_changed.connect(_on_server_health_changed)
+    session.game_catalog_updated.connect(_on_game_catalog_updated)
 
     module_manager.module_started.connect(_on_module_started)
     module_manager.module_stopped.connect(_on_module_stopped)
@@ -114,6 +115,14 @@ func _on_server_health_changed(ok: bool, protocol: int) -> void:
             shell.set_status("SERVER OFFLINE")
     if notifications and ok:
         notifications.push("PARTY SERVER", "Backend reachable. Protocol %d." % protocol, "success")
+    if ok and session:
+        session.fetch_games()
+
+func _on_game_catalog_updated(games: Array) -> void:
+    if shell:
+        shell.set_server_games(games)
+    if notifications:
+        notifications.push("GAME CATALOG", "%d server modules discovered." % games.size(), "info")
 
 func _on_request_failed(path: String, message: String) -> void:
     if shell:
