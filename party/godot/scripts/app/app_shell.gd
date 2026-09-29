@@ -436,14 +436,35 @@ func _show_rooms() -> void:
         code.text = String(app_state.last_room_code) if app_state else ""
     )
 
-    var current := panel(Rect2(0, 280, 970, 145))
+    var current := panel(Rect2(0, 280, 970, 180))
+    var connected := session and not session.room_code.is_empty()
+    var module_id := ""
+    if services:
+        var modules := services.get_service("modules")
+        if modules:
+            module_id = String(modules.active_game_id if not modules.active_game_id.is_empty() else modules.pending_game_id)
+
     label(current, Vector2(20, 18), "CURRENT SESSION", 11, ACCENT)
     label(current, Vector2(20, 48), "ROOM", 9, MUTED)
-    label(current, Vector2(140, 48), session.room_code if session and not session.room_code.is_empty() else "NOT CONNECTED", 12)
+    label(current, Vector2(140, 48), session.room_code if connected else "NOT CONNECTED", 12)
     label(current, Vector2(20, 78), "ROLE", 9, MUTED)
-    label(current, Vector2(140, 78), session.role.to_upper() if session and not session.role.is_empty() else "—", 12)
-    label(current, Vector2(20, 108), "STATUS", 9, MUTED)
-    label(current, Vector2(140, 108), "SERVER AUTHORITATIVE", 11, ACCENT)
+    label(current, Vector2(140, 78), session.role.to_upper() if connected else "—", 12)
+    label(current, Vector2(20, 108), "MODULE", 9, MUTED)
+    label(current, Vector2(140, 108), module_id.to_upper() if not module_id.is_empty() else "NONE SELECTED", 11)
+    label(current, Vector2(20, 138), "AUTHORITY", 9, MUTED)
+    label(current, Vector2(140, 138), "SERVER", 11, ACCENT)
+
+    if connected:
+        button(current, Rect2(650, 48, 130, 34), "LEAVE ROOM", func():
+            session.leave()
+            set_status("OFFLINE // LEFT ROOM")
+            _show_rooms()
+        )
+        if session.role == "host" and not module_id.is_empty():
+            button(current, Rect2(795, 48, 145, 34), "START GAME", func():
+                session.start_game()
+                set_status("STARTING // %s" % module_id.to_upper())
+            )
 
 func _on_identity_changed(_profile: Dictionary) -> void:
     if active_section == "profile":
