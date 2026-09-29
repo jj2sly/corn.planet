@@ -66,10 +66,10 @@ static func games() -> Array[Dictionary]:
         {
             "id": "cold-case",
             "name": "CPI: COLD CASE",
-            "category": "MISSION",
-            "description": "Deploy inside an anomalous refrigerator and stabilize the system.",
+            "category": "PC GAME",
+            "description": "Native CPI mission prototype. Development is paused while the desktop platform and Party catalog are finished.",
             "players": "1–8",
-            "status": "PLAYABLE ALPHA",
+            "status": "BACK BURNER",
             "scene": "res://games/cold_case/cold_case.tscn"
         }
     ]
