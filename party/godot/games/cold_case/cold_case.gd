@@ -112,8 +112,7 @@ func _update_zone_state(delta: float) -> void:
     if mission_phase == "INTERIOR_DISCOVERED":
         temperature = move_toward(temperature, 4.0, delta * 0.7)
         if player_body.position.z < -1.0:
-            mission_phase = "INSIDE"
-            objective_label.text = "OBJECTIVE  //  Explore the refrigerator"
+            _enter_refrigerator()
         return
 
     temperature = move_toward(temperature, -2.0 if player_body.position.z < -50.0 else 4.0, delta * 0.15)
