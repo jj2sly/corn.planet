@@ -45,6 +45,10 @@ func setup(p_session: Node, p_state: Node, p_notifications: Node = null, p_ident
         identity.identity_changed.connect(_on_identity_changed)
     if identity and identity.has_signal("stats_changed"):
         identity.stats_changed.connect(_on_stats_changed)
+    if identity and identity.has_signal("auth_config_changed"):
+        identity.auth_config_changed.connect(_on_auth_config_changed)
+    if identity and identity.has_signal("sign_in_state_changed"):
+        identity.sign_in_state_changed.connect(_on_sign_in_state_changed)
     _build_shell()
     show_section("home")
 
@@ -497,6 +501,14 @@ func _on_stats_changed(_stats: Dictionary) -> void:
     if active_section == "profile":
         _show_profile()
 
+func _on_auth_config_changed(_config: Dictionary) -> void:
+    if active_section == "profile":
+        _show_profile()
+
+func _on_sign_in_state_changed(_state: String) -> void:
+    if active_section == "profile":
+        _show_profile()
+
 func _show_profile() -> void:
     clear_content()
     title_label.text = "PROFILE"
@@ -540,7 +552,42 @@ func _show_profile() -> void:
                 app_state.set_display_name(name.text)
             set_status("PROFILE SAVED")
         )
-        label(profile, Vector2(24, 248), "CPI account sign-in transport is ready; token acquisition UI is the next auth step.", 10, MUTED)
+        label(profile, Vector2(24, 248), "Local profile stays on this device until you sign into a CPI account.", 10, MUTED)
+
+    if not signed_in:
+        var auth_panel := panel(Rect2(0, 325, 970, 165))
+        label(auth_panel, Vector2(20, 18), "CPI ACCOUNT SIGN IN", 12, ACCENT)
+        label(auth_panel, Vector2(20, 42), "Uses the existing CPI Database Firebase account. Password is not saved by the app.", 10, MUTED)
+
+        var auth_mode := identity.auth_mode() if identity else "unknown"
+        label(auth_panel, Vector2(745, 18), "AUTH %s" % auth_mode.to_upper(), 9, MUTED)
+
+        var email := LineEdit.new()
+        email.position = Vector2(20, 72)
+        email.size = Vector2(330, 34)
+        email.placeholder_text = "EMAIL"
+        auth_panel.add_child(email)
+
+        var password := LineEdit.new()
+        password.position = Vector2(365, 72)
+        password.size = Vector2(300, 34)
+        password.placeholder_text = "PASSWORD"
+        password.secret = true
+        auth_panel.add_child(password)
+
+        var can_sign_in := auth_mode == "firebase"
+        var sign_in_button := button(auth_panel, Rect2(680, 72, 150, 34), "SIGN IN", func():
+            if identity:
+                identity.sign_in_email(email.text, password.text)
+                password.text = ""
+            set_status("SIGNING IN // CPI ACCOUNT")
+        )
+        sign_in_button.disabled = not can_sign_in
+
+        if not can_sign_in:
+            label(auth_panel, Vector2(20, 122), "Firebase sign-in is unavailable on the current Party server configuration.", 10, MUTED)
+        elif identity and identity.sign_in_state != "SIGNED_OUT":
+            label(auth_panel, Vector2(20, 122), "STATUS // %s" % identity.sign_in_state.replace("_", " "), 10, MUTED)
 
     var stats_panel := panel(Rect2(645, 0, 325, 300))
     label(stats_panel, Vector2(20, 22), "ACTIVITY", 12, ACCENT)
