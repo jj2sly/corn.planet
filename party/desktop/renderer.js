@@ -1,6 +1,7 @@
 const status = document.querySelector("#serverStatus");
 const hostLiveBanner = document.querySelector("#hostLiveBanner");
 const returnToHost = document.querySelector("#returnToHost");
+const stopHostDisplay = document.querySelector("#stopHostDisplay");
 const partyUrl = document.querySelector("#partyUrl");
 const version = document.querySelector("#version");
 const input = document.querySelector("#partyServerInput");
@@ -205,4 +206,14 @@ startGroupNight.addEventListener("click", async () => {
 
 returnToHost.addEventListener("click", async () => {
   await window.cpiDesktop.returnHost();
+});
+
+
+stopHostDisplay.addEventListener("click", async () => {
+  const confirmed = confirm("Stop the live host display? This can pause an active game until a host reconnects.");
+  if (!confirmed) return;
+  await window.cpiDesktop.stopHost();
+  paintHostState({ running: false, active: false });
+  message.textContent = "Host display stopped.";
+  message.className = "server-message ok";
 });
