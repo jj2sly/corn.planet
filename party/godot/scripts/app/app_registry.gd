@@ -78,8 +78,9 @@ static func navigation() -> Array[Dictionary]:
     return [
         {"id": "home", "label": "HOME", "icon": "⌂"},
         {"id": "games", "label": "GAMES", "icon": "▶"},
-        {"id": "database", "label": "CPST DATABASE", "icon": "▣"},
+        {"id": "database", "label": "CPI DATABASE", "icon": "▣"},
         {"id": "rooms", "label": "ROOMS", "icon": "◈"},
         {"id": "profile", "label": "PROFILE", "icon": "●"},
+        {"id": "notifications", "label": "NOTIFICATIONS", "icon": "!"},
         {"id": "settings", "label": "SETTINGS", "icon": "⚙"}
     ]
