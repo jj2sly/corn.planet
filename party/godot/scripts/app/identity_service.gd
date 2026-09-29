@@ -20,6 +20,7 @@ func setup(p_session: Node) -> void:
         session.stats_updated.connect(_on_stats_updated)
         session.auth_config_updated.connect(_on_auth_config_updated)
         session.auth_token_received.connect(_on_auth_token_received)
+        session.request_failed.connect(_on_request_failed)
 
 func load_auth_config() -> void:
     if session:
@@ -93,3 +94,9 @@ func _on_identity_updated(value: Dictionary) -> void:
 func _on_stats_updated(value: Dictionary) -> void:
     stats = value.duplicate(true)
     stats_changed.emit(stats)
+
+
+func _on_request_failed(path: String, _message: String) -> void:
+    if path == "auth:signin":
+        sign_in_state = "FAILED"
+        sign_in_state_changed.emit(sign_in_state)
