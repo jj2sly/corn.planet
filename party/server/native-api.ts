@@ -5,9 +5,10 @@ import { PartyError, toClientError } from "./errors.ts";
 import type { PartyDb } from "./db.ts";
 import type { RoomManager } from "./rooms.ts";
 import type { CanonService } from "./canon.ts";
+import type { GameDefinition } from "./games/types.ts";
 
 type NativeSession = { token: string; code: string; role: "host" | "player"; playerId?: string; connectionId: string; user: AuthUser | null; createdAt: number };
-type NativeDeps = { rooms: RoomManager; auth: AuthVerifier; db: PartyDb; canon: CanonService };
+type NativeDeps = { rooms: RoomManager; auth: AuthVerifier; db: PartyDb; canon: CanonService; games: ReadonlyMap<string, GameDefinition> };
 
 function body(req: Request): Record<string, unknown> {
   const value: unknown = req.body;
@@ -27,12 +28,28 @@ async function verifyUser(req: Request, auth: AuthVerifier): Promise<AuthUser | 
   return auth.verify(token);
 }
 
-export function createNativeApi({ rooms, auth, db, canon }: NativeDeps): express.Router {
+export function createNativeApi({ rooms, auth, db, canon, games }: NativeDeps): express.Router {
   const api = express.Router();
   const sessions = new Map<string, NativeSession>();
   api.use(express.json({ limit: "16kb" }));
 
-  api.get("/health", (_req, res) => res.json({ ok: true, protocol: 2 }));
+  api.get("/health", (_req, res) => res.json({ ok: true, protocol: 3 }));
+
+  api.get("/games", (_req, res) => {
+    res.json({
+      games: [...games.values()].map(({ id, name, tagline, description, minPlayers, maxPlayers, defaultSettings, catalog, deck }) => ({
+        id,
+        name,
+        tagline,
+        description,
+        minPlayers,
+        maxPlayers,
+        defaultSettings,
+        catalog: catalog ?? null,
+        deck: deck ?? null,
+      })),
+    });
+  });
 
   api.get("/canon", (req, res) => {
     const kind = req.query.kind;
