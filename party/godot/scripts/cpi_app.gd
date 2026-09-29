@@ -7,6 +7,7 @@ const AppStateScript = preload("res://scripts/app/app_state.gd")
 
 var current_game: Node = null
 var current_game_id := ""
+var pending_module_id := ""
 var session: Node
 var app_state: Node
 var shell: Control
@@ -40,6 +41,9 @@ func _create_party_room() -> void:
         session.connect_host(app_state.server_url if app_state else server_url)
 
 func _on_party_connected(_state: Dictionary) -> void:
+    if not pending_module_id.is_empty() and session:
+        session.configure_game(pending_module_id)
+        pending_module_id = ""
     if shell:
         if app_state:
             app_state.remember_room(session.room_code)
@@ -88,7 +92,13 @@ func launch_game(game_id: String) -> void:
 
     if shell:
         shell.visible = true
-        shell.status_label.text = "%s // SERVER MODULE READY" % game_id.to_upper()
+        shell.show_section("rooms")
+        shell.status_label.text = "%s // READY FOR ROOM" % game_id.to_upper()
+    if session and not session.room_code.is_empty():
+        session.configure_game(game_id)
+    else:
+        pending_module_id = game_id
+        session.connect_host(app_state.server_url if app_state else server_url)
 
 func return_to_platform() -> void:
     if current_game:
