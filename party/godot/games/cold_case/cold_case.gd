@@ -182,6 +182,15 @@ func _interact() -> void:
         _enter_refrigerator()
         return
 
+    if mission_phase == "PANTRY" and _near_temperature_control():
+        var pantry_script := pantry as ColdCasePantry
+        status_label.text = pantry_script.cycle_temperature_control()
+        pantry_script.trigger_milk_response()
+        if milk != null:
+            var controlled_milk: ColdCaseMilk = milk as ColdCaseMilk
+            controlled_milk.set_temperature(pantry_script.temperature)
+        return
+
     if mission_phase == "PANTRY" and _near_milk():
         var pantry_script := pantry as ColdCasePantry
         pantry_script.trigger_milk_response()
@@ -220,7 +229,7 @@ func _interact() -> void:
         status_label.text = "REPAIR  //  " + freezer_script.interact_repair()
         if freezer_script.repaired:
             cooling_repaired = true
-            objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
+            objective_label.text = "OBJECTIVE  //  Enter the deeper refrigerator interior"
             status_label.text = "SYSTEM  //  COOLING STABLE"
         return
 
@@ -290,7 +299,7 @@ func _has_interaction() -> bool:
     if mission_phase == "INTERIOR_DISCOVERED":
         return position.z < -0.8
     if mission_phase == "PANTRY":
-        return _near_milk()
+        return _near_milk() or _near_temperature_control()
     if mission_phase == "POWER":
         return _near_power_panel()
     if mission_phase == "FREEZER":
@@ -306,6 +315,9 @@ func _near_fridge() -> bool:
 
 func _near_milk() -> bool:
     return milk != null and player_body.global_position.distance_to(milk.global_position) < 3.0
+
+func _near_temperature_control() -> bool:
+    return pantry != null and player_body.global_position.distance_to(pantry.global_position + Vector3(4.8, 2.2, -1.0)) < 3.0
 
 func _near_power_panel() -> bool:
     return power_room != null and player_body.global_position.distance_to(power_room.global_position + Vector3(0, 1.6, -3.9)) < 3.5
