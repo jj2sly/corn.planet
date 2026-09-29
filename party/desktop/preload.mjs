@@ -7,5 +7,10 @@ if (globalThis.location?.protocol === "file:") {
     checkServer: () => ipcRenderer.invoke("cpi:check-server"),
     config: () => ipcRenderer.invoke("cpi:config"),
     setPartyUrl: (value) => ipcRenderer.invoke("cpi:set-party-url", value),
+    onActiveTarget: (callback) => {
+      const handler = (_event, target) => callback(target);
+      ipcRenderer.on("cpi:active-target", handler);
+      return () => ipcRenderer.removeListener("cpi:active-target", handler);
+    },
   });
 }
