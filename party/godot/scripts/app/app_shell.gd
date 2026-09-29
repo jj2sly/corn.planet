@@ -308,7 +308,8 @@ func _render_game_cards() -> void:
         label(card, Vector2(18, 12), String(game["category"]), 9, ACCENT)
         label(card, Vector2(18, 30), ("%s  ★" if favorite else "%s") % String(game["name"]), 16)
         label(card, Vector2(18, 56), String(game["description"]), 10, MUTED)
-        var server_ready := server_game_ids.has(game_id)
+        var server_game_id := String(game.get("server_game_id", game_id))
+        var server_ready := server_game_ids.has(server_game_id)
         var availability := "SERVER READY" if server_ready else String(game["status"])
         label(card, Vector2(18, 78), "%s  //  %s" % [String(game["players"]), availability], 9, MUTED)
         button(card, Rect2(300, 14, 34, 26), "★" if favorite else "☆", func(id: String = game_id):
@@ -445,7 +446,12 @@ func _show_rooms() -> void:
     var state: Dictionary = session.last_state if connected and session.last_state is Dictionary else {}
     var config_variant: Variant = state.get("config", {})
     var config: Dictionary = config_variant if config_variant is Dictionary else {}
-    var module_id := String(config.get("gameId", ""))
+    var server_module_id := String(config.get("gameId", ""))
+    var module_id := server_module_id
+    if not server_module_id.is_empty():
+        var local_game: Dictionary = RegistryScript.find_by_server_game_id(server_module_id)
+        if not local_game.is_empty():
+            module_id = String(local_game.get("id", server_module_id))
     if module_id.is_empty() and services:
         var modules := services.get_service("modules")
         if modules:
