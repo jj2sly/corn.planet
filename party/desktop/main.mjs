@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain, shell } from "electron";
+import { app, BrowserWindow, Menu, WebContentsView, ipcMain, shell } from "electron";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
@@ -6,9 +6,13 @@ import path from "node:path";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PARTY_URL = process.env.CPI_PARTY_URL?.trim() || "http://127.0.0.1:3000";
 const DEFAULT_DATABASE_URL = process.env.CPI_DATABASE_URL?.trim() || "https://jj2sly.github.io/corn.planet";
+const SIDEBAR_WIDTH = 220;
 
 let mainWindow = null;
+let contentView = null;
+let activeTarget = "home";
 let settings = null;
+
 const GAME_IDS = new Set(["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]);
 
 function cleanBase(value) {
@@ -40,17 +44,79 @@ function saveSettings() {
 
 function destination(target) {
   const current = loadSettings();
-  const partyBase = current.partyBase;
-  const databaseBase = current.databaseBase;
   const destinations = {
-    party: `${partyBase}/host`,
-    account: `${partyBase}/account`,
-    prompts: `${partyBase}/prompts`,
-    hall: `${partyBase}/hall`,
-    database: databaseBase,
-    health: `${partyBase}/healthz`,
+    party: `${current.partyBase}/host`,
+    account: `${current.partyBase}/account`,
+    prompts: `${current.partyBase}/prompts`,
+    hall: `${current.partyBase}/hall`,
+    database: current.databaseBase,
   };
   return destinations[target] || null;
+}
+
+function emitActiveTarget() {
+  mainWindow?.webContents.send("cpi:active-target", activeTarget);
+}
+
+function contentBounds() {
+  if (!mainWindow) return { x: SIDEBAR_WIDTH, y: 0, width: 1000, height: 700 };
+  const [width, height] = mainWindow.getContentSize();
+  return {
+    x: SIDEBAR_WIDTH,
+    y: 0,
+    width: Math.max(1, width - SIDEBAR_WIDTH),
+    height: Math.max(1, height),
+  };
+}
+
+function closeContentView() {
+  if (!mainWindow || !contentView) return;
+  try {
+    mainWindow.contentView.removeChildView(contentView);
+  } catch {}
+  try {
+    contentView.webContents.close();
+  } catch {}
+  contentView = null;
+}
+
+function handleWindowOpen({ url }) {
+  const current = loadSettings();
+  if (url.startsWith(current.partyBase) || url.startsWith(current.databaseBase)) {
+    if (contentView) contentView.webContents.loadURL(url);
+    return { action: "deny" };
+  }
+  void shell.openExternal(url);
+  return { action: "deny" };
+}
+
+function openContent(url, target) {
+  if (!mainWindow) return;
+
+  closeContentView();
+
+  contentView = new WebContentsView({
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  contentView.setBackgroundColor("#050607");
+  contentView.setBounds(contentBounds());
+  contentView.webContents.setWindowOpenHandler(handleWindowOpen);
+
+  contentView.webContents.on("will-navigate", (event, nextUrl) => {
+    const current = loadSettings();
+    if (nextUrl.startsWith(current.partyBase) || nextUrl.startsWith(current.databaseBase)) return;
+    event.preventDefault();
+    void shell.openExternal(nextUrl);
+  });
+
+  mainWindow.contentView.addChildView(contentView);
+  activeTarget = target;
+  emitActiveTarget();
+  void contentView.webContents.loadURL(url);
 }
 
 function createWindow() {
@@ -71,33 +137,36 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile(path.join(__dirname, "index.html"));
-  mainWindow.on("closed", () => {
-    mainWindow = null;
+  void mainWindow.loadFile(path.join(__dirname, "index.html"));
+
+  mainWindow.on("resize", () => {
+    if (contentView) contentView.setBounds(contentBounds());
   });
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    const current = loadSettings();
-    if (url.startsWith(current.partyBase) || url.startsWith(current.databaseBase)) {
-      mainWindow.loadURL(url);
-      return { action: "deny" };
-    }
-    shell.openExternal(url);
-    return { action: "deny" };
+  mainWindow.on("closed", () => {
+    contentView = null;
+    mainWindow = null;
   });
 
   installMenu();
 }
 
 function goHome() {
-  if (mainWindow) mainWindow.loadFile(path.join(__dirname, "index.html"));
+  if (!mainWindow) return;
+  closeContentView();
+  activeTarget = "home";
+  emitActiveTarget();
 }
 
 function navigate(target) {
   if (!mainWindow) return;
   if (target === "home") return goHome();
   const url = destination(target);
-  if (url) mainWindow.loadURL(url);
+  if (url) openContent(url, target);
+}
+
+function activeWebContents() {
+  return contentView?.webContents ?? mainWindow?.webContents ?? null;
 }
 
 function installMenu() {
@@ -108,7 +177,11 @@ function installMenu() {
         { label: "Command Center", accelerator: "CmdOrCtrl+Shift+H", click: () => goHome() },
         { label: "Party Host", accelerator: "CmdOrCtrl+Shift+P", click: () => navigate("party") },
         { type: "separator" },
-        { role: "reload" },
+        {
+          label: "Reload Current View",
+          accelerator: "CmdOrCtrl+R",
+          click: () => activeWebContents()?.reload(),
+        },
         { role: "toggleDevTools" },
         { type: "separator" },
         { role: "quit" },
@@ -130,14 +203,16 @@ function installMenu() {
           label: "Back",
           accelerator: "Alt+Left",
           click: () => {
-            if (mainWindow?.webContents.canGoBack()) mainWindow.webContents.goBack();
+            const contents = activeWebContents();
+            if (contents?.canGoBack()) contents.goBack();
           },
         },
         {
           label: "Forward",
           accelerator: "Alt+Right",
           click: () => {
-            if (mainWindow?.webContents.canGoForward()) mainWindow.webContents.goForward();
+            const contents = activeWebContents();
+            if (contents?.canGoForward()) contents.goForward();
           },
         },
         { type: "separator" },
@@ -159,6 +234,7 @@ ipcMain.handle("cpi:navigate", (_event, target) => {
 
 ipcMain.handle("cpi:config", () => ({
   ...loadSettings(),
+  activeTarget,
   version: app.getVersion(),
 }));
 
@@ -166,7 +242,7 @@ ipcMain.handle("cpi:launch-game", (_event, gameId) => {
   const id = String(gameId);
   if (!GAME_IDS.has(id)) throw new Error("Unknown CPI Party game");
   const current = loadSettings();
-  if (mainWindow) mainWindow.loadURL(`${current.partyBase}/host?game=${encodeURIComponent(id)}`);
+  openContent(`${current.partyBase}/host?game=${encodeURIComponent(id)}`, "party");
   return true;
 });
 
