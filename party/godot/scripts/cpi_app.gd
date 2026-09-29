@@ -7,6 +7,7 @@ const AppStateScript = preload("res://scripts/app/app_state.gd")
 const PlatformServicesScript = preload("res://scripts/app/platform_services.gd")
 const NotificationCenterScript = preload("res://scripts/app/notification_center.gd")
 const ModuleManagerScript = preload("res://scripts/app/module_manager.gd")
+const IdentityServiceScript = preload("res://scripts/app/identity_service.gd")
 
 var current_game: Node = null
 var current_game_id := ""
@@ -16,6 +17,7 @@ var shell: Control
 var services: Node
 var notifications: Node
 var module_manager: Node
+var identity: Node
 
 @export var server_url := "http://127.0.0.1:3000"
 
@@ -39,10 +41,15 @@ func _ready() -> void:
     add_child(module_manager)
     module_manager.setup(services, session)
 
+    identity = IdentityServiceScript.new()
+    add_child(identity)
+    identity.setup(session)
+
     services.register_service("state", app_state)
     services.register_service("notifications", notifications)
     services.register_service("session", session)
     services.register_service("modules", module_manager)
+    services.register_service("identity", identity)
 
     session.connected_to_party.connect(_on_party_connected)
     session.state_updated.connect(_on_party_state)
@@ -63,7 +70,7 @@ func _ready() -> void:
 func _build_shell() -> void:
     shell = AppShellScript.new()
     add_child(shell)
-    shell.setup(session, app_state, notifications)
+    shell.setup(session, app_state, notifications, identity)
     shell.launch_game_requested.connect(launch_game)
     shell.create_room_requested.connect(_create_party_room)
     shell.section_changed.connect(_on_section_changed)
