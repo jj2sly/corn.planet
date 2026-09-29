@@ -16,6 +16,7 @@ const resultText = document.querySelector("#resultText");
 const realSource = document.querySelector("#realSource");
 const fakeSource = document.querySelector("#fakeSource");
 const next = document.querySelector("#next");
+const inspectRecord = document.querySelector("#inspectRecord");
 const finalScore = document.querySelector("#finalScore");
 const finalDetail = document.querySelector("#finalDetail");
 const replay = document.querySelector("#replay");
@@ -218,6 +219,17 @@ async function init() {
 
 optionEls.forEach((button, index) => button.addEventListener("click", () => choose(index)));
 next.addEventListener("click", advance);
+inspectRecord.addEventListener("click", async () => {
+  const current = rounds[roundIndex];
+  const url = current?.source?.url;
+  if (!url) return;
+  inspectRecord.disabled = true;
+  try {
+    await window.cpiDesktop.openCanonUrl(url);
+  } finally {
+    inspectRecord.disabled = false;
+  }
+});
 replay.addEventListener("click", start);
 home.addEventListener("click", () => window.cpiDesktop.navigate("home"));
 
