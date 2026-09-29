@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu, ipcMain, shell } from "electron";
 import { fileURLToPath } from "node:url";
+import fs from "node:fs";
 import path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -7,25 +8,53 @@ const DEFAULT_PARTY_URL = process.env.CPI_PARTY_URL?.trim() || "http://127.0.0.1
 const DEFAULT_DATABASE_URL = process.env.CPI_DATABASE_URL?.trim() || "https://jj2sly.github.io/corn.planet";
 
 let mainWindow = null;
+let settings = null;
 
 function cleanBase(value) {
   return String(value || "").trim().replace(/\/+$/, "");
 }
 
-const partyBase = cleanBase(DEFAULT_PARTY_URL);
-const databaseBase = cleanBase(DEFAULT_DATABASE_URL);
+function settingsPath() {
+  return path.join(app.getPath("userData"), "desktop-settings.json");
+}
 
-const destinations = {
-  home: null,
-  party: `${partyBase}/host`,
-  account: `${partyBase}/account`,
-  prompts: `${partyBase}/prompts`,
-  hall: `${partyBase}/hall`,
-  database: databaseBase,
-  health: `${partyBase}/healthz`,
-};
+function loadSettings() {
+  if (settings) return settings;
+  settings = {
+    partyBase: cleanBase(DEFAULT_PARTY_URL),
+    databaseBase: cleanBase(DEFAULT_DATABASE_URL),
+  };
+  try {
+    const saved = JSON.parse(fs.readFileSync(settingsPath(), "utf8"));
+    if (saved?.partyBase) settings.partyBase = cleanBase(saved.partyBase);
+    if (saved?.databaseBase) settings.databaseBase = cleanBase(saved.databaseBase);
+  } catch {}
+  return settings;
+}
+
+function saveSettings() {
+  fs.mkdirSync(path.dirname(settingsPath()), { recursive: true });
+  fs.writeFileSync(settingsPath(), JSON.stringify(settings, null, 2), "utf8");
+}
+
+function destination(target) {
+  const current = loadSettings();
+  const partyBase = current.partyBase;
+  const databaseBase = current.databaseBase;
+  const destinations = {
+    party: `${partyBase}/host`,
+    account: `${partyBase}/account`,
+    prompts: `${partyBase}/prompts`,
+    hall: `${partyBase}/hall`,
+    database: databaseBase,
+    health: `${partyBase}/healthz`,
+  };
+  return destinations[target] || null;
+}
 
 function createWindow() {
+  loadSettings();
+
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -47,7 +76,8 @@ function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith(partyBase) || url.startsWith(databaseBase)) {
+    const current = loadSettings();
+    if (url.startsWith(current.partyBase) || url.startsWith(current.databaseBase)) {
       mainWindow.loadURL(url);
       return { action: "deny" };
     }
@@ -65,7 +95,7 @@ function goHome() {
 function navigate(target) {
   if (!mainWindow) return;
   if (target === "home") return goHome();
-  const url = destinations[target];
+  const url = destination(target);
   if (url) mainWindow.loadURL(url);
 }
 
@@ -115,10 +145,17 @@ ipcMain.handle("cpi:navigate", (_event, target) => {
 });
 
 ipcMain.handle("cpi:config", () => ({
-  partyBase,
-  databaseBase,
+  ...loadSettings(),
   version: app.getVersion(),
 }));
+
+ipcMain.handle("cpi:set-party-url", (_event, value) => {
+  const url = cleanBase(value);
+  if (!/^https?:\/\//i.test(url)) throw new Error("Party server URL must start with http:// or https://");
+  settings = { ...loadSettings(), partyBase: url };
+  saveSettings();
+  return { ...settings };
+});
 
 app.whenReady().then(createWindow);
 app.on("window-all-closed", () => {
