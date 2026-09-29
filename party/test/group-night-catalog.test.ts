@@ -33,22 +33,25 @@ describe("Friday Group Night catalog smoke test", () => {
       assert.ok(definition, `${id} must be installed in GAMES`);
 
       const rooms = makeRooms({ canon: stubCanon(groupCanon()) });
-      const playerCount = Math.max(3, definition.minPlayers);
-      const names = Array.from({ length: playerCount }, (_, i) => `Agent${i + 1}`);
-      const { room } = roomWithPlayers(rooms.manager, names);
+      try {
+        const playerCount = Math.max(3, definition.minPlayers);
+        const names = Array.from({ length: playerCount }, (_, i) => `Agent${i + 1}`);
+        const { room } = roomWithPlayers(rooms.manager, names);
 
-      room.configure({ gameId: id });
-      assert.equal(room.viewFor({ kind: "host" }).config.gameId, id);
+        room.configure({ gameId: id });
+        assert.equal(room.viewFor({ kind: "host" }).config.gameId, id);
 
-      room.startGame();
-      const view = room.viewFor({ kind: "host" });
-      assert.equal(room.status, "IN_GAME");
-      assert.equal(view.config.gameId, id);
-      assert.ok(view.game, `${id} must expose a host game view immediately after start`);
+        room.startGame();
+        const view = room.viewFor({ kind: "host" });
+        assert.equal(room.status, "IN_GAME");
+        assert.equal(view.config.gameId, id);
+        assert.ok(view.game, `${id} must expose a host game view immediately after start`);
 
-      room.returnToLobby();
-      assert.equal(room.status, "LOBBY");
-      rooms.db.close();
+        room.returnToLobby();
+        assert.equal(room.status, "LOBBY");
+      } finally {
+        rooms.db.close();
+      }
     });
   }
 });
