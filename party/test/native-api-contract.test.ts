@@ -22,6 +22,7 @@ test("Godot client uses the native session bridge and catalog", async () => {
   assert.match(source, /\/api\/native\/games/);
   assert.match(source, /\/api\/native\/me/);
   assert.match(source, /identitytoolkit\.googleapis\.com\/v1\/accounts:signInWithPassword/);
+  assert.match(source, /securetoken\.googleapis\.com\/v1\/token/);
   assert.match(source, /\/api\/native\/state/);
   assert.match(source, /\/api\/native\/canon/);
 });
