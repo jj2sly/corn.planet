@@ -20,6 +20,10 @@ func setup(p_services: Node, p_session: Node) -> void:
     services = p_services
     session = p_session
 
+func _server_game_id(game_id: String) -> String:
+    var metadata: Dictionary = RegistryScript.find_game(game_id)
+    return String(metadata.get("server_game_id", game_id))
+
 func request_launch(game_id: String) -> Dictionary:
     var metadata: Dictionary = RegistryScript.find_game(game_id)
     if metadata.is_empty():
@@ -64,15 +68,16 @@ func launch_native_scene(metadata: Dictionary, parent: Node) -> Node:
 func prepare_server_module(game_id: String) -> void:
     pending_game_id = game_id
     if session and not session.room_code.is_empty():
-        session.configure_game(game_id)
+        session.configure_game(_server_game_id(game_id))
         active_game_id = game_id
         pending_game_id = ""
 
 func on_session_connected() -> void:
     if pending_game_id.is_empty() or session == null:
         return
-    session.configure_game(pending_game_id)
-    active_game_id = pending_game_id
+    var local_game_id := pending_game_id
+    session.configure_game(_server_game_id(local_game_id))
+    active_game_id = local_game_id
     pending_game_id = ""
 
 func stop_active() -> void:
