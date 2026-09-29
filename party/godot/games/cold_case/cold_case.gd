@@ -462,7 +462,8 @@ func _show_final_report() -> void:
     body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     body.add_theme_font_size_override("font_size", 16)
     var technician_status: String = "CHUCK LOCATED" if outpost_discovered else "NOT LOCATED"
-    body.text = "CASE  //  COLD CASE\nSTATUS  //  STABILIZED — MONITORING REQUIRED\n\nSYSTEMS REPAIRED  //  POWER / COOLING / CORE\nTECHNICIAN  //  " + technician_status + "\nANOMALY  //  REFRIGERATOR REMAINS UNDER OBSERVATION\nFINAL READING  //  -273.15 C\n\nNOTE  //  CASE REMAINS OPEN"
+    var food_status: String = "MILK NEUTRALIZED" if milk_defeated else "MILK ACTIVE"
+    body.text = "CASE  //  COLD CASE\nSTATUS  //  STABILIZED — MONITORING REQUIRED\n\nSYSTEMS REPAIRED  //  POWER / COOLING / CORE\nTECHNICIAN  //  " + technician_status + "\nFOOD THREAT  //  " + food_status + "\nANOMALY  //  REFRIGERATOR REMAINS UNDER OBSERVATION\nFINAL READING  //  -273.15 C\n\nNOTE  //  CASE REMAINS OPEN"
     panel.add_child(body)
 
     var close_button: Button = Button.new()
