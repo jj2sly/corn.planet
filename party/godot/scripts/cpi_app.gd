@@ -49,6 +49,7 @@ func _ready() -> void:
     session.canon_updated.connect(_on_canon_updated)
     session.canon_record_loaded.connect(_on_canon_record_loaded)
     session.request_failed.connect(_on_request_failed)
+    session.server_health_changed.connect(_on_server_health_changed)
 
     module_manager.module_started.connect(_on_module_started)
     module_manager.module_stopped.connect(_on_module_stopped)
@@ -56,6 +57,7 @@ func _ready() -> void:
 
     _build_shell()
     notifications.push("CPI PARTY", "Native platform initialized.", "success")
+    session.check_health(app_state.server_url)
 
 func _build_shell() -> void:
     shell = AppShellScript.new()
@@ -104,9 +106,18 @@ func _on_party_state(_state: Dictionary) -> void:
     if shell and session and not session.room_code.is_empty():
         shell.set_status("ONLINE // ROOM %s" % session.room_code)
 
+func _on_server_health_changed(ok: bool, protocol: int) -> void:
+    if shell:
+        shell.set_status("SERVER ONLINE // PROTOCOL %d" % protocol if ok else "SERVER OFFLINE")
+    if notifications and ok:
+        notifications.push("PARTY SERVER", "Backend reachable. Protocol %d." % protocol, "success")
+
 func _on_request_failed(path: String, message: String) -> void:
     if shell:
-        shell.set_status("ERROR // %s" % message.to_upper())
+        if path == "/api/native/health":
+            shell.set_status("SERVER OFFLINE // LOCAL CLIENT READY")
+        else:
+            shell.set_status("ERROR // %s" % message.to_upper())
     if notifications:
         notifications.push("NETWORK ERROR", "%s: %s" % [path, message], "error")
 
