@@ -81,3 +81,9 @@ footer { display: flex; justify-content: space-between; margin-top: 24px; color:
 .readiness-actions { display: flex; gap: 8px; align-items: center; }
 .readiness-card .section-head .primary-ready { border-color: #ffd400; background: #ffd400; color: #090a08; font-weight: 900; }
 .readiness-card .section-head .primary-ready:disabled { border-color: #33372f; background: #11130f; color: #686e65; cursor: not-allowed; }
+
+.join-panel { margin-top: 14px; border-top: 1px solid #272c26; padding-top: 14px; display: grid; grid-template-columns: 126px 1fr; gap: 16px; align-items: center; }
+.join-panel img { width: 126px; height: 126px; image-rendering: pixelated; background: #ffd400; padding: 5px; border: 1px solid #665600; }
+.join-panel strong { display: block; margin: 5px 0 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all; color: #e7e8e4; }
+.join-panel p:last-child { margin: 0; font-size: 10px; }
+@media (max-width: 700px) { .join-panel { grid-template-columns: 1fr; } }
