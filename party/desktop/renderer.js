@@ -43,6 +43,12 @@ for (const button of document.querySelectorAll("[data-target]")) {
 }
 
 window.cpiDesktop.onActiveTarget((target) => paintActiveTarget(target));
+window.cpiDesktop.onContentError((detail) => {
+  status.className = "status bad";
+  status.textContent = "CONTENT LOAD FAILED";
+  message.textContent = `${String(detail?.target || "page").toUpperCase()}: ${detail?.message || "Could not load content."}`;
+  message.className = "server-message bad";
+});
 
 for (const button of document.querySelectorAll("[data-pc-game]")) {
   button.addEventListener("click", async () => {
