@@ -490,6 +490,14 @@ ipcMain.handle("cpi:launch-game", (_event, gameId) => {
   return true;
 });
 
+ipcMain.handle("cpi:open-canon-url", (_event, value) => {
+  const url = String(value || "");
+  const databaseBase = loadSettings().databaseBase;
+  if (!url.startsWith(databaseBase)) throw new Error("That canon URL is outside the configured CPI Database.");
+  openContent(url, "database");
+  return true;
+});
+
 ipcMain.handle("cpi:launch-pc-game", (_event, gameId) => {
   launchPcGame(String(gameId));
   return true;
