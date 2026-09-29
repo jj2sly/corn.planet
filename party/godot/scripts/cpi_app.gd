@@ -30,6 +30,8 @@ func _build_shell() -> void:
     shell.setup(session, app_state)
     shell.launch_game_requested.connect(launch_game)
     shell.create_room_requested.connect(_create_party_room)
+    shell.section_changed.connect(_on_section_changed)
+    session.canon_updated.connect(_on_canon_updated)
 
 func _create_party_room() -> void:
     if session:
@@ -40,6 +42,15 @@ func _on_party_connected(_state: Dictionary) -> void:
         if app_state:
             app_state.remember_room(session.room_code)
         shell.status_label.text = "ONLINE // ROOM %s" % session.room_code
+
+func _on_section_changed(section: String) -> void:
+    if section == "database" and session:
+        session.fetch_canon()
+
+func _on_canon_updated(records: Array, status: Dictionary) -> void:
+    if shell:
+        shell.set_canon_records(records, status)
+        shell.status_label.text = "CANON // %d RECORDS" % records.size()
 
 func _on_party_state(_state: Dictionary) -> void:
     if shell and session and not session.room_code.is_empty():
