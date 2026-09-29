@@ -3,6 +3,7 @@ class_name CPIAppShell
 
 signal launch_game_requested(game_id: String)
 signal launch_group_game_requested(game_id: String)
+signal launch_party_host_requested()
 signal create_room_requested()
 signal section_changed(section: String)
 signal canon_record_requested(ref: String)
@@ -235,12 +236,13 @@ func _show_home() -> void:
     label(hero, Vector2(24, 18), "CORN PLANET PARTY", 25, ACCENT)
     label(hero, Vector2(25, 54), "THE CPI OPERATIONS PLATFORM", 12, MUTED)
     label(hero, Vector2(25, 78), "Games, rooms, canon, personnel and shared services in one client.", 13)
-    button(hero, Rect2(25, 116, 180, 34), "CREATE PARTY ROOM", func(): create_room_requested.emit())
-    button(hero, Rect2(215, 116, 150, 34), "GAME LIBRARY", func(): show_section("games"))
+    button(hero, Rect2(25, 116, 165, 34), "GROUP NIGHT", func(): launch_party_host_requested.emit())
+    button(hero, Rect2(200, 116, 165, 34), "NATIVE ROOM", func(): create_room_requested.emit())
+    button(hero, Rect2(375, 116, 145, 34), "GAME LIBRARY", func(): show_section("games"))
     label(hero, Vector2(620, 28), "PLATFORM", 9, MUTED)
     label(hero, Vector2(620, 50), "NATIVE CLIENT", 18)
-    label(hero, Vector2(620, 79), "SERVER BRIDGE", 11, MUTED)
-    label(hero, Vector2(620, 101), "READY", 12, ACCENT)
+    label(hero, Vector2(620, 79), "GROUP CONTENT", 11, MUTED)
+    label(hero, Vector2(620, 101), "%d SERVER GAMES" % server_game_ids.size(), 12, ACCENT)
 
     var cards := [
         ["GAMES", "%d MODULES" % RegistryScript.games().size(), "Launch party games and missions.", "games"],
