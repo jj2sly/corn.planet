@@ -467,7 +467,9 @@ func _show_notifications() -> void:
             _show_notifications()
         )
 
-    var items: Array[Dictionary] = notifications.recent(8) if notifications else []
+    var items: Array[Dictionary] = []
+    if notifications:
+        items = notifications.recent(8)
     if items.is_empty():
         var empty := panel(Rect2(0, 90, 970, 100))
         label(empty, Vector2(20, 20), "NO NOTIFICATIONS", 16, ACCENT)
