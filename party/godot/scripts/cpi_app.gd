@@ -76,6 +76,7 @@ func _ready() -> void:
     services.register_service("navigation", navigation)
 
     session.connected_to_party.connect(_on_party_connected)
+    session.disconnected_from_party.connect(_on_party_disconnected)
     session.state_updated.connect(_on_party_state)
     session.canon_updated.connect(_on_canon_updated)
     session.canon_record_loaded.connect(_on_canon_record_loaded)
@@ -141,6 +142,19 @@ func _on_canon_updated(records: Array, status: Dictionary) -> void:
 func _on_party_state(_state: Dictionary) -> void:
     if shell and session and not session.room_code.is_empty():
         shell.set_status("ONLINE // ROOM %s" % session.room_code)
+        if shell.active_section == "rooms":
+            shell.show_section("rooms")
+
+func _on_party_disconnected() -> void:
+    if module_manager:
+        module_manager.active_game_id = ""
+        module_manager.pending_game_id = ""
+    if shell:
+        shell.set_status("OFFLINE // LOCAL CLIENT READY")
+        if shell.active_section == "rooms":
+            shell.show_section("rooms")
+    if notifications:
+        notifications.push("PARTY ROOM", "Disconnected from the current room.", "info")
 
 func _on_server_health_changed(ok: bool, protocol: int) -> void:
     if shell:
