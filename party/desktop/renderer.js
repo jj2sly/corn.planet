@@ -19,17 +19,34 @@ const readinessIssues = document.querySelector("#readinessIssues");
 const rerunReadiness = document.querySelector("#rerunReadiness");
 const startGroupNight = document.querySelector("#startGroupNight");
 const SERVER_TARGETS = new Set(["party", "account", "prompts", "hall"]);
+let serverOnline = false;
+let hostRunning = false;
 
-function setServerDependentControls(online) {
-  for (const button of document.querySelectorAll("[data-game], [data-pc-game]")) {
-    button.disabled = !online;
-    button.title = online ? "" : "Party server is offline";
+function refreshAvailabilityControls() {
+  for (const button of document.querySelectorAll("[data-game]")) {
+    button.disabled = !serverOnline || hostRunning;
+    button.title = !serverOnline
+      ? "Party server is offline"
+      : hostRunning
+        ? "A Party host is already live. Return to the host to choose another game."
+        : "";
   }
+
+  for (const button of document.querySelectorAll("[data-pc-game]")) {
+    button.disabled = !serverOnline;
+    button.title = serverOnline ? "" : "Party server is offline";
+  }
+
   for (const button of document.querySelectorAll("[data-target]")) {
     if (!SERVER_TARGETS.has(button.dataset.target)) continue;
-    button.disabled = !online;
-    button.title = online ? "" : "Party server is offline";
+    button.disabled = !serverOnline;
+    button.title = serverOnline ? "" : "Party server is offline";
   }
+}
+
+function setServerDependentControls(online) {
+  serverOnline = Boolean(online);
+  refreshAvailabilityControls();
 }
 
 const navButtons = [...document.querySelectorAll(".rail button")];
@@ -42,14 +59,10 @@ function paintActiveTarget(target) {
 }
 
 function paintHostState(detail) {
-  const running = Boolean(detail?.running);
+  hostRunning = Boolean(detail?.running);
   const active = Boolean(detail?.active);
-  hostLiveBanner.classList.toggle("hidden", !running || active);
-
-  for (const button of document.querySelectorAll("[data-game]")) {
-    button.disabled = running;
-    button.title = running ? "A Party host is already live. Return to the host to choose another game." : "";
-  }
+  hostLiveBanner.classList.toggle("hidden", !hostRunning || active);
+  refreshAvailabilityControls();
 }
 
 for (const button of document.querySelectorAll("[data-target]")) {
