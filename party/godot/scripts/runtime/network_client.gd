@@ -40,6 +40,9 @@ func create_host() -> void:
 func join_player(code: String, name: String) -> void:
     _request(HTTPClient.METHOD_POST, "/api/native/player", {"code": code, "name": name})
 
+func fetch_games() -> void:
+    _request(HTTPClient.METHOD_GET, "/api/native/games")
+
 func fetch_canon(kind: String = "") -> void:
     var path := "/api/native/canon"
     if not kind.is_empty():
