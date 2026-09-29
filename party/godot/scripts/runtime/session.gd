@@ -49,6 +49,18 @@ func poll() -> void:
     if not network.session_token.is_empty():
         network.fetch_state()
 
+func configure_game(game_id: String, settings: Dictionary = {}) -> void:
+    network.configure_game(game_id, settings)
+
+func start_game() -> void:
+    network.start_game()
+
+func leave() -> void:
+    network.leave()
+    role = ""
+    room_code = ""
+    player_id = ""
+
 func send_input(action: String, payload: Variant = {}) -> void:
     network.send_input(action, payload)
 
