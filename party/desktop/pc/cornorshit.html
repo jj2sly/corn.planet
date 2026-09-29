@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Corn or Shit — PC</title>
+  <link rel="stylesheet" href="./pc.css" />
+  <script type="module" src="./cornorshit.js"></script>
+</head>
+<body>
+  <main class="game">
+    <header>
+      <div>
+        <p class="eyebrow">CPI RECORDS DIVISION // PC GAME</p>
+        <h1>CORN OR SHIT</h1>
+        <p class="tagline">One claim belongs to the record. One was stolen from somewhere else.</p>
+      </div>
+      <div class="scorebox">
+        <span>SCORE</span>
+        <strong id="score">0</strong>
+      </div>
+    </header>
+
+    <section id="boot" class="panel boot">
+      <p class="eyebrow accent">LOADING CPI CANON</p>
+      <h2>Building a case file...</h2>
+      <p id="bootMessage">Contacting the Party server.</p>
+    </section>
+
+    <section id="play" class="panel hidden">
+      <div class="roundbar">
+        <span id="round">ROUND 1 / 10</span>
+        <span id="streak">STREAK 0</span>
+      </div>
+      <p class="eyebrow accent" id="kind">ENTITY</p>
+      <h2 id="subject">SUBJECT</h2>
+      <p class="ref" id="ref">CPI RECORD</p>
+
+      <div class="options">
+        <button class="option" id="option1" data-index="0">
+          <span class="key">1</span>
+          <span class="claim"></span>
+        </button>
+        <button class="option" id="option2" data-index="1">
+          <span class="key">2</span>
+          <span class="claim"></span>
+        </button>
+      </div>
+
+      <section id="reveal" class="reveal hidden">
+        <p class="eyebrow" id="resultLabel">RESULT</p>
+        <h3 id="resultTitle">CORRECT</h3>
+        <p id="resultText"></p>
+        <div class="source-grid">
+          <div>
+            <span>DOCUMENTED SOURCE</span>
+            <strong id="realSource"></strong>
+          </div>
+          <div>
+            <span>FABRICATION BORROWED FROM</span>
+            <strong id="fakeSource"></strong>
+          </div>
+        </div>
+        <button id="next">NEXT RECORD <span>ENTER</span></button>
+      </section>
+    </section>
+
+    <section id="finish" class="panel finish hidden">
+      <p class="eyebrow accent">OPERATION COMPLETE</p>
+      <h2 id="finalTitle">FINAL SCORE</h2>
+      <div class="big-score" id="finalScore">0</div>
+      <p id="finalDetail"></p>
+      <div class="finish-actions">
+        <button id="replay">PLAY AGAIN</button>
+        <button id="home">RETURN TO COMMAND CENTER</button>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
