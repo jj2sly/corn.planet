@@ -5,6 +5,7 @@ signal request_completed(path: String, ok: bool, data: Variant)
 
 var base_url: String = "http://127.0.0.1:3000"
 var session_token: String = ""
+var auth_token: String = ""
 
 func configure(url: String) -> void:
     base_url = url.trim_suffix("/")
@@ -15,6 +16,8 @@ func _request(method: int, path: String, payload: Variant = null) -> void:
     var headers: PackedStringArray = PackedStringArray(["Content-Type: application/json"])
     if not session_token.is_empty():
         headers.append("X-CPI-Session: " + session_token)
+    if not auth_token.is_empty():
+        headers.append("Authorization: Bearer " + auth_token)
     var body: String = "" if payload == null else JSON.stringify(payload)
     var err: int = http.request(base_url + path, headers, method, body)
     if err != OK:
@@ -30,6 +33,15 @@ func _request(method: int, path: String, payload: Variant = null) -> void:
         request_completed.emit(path, ok, data)
         http.queue_free()
     )
+
+func set_auth_token(token: String) -> void:
+    auth_token = token.strip_edges()
+
+func fetch_identity() -> void:
+    _request(HTTPClient.METHOD_GET, "/api/native/me")
+
+func fetch_stats() -> void:
+    _request(HTTPClient.METHOD_GET, "/api/native/me/stats")
 
 func check_health() -> void:
     _request(HTTPClient.METHOD_GET, "/api/native/health")
