@@ -1,0 +1,54 @@
+name: Build CPI Party Desktop
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [cpst-party]
+    paths:
+      - "party/desktop/**"
+      - "party/package.json"
+      - ".github/workflows/cpi-desktop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: cpi-party-windows
+          - os: macos-latest
+            artifact: cpi-party-macos
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: party/desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: party/desktop/package.json
+
+      - name: Install desktop dependencies
+        run: npm install
+
+      - name: Build desktop distributable
+        run: npm run dist
+
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: party/dist-desktop/*
+          if-no-files-found: error
+          retention-days: 14
