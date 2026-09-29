@@ -5,6 +5,7 @@ static func games() -> Array[Dictionary]:
     return [
         {
             "id": "cornlashing",
+            "server_game_id": "chaos",
             "name": "CORNLASHING",
             "category": "PARTY",
             "description": "Write anonymous incident reports and vote on who caused the breach.",
@@ -14,6 +15,7 @@ static func games() -> Array[Dictionary]:
         },
         {
             "id": "corn-or-shit",
+            "server_game_id": "cornorshit",
             "name": "CORN OR SHIT",
             "category": "PARTY",
             "description": "Identify which claim actually exists in the CPST Database.",
@@ -23,6 +25,7 @@ static func games() -> Array[Dictionary]:
         },
         {
             "id": "entity-auction",
+            "server_game_id": "entityauction",
             "name": "ENTITY AUCTION",
             "category": "PARTY",
             "description": "Bid Kernels on sealed containment bays and survive the audit.",
@@ -32,6 +35,7 @@ static func games() -> Array[Dictionary]:
         },
         {
             "id": "my-cob-escaped",
+            "server_game_id": "mycob",
             "name": "MY COB ESCAPED",
             "category": "PARTY",
             "description": "Respond to a CPI breach before the Incident Director decides your fate.",
@@ -41,6 +45,7 @@ static func games() -> Array[Dictionary]:
         },
         {
             "id": "steam-my-deck",
+            "server_game_id": "steamdeck",
             "name": "ESCAPE THAD'S STEAM DECK",
             "category": "PARTY",
             "description": "Run, tilt, draw and survive a Steam Deck that has gone completely wrong.",
@@ -50,6 +55,7 @@ static func games() -> Array[Dictionary]:
         },
         {
             "id": "angry-thuds-revenge",
+            "server_game_id": "thud",
             "name": "ANGRY THUD'S REVENGE",
             "category": "PARTY",
             "description": "Launch your crew, destroy the defenses and stop the Red Cow.",
