@@ -102,16 +102,6 @@ function destroyAllContentViews() {
   retainedViews.clear();
 }
 
-function handleWindowOpen({ url }) {
-  const current = loadSettings();
-  if (url.startsWith(current.partyBase) || url.startsWith(current.databaseBase)) {
-    if (contentView) contentView.webContents.loadURL(url);
-    return { action: "deny" };
-  }
-  void shell.openExternal(url);
-  return { action: "deny" };
-}
-
 function createContentView(target) {
   const view = new WebContentsView({
     webPreferences: {
@@ -135,7 +125,7 @@ function createContentView(target) {
   view.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return;
     if (activeTarget !== target) return;
-    detachContentView({ destroy: target !== "party" });
+    detachContentView({ destroy: true });
     activeTarget = "home";
     emitActiveTarget();
     mainWindow?.webContents.send("cpi:content-error", {
@@ -159,13 +149,14 @@ function createContentView(target) {
   return view;
 }
 
-function openContent(url, target, { retain = target === "party" } = {}) {
+function openContent(url, target, { retain = target === "party", forceNavigate = false } = {}) {
   if (!mainWindow) return;
 
   detachContentView();
 
   let view = retain ? retainedViews.get(target) : null;
-  if (!view || view.webContents.isDestroyed()) {
+  let reused = Boolean(view && !view.webContents.isDestroyed());
+  if (!reused) {
     view = createContentView(target);
     if (retain) retainedViews.set(target, view);
   }
@@ -177,7 +168,7 @@ function openContent(url, target, { retain = target === "party" } = {}) {
   emitActiveTarget();
 
   const currentUrl = contentView.webContents.getURL();
-  if (!currentUrl || currentUrl !== url) void contentView.webContents.loadURL(url);
+  if (!reused || forceNavigate || !currentUrl) void contentView.webContents.loadURL(url);
 }
 
 function openPcLibrary() {
@@ -369,7 +360,7 @@ ipcMain.handle("cpi:launch-game", (_event, gameId) => {
   const id = String(gameId);
   if (!GAME_IDS.has(id)) throw new Error("Unknown CPI Party game");
   const current = loadSettings();
-  openContent(`${current.partyBase}/host?game=${encodeURIComponent(id)}`, "party");
+  openContent(`${current.partyBase}/host?game=${encodeURIComponent(id)}`, "party", { retain: true, forceNavigate: true });
   return true;
 });
 
