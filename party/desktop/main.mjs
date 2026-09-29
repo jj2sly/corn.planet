@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, WebContentsView, clipboard, ipcMain, shell } from "electron";
+import { app, BrowserWindow, Menu, WebContentsView, clipboard, ipcMain, powerSaveBlocker, shell } from "electron";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
@@ -15,6 +15,7 @@ let contentView = null;
 const retainedViews = new Map();
 let activeTarget = "home";
 let presentationMode = false;
+let presentationBlockerId = null;
 let settings = null;
 
 const GAME_IDS = new Set(["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]);
@@ -203,6 +204,16 @@ function launchPcGame(gameId) {
 
 function setPresentationMode(enabled) {
   presentationMode = Boolean(enabled);
+
+  if (presentationMode) {
+    if (presentationBlockerId === null || !powerSaveBlocker.isStarted(presentationBlockerId)) {
+      presentationBlockerId = powerSaveBlocker.start("prevent-display-sleep");
+    }
+  } else if (presentationBlockerId !== null) {
+    if (powerSaveBlocker.isStarted(presentationBlockerId)) powerSaveBlocker.stop(presentationBlockerId);
+    presentationBlockerId = null;
+  }
+
   if (contentView) contentView.setBounds(contentBounds());
   sendToShell("cpi:presentation-mode", presentationMode);
   return presentationMode;
@@ -476,10 +487,23 @@ ipcMain.handle("cpi:set-party-url", (_event, value) => {
   return { ...settings };
 });
 
-app.whenReady().then(createWindow);
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
-app.on("activate", () => {
-  if (!mainWindow) createWindow();
-});
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+
+  app.whenReady().then(createWindow);
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit();
+  });
+  app.on("activate", () => {
+    if (!mainWindow) createWindow();
+  });
+}
