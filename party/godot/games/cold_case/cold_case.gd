@@ -49,6 +49,10 @@ var chuck_assistance: bool = false
 var core_repair_step: int = 0
 var core_repair_lock: float = 0.0
 var return_detail_changed: bool = false
+var ice_cream: Node3D
+var ice_cream_defeated: bool = false
+var ice_cream_extreme_time: float = 0.0
+var extraction_flash: float = 0.0
 
 func _ready() -> void:
     player_body = $Player
@@ -84,6 +88,7 @@ func _physics_process(delta: float) -> void:
     _update_zone_state(delta)
     _update_survival(delta)
     _update_core_instability(delta)
+    _update_ice_cream(delta)
     core_repair_lock = maxf(0.0, core_repair_lock - delta)
     if extraction_active:
         extraction_alarm = maxf(0.0, extraction_alarm - delta)
@@ -221,7 +226,7 @@ func _interact() -> void:
         return
 
     if mission_phase == "PANTRY" and _near_temperature_control():
-        var pantry_script := pantry as ColdCasePantry
+        var pantry_script: ColdCasePantry = pantry as ColdCasePantry
         status_label.text = pantry_script.cycle_temperature_control()
         pantry_script.trigger_milk_response()
         if milk != null:
@@ -232,7 +237,7 @@ func _interact() -> void:
     if mission_phase == "PANTRY" and _near_milk():
         var pantry_script := pantry as ColdCasePantry
         pantry_script.trigger_milk_response()
-        var milk_script := milk as ColdCaseMilk
+        var milk_script: ColdCaseMilk = milk as ColdCaseMilk
         milk_script.set_temperature(pantry_script.temperature)
         if pantry_script.milk_awake:
             milk_script.set_temperature(pantry_script.temperature)
@@ -262,8 +267,12 @@ func _interact() -> void:
         _interact_core()
         return
 
+    if mission_phase == "FREEZER" and _near_ice_cream():
+        _interact_ice_cream()
+        return
+
     if mission_phase == "FREEZER" and _near_freezer_unit():
-        var freezer_script := freezer as ColdCaseFreezer
+        var freezer_script: ColdCaseFreezer = freezer as ColdCaseFreezer
         status_label.text = "REPAIR  //  " + freezer_script.interact_repair()
         if freezer_script.repaired:
             cooling_repaired = true
@@ -325,11 +334,17 @@ func _build_interior() -> void:
         checkpoint.position = Vector3(0, 0, -50)
         add_child(checkpoint)
 
-    var milk_scene := load("res://games/cold_case/milk.tscn") as PackedScene
+    var milk_scene: PackedScene = load("res://games/cold_case/milk.tscn") as PackedScene
     if milk_scene:
         milk = milk_scene.instantiate()
         milk.position = Vector3(0, 0.6, -26.0)
         add_child(milk)
+
+    var ice_scene: PackedScene = load("res://games/cold_case/ice_cream.tscn") as PackedScene
+    if ice_scene:
+        ice_cream = ice_scene.instantiate()
+        ice_cream.position = Vector3(3.5, 0.8, -58.0)
+        add_child(ice_cream)
 
 func _has_interaction() -> bool:
     if mission_phase == "BRIEFING":
@@ -341,7 +356,7 @@ func _has_interaction() -> bool:
     if mission_phase == "POWER":
         return _near_power_panel()
     if mission_phase == "FREEZER":
-        return _near_freezer_unit()
+        return _near_freezer_unit() or _near_ice_cream()
     if mission_phase == "DEEP_INTERIOR":
         return _near_outpost()
     if mission_phase == "STABILIZING":
@@ -401,6 +416,33 @@ func _on_core_repaired() -> void:
     temperature = -2.0
     status_label.text = "SYSTEM  //  CORE STABILIZED"
     objective_label.text = "OBJECTIVE  //  Return to the refrigerator door"
+
+func _near_ice_cream() -> bool:
+    return ice_cream != null and player_body.global_position.distance_to(ice_cream.global_position) < 3.0
+
+func _interact_ice_cream() -> void:
+    if ice_cream_defeated or ice_cream == null:
+        return
+    if temperature > -4.0:
+        status_label.text = "THREAT  //  ICE CREAM CREATURE AGITATED"
+        health = maxf(0.0, health - 5.0)
+        return
+    ice_cream_extreme_time += 0.75
+    status_label.text = "THREAT  //  FREEZE RESPONSE %02d%%" % int(minf(100.0, ice_cream_extreme_time / 4.0 * 100.0))
+    if ice_cream_extreme_time >= 4.0:
+        ice_cream_defeated = true
+        ice_cream.queue_free()
+        status_label.text = "THREAT  //  ICE CREAM CREATURE NEUTRALIZED"
+
+func _update_ice_cream(delta: float) -> void:
+    if ice_cream == null or ice_cream_defeated:
+        return
+    if mission_phase != "FREEZER":
+        return
+    if temperature <= -14.0:
+        ice_cream_extreme_time = minf(4.0, ice_cream_extreme_time + delta * 0.35)
+    else:
+        ice_cream_extreme_time = maxf(0.0, ice_cream_extreme_time - delta * 0.15)
 
 func _near_freezer_unit() -> bool:
     return freezer != null and player_body.global_position.distance_to(freezer.global_position + Vector3(0, 2.0, -7.0)) < 3.5
@@ -478,7 +520,7 @@ func _show_final_report() -> void:
     body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     body.add_theme_font_size_override("font_size", 16)
     var technician_status: String = "CHUCK LOCATED" if outpost_discovered else "NOT LOCATED"
-    var food_status: String = "MILK NEUTRALIZED" if milk_defeated else "MILK ACTIVE"
+    var food_status: String = "MILK + ICE CREAM NEUTRALIZED" if milk_defeated and ice_cream_defeated else ("MILK NEUTRALIZED" if milk_defeated else ("ICE CREAM NEUTRALIZED" if ice_cream_defeated else "FOOD THREATS ACTIVE"))
     var assistance_status: String = "CHUCK ASSISTED CORE REPAIR" if chuck_assistance else "NO TECHNICIAN ASSISTANCE"
     body.text = "CASE  //  COLD CASE\nSTATUS  //  STABILIZED — MONITORING REQUIRED\n\nSYSTEMS REPAIRED  //  POWER / COOLING / CORE\nTECHNICIAN  //  " + technician_status + "\nASSISTANCE  //  " + assistance_status + "\nFOOD THREAT  //  " + food_status + "\nANOMALY  //  REFRIGERATOR REMAINS UNDER OBSERVATION\nFINAL READING  //  -273.15 C\n\nNOTE  //  CASE REMAINS OPEN"
     panel.add_child(body)
