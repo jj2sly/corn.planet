@@ -89,6 +89,15 @@ func configure_game(game_id: String, settings: Dictionary = {}) -> void:
 func start_game() -> void:
     network.start_game()
 
+func _clear_room_state() -> void:
+    network.session_token = ""
+    role = ""
+    room_code = ""
+    player_id = ""
+    display_name = ""
+    last_state = {}
+    disconnected_from_party.emit()
+
 func leave() -> void:
     if network.session_token.is_empty():
         return
@@ -100,8 +109,13 @@ func send_input(action: String, payload: Variant = {}) -> void:
 func _on_request(path: String, ok: bool, data: Variant) -> void:
     if not ok:
         var message := "Request failed"
+        var error_code := ""
         if data is Dictionary:
-            message = String(data.get("error", data.get("message", message)))
+            error_code = String(data.get("error", ""))
+            message = String(data.get("message", error_code if not error_code.is_empty() else message))
+        if error_code == "SESSION_ENDED" or error_code == "ROOM_NOT_FOUND" or error_code == "SESSION_REPLACED":
+            if not network.session_token.is_empty():
+                _clear_room_state()
         request_failed.emit(path, message)
         return
     if path == "/api/native/health":
@@ -161,13 +175,7 @@ func _on_request(path: String, ok: bool, data: Variant) -> void:
             var status: Dictionary = status_variant if status_variant is Dictionary else {}
             canon_updated.emit(records, status)
     elif path == "/api/native/leave":
-        role = ""
-        room_code = ""
-        player_id = ""
-        display_name = ""
-        last_state = {}
-        network.session_token = ""
-        disconnected_from_party.emit()
+        _clear_room_state()
     elif path.begins_with("/api/native/canon/"):
         if data is Dictionary:
             canon_record_loaded.emit(data)
