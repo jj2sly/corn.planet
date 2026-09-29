@@ -5,6 +5,7 @@ if (globalThis.location?.protocol === "file:") {
     navigate: (target) => ipcRenderer.invoke("cpi:navigate", target),
     hostStatus: () => ipcRenderer.invoke("cpi:host-status"),
     returnHost: () => ipcRenderer.invoke("cpi:return-host"),
+    stopHost: () => ipcRenderer.invoke("cpi:stop-host"),
     startPresentationHost: () => ipcRenderer.invoke("cpi:start-presentation-host"),
     togglePresentation: () => ipcRenderer.invoke("cpi:toggle-presentation"),
     launchGame: (gameId) => ipcRenderer.invoke("cpi:launch-game", gameId),
