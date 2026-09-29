@@ -92,17 +92,24 @@ function contentBounds() {
 
 function detachContentView({ destroy = false } = {}) {
   if (!mainWindow || !contentView) return;
+
+  const detached = contentView;
+  const retained = [...retainedViews.values()].includes(detached);
+  const shouldDestroy = destroy || !retained;
+
   try {
-    mainWindow.contentView.removeChildView(contentView);
+    mainWindow.contentView.removeChildView(detached);
   } catch {}
-  if (destroy) {
+
+  if (shouldDestroy) {
     for (const [key, view] of retainedViews) {
-      if (view === contentView) retainedViews.delete(key);
+      if (view === detached) retainedViews.delete(key);
     }
     try {
-      contentView.webContents.close();
+      detached.webContents.close();
     } catch {}
   }
+
   contentView = null;
   emitHostState();
 }
