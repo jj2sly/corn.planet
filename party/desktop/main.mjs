@@ -139,7 +139,8 @@ function detachContentView({ destroy = false } = {}) {
   if (!mainWindow || !contentView) return;
 
   const detached = contentView;
-  const retained = [...retainedViews.values()].includes(detached);
+  const retainedEntry = [...retainedViews.entries()].find(([, view]) => view === detached);
+  const retained = Boolean(retainedEntry);
   const shouldDestroy = destroy || !retained;
 
   try {
@@ -147,8 +148,11 @@ function detachContentView({ destroy = false } = {}) {
   } catch {}
 
   if (shouldDestroy) {
-    for (const [key, view] of retainedViews) {
-      if (view === detached) retainedViews.delete(key);
+    if (retainedEntry) retainedViews.delete(retainedEntry[0]);
+    if (retainedEntry?.[0] === "party") {
+      liveRoomCode = "";
+      emitRoomCode();
+      setPresentationMode(false);
     }
     try {
       detached.webContents.close();
@@ -168,6 +172,9 @@ function destroyAllContentViews() {
     try { view.webContents.close(); } catch {}
   }
   retainedViews.clear();
+  liveRoomCode = "";
+  emitRoomCode();
+  setPresentationMode(false);
   emitHostState();
 }
 
