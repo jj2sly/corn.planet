@@ -82,6 +82,7 @@ function playerJoinUrl() {
     }
     url.pathname = "/play";
     url.search = "";
+    if (liveRoomCode) url.searchParams.set("code", liveRoomCode);
     url.hash = "";
     return url.toString().replace(/\/$/, "");
   } catch {
