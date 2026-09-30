@@ -106,3 +106,5 @@ footer { display: flex; justify-content: space-between; margin-top: 24px; color:
 .host-live-room button:disabled { opacity: .45; cursor: default; }
 .room-code-inline { margin-top: 10px; display: flex; gap: 10px; align-items: center; }
 .room-code-inline strong { font-size: 18px; }
+
+.readiness-issues.warn { color: #d8b85a; }
