@@ -186,7 +186,8 @@ function renderRound() {
   streakEl.textContent = `STREAK ${streak}`;
   kindEl.textContent = String(current.source.kind || "CANON").toUpperCase();
   subjectEl.textContent = current.source.title || "UNTITLED CPI RECORD";
-  refEl.textContent = current.source.ref || "CPI RECORD";
+  // The record's id stays hidden until the answer: it would point straight at the source.
+  refEl.textContent = "WHICH IS CPI CANON?";
 
   optionEls.forEach((button, index) => {
     button.disabled = false;
@@ -205,15 +206,16 @@ function choose(index) {
   if (correct) {
     correctAnswers += 1;
     streak += 1;
-    score += POINTS + Math.min(50, Math.max(0, streak - 1) * 10);
-    resultLabel.textContent = "DOCUMENTED";
+    const gained = POINTS + Math.min(50, Math.max(0, streak - 1) * 10);
+    score += gained;
+    resultLabel.textContent = "CANON";
     resultTitle.textContent = "CORRECT";
-    resultText.textContent = streak > 1 ? `Streak x${streak}. The record backs that claim.` : "The record backs that claim.";
+    resultText.textContent = `+${gained}${streak > 1 ? ` · STREAK x${streak}` : ""}`;
   } else {
     streak = 0;
-    resultLabel.textContent = "FABRICATION";
+    resultLabel.textContent = "SHIT";
     resultTitle.textContent = "WRONG";
-    resultText.textContent = "That value belongs to a different CPI record.";
+    resultText.textContent = "That claim was borrowed from another record. Streak reset.";
   }
 
   scoreEl.textContent = String(score);
