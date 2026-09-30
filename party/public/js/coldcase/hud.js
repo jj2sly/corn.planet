@@ -12,7 +12,7 @@ const ACTIVE = new Set(["chase", "curious", "crawl", "windup", "lunge"]);
 const PANELS = {
   thermostat: { title: "STORAGE THERMOSTAT", kicker: "FOOD STORAGE // TEMPERATURE LOOP" },
   mainbus: { title: "MAIN BUS", kicker: "POWER ROOM // RELAYS" },
-  compressor: { title: "COMPRESSOR", kicker: "FREEZER // COOLANT PRESSURE" },
+  compressor: { title: "COMPRESSOR PRESSURE", kicker: "FREEZER // COOLING" },
   consolePressure: { title: "CORE PRESSURE", kicker: "REFRIGERATOR CORE // STAGE 2" },
   consoleTemp: { title: "CORE TEMPERATURE", kicker: "REFRIGERATOR CORE // STAGE 3" },
 };
@@ -105,18 +105,30 @@ export function createHud() {
     bannerTimer = setTimeout(() => (b.hidden = true), 2700);
   }
 
+  // One line at a time, so a repair's result and its consequence are read in order.
+  const queue = [];
+  let feeding = false;
   function feed(text, tone) {
-    const li = el("li", { class: tone, text });
+    queue.push([text, tone]);
+    if (!feeding) pump();
+  }
+  function pump() {
+    const item = queue.shift();
+    if (!item) return void (feeding = false);
+    feeding = true;
+    const li = el("li", { class: item[1], text: item[0] });
     els.feed.append(li);
-    while (els.feed.children.length > 4) els.feed.firstElementChild.remove();
+    while (els.feed.children.length > 3) els.feed.firstElementChild.remove();
     setTimeout(() => li.remove(), 4300);
+    setTimeout(pump, 900);
   }
 
   function onEvent(state, e) {
     switch (e.type) {
       case "message":
         if (e.big) banner(e.text, "", true);
-        else feed(e.text, e.tone);
+        // Skip what is already on screen: panel progress shows in the panel, hits float over the agent.
+        else if (!(state.panel && !state.panel.result && e.tone === "good") && !String(e.text).startsWith(TEXT.messages.contact)) feed(e.text, e.tone);
         break;
       case "zone":
         if (!seenZones.has(e.zone) && state.phase === "PLAYING") {
@@ -155,7 +167,7 @@ export function createHud() {
     primary.disabled = false;
     toggle(els.panel, "adjustable", panel.kind === "dial" || panel.kind === "balance");
     if (panel.kind === "dial") {
-      els.panelHint.textContent = touch ? "− / + sets the loop temperature. CONFIRM applies it." : "◀ ▶ or A / D sets the loop temperature · E or SPACE applies it · ESC closes";
+      els.panelHint.textContent = touch ? "Set it with − / +. CONFIRM to apply." : "Set it with ◀ ▶. E to apply.";
       primary.textContent = "CONFIRM";
       const pos = (v) => `${((v - panel.min) / (panel.max - panel.min)) * 100}%`;
       const thaw = el("i", { class: "mark thaw" }, el("span", { text: `THAW +${CONFIG.thaw.point}°` }));
@@ -170,7 +182,7 @@ export function createHud() {
       readout.append(el("span", {}, "SETPOINT ", parts.value), parts.current);
       parts.pos = pos;
     } else if (panel.kind === "timing") {
-      els.panelHint.textContent = touch ? "Tap ENGAGE when the needle is in the green." : "Press E or SPACE when the needle is in the green · ESC closes";
+      els.panelHint.textContent = touch ? "Tap ENGAGE in the green." : "Press E in the green.";
       primary.textContent = "ENGAGE";
       parts.band = el("i", { class: "zone-band" });
       parts.needle = el("i", { class: "needle" });
@@ -178,7 +190,7 @@ export function createHud() {
       parts.lights = el("span", { class: "lights" });
       readout.append(el("span", { text: "RELAYS" }), parts.lights);
     } else if (panel.kind === "pressure") {
-      els.panelHint.textContent = touch ? "Hold BUILD to raise pressure. Let go inside the green to lock it." : "Hold E or SPACE to build pressure · let go inside the green to lock it · ESC closes";
+      els.panelHint.textContent = touch ? "Hold BUILD to raise pressure. Let go in the green." : "Hold E to raise pressure. Let go in the green.";
       primary.textContent = "HOLD TO BUILD";
       parts.band = el("i", { class: "zone-band" });
       parts.fill = el("i", { class: "fill" });
@@ -187,7 +199,7 @@ export function createHud() {
       parts.value = el("b");
       readout.append(el("span", {}, "PRESSURE ", parts.value), parts.lights);
     } else if (panel.kind === "balance") {
-      els.panelHint.textContent = touch ? "Hold − (colder) or + (warmer) to keep the core in the green." : "Hold ◀ / A (colder) or ▶ / D (warmer) to keep the core in the green · ESC closes";
+      els.panelHint.textContent = touch ? "Hold − / + to keep it in the green." : "Hold ◀ ▶ to keep it in the green.";
       primary.textContent = "KEEP IT IN THE GREEN";
       primary.disabled = true;
       const B = CONFIG.balance;
