@@ -354,3 +354,16 @@ test("desktop shell exposes the live four-letter room code", async () => {
   assert.match(html, /LIVE ROOM CODE/);
   assert.match(html, /COPY CODE/);
 });
+
+
+test("desktop phone join links prefill the live room code", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+  const host = await readFile(new URL("../public/js/host.js", import.meta.url), "utf8");
+
+  assert.match(main, /url\.searchParams\.set\("code", liveRoomCode\)/);
+  assert.match(main, /url\.searchParams\.set\("join", playerJoinUrl\(\)\)/);
+  assert.match(renderer, /onRoomCode[\s\S]*refreshPlayerQr/);
+  assert.match(host, /url\.searchParams\.set\("code", state\.code\)/);
+  assert.match(host, /requestedJoin/);
+});
