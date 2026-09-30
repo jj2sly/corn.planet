@@ -58,7 +58,9 @@ struct PartyWebView: UIViewRepresentable {
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.scrollView.bounces = false
         webView.allowsBackForwardNavigationGestures = false
-        webView.isInspectable = true
+        if #available(iOS 16.4, *) {
+            webView.isInspectable = true
+        }
         webView.load(URLRequest(url: url, cachePolicy: .reloadRevalidatingCacheData))
         return webView
     }
