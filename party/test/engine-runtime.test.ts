@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PartyRuntime } from "./runtime.ts";
-import type { GameContext, GameDefinition, GameInstance, Viewer } from "./game.ts";
+import { PartyRuntime } from "../server/engine/runtime.ts";
+import type { GameContext, GameDefinition, GameInstance, Viewer } from "../server/engine/game.ts";
 
 function context(): GameContext {
   return {

@@ -1,4 +1,5 @@
-import { describe, expect, test } from "node:test";
+import { describe, test } from "node:test";
+import { expect } from "./expect.ts";
 import { applyExposure, createEnvironmentZone, hasEffect } from "../server/engine/environment.ts";
 import { EntityRegistry } from "../server/engine/entity.ts";
 import { defeatFood, foodTemperatureResponse } from "../server/engine/food.ts";

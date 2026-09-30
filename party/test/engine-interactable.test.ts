@@ -1,4 +1,5 @@
-import { describe, expect, test } from "node:test";
+import { describe, test } from "node:test";
+import { expect } from "./expect.ts";
 import { findInteraction, interactionAction } from "../server/engine/interactable.ts";
 import { makeAabb } from "../server/engine/world.ts";
 

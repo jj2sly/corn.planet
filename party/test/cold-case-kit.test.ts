@@ -1,4 +1,5 @@
-import { describe, expect, test } from "node:test";
+import { describe, test } from "node:test";
+import { expect } from "./expect.ts";
 import { addFridgeModule, buildRoomScene, createFridgeRoom, makeTransform } from "../server/engine/fridge-kit.ts";
 import { createRepairPuzzle, advanceRepairPuzzle } from "../server/engine/repair-puzzle.ts";
 import { adjustTemperature } from "../server/engine/temperature-control.ts";

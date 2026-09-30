@@ -32,3 +32,4 @@ describe("engine survival primitives", () => {
     assert.equal(inventory.remove("wrench"), true);
     assert.deepEqual(inventory.list(), ["fuse"]);
   });
+});

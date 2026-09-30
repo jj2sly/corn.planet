@@ -1,8 +1,9 @@
-import { describe, expect, test } from "node:test";
+import { describe, test } from "node:test";
+import { expect } from "./expect.ts";
 import { createPlayerRuntimeState } from "../server/engine/player-state.ts";
 import { ObjectiveTracker } from "../server/engine/objective.ts";
 import { validateInteraction } from "../server/engine/interaction-flow.ts";
-import { RespawnState, recordDeath } from "../server/engine/checkpoint-state.ts";
+import { type RespawnState, recordDeath } from "../server/engine/checkpoint-state.ts";
 import { isNewerSnapshot, makeSnapshot } from "../server/engine/snapshot.ts";
 
 describe("player runtime", () => {

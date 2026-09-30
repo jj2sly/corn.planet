@@ -1,4 +1,5 @@
-import { describe, expect, test } from "node:test";
+import { describe, test } from "node:test";
+import { expect } from "./expect.ts";
 import { EntityRegistry } from "../server/engine/entity.ts";
 import { setTemperatureTarget, stepTemperature, temperatureState } from "../server/engine/temperature.ts";
 
@@ -8,7 +9,7 @@ describe("world entities", () => {
     expect(registry.add({ id: "panel", kind: "machine", name: "Power Panel", enabled: true, state: { powered: false } })).toBe(true);
     expect(registry.patch("panel", { powered: true })?.state.powered).toBe(true);
     expect(registry.setEnabled("panel", false)).toBe(true);
-    expect(registry.snapshot()[0].enabled).toBe(false);
+    expect(registry.snapshot()[0]?.enabled).toBe(false);
     expect(registry.add({ id: "panel", kind: "machine", name: "Duplicate", enabled: true, state: { powered: false } })).toBe(false);
   });
 });

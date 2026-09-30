@@ -1,4 +1,5 @@
-import { describe, expect, test } from "node:test";
+import { describe, test } from "node:test";
+import { expect } from "./expect.ts";
 import { applyDamage, createHealth, heal, revive, StatusTracker } from "../server/engine/status.ts";
 import { AuthoritativeState } from "../server/engine/sync.ts";
 import { addResource, createResource, spendResource } from "../server/engine/resource.ts";

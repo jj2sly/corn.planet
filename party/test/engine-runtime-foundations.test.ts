@@ -1,4 +1,5 @@
-import { describe, expect, test } from "node:test";
+import { describe, test } from "node:test";
+import { expect } from "./expect.ts";
 import { createFixedStepClock } from "../server/engine/tick.ts";
 import { MissionSession } from "../server/engine/session.ts";
 import { deserializeState, serializeState } from "../server/engine/serialize.ts";
@@ -39,7 +40,7 @@ describe("zone graph", () => {
     graph.add({ id: "storage", name: "Storage", tags: ["food"], connections: [] });
     graph.add({ id: "freezer", name: "Freezer", tags: ["cold"], connections: [] });
     expect(graph.connect("storage", "freezer")).toBe(true);
-    expect(graph.neighbors("storage")[0].id).toBe("freezer");
+    expect(graph.neighbors("storage")[0]?.id).toBe("freezer");
   });
 });
 

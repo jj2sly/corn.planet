@@ -1,4 +1,5 @@
-import { describe, expect, test } from "node:test";
+import { describe, test } from "node:test";
+import { expect } from "./expect.ts";
 import { PlayerSpawnRegistry } from "../server/engine/spawn.ts";
 import { SceneGraph, identityTransform } from "../server/engine/scene.ts";
 import { createEnvironmentZone } from "../server/engine/environment.ts";
@@ -6,7 +7,7 @@ import { createHealth, StatusTracker } from "../server/engine/status.ts";
 import { processHazard } from "../server/engine/hazard.ts";
 import { MemoryMissionPersistence } from "../server/engine/persistence.ts";
 import { EventLog } from "../server/engine/event.ts";
-import { processInteraction } from "../server/engine/interaction-event.ts";
+import { processInteraction, type InteractionEventPayload } from "../server/engine/interaction-event.ts";
 import { PlayerSessionRegistry } from "../server/engine/player-session.ts";
 import { SceneAssetManifest } from "../server/engine/client-scene.ts";
 
@@ -42,7 +43,7 @@ describe("persistence", () => {
 
 describe("interaction events", () => {
   test("records accepted interaction", () => {
-    const log = new EventLog();
+    const log = new EventLog<InteractionEventPayload>();
     const event = processInteraction(log, { playerId: "p1", targetId: "door", action: "open" }, true);
     expect(event.type).toBe("interaction.accepted");
   });

@@ -1,4 +1,5 @@
-import { describe, expect, test } from "node:test";
+import { describe, test } from "node:test";
+import { expect } from "./expect.ts";
 import { makeAabb, overlaps, pointInside, rayAabb, resolveCharacterCollision } from "../server/engine/world.ts";
 
 describe("world primitives", () => {

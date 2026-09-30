@@ -1,4 +1,5 @@
-import { describe, expect, test } from "node:test";
+import { describe, test } from "node:test";
+import { expect } from "./expect.ts";
 import { chunkCoord, chunkId, nearbyChunkCoords, WorldChunkRegistry } from "../server/engine/world-stream.ts";
 
 describe("world streaming primitives", () => {

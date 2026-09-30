@@ -1,4 +1,5 @@
-import { describe, expect, test } from "node:test";
+import { describe, test } from "node:test";
+import { expect } from "./expect.ts";
 import { canOpenDoor, canUsePortal, toggleDoor } from "../server/engine/portal.ts";
 import { CheckpointRegistry } from "../server/engine/checkpoint.ts";
 
