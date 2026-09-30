@@ -215,6 +215,29 @@ function createContentView(target) {
     if (mainWindow?.isFullScreen()) mainWindow.setFullScreen(false);
   });
 
+  view.webContents.on("render-process-gone", (_event, details) => {
+    if (target === "party" && retainedViews.get("party") === view) {
+      retainedViews.delete("party");
+      liveRoomCode = "";
+      emitRoomCode();
+      setPresentationMode(false);
+    }
+
+    if (contentView === view) {
+      try { mainWindow?.contentView.removeChildView(view); } catch {}
+      contentView = null;
+      activeTarget = "home";
+      emitActiveTarget();
+    }
+
+    emitHostState();
+    sendToShell("cpi:content-error", {
+      target,
+      url: view.webContents.getURL(),
+      message: `Embedded ${target} renderer stopped unexpectedly (${details.reason}).`,
+    });
+  });
+
   view.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return;
     if (activeTarget !== target) return;
