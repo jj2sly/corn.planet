@@ -1,6 +1,7 @@
-// Angry Thud's Revenge: the first-time tutorial. Six short cards (thud-howto.js says what), each
-// with a little animated scene drawn with the game's own art. It opens by itself once per browser,
-// on a player's first game; after that the device's MENU tab ("How to play") brings it back.
+// Angry Thud's Revenge: the tutorial. Six short cards (thud-howto.js says what), each with a
+// little animated scene drawn with the game's own art. A player's first game opens only the three
+// that matter straight away (goal, aim, your bird); the build card opens by itself when the first
+// Build Phase starts. The device's MENU tab ("How to play") always shows all six.
 // Skippable at any point: Skip, Esc, or just tapping outside it. Swipe, ← → or the buttons page.
 // A modal <dialog>, so the game underneath doesn't take the taps or keys meanwhile.
 
@@ -16,6 +17,17 @@ const SEEN_KEY = "cpi-party:thud-tutorial-seen";
 export const tutorialSeen = () => store.get("localStorage", SEEN_KEY) === true;
 const markSeen = () => store.set("localStorage", SEEN_KEY, true);
 
+/** The cards a first game opens with; the rest come up when they become relevant. */
+export const FIRST_CARDS = ["goal", "aim", "ability"];
+
+const hintKey = (id) => `cpi-party:thud-hint-${id}`;
+/** A one-off card shown the first time its moment comes (e.g. the first Build Phase). */
+export function showHintOnce(game, id, { me = null } = {}) {
+  if (store.get("localStorage", hintKey(id)) === true || open) return null;
+  store.set("localStorage", hintKey(id), true);
+  return showTutorial(game, { me, only: [id], markAsSeen: false });
+}
+
 let open = null;
 
 /** Closes the tutorial if it's showing (say, because it's now your shot). */
@@ -27,11 +39,12 @@ export function closeTutorial() {
  * Shows the tutorial. `game` is the current game view (for the build timer and your bird);
  * `onClose` runs when it's dismissed however that happens.
  */
-export function showTutorial(game, { me = null, onClose = null } = {}) {
+export function showTutorial(game, { me = null, onClose = null, only = null, markAsSeen = true } = {}) {
   if (open) return open;
   const bird = game?.roster?.find((p) => p.id === me)?.bird ?? game?.you?.bird ?? null;
   const skin = game?.roster?.find((p) => p.id === me)?.skin ?? "classic";
-  const cards = tutorialCards({ buildMs: game?.build?.buildMs, bird });
+  const all = tutorialCards({ buildMs: game?.build?.buildMs, bird });
+  const cards = only ? only.map((id) => all.find((c) => c.id === id)).filter(Boolean) : all;
   let index = 0;
 
   const canvas = el("canvas", { class: "td-tut-art", "aria-hidden": "true" });
@@ -41,13 +54,13 @@ export function showTutorial(game, { me = null, onClose = null } = {}) {
   const dots = el("div", { class: "td-tut-dots", "aria-hidden": "true" }, cards.map(() => el("span")));
   const back = el("button", { class: "btn ghost small", type: "button", text: "Back" });
   const next = el("button", { class: "btn small", type: "button" });
-  const skip = el("button", { class: "td-tut-skip", type: "button", text: "Skip tutorial" });
+  const skip = el("button", { class: "td-tut-skip", type: "button", text: cards.length > 1 ? "Skip tutorial" : "Close" });
   const card = el("div", { class: "td-tut-card" }, el("div", { class: "td-tut-head" }, step, skip), canvas, title, list, dots, el("div", { class: "td-tut-nav" }, back, next));
   const dialog = el("dialog", { class: "td-tutorial", "aria-labelledby": "td-tut-title" }, card);
 
   const paint = () => {
     const c = cards[index];
-    step.textContent = `HOW TO PLAY · ${index + 1} / ${cards.length}`;
+    step.textContent = cards.length > 1 ? `HOW TO PLAY · ${index + 1} / ${cards.length}` : "NEW";
     title.textContent = c.title;
     list.replaceChildren(...c.lines.map((line) => el("li", { text: line })));
     dots.querySelectorAll("span").forEach((d, i) => d.classList.toggle("on", i === index));
@@ -89,7 +102,7 @@ export function showTutorial(game, { me = null, onClose = null } = {}) {
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
   });
   dialog.addEventListener("close", () => {
-    markSeen();
+    if (markAsSeen) markSeen();
     dialog.remove();
     open = null;
     onClose?.();

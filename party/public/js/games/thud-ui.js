@@ -236,6 +236,8 @@ export function forecastPanel() {
         }
       }
       node.replaceChildren(...rows);
+      // Nothing to forecast and no weather: the panel stays out of the way until it matters.
+      node.hidden = !f && !now;
     },
   };
 }

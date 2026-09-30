@@ -22,7 +22,7 @@ import { isMuted, playSfx, setMuted, soundControl } from "./mycob-sound.js";
 import { birdType, SKINS } from "./thud-birds.js";
 import { abilityHow } from "./thud-howto.js";
 import { aimFromPull, clearOf, placement } from "./thud-rules.js";
-import { closeTutorial, showTutorial, tutorialSeen } from "./thud-tutorial.js";
+import { closeTutorial, FIRST_CARDS, showHintOnce, showTutorial, tutorialSeen } from "./thud-tutorial.js";
 import { birdBadge, birdCards, cowBand, forecastPanel, gameTitle, launchSteps, levelCard, liveTimer, meters, overReport, PHASE_TITLE, processBanner } from "./thud-ui.js";
 import { createThudView } from "./thud-world.js";
 
@@ -878,14 +878,23 @@ function buildScreen(s, tools) {
   return { node, update };
 }
 
-/** A player's first game: the tutorial opens once the screen has settled (never again after). */
+/** A player's first game: three cards once the screen has settled (never again after). */
 function firstTimeTutorial(state) {
   if (tutorialSeen()) return;
   const g = state.game;
   setTimeout(() => {
     const shooting = g.phase === "ACTION" && g.action?.shooterId === g.you?.playerId;
-    if (document.querySelector(".td-phone") && !shooting) showTutorial(g, { me: g.you?.playerId });
+    if (document.querySelector(".td-phone") && !shooting) showTutorial(g, { me: g.you?.playerId, only: FIRST_CARDS, onClose: () => latest && buildHint(latest) });
   }, 700);
+}
+
+let latest = null;
+
+/** The build card, the first time a Build Phase starts, and only after the first cards. */
+function buildHint(state) {
+  const g = state.game;
+  if (g.phase !== "BUILD" || !tutorialSeen()) return;
+  setTimeout(() => showHintOnce(g, "build", { me: g.you?.playerId }), 600);
 }
 
 export function render(mount, state, tools) {
@@ -900,4 +909,6 @@ export function render(mount, state, tools) {
     },
     state,
   );
+  latest = state;
+  buildHint(state);
 }
