@@ -8610,3 +8610,39 @@ a.deck-tile {
     color: #ffffff;
   }
 }
+
+/* Round steps (Cornlashing): WRITE → VOTE → RULING, current step lit. */
+.phase-steps {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+}
+
+.phase-steps li {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.phase-steps li + li {
+  position: relative;
+  margin-left: 14px;
+}
+
+.phase-steps li + li::before {
+  content: "→";
+  position: absolute;
+  left: -15px;
+  color: var(--muted);
+}
+
+.phase-steps li.on {
+  border-color: var(--yellow);
+  background: var(--yellow);
+  color: #000;
+}

@@ -8,12 +8,23 @@ const INTRO_FLAVOR = [
   "Records Division reminds you: brevity is a containment strategy.",
 ];
 
-function header({ eyebrow, title, timer }) {
+const STEPS = [
+  ["ANSWERING", "WRITE"],
+  ["VOTING", "VOTE"],
+  ["VERDICT", "RULING"],
+];
+
+/** WRITE → VOTE → RULING, with the current step lit, so the loop reads at a glance. */
+function steps(phase) {
+  return el("ol", { class: "phase-steps", "aria-label": "Round steps" }, STEPS.map(([id, label]) => el("li", { class: id === phase ? "on" : "", text: label })));
+}
+
+function header({ eyebrow, title, timer, phase }) {
   const timerSlot = el("div", {}, timerEl(timer));
   const node = el(
     "div",
     { class: "phase-head" },
-    el("div", {}, el("p", { class: "eyebrow", text: eyebrow }), el("h1", { text: title })),
+    el("div", {}, el("p", { class: "eyebrow", text: eyebrow }), el("h1", { text: title }), phase ? steps(phase) : null),
     timerSlot,
   );
   return { node, setTimer: (t) => timerSlot.replaceChildren(timerEl(t)) };
@@ -46,16 +57,15 @@ function buildIntro(s) {
 
 function buildAnswering(s) {
   const g = s.game;
-  const head = header({ eyebrow: roundLabel(g), title: "FILE YOUR INCIDENT REPORTS", timer: s.timer });
+  const head = header({ eyebrow: roundLabel(g), title: "WRITE YOUR REPORTS", timer: s.timer, phase: "ANSWERING" });
   const grid = el("ul", { class: "agent-grid", "aria-label": "Report filing progress" });
   const node = el(
     "div",
     { class: "stack" },
     head.node,
     el("p", {
-      text: g.breach
-        ? "Everyone received the same incident. Reports stay anonymous until the ruling."
-        : "Each agent has two incidents on their device. Every incident is shared with one other agent. Reports stay anonymous until the ruling.",
+      class: "lede",
+      text: g.breach ? "Everyone has the same incident. Write on your phone." : "Write on your phone. Reports stay anonymous until the ruling.",
     }),
     grid,
   );
@@ -88,7 +98,7 @@ function incidentEyebrow(g, suffix) {
 
 function buildVoting(s) {
   const g = s.game;
-  const head = header({ eyebrow: incidentEyebrow(g, "review board in session"), title: "WHICH REPORT DO YOU ACCEPT?", timer: s.timer });
+  const head = header({ eyebrow: incidentEyebrow(g, "vote"), title: "VOTE FOR THE BEST REPORT", timer: s.timer, phase: "VOTING" });
   const meter = el("p", { class: "vote-meter", role: "status" });
   const node = el(
     "div",
@@ -109,9 +119,9 @@ function buildVoting(s) {
     update(next) {
       head.setTimer(next.timer);
       meter.replaceChildren(
-        "Review board votes: ",
+        "Votes in: ",
         el("strong", { text: `${next.game.votesCast} / ${next.game.votesNeeded}` }),
-        next.game.breach ? " · vote on your device (not for your own report)" : " · vote on your device (authors sit this one out)",
+        next.game.breach ? " · you can't vote for your own" : " · the two authors sit this one out",
       );
     },
   };
@@ -127,7 +137,7 @@ function verdictTitle(verdict) {
 function buildVerdict(s) {
   const g = s.game;
   const { verdict } = g;
-  const head = header({ eyebrow: incidentEyebrow(g, "ruling"), title: verdictTitle(verdict), timer: s.timer });
+  const head = header({ eyebrow: incidentEyebrow(g, "ruling"), title: verdictTitle(verdict), timer: s.timer, phase: "VERDICT" });
   const node = el(
     "div",
     {},

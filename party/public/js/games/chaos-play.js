@@ -59,7 +59,7 @@ function buildIntro(s) {
 }
 
 function buildAnswerForm(s, assignment, index, total, tools) {
-  const t = timerRow(s.timer, `Incident ${index + 1} of ${total}`);
+  const t = timerRow(s.timer, `WRITE · incident ${index + 1} of ${total}`);
   const note = el("p", { class: "notice" });
   const saved = drafts()[assignment.incidentId];
   const textarea = el("textarea", {
@@ -108,7 +108,7 @@ function buildAnswerForm(s, assignment, index, total, tools) {
       },
     },
     el("p", { class: "phone-prompt", id: "prompt", text: assignment.prompt }),
-    el("label", { for: "answer", text: "Your incident report" }),
+    el("label", { for: "answer", text: "Your report (funniest wins)" }),
     textarea,
     counter,
     submit,
@@ -134,7 +134,7 @@ function buildFiled(s, tools) {
     "div",
     { class: "stack" },
     t.node,
-    statusCard("✓", "REPORTS FILED", "You can still edit until the window closes."),
+    statusCard("✓", "REPORTS FILED", "Waiting for the other agents. You can still edit."),
     list,
     tools.leaveButton(),
   );
@@ -168,7 +168,7 @@ function renderAnswering(mount, s, tools) {
 
 function buildVoting(s, tools) {
   const g = s.game;
-  const t = timerRow(s.timer, g.breach ? "Total Breach vote" : `Incident ${g.incidentNumber} of ${g.incidentCount}`);
+  const t = timerRow(s.timer, g.breach ? "VOTE · Total Breach" : `VOTE · incident ${g.incidentNumber} of ${g.incidentCount}`);
 
   if (!g.canVote) {
     return {
@@ -176,7 +176,7 @@ function buildVoting(s, tools) {
         "div",
         { class: "stack" },
         t.node,
-        statusCard("📄", "YOUR REPORT IS UNDER REVIEW", "The review board is voting on this incident. Try to look innocent."),
+        statusCard("📄", "YOUR REPORT IS UP", "The others are voting. Try to look innocent."),
         el("p", { class: "phone-prompt", text: g.prompt }),
       ),
       update: (next) => t.set(next.timer),
@@ -214,7 +214,7 @@ function buildVoting(s, tools) {
     { class: "stack" },
     t.node,
     el("p", { class: "phone-prompt", text: g.prompt }),
-    el("p", { class: "label", id: "voteLabel", text: "Which report do you accept?" }),
+    el("p", { class: "label", id: "voteLabel", text: "Tap the best report." }),
     el("div", { class: "vote-options", role: "group", "aria-labelledby": "voteLabel" }, buttons),
     locked,
     note,
@@ -232,7 +232,7 @@ function buildVoting(s, tools) {
         b.classList.toggle("chosen", chosen);
         b.setAttribute("aria-pressed", String(chosen));
       }
-      locked.textContent = "Vote locked in. Watch the host screen.";
+      locked.textContent = "Vote locked in. Results on the big screen.";
     },
   };
 }
