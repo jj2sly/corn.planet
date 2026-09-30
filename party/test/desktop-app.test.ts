@@ -488,3 +488,20 @@ test("solo Corn or Shit fakes never name the record they were borrowed from", as
     }
   }
 });
+
+test("host title always carries the room code so a resumed mid-game host keeps its phone link", async () => {
+  const host = await readFile(new URL("../public/js/host.js", import.meta.url), "utf8");
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(host, /\$\{PLATFORM_NAME\} — \$\{state\.code\}`/);
+  assert.match(host, /— \$\{PLATFORM_NAME\} — \$\{state\.code\}`/);
+  // The desktop's title regex must accept both the lobby and the in-game form.
+  const pattern = /—\s*([BCDFGHJKLMNPQRSTVWXZ]{4})\s*$/;
+  assert.match(main, /—\\s\*\(\[BCDFGHJKLMNPQRSTVWXZ\]\{4\}\)\\s\*\$/);
+  assert.equal(pattern.exec("STEAM MY DECK — WQTS")?.[1], "WQTS");
+  assert.equal(pattern.exec("ANGRY THUD'S REVENGE — STEAM MY DECK — WQTS")?.[1], "WQTS");
+});
+
+test("a crashed embedded view is closed, not leaked", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /render-process-gone[\s\S]{0,1500}view\.webContents\.close\(\)/);
+});

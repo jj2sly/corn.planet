@@ -213,7 +213,9 @@ function onState(next) {
     if (state.status === "IN_GAME") rememberPlayed(state.config.gameId);
     lastStatus = state.status;
   }
-  document.title = state.status === "LOBBY" ? `${PLATFORM_NAME} — ${state.code}` : `${info?.title ?? "Corn Planet Party"} — ${PLATFORM_NAME}`;
+  // The title always ends with the room code: the desktop app reads it to fill its phone link and
+  // QR, including after it re-opens a host that resumes a room mid-game.
+  document.title = state.status === "LOBBY" ? `${PLATFORM_NAME} — ${state.code}` : `${info?.title ?? "Corn Planet Party"} — ${PLATFORM_NAME} — ${state.code}`;
   // The KERNEL button's quick menu: the host can always end a game and bring everyone back.
   setSystem(state.status === "IN_GAME" ? { gameId: state.config.gameId, canEnd: true, end: () => act("room:lobby") } : null);
   render();

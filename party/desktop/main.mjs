@@ -347,6 +347,10 @@ function createContentView(target) {
       url: view.webContents.getURL(),
       message: `Embedded ${target} renderer stopped unexpectedly (${details.reason}).`,
     });
+    // The dead view is no longer shown or retained; release it instead of leaking its WebContents.
+    setImmediate(() => {
+      try { if (!view.webContents.isDestroyed()) view.webContents.close(); } catch {}
+    });
   });
 
   view.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
