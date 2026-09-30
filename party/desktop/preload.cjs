@@ -22,6 +22,16 @@ if (globalThis.location?.protocol === "file:") {
     copyPlayerLink: () => ipcRenderer.invoke("cpi:copy-player-link"),
     playerQr: () => ipcRenderer.invoke("cpi:player-qr"),
     setPartyUrl: (value) => ipcRenderer.invoke("cpi:set-party-url", value),
+    // Desktop updates: status plus three fixed actions. The updater itself stays in the main process.
+    updateStatus: () => ipcRenderer.invoke("cpi:update-status"),
+    checkForUpdates: () => ipcRenderer.invoke("cpi:check-updates"),
+    installUpdate: () => ipcRenderer.invoke("cpi:install-update"),
+    openUpdateDownload: () => ipcRenderer.invoke("cpi:open-update-download"),
+    onUpdateStatus: (callback) => {
+      const handler = (_event, state) => callback(state);
+      ipcRenderer.on("cpi:update-status", handler);
+      return () => ipcRenderer.removeListener("cpi:update-status", handler);
+    },
     onActiveTarget: (callback) => {
       const handler = (_event, target) => callback(target);
       ipcRenderer.on("cpi:active-target", handler);

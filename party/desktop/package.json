@@ -1,6 +1,6 @@
 {
   "name": "cpi-party-desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Desktop application shell for Corn Planet Party",
   "type": "module",
@@ -9,9 +9,10 @@
     "start": "electron .",
     "pack": "electron-builder --dir",
     "smoke": "node smoke.mjs",
-    "predist": "npm run smoke",
-    "dist": "electron-builder",
-    "check": "node --check main.mjs && node --check preload.cjs && node --check renderer.js && node --check pc/library.js && node --check pc/cornorshit.js"
+    "predist": "node scripts/build-info.mjs && npm run smoke",
+    "dist": "electron-builder --publish never",
+    "postdist": "node scripts/build-info.mjs --artifact",
+    "check": "node --check main.mjs && node --check preload.cjs && node --check renderer.js && node --check updater.mjs && node --check pc/library.js && node --check pc/cornorshit.js"
   },
   "devDependencies": {
     "electron": "44.4.5",
@@ -23,6 +24,8 @@
     "files": [
       "main.mjs",
       "preload.cjs",
+      "updater.mjs",
+      "build-info.json",
       "index.html",
       "renderer.js",
       "styles.css",
@@ -33,18 +36,39 @@
     "directories": {
       "output": "../dist-desktop"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "jj2sly",
+        "repo": "corn.planet",
+        "releaseType": "release"
+      }
+    ],
     "mac": {
       "category": "public.app-category.games",
       "target": [
         "dmg",
         "zip"
-      ]
+      ],
+      "artifactName": "CPI-Party-${version}-${arch}-mac.${ext}"
+    },
+    "dmg": {
+      "artifactName": "CPI-Party-${version}-${arch}.${ext}"
     },
     "win": {
       "target": [
         "nsis",
         "portable"
       ]
+    },
+    "nsis": {
+      "artifactName": "CPI-Party-Setup-${version}.${ext}",
+      "oneClick": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "CPI-Party-Portable-${version}.${ext}"
     },
     "linux": {
       "target": [
@@ -53,6 +77,7 @@
     }
   },
   "dependencies": {
+    "electron-updater": "6.8.10",
     "qrcode": "1.5.4"
   }
 }

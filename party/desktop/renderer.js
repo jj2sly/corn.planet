@@ -22,12 +22,25 @@ const readyProtocol = document.querySelector("#readyProtocol");
 const readinessIssues = document.querySelector("#readinessIssues");
 const rerunReadiness = document.querySelector("#rerunReadiness");
 const startGroupNight = document.querySelector("#startGroupNight");
+const updateCard = document.querySelector("#updateCard");
+const updateHeadline = document.querySelector("#updateHeadline");
+const updateDetail = document.querySelector("#updateDetail");
+const updateProgress = document.querySelector("#updateProgress");
+const updateProgressBar = document.querySelector("#updateProgressBar");
+const checkForUpdates = document.querySelector("#checkForUpdates");
+const installUpdate = document.querySelector("#installUpdate");
+const openUpdateDownload = document.querySelector("#openUpdateDownload");
+const updateLater = document.querySelector("#updateLater");
+const updatePill = document.querySelector("#updatePill");
 const SERVER_TARGETS = new Set(["party", "account", "prompts", "hall"]);
 let config = null;
 let serverOnline = false;
 let hostRunning = false;
 let healthCheckInFlight = false;
 let readinessCheckInFlight = false;
+let updateState = null;
+let updateLaterFor = null;
+let updateNotice = null;
 
 function refreshAvailabilityControls() {
   for (const button of document.querySelectorAll("[data-game]")) {
@@ -77,6 +90,72 @@ function paintHostState(detail) {
   const active = Boolean(detail?.active);
   hostLiveBanner.classList.toggle("hidden", !hostRunning || active);
   refreshAvailabilityControls();
+  if (updateState) paintUpdate(updateState);
+}
+
+const NOTIFY_REASONS = {
+  "unsigned-mac": "This Mac build isn't code-signed, so macOS won't let it replace itself. Download the new version from GitHub and drag it into Applications.",
+  portable: "The portable EXE doesn't update itself. Download the new version from GitHub (the installer version updates automatically).",
+  unsupported: "Download the new version from GitHub.",
+};
+
+function formatClock(ms) {
+  return ms ? new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+}
+
+/** The Command Center's DESKTOP UPDATE card. Every state is informational; none blocks the app. */
+function paintUpdate(state) {
+  updateState = state;
+  const phase = state?.phase ?? "idle";
+  const next = state?.availableVersion ? `v${state.availableVersion}` : "a new version";
+  const later = updateLaterFor && updateLaterFor === state?.availableVersion;
+  let headline = `Version ${state?.currentVersion ?? "—"}`;
+  let detail = state?.message || "Updates are checked automatically.";
+  let tone = "";
+
+  if (phase === "disabled") detail = state.message || "Updates run in installed builds.";
+  else if (phase === "checking") detail = "Checking for updates…";
+  else if (phase === "up-to-date") {
+    headline = `Up to date · v${state.currentVersion}`;
+    detail = state.message || (state.checkedAt ? `Checked at ${formatClock(state.checkedAt)}.` : "");
+  } else if (phase === "available") {
+    headline = `UPDATE AVAILABLE · ${next}`;
+    detail = NOTIFY_REASONS[state.notifyReason] ?? NOTIFY_REASONS.unsupported;
+    tone = "warn";
+  } else if (phase === "downloading") {
+    headline = `UPDATE AVAILABLE · ${next}`;
+    detail = `Downloading ${state.percent ?? 0}%`;
+  } else if (phase === "ready") {
+    headline = "UPDATE READY";
+    detail = later ? `CPI Party ${state.availableVersion} installs the next time you quit.` : `CPI Party ${state.availableVersion} is ready.`;
+    if (state.blocked && hostRunning) {
+      detail = state.message;
+      tone = "warn";
+    }
+  } else if (phase === "installing") {
+    headline = "UPDATING";
+    detail = state.message || "Restarting to finish the update…";
+  } else if (phase === "error") {
+    detail = state.message;
+    tone = "bad";
+  }
+  if (updateNotice) {
+    detail = updateNotice;
+    tone = "warn";
+  }
+
+  updateHeadline.textContent = headline;
+  updateDetail.textContent = detail;
+  updateDetail.className = `update-detail${tone ? ` ${tone}` : ""}`;
+  updateProgress.hidden = phase !== "downloading";
+  updateProgressBar.style.width = `${Math.max(0, Math.min(100, state?.percent ?? 0))}%`;
+  checkForUpdates.disabled = ["disabled", "checking", "downloading", "ready", "installing"].includes(phase);
+  installUpdate.hidden = phase !== "ready" || later;
+  updateLater.hidden = phase !== "ready" || later;
+  openUpdateDownload.hidden = phase !== "available";
+  updateCard.classList.toggle("ready", (phase === "ready" && !later) || phase === "available");
+  updatePill.hidden = !((phase === "ready" && !later) || phase === "available");
+  updatePill.textContent = phase === "ready" ? "UPDATE READY" : "UPDATE AVAILABLE";
 }
 
 for (const button of document.querySelectorAll("[data-target]")) {
@@ -97,6 +176,11 @@ window.cpiDesktop.onRoomCode((detail) => {
 });
 window.cpiDesktop.onPresentationMode((enabled) => {
   document.body.classList.toggle("presentation-mode", enabled);
+});
+
+window.cpiDesktop.onUpdateStatus((state) => {
+  updateNotice = null;
+  paintUpdate(state);
 });
 
 window.cpiDesktop.onContentError((detail) => {
@@ -250,7 +334,8 @@ paintActiveTarget(config.activeTarget || "home");
 paintHostState(await window.cpiDesktop.hostStatus());
 paintRoomCode(await window.cpiDesktop.roomCode());
 partyUrl.textContent = config.partyBase;
-version.textContent = `CPI PARTY DESKTOP v${config.version}`;
+version.textContent = `CPI PARTY DESKTOP v${config.version}${config.build?.commit ? ` · ${config.build.commit}` : ""}`;
+paintUpdate(await window.cpiDesktop.updateStatus());
 input.value = config.partyBase;
 
 save.addEventListener("click", async () => {
@@ -273,6 +358,34 @@ save.addEventListener("click", async () => {
 
 
 rerunReadiness.addEventListener("click", () => void runReadiness());
+
+checkForUpdates.addEventListener("click", async () => {
+  updateNotice = null;
+  paintUpdate(await window.cpiDesktop.checkForUpdates());
+});
+
+installUpdate.addEventListener("click", async () => {
+  installUpdate.disabled = true;
+  try {
+    const result = await window.cpiDesktop.installUpdate();
+    // Blocked while a host is live: the download stays ready and nothing restarts.
+    if (!result?.ok) {
+      updateNotice = result?.message || "The update could not be installed.";
+      paintUpdate(updateState);
+    }
+  } finally {
+    installUpdate.disabled = false;
+  }
+});
+
+updateLater.addEventListener("click", () => {
+  updateLaterFor = updateState?.availableVersion ?? null;
+  paintUpdate(updateState);
+});
+
+openUpdateDownload.addEventListener("click", () => void window.cpiDesktop.openUpdateDownload());
+
+updatePill.addEventListener("click", () => updateCard.scrollIntoView({ behavior: "smooth", block: "center" }));
 
 usePublicServer.addEventListener("click", () => {
   if (!config?.publicPartyBase) return;

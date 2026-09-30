@@ -32,7 +32,10 @@
         <p class="eyebrow">CPI PARTY // DESKTOP APPLICATION</p>
         <h1>COMMAND CENTER</h1>
       </div>
-      <div id="serverStatus" class="status">CHECKING SERVER…</div>
+      <div class="header-status">
+        <button id="updatePill" class="update-pill" type="button" hidden>UPDATE READY</button>
+        <div id="serverStatus" class="status">CHECKING SERVER…</div>
+      </div>
     </header>
 
     <section id="hostLiveBanner" class="host-live hidden">
@@ -170,6 +173,21 @@
         <button id="copyPlayerLink" class="secondary">COPY PHONE LINK</button>
       </div>
       <p id="serverMessage" class="server-message"></p>
+    </section>
+
+    <section id="updateCard" class="update-card">
+      <div>
+        <p class="eyebrow accent">DESKTOP UPDATE</p>
+        <h3 id="updateHeadline">Version —</h3>
+        <p id="updateDetail" class="update-detail">Checking the installed version…</p>
+        <div id="updateProgress" class="update-progress" hidden><span id="updateProgressBar"></span></div>
+      </div>
+      <div class="update-actions">
+        <button id="checkForUpdates" type="button">CHECK FOR UPDATES</button>
+        <button id="installUpdate" type="button" class="primary" hidden>RESTART &amp; UPDATE</button>
+        <button id="openUpdateDownload" type="button" class="primary" hidden>DOWNLOAD UPDATE</button>
+        <button id="updateLater" type="button" hidden>LATER</button>
+      </div>
     </section>
 
     <footer>

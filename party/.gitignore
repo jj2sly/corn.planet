@@ -4,3 +4,6 @@ data/
 *.db
 *.db-shm
 *.db-wal
+desktop/build-info.json
+desktop/dev-app-update.yml
+dist-desktop/

@@ -20,6 +20,18 @@ IMPORTANT
 - Use RETURN TO HOST in the Command Center to get back to it.
 - STOP HOST DISPLAY intentionally disconnects the host display.
 
+UPDATES
+- The Command Center's DESKTOP UPDATE card shows your version and checks GitHub Releases shortly after
+  launch and every few hours. CHECK FOR UPDATES checks right away.
+- Windows (installed with CPI-Party-Setup): new versions download in the background. When one is
+  ready, choose RESTART & UPDATE, or LATER to have it install the next time you quit. It will not
+  restart while a Party host is live: stop the host first.
+- Windows portable EXE: does not update itself. The card tells you when a new version is out and
+  DOWNLOAD UPDATE opens the release page.
+- macOS: these builds are not code-signed, so macOS will not let the app replace itself. The card
+  tells you when a new version is out; DOWNLOAD UPDATE opens the release page. Replace the app in
+  Applications with the new one. Your Party server setting is kept.
+
 LOCAL SERVER
 If the Party server is running locally, the desktop app automatically tries to turn localhost into this computer's LAN IP for the phone QR. Phones still need to be able to reach the computer over the same network.
 

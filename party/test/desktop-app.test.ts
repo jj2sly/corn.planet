@@ -444,7 +444,7 @@ test("desktop dist launches the app to prove the preload bridge works", async ()
   const smoke = await readFile(new URL("../desktop/smoke.mjs", import.meta.url), "utf8");
   const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
   // predist runs inside the existing "npm run dist" CI step, so every packaged build is launch-tested.
-  assert.equal(desktop.scripts.predist, "npm run smoke");
+  assert.match(desktop.scripts.predist, /(^|&& )npm run smoke$/);
   assert.equal(desktop.scripts.smoke, "node smoke.mjs");
   assert.ok(!desktop.build.files.includes("smoke.mjs"));
   assert.match(smoke, /CPI_DESKTOP_SMOKE: "1"/);

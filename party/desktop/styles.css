@@ -96,6 +96,21 @@ footer { display: flex; justify-content: space-between; margin-top: 24px; color:
 .host-live .danger { border-color: #663535; background: #1a0c0c; color: #e4b1b1; }
 .host-live .danger:hover { border-color: #a95151; }
 
+.header-status { display: flex; align-items: center; gap: 10px; }
+.update-pill { padding: 8px 12px; border: 1px solid #ffd400; background: #ffd400; color: #090b0d; font-size: 11px; font-weight: 800; letter-spacing: .08em; cursor: pointer; }
+.update-card { margin-top: 18px; border: 1px solid #282d31; background: #0e1113; padding: 20px; display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; }
+.update-card.ready { border-color: #ffd400; box-shadow: 0 0 0 1px rgba(255,212,0,.18); }
+.update-card h3 { margin-top: 6px; }
+.update-detail { margin: 0; font-size: 13px; }
+.update-detail.bad { color: #d48f8f; }
+.update-detail.warn { color: #ffd400; }
+.update-progress { margin-top: 12px; height: 6px; background: #1a1e21; border: 1px solid #30353a; max-width: 420px; }
+.update-progress span { display: block; height: 100%; width: 0; background: #ffd400; transition: width .3s ease; }
+.update-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.update-actions button { min-height: 42px; padding: 0 16px; border: 1px solid #30353a; background: #13171a; color: #e5e7e9; font-weight: 700; cursor: pointer; }
+.update-actions button:hover:not(:disabled) { border-color: #ffd400; }
+.update-actions button.primary { border-color: #ffd400; background: #ffd400; color: #090b0d; font-weight: 800; }
+.update-actions button:disabled { opacity: .5; cursor: default; }
 .settings-card.attention { border-color: #ffd400; box-shadow: 0 0 0 1px rgba(255,212,0,.18), 0 18px 60px rgba(0,0,0,.28); }
 .settings-card.attention .eyebrow { color: #ffd400; }
 

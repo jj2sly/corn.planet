@@ -4,6 +4,8 @@ import fs from "node:fs";
 import { networkInterfaces } from "node:os";
 import path from "node:path";
 import QRCode from "qrcode";
+import electronUpdater from "electron-updater";
+import { CHECK_INTERVAL_MS, STARTUP_DELAY_MS, createUpdateController, notifyReasonFor, updateMode } from "./updater.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PARTY_URL = process.env.CPI_PARTY_URL?.trim() || "http://127.0.0.1:3000";
@@ -14,6 +16,17 @@ const DEFAULT_DATABASE_URL = process.env.CPI_DATABASE_URL?.trim() || "https://jj
 const SIDEBAR_WIDTH = 220;
 const PC_ROOT_URL = pathToFileURL(path.join(__dirname, "pc") + path.sep).toString();
 const SMOKE_TEST = process.env.CPI_DESKTOP_SMOKE === "1";
+// Written at package time (scripts/build-info.mjs) so a build names the commit it came from.
+const BUILD_INFO = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, "build-info.json"), "utf8"));
+  } catch {
+    return null;
+  }
+})();
+// Unpackaged test runs only: point the updater at a local feed to rehearse an update. Packaged
+// builds ignore this and always use GitHub Releases.
+const DEV_UPDATE_FEED = app.isPackaged ? "" : process.env.CPI_UPDATER_DEV_FEED?.trim() || "";
 
 let mainWindow = null;
 let contentView = null;
@@ -25,6 +38,29 @@ let allowWindowClose = false;
 let quitRequested = false;
 let settings = null;
 let liveRoomCode = "";
+
+const PORTABLE_BUILD = Boolean(process.env.PORTABLE_EXECUTABLE_FILE);
+const UPDATE_MODE = DEV_UPDATE_FEED
+  ? (process.env.CPI_UPDATER_DEV_MODE === "install" ? "install" : "notify")
+  : updateMode({ platform: process.platform, isPackaged: app.isPackaged, portable: PORTABLE_BUILD });
+
+const updates = createUpdateController({
+  mode: UPDATE_MODE,
+  notifyReason: notifyReasonFor({ platform: process.platform, portable: PORTABLE_BUILD }),
+  currentVersion: app.getVersion(),
+  // The same retained-host state the close warning and Command Center use.
+  hostIsLive: () => hostIsRetained(),
+  emit: (state) => sendToShell("cpi:update-status", state),
+  openExternal: (url) => void shell.openExternal(url),
+  getUpdater: () => {
+    const { autoUpdater } = electronUpdater;
+    if (DEV_UPDATE_FEED) {
+      autoUpdater.forceDevUpdateConfig = true;
+      autoUpdater.setFeedURL({ provider: "generic", url: DEV_UPDATE_FEED });
+    }
+    return autoUpdater;
+  },
+});
 
 const GAME_IDS = new Set(["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]);
 const PC_GAME_IDS = new Set(["cornorshit-solo"]);
@@ -535,10 +571,14 @@ function runSmokeTest(window) {
         bridge: typeof window.cpiDesktop,
         version: window.cpiDesktop ? (await window.cpiDesktop.config()).version : null,
         pcBridge: typeof window.cpiDesktop?.launchPcGame,
+        updateBridge: typeof window.cpiDesktop?.checkForUpdates,
+        updateVersion: window.cpiDesktop ? (await window.cpiDesktop.updateStatus()).currentVersion : null,
+        updateCard: Boolean(document.querySelector("#updateCard")),
         heading: document.querySelector("h1")?.textContent ?? "",
       }))()`, true);
       clearTimeout(timer);
-      const ok = result.bridge === "object" && result.version === app.getVersion() && result.pcBridge === "function";
+      const ok = result.bridge === "object" && result.version === app.getVersion() && result.pcBridge === "function"
+        && result.updateBridge === "function" && result.updateVersion === app.getVersion() && result.updateCard;
       finish(ok, JSON.stringify(result));
     } catch (error) {
       clearTimeout(timer);
@@ -583,6 +623,7 @@ function installMenu() {
           accelerator: "CmdOrCtrl+Shift+J",
           click: () => clipboard.writeText(playerJoinUrl()),
         },
+        { label: "Check for Updates…", click: () => void updates.check() },
         { type: "separator" },
         {
           label: "Reload Current View",
@@ -683,12 +724,18 @@ handle("cpi:copy-player-link", () => {
   return url;
 });
 
+handle("cpi:update-status", () => updates.status());
+handle("cpi:check-updates", () => updates.check());
+handle("cpi:install-update", () => updates.install());
+handle("cpi:open-update-download", () => updates.openDownloadPage());
+
 handle("cpi:config", () => ({
   ...loadSettings(),
   activeTarget,
   presentationMode,
   publicPartyBase: PUBLIC_PARTY_URL,
   version: app.getVersion(),
+  build: BUILD_INFO ? { commit: String(BUILD_INFO.commit || "").slice(0, 7), builtAt: BUILD_INFO.builtAt || null } : null,
 }));
 
 handle("cpi:launch-game", (_event, gameId) => {
@@ -873,7 +920,14 @@ if (!gotSingleInstanceLock) {
   });
 
   app.on("before-quit", () => { quitRequested = true; });
-  app.whenReady().then(createWindow);
+  app.whenReady().then(() => {
+    createWindow();
+    // Update checks never block startup and never run during the CI launch check.
+    if (!SMOKE_TEST && UPDATE_MODE !== "dev") {
+      setTimeout(() => void updates.check(), STARTUP_DELAY_MS);
+      setInterval(() => void updates.check(), CHECK_INTERVAL_MS);
+    }
+  });
   app.on("window-all-closed", () => {
     if (process.platform !== "darwin") app.quit();
   });
