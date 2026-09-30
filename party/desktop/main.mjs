@@ -498,10 +498,27 @@ ipcMain.handle("cpi:launch-game", (_event, gameId) => {
 });
 
 ipcMain.handle("cpi:open-canon-url", (_event, value) => {
-  const url = String(value || "");
+  const raw = String(value || "");
   const databaseBase = loadSettings().databaseBase;
-  if (!url.startsWith(databaseBase)) throw new Error("That canon URL is outside the configured CPI Database.");
-  openContent(url, "database");
+  let requested;
+  let allowed;
+  try {
+    requested = new URL(raw);
+    allowed = new URL(databaseBase);
+  } catch {
+    throw new Error("That canon URL is not valid.");
+  }
+
+  const allowedPath = allowed.pathname.endsWith("/") ? allowed.pathname : allowed.pathname + "/";
+  const requestedPath = requested.pathname.endsWith("/") ? requested.pathname : requested.pathname + "/";
+  const sameOrigin = requested.origin === allowed.origin;
+  const insideDatabasePath = requested.pathname === allowed.pathname || requestedPath.startsWith(allowedPath);
+
+  if (!sameOrigin || !insideDatabasePath) {
+    throw new Error("That canon URL is outside the configured CPI Database.");
+  }
+
+  openContent(requested.toString(), "database");
   return true;
 });
 
