@@ -193,9 +193,9 @@ function createContentView(target) {
 
   view.webContents.on("page-title-updated", (_event, title) => {
     if (target !== "party") return;
-    const match = /(?:^|\s|—)([BCDFGHJKLMNPQRSTVWXZ]{4})(?:$|\s)/.exec(String(title).toUpperCase());
-    const nextCode = match?.[1] ?? "";
-    if (nextCode !== liveRoomCode) {
+    const match = /—\s*([BCDFGHJKLMNPQRSTVWXZ]{4})\s*$/.exec(String(title).toUpperCase());
+    const nextCode = match?.[1];
+    if (nextCode && nextCode !== liveRoomCode) {
       liveRoomCode = nextCode;
       emitRoomCode();
     }
