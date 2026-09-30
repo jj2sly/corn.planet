@@ -29,7 +29,7 @@ function buildIntro(s) {
     "div",
     { class: "stack" },
     t.node,
-    statusCard("🌽", "PULLING A RECORD…", `Next up: ${g.subject}. Two claims, one is real.`),
+    statusCard("🌽", "PULLING A RECORD…", `Next up: ${g.subject}.`),
   );
   return { node, update: (next) => t.set(next.timer) };
 }
@@ -71,15 +71,15 @@ function buildGuessing(s, tools) {
       b.classList.toggle("chosen", chosen);
       b.setAttribute("aria-pressed", String(chosen));
     }
-    locked.textContent = "Call locked in. Watch the host screen.";
+    locked.textContent = "Locked in. Answer on the big screen.";
   };
 
   const node = el(
     "div",
     { class: "stack" },
     t.node,
-    el("p", { class: "phone-prompt", text: `Which one does the database actually say about ${g.subject}?` }),
-    el("p", { class: "label", id: "claimLabel", text: "Corn is on record. Shit is not." }),
+    el("p", { class: "phone-prompt", text: "Which one is CPI canon?" }),
+    el("p", { class: "label", id: "claimLabel", text: g.subject }),
     el("div", { class: "vote-options", role: "group", "aria-labelledby": "claimLabel" }, buttons),
     locked,
     note,
@@ -104,8 +104,8 @@ function buildReveal(s) {
     !mine || !mine.guessed
       ? statusCard("–", "NO CALL FILED", "You didn't call this one.")
       : mine.correct
-        ? statusCard("★", `+${g.pointsForCorrect} POINTS`, "That one really is on record.")
-        : statusCard("✕", "FABRICATED", "You went for the claim that isn't in the database.");
+        ? statusCard("★", `CORN · +${g.pointsForCorrect}`, "You picked the canon claim.")
+        : statusCard("✕", "THAT WAS SHIT", "You picked the fake claim.");
 
   return {
     node: el(
@@ -113,12 +113,12 @@ function buildReveal(s) {
       { class: "stack" },
       card,
       // Labelled, because this is the true claim and it sits right under the word "FABRICATED".
-      el("p", { class: "eyebrow", text: "On record" }),
+      el("p", { class: "eyebrow", text: "The canon claim" }),
       el("p", {}, el("strong", { text: `“${real.text}”` })),
       el(
         "div",
         { class: "reference" },
-        el("span", { class: "eyebrow", text: "Database reference" }),
+        el("span", { class: "eyebrow", text: "Source: CPI Database" }),
         el(
           "a",
           { class: "reference-id", href: g.reference.url, target: "_blank", rel: "noopener noreferrer" },

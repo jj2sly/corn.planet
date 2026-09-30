@@ -41,7 +41,7 @@ function referenceBlock(g) {
   return el(
     "div",
     { class: "reference" },
-    el("span", { class: "eyebrow", text: "Database reference" }),
+    el("span", { class: "eyebrow", text: "Source: CPI Database" }),
     el("strong", { class: "reference-id", text: g.reference.ref }),
     el("span", { class: "muted", text: g.reference.title }),
   );
@@ -54,7 +54,7 @@ function buildIntro(s) {
     "div",
     {},
     head.node,
-    el("div", { class: "intro" }, el("p", { class: "round flicker", text: g.subject }), el("p", { class: "flavor", text: "Two claims. One is documented. One is not." })),
+    el("div", { class: "intro" }, el("p", { class: "round flicker", text: g.subject }), el("p", { class: "flavor", text: "One claim is CPI canon. One is shit." })),
   );
   return { node, update: (next) => head.setTimer(next.timer) };
 }
@@ -68,7 +68,7 @@ function buildGuessing(s) {
     "div",
     {},
     head.node,
-    el("div", { class: "prompt-card", text: `Both claims are about ${g.subject}. One of them is in the database.` }),
+    el("div", { class: "prompt-card", dataset: { label: "THE RECORD" }, text: `${g.subject}: one claim is CPI canon. One is shit.` }),
     el("div", { class: "reports" }, g.options.map((o, i) => claimCard(o, i, null))),
     meter,
   );
@@ -77,7 +77,7 @@ function buildGuessing(s) {
     meter.replaceChildren(
       "Calls filed: ",
       el("strong", { text: `${next.game.guessesCast} / ${next.game.guessesNeeded}` }),
-      " · call it on your device",
+      " · pick on your phone",
     );
   };
   setMeter(s);
@@ -93,10 +93,10 @@ function buildGuessing(s) {
 
 function buildReveal(s) {
   const g = s.game;
-  const right = g.scoreboard.filter((p) => p.correct).length;
+  const winners = g.scoreboard.filter((p) => p.correct);
   const head = header({
     eyebrow: roundLabel(g),
-    title: right === 0 ? "NOBODY CALLED IT" : "THE RECORD SAYS…",
+    title: winners.length === 0 ? "NOBODY CALLED IT" : "THIS ONE IS CANON",
     timer: s.timer,
   });
 
@@ -106,11 +106,8 @@ function buildReveal(s) {
     head.node,
     el("div", { class: "reports" }, g.options.map((o, i) => claimCard(o, i, o.real ? "real" : "fake"))),
     referenceBlock(g),
-    el("p", {
-      class: "banner",
-      text: `The fabrication borrowed that line from ${g.fabricatedFrom.ref} — ${g.fabricatedFrom.title}. It is not canon.`,
-    }),
-    el("p", { class: "vote-meter", text: `${plural(right, "agent")} called it correctly.` }),
+    el("p", { class: "muted", text: `The shit was borrowed from ${g.fabricatedFrom.ref} (${g.fabricatedFrom.title}).` }),
+    el("p", { class: "vote-meter" }, winners.length ? ["Called it: ", el("strong", { text: winners.map((w) => w.name).join(", ") })] : "No points this round."),
     scoreboardEl(rank(s.players)),
   );
   return { node, update: (next) => head.setTimer(next.timer) };

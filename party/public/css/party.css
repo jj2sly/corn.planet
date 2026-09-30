@@ -907,6 +907,11 @@ th {
   padding: 2px 10px;
 }
 
+/* A game can relabel the card: <div class="prompt-card" data-label="THE RECORD">. */
+.prompt-card[data-label]::before {
+  content: attr(data-label);
+}
+
 .reports {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
