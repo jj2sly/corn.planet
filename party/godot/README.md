@@ -1,86 +1,66 @@
-# CPI Party Godot Client
+# CPI Godot Game Modules
 
-The native 3D client for CPI Party. It is being built alongside the existing browser party client so the server/game architecture can migrate without throwing away working systems.
+Godot is reserved for CPI games that benefit from a dedicated game engine. The main CPI Party launcher is the Electron desktop app in `party/desktop/`, and the six Party games continue to use the authoritative Node/Socket.IO Party server plus browser phone controllers.
 
-## Current state
+Do not migrate the working Party catalog into Godot just for architectural consistency.
 
-Phase 1 (native foundation) is in place:
-- native CPI Party library shell
-- Cold Case kitchen and refrigerator entry
-- interconnected interior, pantry, power, freezer, deep interior, outpost, and checkpoint scenes
-- first-person keyboard/mouse movement
-- temperature progression
-- food encounter foundation
-- power and cooling repair puzzles
-- technician outpost foundation
-- core repair interaction
-- mission completion/debrief foundation
-- shared native runtime, quality, session, and input modules
+## Cold Case
 
-Phase 2 (server bridge) is in place:
-- native host room creation
-- native player room joining
-- session tokens
-- authoritative room-state polling
-- native game input forwarding
-- host action forwarding
-- host configuration/start endpoints
-- native session leave
-- same Party RoomManager and game state as the browser client
+`CPI: Cold Case` is currently a back-burner PC-game prototype.
 
-See `party/docs/NATIVE_APP_BRIDGE.md` for the transport contract.
+The old first-person 3D prototype has been retired. Cold Case is now being rebuilt as a top-down 2D/2.5D cooperative mission inspired by the readability of social-deduction room layouts without copying another game's art, roles or rules.
 
-## Authority boundary
+Current top-down foundation:
 
-Godot owns:
-- 3D rendering
-- scenes
-- materials
-- lighting
-- animation
-- particles
-- local input
-- camera
-- physics presentation
-- device quality
-- local presentation of authoritative state
+- room-based impossible refrigerator map
+- keyboard top-down movement
+- camera follow
+- kitchen / entry / food storage / power / freezer / technician outpost / deep interior
+- temperature zones
+- warm technician-outpost recovery
+- food-threat chase foundation
+- repair interactions
+- stabilized checkpoint
+- refrigerator core repair sequence
+- extraction objective and mission-complete state
+- CPI mission HUD
+- reusable temperature controller
+- reusable core-repair logic
 
-The Party server owns:
-- accounts
-- rooms
-- multiplayer authority
-- timers
-- game/session state
-- scores
-- persistent data
-- statistics
-- canon access
+Cold Case remains lower priority than CPI Party group-night reliability.
 
-Never move authority into the Godot client just to make a feature easier.
+## Intended Cold Case direction
 
-## Platform direction
+Keep the original mission concept while making production practical:
 
-The native client is now being treated as the actual CPI application, not a Cold Case launcher. The shell owns:
-- Home / command center
-- game library and module registry
-- party-room control
-- CPST Database read-only canon access
-- local personnel profile
-- shared client settings
-- the shared native session/runtime boundary
+1. Explore an interconnected impossible refrigerator from a top-down view.
+2. Repair short interactive systems instead of building full 3D repair interfaces.
+3. Use room hazards, cold zones, food threats and system failures to create pressure.
+4. Find the missing CPI Refrigerator Technician as an optional/secondary objective.
+5. Stabilize the refrigerator core and extract.
+6. Preserve `STABILIZED — MONITORING REQUIRED` as the debrief state.
+7. Add multiplayer/network authority only after the local gameplay loop is solid.
 
-Game modules plug into this shell instead of creating their own account, room, settings, or canon systems.
+Do not invent Chuck notes or new CPI canon text in code. Canon-facing narrative content remains user-controlled.
 
-### Migration order
+## Shared runtime
 
-1. Keep the application shell and shared runtime stable.
-2. Move existing Party games behind the native module contract one at a time.
-3. Replace temporary module placeholders with their real native gameplay when ready.
-4. Add authenticated CPI identity and server-backed profile/stat persistence.
-5. Replace state polling with native realtime transport where needed.
-6. Add platform-specific input and quality profiles.
-7. Export the same Godot project for desktop and mobile targets.
+The existing Godot shell/runtime code remains available for future native modules:
 
-The browser client remains the fallback/debug implementation during migration.
+- identity/session interfaces
+- networking bridge
+- navigation
+- audio
+- quality settings
+- module registration
 
-The browser client remains the fallback/debug implementation during migration.
+The Party server remains authoritative for shared CPI accounts, rooms, statistics and canon where a native game later needs those systems.
+
+## Platform strategy
+
+- **CPI Party desktop launcher:** Electron
+- **Party phone controllers:** browser `/play`
+- **Six multiplayer Party games:** existing web/Socket.IO stack
+- **Cold Case / future engine-heavy PC games:** Godot modules launched from CPI Party when ready
+
+This keeps the current Party platform shippable while still giving games like Cold Case a real engine when they need one.
