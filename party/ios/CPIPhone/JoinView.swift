@@ -50,7 +50,7 @@ struct JoinView: View {
                             .font(.system(size: 30, weight: .bold, design: .monospaced))
                             .multilineTextAlignment(.center)
                             .textFieldStyle(.roundedBorder)
-                            .onChange(of: appState.roomCode) { _, value in
+                            .onChange(of: appState.roomCode) { value in
                                 appState.roomCode = String(value.uppercased().filter { $0.isLetter }.prefix(4))
                             }
                     }
