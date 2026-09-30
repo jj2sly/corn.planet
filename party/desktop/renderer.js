@@ -2,6 +2,9 @@ const status = document.querySelector("#serverStatus");
 const hostLiveBanner = document.querySelector("#hostLiveBanner");
 const returnToHost = document.querySelector("#returnToHost");
 const stopHostDisplay = document.querySelector("#stopHostDisplay");
+const liveRoomCode = document.querySelector("#liveRoomCode");
+const readinessRoomCode = document.querySelector("#readinessRoomCode");
+const copyRoomCode = document.querySelector("#copyRoomCode");
 const partyUrl = document.querySelector("#partyUrl");
 const version = document.querySelector("#version");
 const input = document.querySelector("#partyServerInput");
@@ -59,6 +62,13 @@ function paintActiveTarget(target) {
   }
 }
 
+function paintRoomCode(detail) {
+  const code = String(detail?.code || "").toUpperCase();
+  liveRoomCode.textContent = code || "—";
+  readinessRoomCode.textContent = code || "WAITING FOR HOST";
+  copyRoomCode.disabled = !code;
+}
+
 function paintHostState(detail) {
   hostRunning = Boolean(detail?.running);
   const active = Boolean(detail?.active);
@@ -76,6 +86,7 @@ for (const button of document.querySelectorAll("[data-target]")) {
 
 window.cpiDesktop.onActiveTarget((target) => paintActiveTarget(target));
 window.cpiDesktop.onHostState((detail) => paintHostState(detail));
+window.cpiDesktop.onRoomCode((detail) => paintRoomCode(detail));
 window.cpiDesktop.onPresentationMode((enabled) => {
   document.body.classList.toggle("presentation-mode", enabled);
 });
@@ -198,6 +209,7 @@ async function checkServer({ quiet = false } = {}) {
 let config = await window.cpiDesktop.config();
 paintActiveTarget(config.activeTarget || "home");
 paintHostState(await window.cpiDesktop.hostStatus());
+paintRoomCode(await window.cpiDesktop.roomCode());
 partyUrl.textContent = config.partyBase;
 version.textContent = `CPI PARTY DESKTOP v${config.version}`;
 input.value = config.partyBase;
@@ -256,3 +268,11 @@ stopHostDisplay.addEventListener("click", async () => {
 
 setInterval(() => void checkServer({ quiet: true }), 30_000);
 setInterval(() => void runReadiness(), 120_000);
+
+
+copyRoomCode.addEventListener("click", async () => {
+  const code = await window.cpiDesktop.copyRoomCode();
+  if (!code) return;
+  message.textContent = `Copied room code ${code}`;
+  message.className = "server-message ok";
+});
