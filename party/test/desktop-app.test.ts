@@ -459,3 +459,32 @@ test("Escape leaves presentation mode even when the sidebar shell has focus", as
   assert.match(main, /view\.webContents\.on\("before-input-event", exitPresentationOnEscape\)/);
   assert.match(main, /contentView\.webContents\.focus\(\)/);
 });
+
+test("solo Corn or Shit fakes never name the record they were borrowed from", async () => {
+  const { runInNewContext } = await import("node:vm");
+  const source = await readFile(new URL("../desktop/pc/cornorshit.js", import.meta.url), "utf8");
+  const stub = () => ({ classList: { add() {}, remove() {}, contains: () => false }, addEventListener() {}, querySelector: stub, focus() {} });
+  const context: Record<string, unknown> = {
+    document: { querySelector: stub, querySelectorAll: () => [] },
+    window: { addEventListener() {}, cpiDesktop: { fetchCanon: () => new Promise(() => {}) } },
+  };
+  // Top-level function declarations in the script become globals of the sandbox.
+  runInNewContext(source, context);
+  const build = context.buildCandidates as (records: unknown[]) => { source: { title: string }; donor: { title: string }; options: { text: string; real: boolean }[] }[];
+  const nameVariants = context.nameVariants as (title: string) => string[];
+  const records = [
+    { ref: "CPE-001", kind: "entity", title: "Thad Phelps", fields: { description: "Thad Phelps is a teen who partakes in rituals.", containment: "STANDARD" } },
+    { ref: "CPE-002", kind: "entity", title: "Spike", fields: { description: "Spike the rabbit was a beloved pet.", containment: "Standard" } },
+    { ref: "CPE-003", kind: "entity", title: "Jack “Snaggletooth” Cummins", fields: { description: "Jack Cummins terrorizes the lunch table.", containment: "MAXIMUM" } },
+  ];
+  for (let attempt = 0; attempt < 30; attempt++) {
+    for (const round of build(records)) {
+      const fake = round.options.find((option) => !option.real)!.text;
+      const real = round.options.find((option) => option.real)!.text;
+      assert.notEqual(fake.toLowerCase(), real.toLowerCase());
+      for (const name of nameVariants(round.donor.title)) {
+        assert.ok(!fake.includes(name), `fake about ${round.source.title} still names ${name}: ${fake}`);
+      }
+    }
+  }
+});

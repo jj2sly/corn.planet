@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { CanonRecord } from "../server/canon.ts";
-import { buildClaimPair, claimableFields } from "../server/games/claims.ts";
+import { borrowValue, buildClaimPair, claimableFields, nameVariants } from "../server/games/claims.ts";
 import { seededRandom, TEST_CANON } from "./helpers.ts";
 
 function entity(ref: string, title: string, fields: Record<string, string>): CanonRecord {
@@ -45,7 +45,8 @@ describe("claims: building a true/false pair", () => {
     const donorValue = pair.donor.fields[pair.field]!;
 
     assert.ok(pair.real.includes(realValue), "the true claim must quote the record's own value");
-    assert.ok(pair.fake.includes(donorValue), "the false claim must quote the donor's value");
+    assert.ok(pair.fake.includes(borrowValue(pair.donor, pair.source, pair.field)), "the false claim must quote the donor's value");
+    assert.ok(donorValue.length > 0);
     assert.ok(pair.real.includes(pair.source.title));
     assert.ok(pair.fake.includes(pair.source.title), "both claims are about the same record");
     assert.notEqual(pair.donor.ref, pair.source.ref);
@@ -107,5 +108,53 @@ describe("claims: building a true/false pair", () => {
     const a = buildClaimPair(ENTITIES[0]!, ENTITIES, seededRandom(11));
     const b = buildClaimPair(ENTITIES[0]!, ENTITIES, seededRandom(11));
     assert.deepEqual([a?.field, a?.real, a?.fake], [b?.field, b?.real, b?.fake]);
+  });
+});
+
+describe("claims: a borrowed value never names where it came from", () => {
+  it("knows the ways canon text names a record", () => {
+    assert.deepEqual(nameVariants("Jack “Snaggletooth” Cummins"), ["Jack “Snaggletooth” Cummins", "Jack Snaggletooth Cummins", "Jack Cummins", "Cummins", "Jack"]);
+    assert.ok(nameVariants("The Evil Jik").includes("Jik"));
+    assert.ok(nameVariants('Trevor "Rainbow" N.').includes("Trevor N."));
+    assert.ok(nameVariants("Baby (Two Heart Emoji)").includes("Baby"));
+  });
+
+  it("re-points the donor's names and designation at the source record", () => {
+    const donor = entity("CPE-022", "The King of Burgers", { description: "CPE-22 or “The King of Burgers” kidnaps fries. The King hates salad." });
+    const source = entity("CPE-009", "Spike", { description: "A rabbit." });
+    const borrowed = borrowValue(donor, source, "description");
+    assert.equal(borrowed, "CPE-009 or “Spike” kidnaps fries. The Spike hates salad.");
+    for (const name of ["Burgers", "King", "CPE-22", "CPE-022"]) assert.ok(!borrowed.includes(name), `still names ${name}`);
+  });
+
+  it("inserts the plain name and never re-matches an inserted name", () => {
+    const donor = entity("CPE-101", "Chuck", { description: "Chuck is a dog. Chuck barks." });
+    const source = entity("CPE-102", "Chuck Norris (Unrelated)", { description: "Different." });
+    assert.equal(borrowValue(donor, source, "description"), "Chuck Norris is a dog. Chuck Norris barks.");
+  });
+
+  it("leaves ordinary words alone", () => {
+    const donor = entity("CPE-103", "Big Yellow", { description: "A big yellow problem. Big Yellow sulks." });
+    const source = entity("CPE-104", "Spike", { description: "A rabbit." });
+    assert.equal(borrowValue(donor, source, "description"), "A big yellow problem. Spike sulks.");
+  });
+
+  it("skips a donor whose text already mentions the source", () => {
+    const source = entity("CPE-201", "Primate", { description: "An ape of unknown origin." });
+    const cohort = entity("CPE-202", "Amy", { description: "A close cohort of Primate, and a menace." });
+    assert.equal(buildClaimPair(source, [source, cohort], seededRandom(1)), null);
+  });
+
+  it("builds fakes from the test canon that never name the donor", () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      for (const source of ENTITIES) {
+        const pair = buildClaimPair(source, ENTITIES, seededRandom(seed));
+        if (!pair || pair.donor.title === pair.source.title) continue;
+        for (const name of nameVariants(pair.donor.title)) {
+          if (nameVariants(pair.source.title).some((own) => own.includes(name))) continue;
+          assert.ok(!new RegExp(`\\b${name}\\b`).test(pair.fake), `seed ${seed}: fake about ${pair.source.title} names ${name}`);
+        }
+      }
+    }
   });
 });

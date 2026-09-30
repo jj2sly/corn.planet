@@ -77,6 +77,65 @@ function shuffled(items) {
   return result;
 }
 
+// Canon text nearly always names its own record ("Thad Phelps is…"), so a borrowed value is
+// re-pointed at the round's record, or the fake would give itself away. Mirrors
+// server/games/claims.ts. The result is generated, round-only content — never canon.
+const ARTICLE = /^(?:the|a|an)\s+/i;
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function plainName(title) {
+  const plain = String(title || "").replace(/[“"][^”"]*[”"]/g, " ").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  return plain.length >= 2 ? plain : String(title || "");
+}
+
+function nameVariants(title) {
+  const variants = new Set();
+  const add = (value) => {
+    const clean = value.replace(/\s+/g, " ").trim();
+    if (clean.length >= 3) variants.add(clean);
+  };
+  const raw = String(title || "");
+  const bare = plainName(raw);
+  for (const form of [raw, raw.replace(/[“”"]/g, ""), bare]) {
+    add(form);
+    add(form.trim().replace(ARTICLE, ""));
+  }
+  const tokens = bare.trim().replace(ARTICLE, "").split(/\s+/);
+  const words = tokens
+    .map((word) => word.replace(/[^\p{L}\p{N}'-]/gu, ""))
+    .filter((word) => word.length >= 3 && /^\p{Lu}/u.test(word));
+  if (tokens.length > 1 && words.length > 0) {
+    add(words[0]);
+    add(words[words.length - 1]);
+  }
+  return [...variants].sort((a, b) => b.length - a.length);
+}
+
+function namePattern(keys, flags = "u") {
+  return new RegExp(`(?<![\\p{L}\\p{N}])(?:${keys.map(escapeRegExp).join("|")})(?![\\p{L}\\p{N}])`, flags);
+}
+
+function mentions(value, title) {
+  const variants = nameVariants(title);
+  return variants.length > 0 && namePattern(variants).test(value);
+}
+
+function borrowValue(value, donor, source) {
+  const swaps = new Map();
+  const sourceName = plainName(source.title);
+  for (const variant of nameVariants(donor.title)) swaps.set(variant, sourceName);
+  const designation = /^([A-Z]{2,4})-0*(\d+)$/.exec(String(donor.ref || ""));
+  if (designation && /^[A-Z]{2,4}-\d+$/.test(String(source.ref || ""))) {
+    swaps.set(donor.ref, source.ref);
+    swaps.set(`${designation[1]}-${designation[2]}`, source.ref);
+  }
+  if (!swaps.size) return value;
+  const keys = [...swaps.keys()].sort((a, b) => b.length - a.length);
+  return value.replace(namePattern(keys, "gu"), (match) => swaps.get(match) ?? match);
+}
+
+const sameText = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+
 function buildCandidates(allRecords) {
   const candidates = [];
   for (const source of shuffled(allRecords)) {
@@ -86,13 +145,17 @@ function buildCandidates(allRecords) {
     for (const donor of shuffled(allRecords)) {
       if (donor === source || donor.kind !== source.kind) continue;
       const donorFields = usableFields(donor);
-      const shared = [...sourceFields.keys()].filter((key) => donorFields.has(key) && donorFields.get(key) !== sourceFields.get(key));
+      const shared = [...sourceFields.keys()].filter((key) =>
+        donorFields.has(key)
+        && !sameText(donorFields.get(key), sourceFields.get(key))
+        // A donor value that already names this record would read as being about someone else.
+        && !mentions(donorFields.get(key), source.title));
       if (!shared.length) continue;
 
       const key = shared[Math.floor(Math.random() * shared.length)];
       const real = sourceFields.get(key);
-      const fake = donorFields.get(key);
-      if (!real || !fake) continue;
+      const fake = borrowValue(donorFields.get(key), donor, source);
+      if (!real || !fake || sameText(real, fake)) continue;
 
       const options = shuffled([
         { text: `${titleCase(key)}: ${real}`, real: true },
