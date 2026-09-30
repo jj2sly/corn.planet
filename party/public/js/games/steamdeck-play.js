@@ -816,7 +816,7 @@ function buildRunner(s, tools) {
         : g2.world.exit === "active"
           ? "Exit open: go to the rift, ▼ in it"
           : `${g2.level.itemLabel} ${(g2.world.taken ?? []).filter(Boolean).length}/${g2.level.items.length}`
-      : null;
+      : "Reach the EXIT";
     status.textContent =
       g2.phase === "RESULTS"
         ? "Round over."
