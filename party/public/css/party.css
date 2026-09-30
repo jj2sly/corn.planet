@@ -8688,3 +8688,15 @@ a.deck-tile {
   background: var(--yellow);
   color: #000;
 }
+
+/* Entity Auction audit: outcomes arrive one by one. */
+.ea-outcomes li.ea-stagger {
+  animation: ea-arrive 0.35s ease-out backwards;
+}
+
+@keyframes ea-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}

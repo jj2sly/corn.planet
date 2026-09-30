@@ -70,6 +70,12 @@ function board(g) {
   );
 }
 
+/** The audit reveals many modifiers: they land one after another instead of all at once. */
+function staggered(list, on) {
+  if (on) [...list.children].forEach((li, i) => { li.classList.add("ea-stagger"); li.style.animationDelay = `${Math.min(i * 0.45, 8)}s`; });
+  return list;
+}
+
 /** Agents ranked by net worth, one line each. */
 function worthStrip(g) {
   const ranked = [...g.agents].sort((a, b) => b.netWorth - a.netWorth);
@@ -204,7 +210,7 @@ function buildAction(s) {
     { class: "ea" },
     head.node,
     el("div", { class: `ea-event ${s.game.phase === "EVENT" ? "alarm" : ""}`.trim() }, el("p", { text: text.body })),
-    text.outcomes ? outcomeList(text.outcomes) : null,
+    text.outcomes ? staggered(outcomeList(text.outcomes), s.game.phase === "AUDIT") : null,
     boardSlot,
   );
   return {
