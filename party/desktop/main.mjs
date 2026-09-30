@@ -194,6 +194,7 @@ function createContentView(target) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: target !== "party",
     },
   });
   view.setBackgroundColor("#050607");
