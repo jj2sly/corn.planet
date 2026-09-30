@@ -38,7 +38,7 @@ function saveSession(value) {
 }
 
 function joinUrl() {
-  return `${location.host}/play`;
+  return `${location.origin}/play`;
 }
 
 function setBanner(node) {
