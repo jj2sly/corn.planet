@@ -54,6 +54,16 @@ function joinUrl() {
   return url.toString().replace(/\/$/, "");
 }
 
+// Warn only when the link phones will actually open is local-only; the desktop app passes a LAN
+// ?join= address even though its host page itself is served from 127.0.0.1.
+function joinIsLocalOnly() {
+  try {
+    return ["localhost", "127.0.0.1", "0.0.0.0", "[::1]"].includes(new URL(joinUrl()).hostname);
+  } catch {
+    return false;
+  }
+}
+
 function setBanner(node) {
   $("#banner").replaceChildren(...(node ? [node] : []));
 }
@@ -470,7 +480,7 @@ function buildLobby(s) {
   return buildHub(s, {
     role: "host",
     act: (event, payload) => conn.request(event, payload),
-    join: { url: joinUrl(), localhost: location.hostname === "localhost" || location.hostname === "127.0.0.1" },
+    join: { url: joinUrl(), localhost: joinIsLocalOnly() },
     options: (gameId, room, configure) => SETTINGS_FORMS[gameId]?.(room.config.settings, configure, room) ?? [],
     warning: sourceWarning(),
   });
