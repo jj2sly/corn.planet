@@ -86,7 +86,10 @@ for (const button of document.querySelectorAll("[data-target]")) {
 
 window.cpiDesktop.onActiveTarget((target) => paintActiveTarget(target));
 window.cpiDesktop.onHostState((detail) => paintHostState(detail));
-window.cpiDesktop.onRoomCode((detail) => paintRoomCode(detail));
+window.cpiDesktop.onRoomCode((detail) => {
+  paintRoomCode(detail);
+  void refreshPlayerQr();
+});
 window.cpiDesktop.onPresentationMode((enabled) => {
   document.body.classList.toggle("presentation-mode", enabled);
 });
