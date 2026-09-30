@@ -380,3 +380,19 @@ test("Group Night readiness validates Corn or Shit canon and Auction capacity", 
   assert.match(renderer, /READY WITH WARNING/);
   assert.match(renderer, /readiness-issues warn/);
 });
+
+
+test("Group Night launch rechecks readiness at click time", async () => {
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+  assert.match(renderer, /startGroupNight\.addEventListener/);
+  assert.match(renderer, /const ready = await runReadiness\(\)/);
+  assert.match(renderer, /Group Night launch stopped because readiness changed/);
+  assert.match(renderer, /readinessCheckInFlight/);
+});
+
+test("live room code survives host title changes after lobby", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /—\\s\*\(\[BCDFGHJKLMNPQRSTVWXZ\]\{4\}\)\\s\*\$/);
+  assert.match(main, /if \(nextCode && nextCode !== liveRoomCode\)/);
+  assert.doesNotMatch(main, /const nextCode = match\?\.\[1\] \?\? ""/);
+});
