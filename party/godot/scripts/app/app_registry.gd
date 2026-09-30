@@ -18,7 +18,7 @@ static func games() -> Array[Dictionary]:
             "server_game_id": "cornorshit",
             "name": "CORN OR SHIT",
             "category": "PARTY",
-            "description": "Identify which claim actually exists in the CPST Database.",
+            "description": "Identify which claim actually exists in the CPI Database.",
             "players": "3–8",
             "status": "AVAILABLE",
             "scene": ""
@@ -67,9 +67,9 @@ static func games() -> Array[Dictionary]:
             "id": "cold-case",
             "name": "CPI: COLD CASE",
             "category": "PC GAME",
-            "description": "Native CPI mission prototype. Development is paused while the desktop platform and Party catalog are finished.",
+            "description": "Top-down refrigerator mission prototype with room exploration, repairs, temperature hazards and food threats.",
             "players": "1–8",
-            "status": "BACK BURNER",
+            "status": "BACK BURNER — TOP-DOWN REWORK",
             "scene": "res://games/cold_case/cold_case.tscn"
         }
     ]
