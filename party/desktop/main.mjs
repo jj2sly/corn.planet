@@ -19,6 +19,7 @@ let presentationMode = false;
 let presentationBlockerId = null;
 let allowWindowClose = false;
 let settings = null;
+let liveRoomCode = "";
 
 const GAME_IDS = new Set(["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]);
 const PC_GAME_IDS = new Set(["cornorshit-solo"]);
@@ -118,6 +119,10 @@ function emitHostState() {
   sendToShell("cpi:host-state", { running: hostIsRetained(), active: activeTarget === "party" });
 }
 
+function emitRoomCode() {
+  sendToShell("cpi:room-code", { code: liveRoomCode });
+}
+
 function contentBounds() {
   if (!mainWindow) return { x: SIDEBAR_WIDTH, y: 0, width: 1000, height: 700 };
   const [width, height] = mainWindow.getContentSize();
@@ -184,6 +189,16 @@ function createContentView(target) {
     }
     void shell.openExternal(url);
     return { action: "deny" };
+  });
+
+  view.webContents.on("page-title-updated", (_event, title) => {
+    if (target !== "party") return;
+    const match = /(?:^|\s|—)([BCDFGHJKLMNPQRSTVWXZ]{4})(?:$|\s)/.exec(String(title).toUpperCase());
+    const nextCode = match?.[1] ?? "";
+    if (nextCode !== liveRoomCode) {
+      liveRoomCode = nextCode;
+      emitRoomCode();
+    }
   });
 
   view.webContents.on("before-input-event", (event, input) => {
@@ -253,6 +268,8 @@ function stopRetainedHost() {
   }
 
   retainedViews.delete("party");
+  liveRoomCode = "";
+  emitRoomCode();
   try { host.webContents.close(); } catch {}
 
   if (activeTarget === "party") {
@@ -451,6 +468,13 @@ ipcMain.handle("cpi:navigate", (_event, target) => {
 });
 
 ipcMain.handle("cpi:host-status", () => ({ running: hostIsRetained(), active: activeTarget === "party" }));
+ipcMain.handle("cpi:room-code", () => ({ code: liveRoomCode }));
+
+ipcMain.handle("cpi:copy-room-code", () => {
+  if (!liveRoomCode) return "";
+  clipboard.writeText(liveRoomCode);
+  return liveRoomCode;
+});
 ipcMain.handle("cpi:stop-host", () => stopRetainedHost());
 
 ipcMain.handle("cpi:return-host", () => {
