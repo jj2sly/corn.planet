@@ -40,6 +40,11 @@
         <p class="eyebrow accent">HOST DISPLAY LIVE</p>
         <strong>Your Party host is still connected in the background.</strong>
       </div>
+      <div class="host-live-room">
+        <span>ROOM</span>
+        <strong id="liveRoomCode">—</strong>
+        <button id="copyRoomCode">COPY CODE</button>
+      </div>
       <div class="host-live-actions">
         <button id="returnToHost">RETURN TO HOST</button>
         <button id="stopHostDisplay" class="danger">STOP HOST DISPLAY</button>
@@ -143,7 +148,11 @@
         <div>
           <p class="eyebrow accent">PHONE JOIN</p>
           <strong id="playerJoinUrl">—</strong>
-          <p>Scan this QR or use COPY PHONE LINK below. Players still enter the room code shown on the host display.</p>
+          <div class="room-code-inline">
+            <span>LIVE ROOM CODE</span>
+            <strong id="readinessRoomCode">WAITING FOR HOST</strong>
+          </div>
+          <p>Scan this QR or use COPY PHONE LINK below. Once the host session opens, the live room code appears here automatically.</p>
         </div>
       </div>
     </section>
