@@ -55,3 +55,50 @@ describe("Friday Group Night catalog smoke test", () => {
     });
   }
 });
+
+describe("Friday Group Night player-count boundaries", () => {
+  for (const id of FRIDAY_GAMES) {
+    it(`${id} runs a full 8-agent room and refuses a ninth`, () => {
+      const definition = GAMES.get(id)!;
+      assert.equal(definition.maxPlayers, 8, `${id} is advertised for up to 8 agents`);
+
+      const rooms = makeRooms({ canon: stubCanon(groupCanon()) });
+      try {
+        const names = Array.from({ length: 8 }, (_, i) => `Agent${i + 1}`);
+        const { room, players } = roomWithPlayers(rooms.manager, names);
+        room.configure({ gameId: id });
+        room.startGame();
+        assert.equal(room.status, "IN_GAME");
+
+        // Every phone gets its own view and the host view names all eight agents.
+        for (const player of players) {
+          const view = room.viewFor({ kind: "player", playerId: player.id });
+          assert.ok(view.game, `${id}: ${player.name} has no game view`);
+        }
+        const host = room.viewFor({ kind: "host" });
+        assert.equal(host.players.length, 8);
+
+        assert.throws(() => room.join("Agent9", null), `${id} must refuse a ninth agent`);
+
+        room.returnToLobby();
+        assert.equal(room.status, "LOBBY");
+      } finally {
+        rooms.db.close();
+      }
+    });
+
+    it(`${id} will not start below its minimum`, () => {
+      const definition = GAMES.get(id)!;
+      const rooms = makeRooms({ canon: stubCanon(groupCanon()) });
+      try {
+        const names = Array.from({ length: definition.minPlayers - 1 }, (_, i) => `Agent${i + 1}`);
+        const { room } = roomWithPlayers(rooms.manager, names);
+        room.configure({ gameId: id });
+        assert.throws(() => room.startGame(), `${id} started with ${names.length} agents`);
+        assert.equal(room.status, "LOBBY");
+      } finally {
+        rooms.db.close();
+      }
+    });
+  }
+});
