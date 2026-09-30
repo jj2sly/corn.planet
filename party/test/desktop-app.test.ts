@@ -396,3 +396,13 @@ test("live room code survives host title changes after lobby", async () => {
   assert.match(main, /if \(nextCode && nextCode !== liveRoomCode\)/);
   assert.doesNotMatch(main, /const nextCode = match\?\.\[1\] \?\? ""/);
 });
+
+
+test("desktop injects the live phone QR into the fullscreen Party host", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /updateHostJoinOverlay/);
+  assert.match(main, /QRCode\.toDataURL/);
+  assert.match(main, /executeJavaScript/);
+  assert.match(main, /cpiDesktopJoinQr/);
+  assert.match(main, /did-finish-load/);
+});
