@@ -17,25 +17,41 @@ const MIN_VALUE = 2;
 
 type Template = (title: string, value: string) => string;
 
+/**
+ * A short-form template ("X is held under MINIMAL containment.") only reads right for a level-like
+ * value. When either side of the pair is free text ("cannot be contained") both claims use the
+ * quoted form instead — a clumsy true claim beside a clean fake would give the answer away.
+ */
+interface LevelTemplate {
+  short: Template;
+  quoted: Template;
+}
+
+const LEVEL_VALUE = /^[\p{Lu}\d][\p{Lu}\d .\/-]{0,23}$/u;
+const level = (short: Template, label: string): LevelTemplate => ({
+  short,
+  quoted: (t, v) => `${label} on file for ${t}: "${v}"`,
+});
+
 // Which fields can carry a claim, and how each one reads as a sentence. A field with no template
 // is never used, so adding a field to canon.ts does not silently produce clumsy claims.
-const TEMPLATES: Record<CanonKind, Record<string, Template>> = {
+const TEMPLATES: Record<CanonKind, Record<string, Template | LevelTemplate>> = {
   entity: {
-    classification: (t, v) => `${t} is classified ${v}.`,
-    containment: (t, v) => `${t} is held under ${v} containment.`,
+    classification: level((t, v) => `${t} is classified ${v}.`, "Classification"),
+    containment: level((t, v) => `${t} is held under ${v} containment.`, "Containment"),
     containmentProcedures: (t, v) => `Containment procedure on file for ${t}: "${v}"`,
     description: (t, v) => `The CPI Database says of ${t}: "${v}"`,
   },
   incident: {
-    severity: (t, v) => `${t} is filed at ${v} severity.`,
-    status: (t, v) => `The status of ${t} is ${v}.`,
+    severity: level((t, v) => `${t} is filed at ${v} severity.`, "Severity"),
+    status: level((t, v) => `The status of ${t} is ${v}.`, "Status"),
     date: (t, v) => `${t} is on record as occurring ${v}.`,
     summary: (t, v) => `The summary filed for ${t} reads: "${v}"`,
     resolution: (t, v) => `${t} was resolved as follows: "${v}"`,
   },
   personnel: {
-    clearance: (t, v) => `${t} holds ${v} clearance.`,
-    status: (t, v) => `The service status of ${t} is ${v}.`,
+    clearance: level((t, v) => `${t} holds ${v} clearance.`, "Clearance"),
+    status: level((t, v) => `The service status of ${t} is ${v}.`, "Service status"),
     designation: (t, v) => `${t} is designated ${v}.`,
     specialisation: (t, v) => `${t} specialises in: "${v}"`,
   },
@@ -187,11 +203,16 @@ export function buildClaimPair(
       const borrowed = borrowValue(donor, source, field);
       // After re-pointing names the fabrication could coincide with the truth; try another donor.
       if (borrowed.trim().toLowerCase() === realValue.trim().toLowerCase()) continue;
+      const real = trim(realValue);
+      const fake = trim(borrowed);
+      const phrase: Template = typeof template === "function"
+        ? template
+        : LEVEL_VALUE.test(real) && LEVEL_VALUE.test(fake) ? template.short : template.quoted;
       return {
         source,
         field,
-        real: template(source.title, trim(realValue)),
-        fake: template(source.title, trim(borrowed)),
+        real: phrase(source.title, real),
+        fake: phrase(source.title, fake),
         donor,
       };
     }

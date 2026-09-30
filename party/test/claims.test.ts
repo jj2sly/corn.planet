@@ -158,3 +158,19 @@ describe("claims: a borrowed value never names where it came from", () => {
     }
   });
 });
+
+describe("claims: both sides of a pair read the same way", () => {
+  it("uses the short form only when both values are level-like", () => {
+    const source = entity("CPE-301", "Jik", { containment: "cannot be contained" });
+    const donor = entity("CPE-302", "Spike", { containment: "MINIMAL" });
+    const mixed = buildClaimPair(source, [source, donor], seededRandom(1));
+    assert.ok(mixed);
+    assert.equal(mixed.real, 'Containment on file for Jik: "cannot be contained"');
+    assert.equal(mixed.fake, 'Containment on file for Jik: "MINIMAL"');
+
+    const levelled = buildClaimPair(entity("CPE-303", "Chuck", { containment: "STANDARD" }), [donor], seededRandom(1));
+    assert.ok(levelled);
+    assert.equal(levelled.real, "Chuck is held under STANDARD containment.");
+    assert.equal(levelled.fake, "Chuck is held under MINIMAL containment.");
+  });
+});
