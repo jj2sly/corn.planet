@@ -150,8 +150,10 @@ async function runReadiness() {
   readyGames.textContent = `${result.games} / 6`;
   readyGames.className = result.games >= 6 ? "ready-ok" : "ready-bad";
 
-  readyCanon.textContent = String(result.canon);
-  readyCanon.className = result.canon >= 2 ? "ready-ok" : "ready-bad";
+  readyCanon.textContent = result.entityCanon
+    ? `${result.canon} TOTAL / ${result.entityCanon} ENT`
+    : String(result.canon);
+  readyCanon.className = result.canon >= 2 && result.cornOrShitPlayable ? "ready-ok" : "ready-bad";
 
   readyProtocol.textContent = result.protocol ? String(result.protocol) : "—";
   readyProtocol.className = result.protocol ? "ready-ok" : "ready-bad";
@@ -162,6 +164,9 @@ async function runReadiness() {
   if (!ready) {
     readinessIssues.textContent = result.issues?.length ? result.issues.join(" • ") : "Group Night requirements are not met yet.";
     readinessIssues.className = "readiness-issues bad";
+  } else if (result.warnings?.length) {
+    readinessIssues.textContent = `READY WITH WARNING • ${result.warnings.join(" • ")}`;
+    readinessIssues.className = "readiness-issues warn";
   } else {
     readinessIssues.textContent = "READY FOR GROUP NIGHT";
     readinessIssues.className = "readiness-issues ok";
