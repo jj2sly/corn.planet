@@ -367,3 +367,16 @@ test("desktop phone join links prefill the live room code", async () => {
   assert.match(host, /url\.searchParams\.set\("code", state\.code\)/);
   assert.match(host, /requestedJoin/);
 });
+
+
+test("Group Night readiness validates Corn or Shit canon and Auction capacity", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+
+  assert.match(main, /cornOrShitPlayable/);
+  assert.match(main, /entityCanon/);
+  assert.match(main, /24 are recommended/);
+  assert.match(main, /cannot currently build a Corn or Shit claim pair/);
+  assert.match(renderer, /READY WITH WARNING/);
+  assert.match(renderer, /readiness-issues warn/);
+});
