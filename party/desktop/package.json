@@ -8,8 +8,10 @@
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
+    "smoke": "node smoke.mjs",
+    "predist": "npm run smoke",
     "dist": "electron-builder",
-    "check": "node --check main.mjs && node --check preload.mjs && node --check renderer.js && node --check pc/library.js && node --check pc/cornorshit.js"
+    "check": "node --check main.mjs && node --check preload.cjs && node --check renderer.js && node --check pc/library.js && node --check pc/cornorshit.js"
   },
   "devDependencies": {
     "electron": "44.4.5",
@@ -20,7 +22,7 @@
     "productName": "CPI Party",
     "files": [
       "main.mjs",
-      "preload.mjs",
+      "preload.cjs",
       "index.html",
       "renderer.js",
       "styles.css",

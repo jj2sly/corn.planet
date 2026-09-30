@@ -1,4 +1,6 @@
-import { contextBridge, ipcRenderer } from "electron";
+// Sandboxed preloads run as plain scripts (no ESM), so this must stay CommonJS.
+// The bridge is only exposed to the app's own local pages, never to remote Party/Database content.
+const { contextBridge, ipcRenderer } = require("electron");
 
 if (globalThis.location?.protocol === "file:") {
   contextBridge.exposeInMainWorld("cpiDesktop", {

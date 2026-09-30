@@ -140,12 +140,28 @@ async function refreshPlayerQr() {
   }
 }
 
-async function runReadiness() {
-  if (readinessCheckInFlight) return false;
+// Callers that arrive while a check is running (e.g. START GROUP NIGHT during the periodic check)
+// share its result instead of being told readiness failed.
+let readinessPromise = null;
+function runReadiness() {
+  if (readinessCheckInFlight && readinessPromise) return readinessPromise;
   readinessCheckInFlight = true;
+  readinessPromise = performReadiness().finally(() => {
+    rerunReadiness.disabled = false;
+    readinessCheckInFlight = false;
+  });
+  return readinessPromise;
+}
+
+async function performReadiness() {
   rerunReadiness.disabled = true;
   readinessIssues.textContent = "Checking Party server, game catalog and CPI canon…";
-  const result = await window.cpiDesktop.readiness();
+  let result;
+  try {
+    result = await window.cpiDesktop.readiness();
+  } catch (error) {
+    result = { server: false, games: 0, canon: 0, protocol: 0, issues: [error?.message || "Readiness check failed."], warnings: [] };
+  }
 
   readyServer.textContent = result.server ? "ONLINE" : "OFFLINE";
   readyServer.className = result.server ? "ready-ok" : "ready-bad";
@@ -174,8 +190,6 @@ async function runReadiness() {
     readinessIssues.textContent = "READY FOR GROUP NIGHT";
     readinessIssues.className = "readiness-issues ok";
   }
-  rerunReadiness.disabled = false;
-  readinessCheckInFlight = false;
   return ready;
 }
 
@@ -186,7 +200,12 @@ async function checkServer({ quiet = false } = {}) {
     status.className = "status";
     status.textContent = "CHECKING SERVER…";
   }
-  const result = await window.cpiDesktop.checkServer();
+  let result;
+  try {
+    result = await window.cpiDesktop.checkServer();
+  } catch (error) {
+    result = { ok: false, error: error?.message };
+  }
   if (result.ok) {
     const health = result.data || {};
     status.textContent = `SERVER ONLINE // ${health.rooms ?? 0} ROOMS`;
@@ -226,9 +245,6 @@ paintRoomCode(await window.cpiDesktop.roomCode());
 partyUrl.textContent = config.partyBase;
 version.textContent = `CPI PARTY DESKTOP v${config.version}`;
 input.value = config.partyBase;
-await checkServer();
-await runReadiness();
-await refreshPlayerQr();
 
 save.addEventListener("click", async () => {
   save.disabled = true;
@@ -249,7 +265,7 @@ save.addEventListener("click", async () => {
 });
 
 
-rerunReadiness.addEventListener("click", runReadiness);
+rerunReadiness.addEventListener("click", () => void runReadiness());
 
 
 copyPlayerLink.addEventListener("click", async () => {
@@ -296,3 +312,9 @@ copyRoomCode.addEventListener("click", async () => {
   message.textContent = `Copied room code ${code}`;
   message.className = "server-message ok";
 });
+
+
+// Slow network checks run last so every button above is already wired while they're in flight.
+await checkServer();
+await refreshPlayerQr();
+await runReadiness();

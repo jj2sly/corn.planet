@@ -10,7 +10,7 @@ const execFileAsync = promisify(execFile);
 test("desktop app shell files exist", async () => {
   for (const file of [
     "../desktop/main.mjs",
-    "../desktop/preload.mjs",
+    "../desktop/preload.cjs",
     "../desktop/index.html",
     "../desktop/renderer.js",
     "../desktop/styles.css",
@@ -85,7 +85,7 @@ test("desktop uses a persistent CPI shell with embedded content views", async ()
 test("desktop JavaScript parses without syntax errors", async () => {
   for (const file of [
     new URL("../desktop/main.mjs", import.meta.url),
-    new URL("../desktop/preload.mjs", import.meta.url),
+    new URL("../desktop/preload.cjs", import.meta.url),
     new URL("../desktop/renderer.js", import.meta.url),
     new URL("../desktop/pc/cornorshit.js", import.meta.url),
     new URL("../desktop/pc/library.js", import.meta.url),
@@ -128,7 +128,7 @@ test("desktop command center can copy the phone join link", async () => {
 
 test("desktop shell recovers from embedded content load failures", async () => {
   const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
-  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.cjs", import.meta.url), "utf8");
   const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
 
   assert.match(main, /did-fail-load/);
@@ -147,7 +147,7 @@ test("desktop package uses current Electron generation for WebContentsView shell
 
 test("desktop Group Night presentation mode fills the host display", async () => {
   const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
-  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.cjs", import.meta.url), "utf8");
   const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
 
   assert.match(main, /presentationMode/);
@@ -161,7 +161,7 @@ test("desktop Group Night presentation mode fills the host display", async () =>
 
 test("desktop Group Night panel generates a phone QR", async () => {
   const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
-  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.cjs", import.meta.url), "utf8");
   const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
   const desktop = JSON.parse(await readFile(new URL("../desktop/package.json", import.meta.url), "utf8"));
 
@@ -183,7 +183,7 @@ test("readiness verifies the exact six authoritative Party game ids", async () =
 
 test("desktop keeps Party host alive while navigating other app sections", async () => {
   const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
-  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.cjs", import.meta.url), "utf8");
   const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
 
@@ -206,7 +206,7 @@ test("returning to retained Party host does not force a reload", async () => {
 
 test("desktop can explicitly stop a retained Party host", async () => {
   const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
-  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.cjs", import.meta.url), "utf8");
   const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
 
@@ -289,7 +289,7 @@ test("readiness warns if the phone join URL is still local-only", async () => {
 
 test("solo Corn or Shit can verify a reveal against the CPI Database", async () => {
   const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
-  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.cjs", import.meta.url), "utf8");
   const html = await readFile(new URL("../desktop/pc/cornorshit.html", import.meta.url), "utf8");
   const game = await readFile(new URL("../desktop/pc/cornorshit.js", import.meta.url), "utf8");
   assert.match(main, /cpi:open-canon-url/);
@@ -341,7 +341,7 @@ test("desktop phone join resolver prefers private LAN ranges", async () => {
 
 test("desktop shell exposes the live four-letter room code", async () => {
   const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
-  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.cjs", import.meta.url), "utf8");
   const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
 
@@ -406,4 +406,56 @@ test("desktop injects the live phone QR into the fullscreen Party host", async (
   assert.match(main, /executeJavaScript/);
   assert.match(main, /cpiDesktopJoinQr/);
   assert.match(main, /did-finish-load/);
+});
+
+test("sandboxed desktop preload is CommonJS so Electron can actually load it", async () => {
+  const preload = await readFile(new URL("../desktop/preload.cjs", import.meta.url), "utf8");
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const desktop = JSON.parse(await readFile(new URL("../desktop/package.json", import.meta.url), "utf8"));
+  // Sandboxed preloads run without an ESM context; an import statement leaves window.cpiDesktop undefined.
+  assert.doesNotMatch(preload, /^\s*import\s/m);
+  assert.match(preload, /require\("electron"\)/);
+  assert.doesNotMatch(main, /preload\.mjs/);
+  assert.equal((main.match(/preload: path\.join\(__dirname, "preload\.cjs"\)/g) ?? []).length, 2);
+  assert.ok(desktop.build.files.includes("preload.cjs"));
+  assert.match(desktop.scripts.check, /node --check preload\.cjs/);
+});
+
+test("desktop validates navigation by origin and path, not string prefix", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(main, /startsWith\(current\.(partyBase|databaseBase)\)/);
+  assert.doesNotMatch(main, /startsWith\(PC_ROOT_URL\)/);
+  assert.match(main, /function isWithinBase\(candidate, base\)/);
+  assert.match(main, /url\.origin !== root\.origin/);
+  assert.match(main, /if \(isTrustedContentUrl\(nextUrl\)\) return;/);
+});
+
+test("desktop IPC only answers the app's own local pages", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /function isLocalAppSender\(event\)/);
+  assert.match(main, /senderFrame/);
+  // Every channel goes through the guarded handle(); only the guard itself touches ipcMain.handle.
+  assert.equal((main.match(/ipcMain\.handle\(/g) ?? []).length, 1);
+  assert.ok((main.match(/\bhandle\("cpi:/g) ?? []).length >= 18);
+});
+
+test("desktop dist launches the app to prove the preload bridge works", async () => {
+  const desktop = JSON.parse(await readFile(new URL("../desktop/package.json", import.meta.url), "utf8"));
+  const smoke = await readFile(new URL("../desktop/smoke.mjs", import.meta.url), "utf8");
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  // predist runs inside the existing "npm run dist" CI step, so every packaged build is launch-tested.
+  assert.equal(desktop.scripts.predist, "npm run smoke");
+  assert.equal(desktop.scripts.smoke, "node smoke.mjs");
+  assert.ok(!desktop.build.files.includes("smoke.mjs"));
+  assert.match(smoke, /CPI_DESKTOP_SMOKE: "1"/);
+  assert.match(main, /process\.env\.CPI_DESKTOP_SMOKE === "1"/);
+  assert.match(main, /typeof window\.cpiDesktop/);
+  assert.match(main, /app\.exit\(ok \? 0 : 1\)/);
+});
+
+test("Escape leaves presentation mode even when the sidebar shell has focus", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  assert.match(main, /mainWindow\.webContents\.on\("before-input-event", exitPresentationOnEscape\)/);
+  assert.match(main, /view\.webContents\.on\("before-input-event", exitPresentationOnEscape\)/);
+  assert.match(main, /contentView\.webContents\.focus\(\)/);
 });

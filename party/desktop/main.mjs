@@ -10,6 +10,7 @@ const DEFAULT_PARTY_URL = process.env.CPI_PARTY_URL?.trim() || "http://127.0.0.1
 const DEFAULT_DATABASE_URL = process.env.CPI_DATABASE_URL?.trim() || "https://jj2sly.github.io/corn.planet";
 const SIDEBAR_WIDTH = 220;
 const PC_ROOT_URL = pathToFileURL(path.join(__dirname, "pc") + path.sep).toString();
+const SMOKE_TEST = process.env.CPI_DESKTOP_SMOKE === "1";
 
 let mainWindow = null;
 let contentView = null;
@@ -18,6 +19,7 @@ let activeTarget = "home";
 let presentationMode = false;
 let presentationBlockerId = null;
 let allowWindowClose = false;
+let quitRequested = false;
 let settings = null;
 let liveRoomCode = "";
 
@@ -108,6 +110,55 @@ function destination(target) {
     database: current.databaseBase,
   };
   return destinations[target] || null;
+}
+
+// True when `candidate` is on the same origin as `base` and inside its path. Compares parsed
+// origins/paths so lookalikes such as "http://127.0.0.1:3000.evil.test" or "/corn.planet-other"
+// never pass the way a plain string-prefix check would.
+function isWithinBase(candidate, base) {
+  let url;
+  let root;
+  try {
+    url = new URL(candidate);
+    root = new URL(base);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== root.protocol) return false;
+  if (root.protocol === "file:") return isFileInside(url, fileURLToPath(root));
+  if (url.origin !== root.origin) return false;
+  const rootPath = root.pathname.replace(/\/+$/, "");
+  return url.pathname === rootPath || url.pathname.startsWith(`${rootPath}/`);
+}
+
+// File URLs are compared as real paths so drive-letter case and percent-encoding can't matter.
+function isFileInside(fileUrl, directory) {
+  try {
+    const relative = path.relative(path.resolve(directory), path.resolve(fileURLToPath(fileUrl)));
+    return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
+  } catch {
+    return false;
+  }
+}
+
+function isTrustedContentUrl(candidate) {
+  const current = loadSettings();
+  return isWithinBase(candidate, current.partyBase)
+    || isWithinBase(candidate, current.databaseBase)
+    || isWithinBase(candidate, PC_ROOT_URL);
+}
+
+// IPC is only honoured from the app's own local pages (shell + PC games), never remote content.
+function isLocalAppSender(event) {
+  const url = event?.senderFrame?.url || "";
+  return url.startsWith("file:") && isFileInside(url, __dirname);
+}
+
+function handle(channel, listener) {
+  ipcMain.handle(channel, (event, ...args) => {
+    if (!isLocalAppSender(event)) throw new Error("CPI desktop controls are only available to local app pages.");
+    return listener(event, ...args);
+  });
 }
 
 function sendToShell(channel, payload) {
@@ -231,10 +282,17 @@ function destroyAllContentViews() {
   emitHostState();
 }
 
+function exitPresentationOnEscape(event, input) {
+  if (!presentationMode || input.type !== "keyDown" || input.key !== "Escape") return;
+  event.preventDefault();
+  setPresentationMode(false);
+  if (mainWindow?.isFullScreen()) mainWindow.setFullScreen(false);
+}
+
 function createContentView(target) {
   const view = new WebContentsView({
     webPreferences: {
-      preload: path.join(__dirname, "preload.mjs"),
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -243,12 +301,11 @@ function createContentView(target) {
   });
   view.setBackgroundColor("#050607");
   view.webContents.setWindowOpenHandler(({ url }) => {
-    const current = loadSettings();
-    if (url.startsWith(current.partyBase) || url.startsWith(current.databaseBase)) {
+    if (isTrustedContentUrl(url) && !url.startsWith("file:")) {
       view.webContents.loadURL(url);
       return { action: "deny" };
     }
-    void shell.openExternal(url);
+    if (/^https?:/i.test(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
 
@@ -267,12 +324,7 @@ function createContentView(target) {
     }
   });
 
-  view.webContents.on("before-input-event", (event, input) => {
-    if (!presentationMode || input.type !== "keyDown" || input.key !== "Escape") return;
-    event.preventDefault();
-    setPresentationMode(false);
-    if (mainWindow?.isFullScreen()) mainWindow.setFullScreen(false);
-  });
+  view.webContents.on("before-input-event", exitPresentationOnEscape);
 
   view.webContents.on("render-process-gone", (_event, details) => {
     if (target === "party" && retainedViews.get("party") === view) {
@@ -311,14 +363,9 @@ function createContentView(target) {
   });
 
   view.webContents.on("will-navigate", (event, nextUrl) => {
-    const current = loadSettings();
-    if (
-      nextUrl.startsWith(current.partyBase) ||
-      nextUrl.startsWith(current.databaseBase) ||
-      nextUrl.startsWith(PC_ROOT_URL)
-    ) return;
+    if (isTrustedContentUrl(nextUrl)) return;
     event.preventDefault();
-    void shell.openExternal(nextUrl);
+    if (/^https?:/i.test(nextUrl)) void shell.openExternal(nextUrl);
   });
 
   return view;
@@ -345,6 +392,7 @@ function openContent(url, target, { retain = target === "party", forceNavigate =
 
   const currentUrl = contentView.webContents.getURL();
   if (!reused || forceNavigate || !currentUrl) void contentView.webContents.loadURL(url);
+  contentView.webContents.focus();
 }
 
 function stopRetainedHost() {
@@ -418,7 +466,7 @@ function createWindow() {
     backgroundColor: "#050607",
     title: "CPI Party",
     webPreferences: {
-      preload: path.join(__dirname, "preload.mjs"),
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -426,6 +474,10 @@ function createWindow() {
   });
 
   void mainWindow.loadFile(path.join(__dirname, "index.html"));
+  mainWindow.webContents.on("before-input-event", exitPresentationOnEscape);
+  if (SMOKE_TEST) runSmokeTest(mainWindow);
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  mainWindow.webContents.on("will-navigate", (event) => event.preventDefault());
 
   mainWindow.on("resize", () => {
     if (contentView) contentView.setBounds(contentBounds());
@@ -447,7 +499,10 @@ function createWindow() {
 
     if (result.response === 1) {
       allowWindowClose = true;
-      mainWindow.close();
+      if (quitRequested) app.quit();
+      else mainWindow?.close();
+    } else {
+      quitRequested = false;
     }
   });
 
@@ -457,6 +512,32 @@ function createWindow() {
   });
 
   installMenu();
+}
+
+// CI launch check: the shell must load, the sandboxed preload must expose the bridge, and a real
+// IPC round trip must succeed. Source-level checks can't catch a preload Electron refuses to run.
+function runSmokeTest(window) {
+  const finish = (ok, detail) => {
+    (ok ? console.log : console.error)(`CPI desktop smoke test ${ok ? "passed" : "failed"}: ${detail}`);
+    app.exit(ok ? 0 : 1);
+  };
+  const timer = setTimeout(() => finish(false, "timed out waiting for the shell"), 45_000);
+  window.webContents.once("did-finish-load", async () => {
+    try {
+      const result = await window.webContents.executeJavaScript(`(async () => ({
+        bridge: typeof window.cpiDesktop,
+        version: window.cpiDesktop ? (await window.cpiDesktop.config()).version : null,
+        pcBridge: typeof window.cpiDesktop?.launchPcGame,
+        heading: document.querySelector("h1")?.textContent ?? "",
+      }))()`, true);
+      clearTimeout(timer);
+      const ok = result.bridge === "object" && result.version === app.getVersion() && result.pcBridge === "function";
+      finish(ok, JSON.stringify(result));
+    } catch (error) {
+      clearTimeout(timer);
+      finish(false, error instanceof Error ? error.message : String(error));
+    }
+  });
 }
 
 function goHome() {
@@ -551,34 +632,34 @@ function installMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-ipcMain.handle("cpi:navigate", (_event, target) => {
+handle("cpi:navigate", (_event, target) => {
   navigate(String(target));
   return true;
 });
 
-ipcMain.handle("cpi:host-status", () => ({ running: hostIsRetained(), active: activeTarget === "party" }));
-ipcMain.handle("cpi:room-code", () => ({ code: liveRoomCode }));
+handle("cpi:host-status", () => ({ running: hostIsRetained(), active: activeTarget === "party" }));
+handle("cpi:room-code", () => ({ code: liveRoomCode }));
 
-ipcMain.handle("cpi:copy-room-code", () => {
+handle("cpi:copy-room-code", () => {
   if (!liveRoomCode) return "";
   clipboard.writeText(liveRoomCode);
   return liveRoomCode;
 });
-ipcMain.handle("cpi:stop-host", () => stopRetainedHost());
+handle("cpi:stop-host", () => stopRetainedHost());
 
-ipcMain.handle("cpi:return-host", () => {
+handle("cpi:return-host", () => {
   navigate("party");
   return true;
 });
 
-ipcMain.handle("cpi:start-presentation-host", () => {
+handle("cpi:start-presentation-host", () => {
   startPresentationHost();
   return true;
 });
 
-ipcMain.handle("cpi:toggle-presentation", () => setPresentationMode(!presentationMode));
+handle("cpi:toggle-presentation", () => setPresentationMode(!presentationMode));
 
-ipcMain.handle("cpi:player-qr", async () => {
+handle("cpi:player-qr", async () => {
   const url = playerJoinUrl();
   const dataUrl = await QRCode.toDataURL(url, {
     errorCorrectionLevel: "M",
@@ -589,45 +670,35 @@ ipcMain.handle("cpi:player-qr", async () => {
   return { url, dataUrl };
 });
 
-ipcMain.handle("cpi:copy-player-link", () => {
+handle("cpi:copy-player-link", () => {
   const url = playerJoinUrl();
   clipboard.writeText(url);
   return url;
 });
 
-ipcMain.handle("cpi:config", () => ({
+handle("cpi:config", () => ({
   ...loadSettings(),
   activeTarget,
   presentationMode,
   version: app.getVersion(),
 }));
 
-ipcMain.handle("cpi:launch-game", (_event, gameId) => {
+handle("cpi:launch-game", (_event, gameId) => {
   const id = String(gameId);
   if (!GAME_IDS.has(id)) throw new Error("Unknown CPI Party game");
-  const current = loadSettings();
   openContent(partyHostUrl(id), "party", { retain: true, forceNavigate: true });
   return true;
 });
 
-ipcMain.handle("cpi:open-canon-url", (_event, value) => {
+handle("cpi:open-canon-url", (_event, value) => {
   const raw = String(value || "");
-  const databaseBase = loadSettings().databaseBase;
   let requested;
-  let allowed;
   try {
     requested = new URL(raw);
-    allowed = new URL(databaseBase);
   } catch {
     throw new Error("That canon URL is not valid.");
   }
-
-  const allowedPath = allowed.pathname.endsWith("/") ? allowed.pathname : allowed.pathname + "/";
-  const requestedPath = requested.pathname.endsWith("/") ? requested.pathname : requested.pathname + "/";
-  const sameOrigin = requested.origin === allowed.origin;
-  const insideDatabasePath = requested.pathname === allowed.pathname || requestedPath.startsWith(allowedPath);
-
-  if (!sameOrigin || !insideDatabasePath) {
+  if (!isWithinBase(requested.toString(), loadSettings().databaseBase)) {
     throw new Error("That canon URL is outside the configured CPI Database.");
   }
 
@@ -635,12 +706,12 @@ ipcMain.handle("cpi:open-canon-url", (_event, value) => {
   return true;
 });
 
-ipcMain.handle("cpi:launch-pc-game", (_event, gameId) => {
+handle("cpi:launch-pc-game", (_event, gameId) => {
   launchPcGame(String(gameId));
   return true;
 });
 
-ipcMain.handle("cpi:fetch-canon", async () => {
+handle("cpi:fetch-canon", async () => {
   const current = loadSettings();
   try {
     const response = await fetch(`${current.partyBase}/api/native/canon`, { signal: AbortSignal.timeout(8000) });
@@ -652,7 +723,7 @@ ipcMain.handle("cpi:fetch-canon", async () => {
   }
 });
 
-ipcMain.handle("cpi:readiness", async () => {
+handle("cpi:readiness", async () => {
   const current = loadSettings();
   const result = {
     server: false,
@@ -750,7 +821,7 @@ ipcMain.handle("cpi:readiness", async () => {
   return result;
 });
 
-ipcMain.handle("cpi:check-server", async () => {
+handle("cpi:check-server", async () => {
   const current = loadSettings();
   try {
     const response = await fetch(`${current.partyBase}/healthz`, { signal: AbortSignal.timeout(5000) });
@@ -762,7 +833,7 @@ ipcMain.handle("cpi:check-server", async () => {
   }
 });
 
-ipcMain.handle("cpi:set-party-url", (_event, value) => {
+handle("cpi:set-party-url", (_event, value) => {
   const url = cleanBase(value);
   if (!/^https?:\/\//i.test(url)) throw new Error("Party server URL must start with http:// or https://");
 
@@ -773,6 +844,10 @@ ipcMain.handle("cpi:set-party-url", (_event, value) => {
   saveSettings();
   return { ...settings };
 });
+
+// Smoke runs get a throwaway profile so they never read/write real settings or collide with a
+// running copy's single-instance lock (which would quit early and look like a pass).
+if (SMOKE_TEST) app.setPath("userData", fs.mkdtempSync(path.join(app.getPath("temp"), "cpi-party-smoke-")));
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -786,6 +861,7 @@ if (!gotSingleInstanceLock) {
     mainWindow.focus();
   });
 
+  app.on("before-quit", () => { quitRequested = true; });
   app.whenReady().then(createWindow);
   app.on("window-all-closed", () => {
     if (process.platform !== "darwin") app.quit();
