@@ -609,9 +609,12 @@ ipcMain.handle("cpi:readiness", async () => {
     server: false,
     games: 0,
     canon: 0,
+    entityCanon: 0,
+    cornOrShitPlayable: false,
     protocol: 0,
     phoneUrl: playerJoinUrl(),
     issues: [],
+    warnings: [],
   };
 
   try {
@@ -650,8 +653,43 @@ ipcMain.handle("cpi:readiness", async () => {
 
     if (canonResponse.ok) {
       const canon = await canonResponse.json();
-      result.canon = Array.isArray(canon.records) ? canon.records.length : Number(canon.status?.records || 0);
+      const records = Array.isArray(canon.records) ? canon.records : [];
+      result.canon = records.length || Number(canon.status?.records || 0);
+      result.entityCanon = records.filter((record) => record?.kind === "entity").length;
+
+      const byKind = new Map();
+      for (const record of records) {
+        if (!record || typeof record !== "object") continue;
+        const kind = String(record.kind || "");
+        if (!byKind.has(kind)) byKind.set(kind, []);
+        byKind.get(kind).push(record);
+      }
+
+      for (const pool of byKind.values()) {
+        for (const source of pool) {
+          const sourceFields = source?.fields && typeof source.fields === "object" ? source.fields : {};
+          const playable = pool.some((donor) => {
+            if (donor === source) return false;
+            const donorFields = donor?.fields && typeof donor.fields === "object" ? donor.fields : {};
+            return Object.keys(sourceFields).some((key) => {
+              const real = String(sourceFields[key] ?? "").trim();
+              const fake = String(donorFields[key] ?? "").trim();
+              return real && fake && real !== fake;
+            });
+          });
+          if (playable) {
+            result.cornOrShitPlayable = true;
+            break;
+          }
+        }
+        if (result.cornOrShitPlayable) break;
+      }
+
       if (result.canon < 2) result.issues.push("CPI canon is too small for canon-driven games.");
+      if (!result.cornOrShitPlayable) result.issues.push("CPI canon cannot currently build a Corn or Shit claim pair.");
+      if (result.entityCanon < 24) {
+        result.warnings.push(`Entity Auction has ${result.entityCanon} entity records; 24 are recommended for the default 8-player / 3-entity setup.`);
+      }
     } else {
       result.issues.push("CPI canon could not be loaded.");
     }
