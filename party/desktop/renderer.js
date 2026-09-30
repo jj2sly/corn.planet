@@ -25,6 +25,7 @@ const SERVER_TARGETS = new Set(["party", "account", "prompts", "hall"]);
 let serverOnline = false;
 let hostRunning = false;
 let healthCheckInFlight = false;
+let readinessCheckInFlight = false;
 
 function refreshAvailabilityControls() {
   for (const button of document.querySelectorAll("[data-game]")) {
@@ -140,6 +141,8 @@ async function refreshPlayerQr() {
 }
 
 async function runReadiness() {
+  if (readinessCheckInFlight) return false;
+  readinessCheckInFlight = true;
   rerunReadiness.disabled = true;
   readinessIssues.textContent = "Checking Party server, game catalog and CPI canon…";
   const result = await window.cpiDesktop.readiness();
@@ -172,6 +175,8 @@ async function runReadiness() {
     readinessIssues.className = "readiness-issues ok";
   }
   rerunReadiness.disabled = false;
+  readinessCheckInFlight = false;
+  return ready;
 }
 
 async function checkServer({ quiet = false } = {}) {
@@ -255,6 +260,13 @@ copyPlayerLink.addEventListener("click", async () => {
 
 
 startGroupNight.addEventListener("click", async () => {
+  startGroupNight.disabled = true;
+  const ready = await runReadiness();
+  if (!ready) {
+    message.textContent = "Group Night launch stopped because readiness changed. Fix the highlighted issue and try again.";
+    message.className = "server-message bad";
+    return;
+  }
   await window.cpiDesktop.startPresentationHost();
 });
 
