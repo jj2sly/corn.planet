@@ -78,6 +78,11 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
     res.json({ ok: true, rooms: rooms.rooms.size, canon: { records, degraded: lastError !== null } });
   });
 
+  // The native bridge needs the RoomManager built below, but it must be routed before the general
+  // /api router, whose NOT_FOUND catch-all would otherwise swallow every /api/native request.
+  const nativeRouter = express.Router();
+  app.use("/api/native", nativeRouter);
+
   app.use(
     "/api",
     createApi({
@@ -121,9 +126,9 @@ export function createPartyServer(options: PartyServerOptions): PartyServer {
     onClose: (room, reason) => realtime?.onRoomClose(room, reason),
   });
   realtime = createRealtime({ io, rooms, auth, db, trustProxy: options.trustProxy ?? false });
-  // Native Godot clients use the same RoomManager through a small session-token HTTP bridge.
-  app.use(
-    "/api/native",
+  // Native clients (desktop readiness, Corn or Shit — Solo, Godot) use the same RoomManager
+  // through a small session-token HTTP bridge, mounted in the slot reserved above.
+  nativeRouter.use(
     createNativeApi({
       rooms,
       auth,
