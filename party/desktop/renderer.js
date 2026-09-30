@@ -9,6 +9,7 @@ const partyUrl = document.querySelector("#partyUrl");
 const version = document.querySelector("#version");
 const input = document.querySelector("#partyServerInput");
 const save = document.querySelector("#savePartyServer");
+const usePublicServer = document.querySelector("#usePublicServer");
 const message = document.querySelector("#serverMessage");
 const connectionCard = document.querySelector(".settings-card");
 const copyPlayerLink = document.querySelector("#copyPlayerLink");
@@ -216,6 +217,7 @@ async function checkServer({ quiet = false } = {}) {
     message.textContent = "Party server reachable.";
     message.className = "server-message ok";
     connectionCard?.classList.remove("attention");
+    usePublicServer.hidden = true;
     setServerDependentControls(true);
     healthCheckInFlight = false;
     return true;
@@ -225,10 +227,12 @@ async function checkServer({ quiet = false } = {}) {
   const configured = String(input.value || config?.partyBase || "");
   const localDefault = /\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(configured.replace(/\/+$/, ""));
   message.textContent = localDefault
-    ? "No local Party server is running. Paste the Railway Party URL below, then SAVE & CHECK."
+    ? "No local Party server is running. Choose USE PUBLIC SERVER, or paste another Party URL and SAVE & CHECK."
     : "Could not reach that Party server. Check the URL or Railway deployment.";
   message.className = "server-message bad";
   connectionCard?.classList.toggle("attention", localDefault);
+  // No local server: offer the public Railway server as one click instead of a URL to go find.
+  usePublicServer.hidden = !(localDefault && config?.publicPartyBase);
   if (localDefault) {
     status.textContent = "SETUP REQUIRED";
     if (!quiet) {
@@ -269,6 +273,12 @@ save.addEventListener("click", async () => {
 
 
 rerunReadiness.addEventListener("click", () => void runReadiness());
+
+usePublicServer.addEventListener("click", () => {
+  if (!config?.publicPartyBase) return;
+  input.value = config.publicPartyBase;
+  save.click();
+});
 
 
 copyPlayerLink.addEventListener("click", async () => {

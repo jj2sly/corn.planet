@@ -7,6 +7,9 @@ import QRCode from "qrcode";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PARTY_URL = process.env.CPI_PARTY_URL?.trim() || "http://127.0.0.1:3000";
+// The public Railway Party server (already linked from the CPI Database site). Offered as a one-click
+// setup choice when no local server is running; never forced.
+const PUBLIC_PARTY_URL = "https://cornplanet-production.up.railway.app";
 const DEFAULT_DATABASE_URL = process.env.CPI_DATABASE_URL?.trim() || "https://jj2sly.github.io/corn.planet";
 const SIDEBAR_WIDTH = 220;
 const PC_ROOT_URL = pathToFileURL(path.join(__dirname, "pc") + path.sep).toString();
@@ -684,6 +687,7 @@ handle("cpi:config", () => ({
   ...loadSettings(),
   activeTarget,
   presentationMode,
+  publicPartyBase: PUBLIC_PARTY_URL,
   version: app.getVersion(),
 }));
 
@@ -818,10 +822,13 @@ handle("cpi:readiness", async () => {
       result.issues.push("CPI canon could not be loaded.");
     }
   } catch (error) {
-    result.issues.push(error instanceof Error ? error.message : "Readiness check failed.");
+    // Network failures surface as a bare "fetch failed"; the offline line below already says it.
+    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    if (timedOut) result.issues.push("The Party server took too long to answer.");
+    else if (!(error instanceof TypeError)) result.issues.push(error instanceof Error ? error.message : "Readiness check failed.");
   }
 
-  if (!result.server) result.issues.unshift("Party server is offline.");
+  if (!result.server) result.issues.unshift("Party server is offline or unreachable.");
   return result;
 });
 

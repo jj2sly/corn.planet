@@ -505,3 +505,18 @@ test("a crashed embedded view is closed, not leaked", async () => {
   const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
   assert.match(main, /render-process-gone[\s\S]{0,1500}view\.webContents\.close\(\)/);
 });
+
+test("first-run setup offers the public Party server as one click", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+  const guide = await readFile(new URL("../desktop/START_HERE.txt", import.meta.url), "utf8");
+  assert.match(main, /const PUBLIC_PARTY_URL = "https:\/\/cornplanet-production\.up\.railway\.app"/);
+  assert.match(main, /publicPartyBase: PUBLIC_PARTY_URL/);
+  // Offered, never forced: the default stays local and the button only shows when that is offline.
+  assert.match(main, /DEFAULT_PARTY_URL = process\.env\.CPI_PARTY_URL\?\.trim\(\) \|\| "http:\/\/127\.0\.0\.1:3000"/);
+  assert.match(html, /id="usePublicServer"[^>]*hidden/);
+  assert.match(renderer, /usePublicServer\.hidden = !\(localDefault && config\?\.publicPartyBase\)/);
+  assert.match(guide, /USE PUBLIC SERVER/);
+  assert.doesNotMatch(main, /issues\.push\(error instanceof Error \? error\.message : "Readiness check failed\."\);\n  \}\n\n  if \(!result\.server\)/);
+});

@@ -2,14 +2,16 @@ CPI PARTY DESKTOP — START HERE
 
 GROUP NIGHT
 1. Open CPI Party.
-2. If the app says SETUP REQUIRED, paste the Railway Party server URL into Party Server and choose SAVE & CHECK.
+2. If the app says SETUP REQUIRED, choose USE PUBLIC SERVER (the public Railway server,
+   https://cornplanet-production.up.railway.app), or paste another Party server URL and choose SAVE & CHECK.
 3. Wait for GROUP NIGHT READINESS to show:
    - SERVER: ONLINE
    - GAMES: 6 / 6
    - CANON: at least 2 records
    - PROTOCOL: a number
 4. Use START GROUP NIGHT for the full-screen host display.
-5. Players scan the phone QR or use the copied phone link, then enter the four-letter room code shown by the host.
+5. Players scan the phone QR or use the copied phone link. The room code fills in by itself; they only
+   type an agent name. (Without the QR, they enter the four-letter code shown by the host.)
 6. Choose the game from the Party host screen.
 
 IMPORTANT
