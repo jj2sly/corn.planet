@@ -6845,7 +6845,8 @@ body:has(.td-phone) .sr-only {
   position: absolute;
   top: 0;
   right: 0;
-  bottom: 56px;
+  /* Clear of the bottom bar (bird, kernels, skip), which sits on top of the sheet. */
+  bottom: 68px;
   left: 0;
   z-index: 3;
   display: flex;

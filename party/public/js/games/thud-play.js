@@ -578,7 +578,7 @@ function buildScreen(s, tools) {
       for (const n of nests) {
         const joined = n.breeders.includes(me);
         const others = n.breeders.filter((id) => id !== me).map((id) => g.roster.find((q) => q.id === id)?.name);
-        const label = g.phase !== "BUILD" ? "Breeding opens in the Build Phase" : n.breeds ? "Bred this turn" : joined ? "Waiting for a second agent… (tap to leave)" : others.length ? `Breed with ${others.join(", ")} · ${g.build.breedCost} 🌽` : `Start breeding here · ${g.build.breedCost} 🌽 (needs 2 agents)`;
+        const label = g.phase !== "BUILD" ? "Breed in the Build Phase" : n.breeds ? "Bred this turn" : joined ? "Waiting for a partner… (tap to leave)" : others.length ? `Breed with ${others.join(", ")} · ${g.build.breedCost} 🌽` : `Breed here · ${g.build.breedCost} 🌽 · needs 2`;
         const b = btn(`🥚 Nest ${Math.round((n.progress ?? 0) * 100)}% · ${label}`, () => request("breed", { nest: n.id }), others.length && !joined ? "" : "ghost");
         b.disabled = g.phase !== "BUILD" || n.breeds > 0 || n.disabled > 0 || n.waterlogged;
         out.push(b);
