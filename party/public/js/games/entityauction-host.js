@@ -70,6 +70,16 @@ function board(g) {
   );
 }
 
+/** Agents ranked by net worth, one line each. */
+function worthStrip(g) {
+  const ranked = [...g.agents].sort((a, b) => b.netWorth - a.netWorth);
+  return el(
+    "ol",
+    { class: "ea-agents ea-worth-strip", "aria-label": "Net worth" },
+    ranked.map((a) => el("li", { class: a.left ? "left" : "" }, el("span", { class: "name", text: a.name }), el("span", { class: "mono", text: kernels(a.netWorth) }))),
+  );
+}
+
 // ------------------------------------------------------------------ phases
 
 function buildBriefing(s) {
@@ -86,9 +96,9 @@ function buildBriefing(s) {
       el(
         "ol",
         { class: "steps" },
-        el("li", { text: "You bid on the bay, not the entity. Nobody knows what is inside until its door opens." }),
-        el("li", { text: "Every entity carries a hidden buff or debuff. It stays sealed until the Action Round." }),
-        el("li", { text: "Highest net worth wins: Kernels left plus the value of every entity you still hold." }),
+        el("li", { text: "Bid on sealed bays. Nobody knows what's inside." }),
+        el("li", { text: "Each entity hides a buff or debuff until the Action Round." }),
+        el("li", { text: "Most net worth wins: Kernels + entity values." }),
       ),
     ),
     facilityEl(g.bays).node,
@@ -98,9 +108,9 @@ function buildBriefing(s) {
 }
 
 const LOT_TITLES = {
-  BIDDING: (a) => `${bayLabel(a.bayId)} · ACTIVE AUCTION`,
-  OPENING: () => "CONTAINMENT UNLOCKED",
-  REVEALED: (a) => (a.entity ? `${a.entity.ref} RECOVERED` : "CONTENTS IDENTIFIED"),
+  BIDDING: (a) => `${bayLabel(a.bayId)} · BID NOW`,
+  OPENING: () => "BIDDING CLOSED",
+  REVEALED: () => "ENTITY REVEALED",
 };
 
 function lotRows(g) {
@@ -109,29 +119,21 @@ function lotRows(g) {
   const price = a.byLottery ? "No bids · issued free" : kernels(a.winningBid ?? 0);
   if (g.phase === "BIDDING") {
     return [
-      ["Status", "SEALED", "alert"],
-      ["Contents", "UNKNOWN"],
       ["Current bid", a.currentBid === null ? "NO BIDS" : kernels(a.currentBid), "big"],
-      ["Highest bidder", a.highestBidder ?? "—"],
-      ["Next bid", `at least ${kernels(a.minimumBid)}`],
+      ["Leader", a.highestBidder ?? "—", "big"],
     ];
   }
   if (g.phase === "OPENING") {
     return [
-      ["Status", "UNLOCKING", "alert"],
-      ["Contents", "IDENTIFYING…"],
-      ["Acquired by", acquired, "big"],
-      ["Winning bid", price],
+      ["Won by", acquired, "big"],
+      ["Paid", price],
     ];
   }
   const e = a.entity;
   return [
     ["Entity", `${e.ref} · ${e.title}`, "big"],
-    ["Classification", e.classification, `class-${e.classification}`],
-    ["Base value", kernels(e.baseValue)],
-    ["Acquired by", acquired],
-    ["Winning bid", price],
-    ["Hidden modifier", "Sealed until the Action Round"],
+    ["Worth", `${kernels(e.baseValue)} · ${e.classification}`, `class-${e.classification}`],
+    ["Owner", `${acquired} · paid ${price}`],
   ];
 }
 
@@ -167,7 +169,7 @@ function buildLot(s) {
       log.replaceChildren(
         ...(ng.phase === "BIDDING" ? a.recentBids.map((b, i) => el("li", { class: i === 0 ? "top" : "" }, el("span", { text: b.name }), el("span", { class: "mono", text: kernels(b.amount) }))) : []),
       );
-      extra.textContent = ng.phase === "BIDDING" ? "Bid from your phone. Contents unknown." : ng.phase === "REVEALED" ? a.entity.summary : "";
+      extra.textContent = ng.phase === "BIDDING" ? `Bid on your phone. Next bid: ${kernels(a.minimumBid)}+` : ng.phase === "REVEALED" ? a.entity.summary : "";
       agents.replaceChildren(agentsStrip(ng));
     },
   };
@@ -181,17 +183,14 @@ function actionText(g) {
     return {
       eyebrow: "Action Round · final containment audit",
       title: "MODIFIERS REVEALED",
-      body: "Every hidden modifier no event triggered is revealed and takes effect now.",
+      body: "Every buff and debuff still hidden takes effect now.",
       outcomes: g.audit,
     };
   }
   return {
     eyebrow: "Action Round",
     title: "ACTION ROUND",
-    body:
-      g.rules.eventCount > 0
-        ? `Hidden modifiers are live. ${g.rules.eventCount} random events will hit the whole market: every agent, every entity, at once.`
-        : "Hidden modifiers are live.",
+    body: g.rules.eventCount > 0 ? `${g.rules.eventCount} events are coming. Each one hits every agent at once.` : "Hidden modifiers are live.",
     outcomes: null,
   };
 }
@@ -212,7 +211,8 @@ function buildAction(s) {
     node,
     update(next) {
       head.set(text.eyebrow, text.title, next.timer);
-      boardSlot.replaceChildren(board(next.game));
+      // Full holdings only at the audit, when they matter; events just show the running order.
+      boardSlot.replaceChildren(next.game.phase === "AUDIT" ? board(next.game) : worthStrip(next.game));
     },
   };
 }

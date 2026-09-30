@@ -68,7 +68,7 @@ function buildBriefing(s) {
     statusCard(
       "🔒",
       "SEALED BAYS AHEAD",
-      `You have ${kernels(g.you.kernels)}. ${g.lot.total} bays, ${g.rules.entitiesPerPlayer} for each agent. Nobody knows what's inside until a door opens.`,
+      `You have ${kernels(g.you.kernels)}. Win ${g.rules.entitiesPerPlayer} of ${g.lot.total} sealed bays.`,
     ),
   );
   return { node, update: (next) => t.set(next.timer) };
@@ -100,8 +100,8 @@ function buildLot(s, tools) {
     quick,
     el(
       "form",
-      { class: "row", onsubmit: (e) => (e.preventDefault(), place(Number(amount.value))) },
-      el("div", { class: "field grow" }, el("label", { for: "bidAmount", text: "Your own bid (Kernels)" }), amount),
+      { class: "row ea-bid-form", onsubmit: (e) => (e.preventDefault(), place(Number(amount.value))) },
+      el("div", { class: "field grow" }, el("label", { for: "bidAmount", text: "Custom bid" }), amount),
       el("button", { class: "btn", type: "submit", text: "Bid" }),
     ),
   );
@@ -127,14 +127,12 @@ function buildLot(s, tools) {
 
       if (bidding) {
         rows(info, [
-          ["Status", "SEALED · SECURE", "alert"],
-          ["Contents", "UNKNOWN"],
           ["Current bid", a.currentBid === null ? "NO BIDS" : kernels(a.currentBid), "big"],
-          ["Highest bidder", a.highestBidder ? (me.isHighest ? "YOU" : a.highestBidder) : "—"],
+          ["Leader", a.highestBidder ? (me.isHighest ? "YOU" : a.highestBidder) : "—"],
           ["Your Kernels", kernels(me.kernels)],
         ]);
         status.textContent = me.isHighest
-          ? "You hold the highest bid. Hold your nerve."
+          ? "You're winning. Hold your nerve."
           : me.slotsLeft === 0
             ? "Your collection is full. Watch the doors."
             : me.kernels < a.minimumBid
@@ -173,21 +171,18 @@ function buildLot(s, tools) {
         }
       } else if (ng.phase === "OPENING") {
         rows(info, [
-          ["Status", "UNLOCKING", "alert"],
-          ["Acquired by", mine ? "YOU" : (a.ownerName ?? "Unclaimed"), "big"],
-          ["Winning bid", a.byLottery ? "No bids · issued free" : kernels(a.winningBid ?? 0)],
+          ["Won by", mine ? "YOU" : (a.ownerName ?? "Unclaimed"), "big"],
+          ["Paid", a.byLottery ? "No bids · issued free" : kernels(a.winningBid ?? 0)],
         ]);
         status.textContent = mine ? "It's yours. Whatever it is." : "";
       } else {
         const e = a.entity;
         rows(info, [
           ["Entity", `${e.ref} · ${e.title}`, "big"],
-          ["Classification", e.classification, `class-${e.classification}`],
-          ["Base value", kernels(e.baseValue)],
-          ["Acquired by", mine ? "YOU" : (a.ownerName ?? "Unclaimed")],
-          ["Winning bid", a.byLottery ? "No bids · issued free" : kernels(a.winningBid ?? 0)],
+          ["Worth", `${kernels(e.baseValue)} · ${e.classification}`, `class-${e.classification}`],
+          ["Owner", mine ? "YOU" : (a.ownerName ?? "Unclaimed")],
         ]);
-        status.textContent = mine ? "Its hidden modifier stays sealed until the Action Round." : "";
+        status.textContent = mine ? "Its hidden buff or debuff shows in the Action Round." : "";
         if (!link.firstChild) {
           link.append(el("a", { class: "reference-id", href: e.url, target: "_blank", rel: "noopener noreferrer" }, `${e.ref} — inspect the record →`));
         }
@@ -202,7 +197,7 @@ function buildAction(s) {
   const title = g.phase === "EVENT" ? g.event.name : g.phase === "AUDIT" ? "MODIFIERS REVEALED" : "ACTION ROUND";
   const label = g.phase === "EVENT" ? `Event ${g.event.number} of ${g.event.total}` : "Action Round";
   const body =
-    g.phase === "EVENT" ? g.event.description : g.phase === "AUDIT" ? "Every modifier no event triggered takes effect now." : "Hidden modifiers are live. Watch the host screen.";
+    g.phase === "EVENT" ? g.event.description : g.phase === "AUDIT" ? "Every buff and debuff still hidden takes effect now." : "Events are coming. Watch the big screen.";
   const outcomes = (g.phase === "EVENT" ? g.event.outcomes : g.phase === "AUDIT" ? g.audit : []).filter((o) => o.playerName === null || o.playerName === me.name);
   const t = timerRow(s.timer, label);
   const totals = el("dl", { class: "ea-readout compact" });

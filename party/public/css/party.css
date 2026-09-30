@@ -1884,14 +1884,15 @@ a.stamp:focus-visible {
 }
 
 /* Phones */
+/* On a phone the door is a reminder, not the show: short, so the bid buttons stay on screen. */
 .phone .bay-large {
-  width: min(100%, 300px);
+  width: min(100%, 260px);
   margin: 0 auto;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
 }
 
 .phone .bay-large .bay-chamber {
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 2 / 1;
 }
 
 .phone .ea-event {
@@ -1929,6 +1930,38 @@ a.stamp:focus-visible {
 .bid-option.all-in {
   grid-column: 1 / -1;
   border-color: var(--danger);
+}
+
+/* Phones: three raises in a row and short buttons, so every bid fits without scrolling. */
+.phone .bid-grid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.phone .bid-option {
+  min-height: 0;
+  padding: 8px 6px;
+  font-size: 0.9rem;
+}
+
+.phone .bid-option .letter {
+  font-size: 0.65rem;
+}
+
+.phone .ea-bid-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.phone .ea-bid-form input {
+  width: 100%;
+}
+
+.phone .ea-bid-form .btn {
+  width: auto;
+  min-width: 88px;
 }
 
 @media (max-width: 900px) {
