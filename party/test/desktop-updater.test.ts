@@ -50,6 +50,7 @@ function setup(mode: UpdateMode, { hostLive = false } = {}) {
     getUpdater: () => ((created += 1), updater),
     mode,
     notifyReason: mode === "notify" ? "unsigned-mac" : null,
+    arch: "x64",
     currentVersion: "0.2.1",
     hostIsLive: () => live,
     emit: (state) => states.push(state),
@@ -124,6 +125,7 @@ describe("desktop updater: status the Command Center shows", () => {
     const state = await controller.check();
     assert.equal(state.phase, "available");
     assert.equal(state.notifyReason, "unsigned-mac");
+    assert.equal(state.arch, "x64");
     assert.equal(state.availableVersion, "0.2.2");
     assert.deepEqual(controller.install(), { ok: false, message: "No update is ready to install." });
     assert.equal(updater.installs.length, 0);
@@ -290,6 +292,7 @@ describe("desktop updater wiring", () => {
     assert.match(main, /handle\("cpi:open-update-download", \(\) => updates\.openDownloadPage\(\)\)/);
     // Host protection reuses the existing retained-host state.
     assert.match(main, /hostIsLive: \(\) => hostIsRetained\(\)/);
+    assert.match(main, /arch: process\.arch,/);
     // Checks never run in the CI launch check or block startup.
     assert.match(main, /if \(!SMOKE_TEST && UPDATE_MODE !== "dev"\)/);
     assert.match(main, /setTimeout\(\(\) => void updates\.check\(\), STARTUP_DELAY_MS\)/);
@@ -317,6 +320,9 @@ describe("desktop updater wiring", () => {
     // The installed version is surfaced, with the build's commit when there is one.
     assert.match(renderer, /Version \$\{state\?\.currentVersion/);
     assert.match(renderer, /config\.build\?\.commit/);
+    // Mac users are told which of the two builds to download.
+    assert.match(renderer, /CPI-Party-\$\{state\.availableVersion\}-\$\{state\.arch\}\.dmg/);
+    assert.match(renderer, /x64: "Intel Mac", arm64: "Apple silicon Mac"/);
   });
 
   it("packages the updater, its GitHub Releases source and stable asset names", async () => {

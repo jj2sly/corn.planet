@@ -4,6 +4,7 @@ export type UpdatePhase = "disabled" | "idle" | "checking" | "up-to-date" | "ava
 
 export interface UpdateState {
   mode: UpdateMode;
+  arch: string | null;
   notifyReason: NotifyReason | null;
   phase: UpdatePhase;
   currentVersion: string;
@@ -34,6 +35,7 @@ export function createUpdateController(deps: {
   getUpdater: () => UpdaterLike;
   mode: UpdateMode;
   notifyReason?: NotifyReason | null;
+  arch?: string | null;
   currentVersion: string;
   hostIsLive: () => boolean;
   emit: (state: UpdateState) => void;

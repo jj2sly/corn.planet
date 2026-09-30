@@ -47,6 +47,7 @@ const UPDATE_MODE = DEV_UPDATE_FEED
 const updates = createUpdateController({
   mode: UPDATE_MODE,
   notifyReason: notifyReasonFor({ platform: process.platform, portable: PORTABLE_BUILD }),
+  arch: process.arch,
   currentVersion: app.getVersion(),
   // The same retained-host state the close warning and Command Center use.
   hostIsLive: () => hostIsRetained(),

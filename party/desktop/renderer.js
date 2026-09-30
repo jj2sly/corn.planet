@@ -93,8 +93,17 @@ function paintHostState(detail) {
   if (updateState) paintUpdate(updateState);
 }
 
+const MAC_ARCH_NAMES = { x64: "Intel Mac", arm64: "Apple silicon Mac" };
+
+/** The DMG this Mac should download: builds are published for both Intel (x64) and Apple silicon (arm64). */
+function macDownloadHint(state) {
+  const kind = MAC_ARCH_NAMES[state?.arch];
+  if (!kind || !state?.availableVersion) return "Download the .dmg for your Mac from GitHub";
+  return `Download CPI-Party-${state.availableVersion}-${state.arch}.dmg (this is an ${kind}) from GitHub`;
+}
+
 const NOTIFY_REASONS = {
-  "unsigned-mac": "This Mac build isn't code-signed, so macOS won't let it replace itself. Download the new version from GitHub and drag it into Applications.",
+  "unsigned-mac": (state) => `This Mac build isn't code-signed, so macOS won't let it replace itself. ${macDownloadHint(state)} and drag it into Applications.`,
   portable: "The portable EXE doesn't update itself. Download the new version from GitHub (the installer version updates automatically).",
   unsupported: "Download the new version from GitHub.",
 };
@@ -120,7 +129,8 @@ function paintUpdate(state) {
     detail = state.message || (state.checkedAt ? `Checked at ${formatClock(state.checkedAt)}.` : "");
   } else if (phase === "available") {
     headline = `UPDATE AVAILABLE · ${next}`;
-    detail = NOTIFY_REASONS[state.notifyReason] ?? NOTIFY_REASONS.unsupported;
+    const reason = NOTIFY_REASONS[state.notifyReason] ?? NOTIFY_REASONS.unsupported;
+    detail = typeof reason === "function" ? reason(state) : reason;
     tone = "warn";
   } else if (phase === "downloading") {
     headline = `UPDATE AVAILABLE · ${next}`;

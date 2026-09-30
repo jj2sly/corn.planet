@@ -47,8 +47,20 @@
     "mac": {
       "category": "public.app-category.games",
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "artifactName": "CPI-Party-${version}-${arch}-mac.${ext}"
     },

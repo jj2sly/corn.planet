@@ -29,7 +29,12 @@ test("desktop package scripts and build targets are configured", async () => {
   assert.ok(desktop.devDependencies.electron);
   assert.ok(desktop.devDependencies["electron-builder"]);
   assert.ok(desktop.build.win.target.includes("portable"));
-  assert.ok(desktop.build.mac.target.includes("dmg"));
+  // Intel (x64) and Apple silicon (arm64) Macs each get a DMG and a ZIP (the ZIP feeds latest-mac.yml).
+  for (const kind of ["dmg", "zip"]) {
+    const target = desktop.build.mac.target.find((t: { target: string }) => t.target === kind);
+    assert.ok(target, `mac ${kind} target`);
+    assert.deepEqual([...target.arch].sort(), ["arm64", "x64"]);
+  }
 });
 
 test("desktop app keeps Party content inside the application window", async () => {

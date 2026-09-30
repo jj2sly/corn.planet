@@ -62,15 +62,18 @@ export function describeUpdateError(error) {
  * @param {() => any} deps.getUpdater  lazily returns electron-updater's autoUpdater (never called in dev mode)
  * @param {"install"|"notify"|"dev"} deps.mode
  * @param {"unsigned-mac"|"portable"|"unsupported"|null} [deps.notifyReason]
+ * @param {string|null} [deps.arch]  process.arch of this build
  * @param {string} deps.currentVersion
  * @param {() => boolean} deps.hostIsLive  the existing retained-host check
  * @param {(state: object) => void} deps.emit  pushes status to the Command Center
  * @param {(url: string) => void} deps.openExternal
  * @param {() => number} [deps.now]
  */
-export function createUpdateController({ getUpdater, mode, notifyReason = null, currentVersion, hostIsLive, emit, openExternal, now = Date.now, schedule = defaultSchedule }) {
+export function createUpdateController({ getUpdater, mode, notifyReason = null, arch = null, currentVersion, hostIsLive, emit, openExternal, now = Date.now, schedule = defaultSchedule }) {
   let state = {
     mode,
+    // This build's CPU architecture, so a manual download can name the right file (x64 = Intel Mac).
+    arch,
     // Why a notify-mode build can't install in place: "unsigned-mac" | "portable" | "unsupported".
     notifyReason: mode === "notify" ? notifyReason ?? "unsupported" : null,
     phase: mode === "dev" ? "disabled" : "idle",

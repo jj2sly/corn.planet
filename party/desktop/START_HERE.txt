@@ -29,8 +29,14 @@ UPDATES
 - Windows portable EXE: does not update itself. The card tells you when a new version is out and
   DOWNLOAD UPDATE opens the release page.
 - macOS: these builds are not code-signed, so macOS will not let the app replace itself. The card
-  tells you when a new version is out; DOWNLOAD UPDATE opens the release page. Replace the app in
-  Applications with the new one. Your Party server setting is kept.
+  tells you when a new version is out and which file your Mac needs; DOWNLOAD UPDATE opens the
+  release page. Replace the app in Applications with the new one. Your Party server setting is kept.
+
+MAC DOWNLOADS
+- Intel Macs: CPI-Party-<version>-x64.dmg
+- Apple silicon Macs (M1 and newer): CPI-Party-<version>-arm64.dmg
+  (Apple menu > About This Mac shows "Chip: Apple M…" on Apple silicon, "Processor: Intel" on Intel.)
+- First launch of an unsigned build: right-click CPI Party in Applications and choose Open.
 
 LOCAL SERVER
 If the Party server is running locally, the desktop app automatically tries to turn localhost into this computer's LAN IP for the phone QR. Phones still need to be able to reach the computer over the same network.
