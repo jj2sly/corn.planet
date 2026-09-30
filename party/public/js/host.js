@@ -40,15 +40,18 @@ function saveSession(value) {
 }
 
 function joinUrl() {
+  let url;
   if (requestedJoin) {
     try {
-      const url = new URL(requestedJoin);
-      if ((url.protocol === "http:" || url.protocol === "https:") && url.pathname === "/play" && !url.username && !url.password) {
-        return url.toString().replace(/\/$/, "");
+      const candidate = new URL(requestedJoin);
+      if ((candidate.protocol === "http:" || candidate.protocol === "https:") && candidate.pathname === "/play" && !candidate.username && !candidate.password) {
+        url = candidate;
       }
     } catch {}
   }
-  return `${location.origin}/play`;
+  url ??= new URL("/play", location.origin);
+  if (state?.code) url.searchParams.set("code", state.code);
+  return url.toString().replace(/\/$/, "");
 }
 
 function setBanner(node) {
