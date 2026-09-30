@@ -15,7 +15,9 @@ import * as thud from "./games/thud-host.js";
 
 const RENDERERS = { chaos, cornorshit, entityauction, mycob, steamdeck, thud };
 const SESSION_KEY = "cpst-party:host";
-const requestedGame = new URLSearchParams(location.search).get("game");
+const hostParams = new URLSearchParams(location.search);
+const requestedGame = hostParams.get("game");
+const requestedJoin = hostParams.get("join");
 let requestedGameHandled = false;
 
 const stage = $("#stage");
@@ -38,6 +40,14 @@ function saveSession(value) {
 }
 
 function joinUrl() {
+  if (requestedJoin) {
+    try {
+      const url = new URL(requestedJoin);
+      if ((url.protocol === "http:" || url.protocol === "https:") && url.pathname === "/play" && !url.username && !url.password) {
+        return url.toString().replace(/\/$/, "");
+      }
+    } catch {}
+  }
   return `${location.origin}/play`;
 }
 
