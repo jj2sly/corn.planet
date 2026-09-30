@@ -89,10 +89,18 @@ function playerJoinUrl() {
   }
 }
 
+function partyHostUrl(gameId = "") {
+  const current = loadSettings();
+  const url = new URL(`${current.partyBase}/host`);
+  url.searchParams.set("join", playerJoinUrl());
+  if (gameId) url.searchParams.set("game", gameId);
+  return url.toString();
+}
+
 function destination(target) {
   const current = loadSettings();
   const destinations = {
-    party: `${current.partyBase}/host`,
+    party: partyHostUrl(),
     account: `${current.partyBase}/account`,
     prompts: `${current.partyBase}/prompts`,
     hall: `${current.partyBase}/hall`,
@@ -547,7 +555,7 @@ ipcMain.handle("cpi:launch-game", (_event, gameId) => {
   const id = String(gameId);
   if (!GAME_IDS.has(id)) throw new Error("Unknown CPI Party game");
   const current = loadSettings();
-  openContent(`${current.partyBase}/host?game=${encodeURIComponent(id)}`, "party", { retain: true, forceNavigate: true });
+  openContent(partyHostUrl(id), "party", { retain: true, forceNavigate: true });
   return true;
 });
 
