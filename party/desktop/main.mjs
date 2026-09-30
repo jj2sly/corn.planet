@@ -132,6 +132,50 @@ function emitRoomCode() {
   sendToShell("cpi:room-code", { code: liveRoomCode });
 }
 
+async function updateHostJoinOverlay() {
+  const host = retainedViews.get("party");
+  if (!host || host.webContents.isDestroyed()) return;
+
+  const url = playerJoinUrl();
+  let dataUrl;
+  try {
+    dataUrl = await QRCode.toDataURL(url, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: 180,
+      color: { dark: "#050607", light: "#ffd400" },
+    });
+  } catch {
+    return;
+  }
+
+  const payload = JSON.stringify({ url, dataUrl, code: liveRoomCode });
+  try {
+    await host.webContents.executeJavaScript(`
+      (() => {
+        const data = ${payload};
+        const hint = document.querySelector("#joinHint");
+        if (!hint) return;
+        let wrap = document.querySelector("#cpiDesktopJoinOverlay");
+        if (!wrap) {
+          wrap = document.createElement("span");
+          wrap.id = "cpiDesktopJoinOverlay";
+          wrap.style.cssText = "display:inline-flex;align-items:center;gap:10px;margin-right:12px;vertical-align:middle";
+          const img = document.createElement("img");
+          img.id = "cpiDesktopJoinQr";
+          img.alt = "Phone join QR code";
+          img.style.cssText = "width:72px;height:72px;background:#ffd400;padding:3px;border:1px solid #665600;image-rendering:pixelated";
+          wrap.appendChild(img);
+          hint.prepend(wrap);
+        }
+        const img = document.querySelector("#cpiDesktopJoinQr");
+        if (img) img.src = data.dataUrl;
+        wrap.title = data.url;
+      })();
+    `, true);
+  } catch {}
+}
+
 function contentBounds() {
   if (!mainWindow) return { x: SIDEBAR_WIDTH, y: 0, width: 1000, height: 700 };
   const [width, height] = mainWindow.getContentSize();
@@ -208,6 +252,10 @@ function createContentView(target) {
     return { action: "deny" };
   });
 
+  view.webContents.on("did-finish-load", () => {
+    if (target === "party") void updateHostJoinOverlay();
+  });
+
   view.webContents.on("page-title-updated", (_event, title) => {
     if (target !== "party") return;
     const match = /—\s*([BCDFGHJKLMNPQRSTVWXZ]{4})\s*$/.exec(String(title).toUpperCase());
@@ -215,6 +263,7 @@ function createContentView(target) {
     if (nextCode && nextCode !== liveRoomCode) {
       liveRoomCode = nextCode;
       emitRoomCode();
+      void updateHostJoinOverlay();
     }
   });
 
