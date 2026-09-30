@@ -798,8 +798,9 @@ th {
 
 .agent {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 6px 10px;
   min-height: 64px;
   padding: 10px 14px;
   border: 2px solid var(--line);
@@ -810,9 +811,11 @@ th {
   overflow-wrap: anywhere;
 }
 
+/* Keep the name at its natural width; status stamps wrap below it instead of crushing it to one
+   letter per line (e.g. a disconnected agent with "0/2 filed" + "Signal lost"). */
 .agent .name {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: min(100%, 6ch);
 }
 
 .agent.filled {

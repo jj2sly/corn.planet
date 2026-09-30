@@ -25,12 +25,16 @@ let hello = { loggedIn: false, displayName: null };
 let state = null;
 let session = store.get("sessionStorage", SESSION_KEY);
 let lastPhase = null;
+// Why the last session ended ("The server is restarting…"). Kept until the player joins again so a
+// reconnect re-mounting the join form doesn't wipe the explanation.
+let endedMessage = null;
 let helloReceived = () => {};
 const helloReady = new Promise((resolve) => (helloReceived = resolve));
 
 function saveSession(value) {
   session = value;
   if (value) {
+    endedMessage = null;
     store.set("sessionStorage", SESSION_KEY, value);
     store.set("localStorage", SESSION_KEY, value);
     store.set("localStorage", NAME_KEY, value.name);
@@ -98,12 +102,13 @@ function onEnded(info) {
   setSystem(null);
   menuButton.hidden = true;
   setBanner();
+  endedMessage = info.message ?? null;
   showJoin(info.message);
 }
 
 // ------------------------------------------------------------------ join
 
-function showJoin(message) {
+function showJoin(message = endedMessage) {
   state = null;
   lastStatus = null;
   setSystem(null);

@@ -22,6 +22,7 @@ const readinessIssues = document.querySelector("#readinessIssues");
 const rerunReadiness = document.querySelector("#rerunReadiness");
 const startGroupNight = document.querySelector("#startGroupNight");
 const SERVER_TARGETS = new Set(["party", "account", "prompts", "hall"]);
+let config = null;
 let serverOnline = false;
 let hostRunning = false;
 let healthCheckInFlight = false;
@@ -90,6 +91,8 @@ window.cpiDesktop.onHostState((detail) => paintHostState(detail));
 window.cpiDesktop.onRoomCode((detail) => {
   paintRoomCode(detail);
   void refreshPlayerQr();
+  // A new room usually means the host just reconnected after an outage; don't wait for the poll.
+  if (detail?.code) void checkServer({ quiet: true });
 });
 window.cpiDesktop.onPresentationMode((enabled) => {
   document.body.classList.toggle("presentation-mode", enabled);
@@ -238,7 +241,7 @@ async function checkServer({ quiet = false } = {}) {
   return false;
 }
 
-let config = await window.cpiDesktop.config();
+config = await window.cpiDesktop.config();
 paintActiveTarget(config.activeTarget || "home");
 paintHostState(await window.cpiDesktop.hostStatus());
 paintRoomCode(await window.cpiDesktop.roomCode());
