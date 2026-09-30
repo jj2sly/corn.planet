@@ -1298,7 +1298,7 @@ function down(state) {
   state.hold = null;
   p.vx = 0;
   p.vy = 0;
-  say(state, TEXT.messages.down, "bad", { big: true });
+  say(state, TEXT.messages.down, "bad");
   emit(state, { type: "phase", phase: "DOWNED" });
   emit(state, { type: "sound", cue: "cc_down" });
 }
@@ -1754,12 +1754,13 @@ export function debrief(state) {
     threats: Object.keys(s.threats),
     technician: state.flags.outpostFound,
     setpoint: state.setpoint,
+    // [system, done, what "done" is called for it]
     systems: [
-      ["STORAGE TEMPERATURE", state.flags.setpointOk],
-      ["MAIN POWER", state.flags.powerRestored],
-      ["COOLING ARRAY", state.flags.coolingRepaired],
-      ["TECHNICIAN LOCATED", state.flags.outpostFound],
-      ["REFRIGERATOR CORE", state.flags.coreStabilized],
+      ["STORAGE TEMPERATURE", state.flags.setpointOk, "ADJUSTED"],
+      ["MAIN POWER", state.flags.powerRestored, "RESTORED"],
+      ["COOLING ARRAY", state.flags.coolingRepaired, "RESTORED"],
+      ["MISSING TECHNICIAN", state.flags.outpostFound, "LOCATED"],
+      ["REFRIGERATOR CORE", state.flags.coreStabilized, "STABILIZED"],
     ],
   };
 }

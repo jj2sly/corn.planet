@@ -53,4 +53,6 @@ CURRENT MULTIPLAYER CATALOG
 - Escape Thad's Steam Deck
 - Angry Thud's Revenge
 
-Cold Case is not part of the current Group Night build.
+PC Games -> CPI: Cold Case (prototype)
+A solo top-down mission, played with the keyboard (WASD / arrows, E, Space) or a gamepad. It runs
+from the Party server, so the server must be reachable. Not part of the Group Night catalog.

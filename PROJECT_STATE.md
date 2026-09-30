@@ -123,6 +123,17 @@ server-side and rendered with `textContent`. CSP allows no inline scripts.
 
 ## 8. Status
 
+- **CPI: Cold Case, top-down browser game** (2026-09-30, `cpst-party`): `/coldcase` now serves a
+  playable top-down mission instead of the retired first-person WebGL page (the old
+  `server/coldcase/level.ts` and its tests are gone). Code in `party/public/js/coldcase/`: map,
+  deterministic DOM-free simulation, canvas renderer, HUD, keyboard/touch/gamepad input, sound
+  through the shared `games/mycob-sound.js`, and a scripted agent (`bot.js`). Full loop from
+  briefing to debrief; `party/test/coldcase.test.ts` plays it end to end (60 seeds: all finish,
+  median ~3.5 min, ~0.1 downs). Also launchable from the desktop app's PC Games library (ships with
+  the next desktop release). Browser-checked on desktop, a phone-sized touch view and inside the
+  Electron app; not yet played by people or on a real phone. Chuck's dialogue is a marked
+  placeholder awaiting owner canon (`party/public/js/coldcase/content.js`). Design notes:
+  `party/docs/COLDCASE_PROTOTYPE.md`.
 - **Angry Thud's Revenge** (2026-09-26, `cpst-party`, uncommitted): new co-op slingshot game, id
   `thud`, 2–8 agents, launched inside Steam My Deck's CPI handheld. Birds with 9 data-driven
   abilities, skins separate from gameplay (Steam My Deck's cast as birds), shared kernels, build phase

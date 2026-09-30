@@ -130,6 +130,7 @@ export const TEXT = Object.freeze({
     hypothermia: "HYPOTHERMIA // FIND WARMTH",
     lowWarmth: "WARMTH LOW // FIND A HEAT SOURCE",
     down: "AGENT DOWN",
+    downing: "CPST RESPONSE // RETURNING TO LAST STABILIZED CHECKPOINT",
     respawn: "CPST RESPONSE // RETURNED TO LAST STABILIZED CHECKPOINT",
     milkWakes: "DAIRY THAWING",
     milkSpoils: "DAIRY SPOILING // HOSTILE",

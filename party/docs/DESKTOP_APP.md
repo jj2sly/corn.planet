@@ -21,10 +21,11 @@ The command center keeps these experiences inside the Electron application:
 - Hall of Fame
 - PC Games library
 - Corn or Shit — Solo
+- CPI: Cold Case (prototype)
 
 Players still use their phones for multiplayer controllers.
 
-Cold Case is not on the current critical path.
+Cold Case is not on the Group Night critical path.
 
 ## Group Night flow
 
@@ -93,6 +94,13 @@ The desktop shell has a dedicated PC Games library.
 - redacted/classified placeholder values are skipped
 - streak scoring plus true accuracy tracking
 - reveal screen can open the actual documented CPI record inside the app
+
+### CPI: Cold Case (prototype)
+
+- the Party server's own `/coldcase` page, opened inside the app (no separate build)
+- solo, keyboard (WASD / arrows, E, Space) or gamepad
+- needs the configured Party server to be reachable
+- see `party/docs/COLDCASE_PROTOTYPE.md`
 
 ## Package the desktop app
 

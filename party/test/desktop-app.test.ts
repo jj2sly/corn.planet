@@ -122,6 +122,18 @@ test("desktop PC Games library routes through the persistent shell", async () =>
   assert.match(library, /data-pc-game="cornorshit-solo"/);
 });
 
+test("desktop PC Games library launches CPI: Cold Case from the Party server", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const shell = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
+  const library = await readFile(new URL("../desktop/pc/index.html", import.meta.url), "utf8");
+
+  assert.match(library, /CPI: Cold Case/);
+  assert.match(library, /data-pc-game="coldcase"/);
+  assert.match(shell, /data-pc-game="coldcase"/);
+  assert.match(main, /PC_GAME_IDS = new Set\(\[[^\]]*"coldcase"/);
+  assert.match(main, /partyBase\}\/coldcase/);
+});
+
 test("desktop command center can copy the phone join link", async () => {
   const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
   const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");

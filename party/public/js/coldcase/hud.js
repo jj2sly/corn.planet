@@ -160,7 +160,7 @@ export function createHud() {
       const pos = (v) => `${((v - panel.min) / (panel.max - panel.min)) * 100}%`;
       const thaw = el("i", { class: "mark thaw" }, el("span", { text: `THAW +${CONFIG.thaw.point}°` }));
       thaw.style.left = pos(CONFIG.thaw.point);
-      const dairy = el("i", { class: "mark dairy" }, el("span", { text: `DAIRY LIMIT +${CONFIG.milk.spoilAbove}°` }));
+      const dairy = el("i", { class: "mark dairy" }, el("span", { text: `DAIRY +${CONFIG.milk.spoilAbove}°` }));
       dairy.style.left = pos(CONFIG.milk.spoilAbove);
       parts.fill = el("i", { class: "fill" });
       parts.needle = el("i", { class: "needle" });
@@ -334,7 +334,7 @@ export function createHud() {
     const downed = state.phase === "DOWNED";
     els.down.hidden = !downed;
     if (downed) {
-      set(els.downText, TEXT.messages.respawn);
+      set(els.downText, TEXT.messages.downing);
       width(els.downBar, 1 - state.downT / CONFIG.respawn.downTime);
     }
 
@@ -387,7 +387,7 @@ export function createHud() {
       ["FOOD THREATS", d.threats.length ? d.threats.map((k) => (k === "milk" ? "MILK" : "ICE CREAM")).join(" · ") : "NONE ENGAGED"],
     ];
     $("debriefFacts").replaceChildren(...facts.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })]));
-    $("debriefSystems").replaceChildren(...d.systems.map(([name, ok]) => el("li", { class: ok ? "" : "no", text: `${name} — ${ok ? "RESTORED" : "NOT RESTORED"}` })));
+    $("debriefSystems").replaceChildren(...d.systems.map(([name, ok, word]) => el("li", { class: ok ? "" : "no", text: `${name} — ${ok ? word : "NOT DONE"}` })));
   }
 
   function toggleMap(state, objective) {

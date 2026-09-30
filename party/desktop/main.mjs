@@ -64,7 +64,7 @@ const updates = createUpdateController({
 });
 
 const GAME_IDS = new Set(["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]);
-const PC_GAME_IDS = new Set(["cornorshit-solo"]);
+const PC_GAME_IDS = new Set(["cornorshit-solo", "coldcase"]);
 
 function cleanBase(value) {
   return String(value || "").trim().replace(/\/+$/, "");
@@ -473,6 +473,9 @@ function launchPcGame(gameId) {
   if (gameId === "cornorshit-solo") {
     const url = pathToFileURL(path.join(__dirname, "pc", "cornorshit.html")).toString();
     openContent(url, "pc-games");
+  } else if (gameId === "coldcase") {
+    // CPI: Cold Case is the Party server's own /coldcase page, the same one a browser opens.
+    openContent(`${loadSettings().partyBase}/coldcase`, "pc-games");
   }
 }
 
@@ -619,6 +622,7 @@ function installMenu() {
         { label: "Party Host", accelerator: "CmdOrCtrl+Shift+P", click: () => navigate("party") },
         { label: "Presentation Host", accelerator: "CmdOrCtrl+Shift+Enter", click: () => startPresentationHost() },
         { label: "Corn or Shit — Solo", accelerator: "CmdOrCtrl+Shift+G", click: () => launchPcGame("cornorshit-solo") },
+        { label: "CPI: Cold Case", click: () => launchPcGame("coldcase") },
         {
           label: "Copy Phone Join Link",
           accelerator: "CmdOrCtrl+Shift+J",

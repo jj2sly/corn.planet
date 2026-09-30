@@ -8,6 +8,10 @@ Do not migrate the working Party catalog into Godot just for architectural consi
 
 `CPI: Cold Case` is currently a back-burner PC-game prototype.
 
+**The playable version today is the browser game** at `/coldcase` on the Party server
+(`party/public/js/coldcase/`, see `party/docs/COLDCASE_PROTOTYPE.md`). It does not depend on this
+Godot project; the Godot scene stays a possible native path for later.
+
 The old first-person 3D prototype has been retired. Cold Case is now being rebuilt as a top-down 2D/2.5D cooperative mission inspired by the readability of social-deduction room layouts without copying another game's art, roles or rules.
 
 Current top-down foundation:

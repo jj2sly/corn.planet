@@ -165,5 +165,5 @@ export declare function debrief(state: GameState): {
   threats: string[];
   technician: boolean;
   setpoint: number;
-  systems: [string, boolean][];
+  systems: [string, boolean, string][];
 };

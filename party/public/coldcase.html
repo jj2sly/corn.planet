@@ -15,12 +15,21 @@
       <canvas id="view" aria-label="Cold Case, top-down view"></canvas>
 
       <div id="hud" hidden>
-        <section class="card objective" aria-live="polite">
-          <p class="kicker">OBJECTIVE</p>
-          <p id="objText" class="obj-text"></p>
-          <p id="objDetail" class="obj-detail"></p>
-          <div class="bar thin"><i id="objBar"></i></div>
-        </section>
+        <div class="hud-left">
+          <section class="card objective" aria-live="polite">
+            <p class="kicker">OBJECTIVE</p>
+            <p id="objText" class="obj-text"></p>
+            <p id="objDetail" class="obj-detail"></p>
+            <div class="bar thin"><i id="objBar"></i></div>
+          </section>
+
+          <section class="card vitals">
+            <div class="meter"><span>VITALS</span><b id="hpVal">100</b><div class="bar"><i id="hpBar"></i></div></div>
+            <div class="meter warmth"><span>WARMTH</span><b id="warmVal">100</b><div class="bar"><i id="warmBar"></i></div></div>
+            <p class="chips"><span id="packs" class="chip">HEAT PACKS 0</span><span id="threat" class="chip">THREAT NONE</span><span id="status" class="chip" hidden></span></p>
+          </section>
+          <ol id="feed" class="feed" aria-live="polite"></ol>
+        </div>
 
         <section class="card readout">
           <p id="zoneName" class="zone">KITCHEN</p>
@@ -28,15 +37,9 @@
           <button id="minimapBtn" class="minimap" type="button" aria-label="Map (M)"><canvas id="minimap" width="176" height="176"></canvas></button>
         </section>
 
-        <section class="card vitals">
-          <div class="meter"><span>VITALS</span><b id="hpVal">100</b><div class="bar"><i id="hpBar"></i></div></div>
-          <div class="meter warmth"><span>WARMTH</span><b id="warmVal">100</b><div class="bar"><i id="warmBar"></i></div></div>
-          <p class="chips"><span id="packs" class="chip">HEAT PACKS 0</span><span id="threat" class="chip">THREAT NONE</span><span id="status" class="chip" hidden></span></p>
-        </section>
 
         <div id="prompt" class="prompt" hidden><span id="promptKey" class="key">E</span><span id="promptText"></span><div class="bar thin"><i id="promptBar"></i></div></div>
         <div id="banner" class="banner" hidden></div>
-        <ol id="feed" class="feed" aria-live="polite"></ol>
         <div class="corner-buttons">
           <button id="muteBtn" class="icon-btn" type="button" aria-label="Mute sound">SND</button>
           <button id="pauseBtn" class="icon-btn" type="button" aria-label="Pause">II</button>

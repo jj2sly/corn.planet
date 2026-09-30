@@ -632,6 +632,12 @@ a {
   color: var(--muted);
 }
 
+/* Labels on marks near the right edge sit on the mark's left. */
+.gauge .mark.flip span {
+  left: auto;
+  right: 4px;
+}
+
 .gauge .mark.thaw {
   background: var(--green);
 }
@@ -698,6 +704,12 @@ a {
   color: #050606;
   font-size: 15px;
   letter-spacing: 0.08em;
+}
+
+.pbtn:disabled {
+  cursor: default;
+  opacity: 0.55;
+  filter: none;
 }
 
 .pbtn:active,
@@ -1050,9 +1062,31 @@ a {
 
 /* ------------------------------------------------------------------ small screens */
 
+/* On a wide screen the left column's cards sit in their own corners; on a phone they stack. */
+.hud-left {
+  display: contents;
+}
+
 @media (max-width: 760px) {
+  .hud-left {
+    position: absolute;
+    top: calc(10px + var(--safe-top));
+    left: calc(10px + var(--safe-left));
+    width: calc(100vw - 150px - 30px - var(--safe-left) - var(--safe-right));
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .hud-left > .card,
+  .hud-left > .feed {
+    position: relative;
+    inset: auto;
+    width: auto;
+    transform: none;
+  }
+
   .objective {
-    width: calc(100vw - 150px - 36px);
     padding: 8px 10px;
   }
 
@@ -1060,7 +1094,55 @@ a {
     font-size: 15px;
   }
 
+  .vitals {
+    padding: 7px 9px;
+  }
+
+  .meter {
+    margin-bottom: 4px;
+  }
+
+  .meter span,
+  .meter b {
+    font-size: 10px;
+  }
+
+  .meter .bar {
+    height: 5px;
+    margin-top: 2px;
+  }
+
+  .chip {
+    font-size: 9px;
+    padding: 3px 5px;
+  }
+
+  .feed {
+    align-items: flex-start;
+  }
+
+  .feed li {
+    text-align: left;
+    border-right: 0;
+    border-left: 3px solid var(--muted);
+    font-size: 10px;
+  }
+
+  .feed li.good {
+    border-left-color: var(--green);
+  }
+
+  .feed li.warn {
+    border-left-color: var(--yellow);
+  }
+
+  .feed li.bad {
+    border-left-color: var(--red);
+  }
+
   .readout {
+    top: calc(10px + var(--safe-top));
+    right: calc(10px + var(--safe-right));
     width: 150px;
     padding: 8px 10px;
   }
@@ -1075,28 +1157,12 @@ a {
   }
 
   .corner-buttons {
-    top: auto;
-    right: auto;
-    left: calc(12px + var(--safe-left));
-    bottom: auto;
-    top: calc(118px + var(--safe-top));
-  }
-
-  .vitals {
-    width: min(210px, 52vw);
-    padding: 8px 10px;
-    bottom: auto;
-    top: calc(166px + var(--safe-top));
-  }
-
-  .feed {
-    bottom: auto;
-    top: calc(236px + var(--safe-top));
-    width: min(260px, 60vw);
+    top: calc(196px + var(--safe-top));
+    right: calc(10px + var(--safe-right));
   }
 
   .prompt {
-    bottom: calc(140px + var(--safe-bottom));
+    bottom: calc(136px + var(--safe-bottom));
     font-size: 12px;
   }
 
@@ -1112,17 +1178,21 @@ a {
 }
 
 @media (max-height: 520px) and (orientation: landscape) {
-  .minimap {
-    width: 96px;
-    height: 96px;
-  }
-
   .vitals {
-    top: auto;
     bottom: calc(10px + var(--safe-bottom));
     left: 50%;
     transform: translateX(-50%);
-    width: 220px;
+    width: 230px;
+    padding: 6px 9px;
+  }
+
+  .vitals .chips {
+    display: none;
+  }
+
+  .minimap {
+    width: 96px;
+    height: 96px;
   }
 
   .feed {
@@ -1135,12 +1205,11 @@ a {
 
   .corner-buttons {
     top: calc(12px + var(--safe-top));
-    left: auto;
-    right: calc(120px + var(--safe-right));
+    right: calc(140px + var(--safe-right));
   }
 
   .readout {
-    width: 118px;
+    width: 128px;
   }
 
   .temp {

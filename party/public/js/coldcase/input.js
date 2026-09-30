@@ -16,6 +16,15 @@ const LEFT = new Set(["KeyA", "ArrowLeft"]);
 const RIGHT = new Set(["KeyD", "ArrowRight"]);
 const SCROLL_KEYS = new Set(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 const STICK_RADIUS = 52;
+
+/** Pointer capture can throw (e.g. for a pointer that is already gone); losing it is harmless. */
+function capture(el, pointerId) {
+  try {
+    el.setPointerCapture(pointerId);
+  } catch {
+    /* keep going without capture */
+  }
+}
 const DEADZONE = 0.14;
 
 export function createInput({ stickZone, stick, useBtn, heatBtn, panelMinus, panelPlus, panelPrimary, onPause, onCancel, onMap, onBegin, onTouch, panelOpen }) {
@@ -29,6 +38,13 @@ export function createInput({ stickZone, stick, useBtn, heatBtn, panelMinus, pan
   let adjustEdge = 0;
   let touchMode = false;
 
+  // A click queued straight from a press, so a tap shorter than a frame still counts.
+  function queueAdjust(direction) {
+    adjustEdge = direction;
+    adjustPrev = direction;
+    repeatT = 0.32;
+  }
+
   function enterTouchMode() {
     if (touchMode) return;
     touchMode = true;
@@ -41,6 +57,8 @@ export function createInput({ stickZone, stick, useBtn, heatBtn, panelMinus, pan
     const first = !e.repeat;
     keys.add(e.code);
     if (!first) return;
+    if (LEFT.has(e.code) && panelOpen()) queueAdjust(-1);
+    else if (RIGHT.has(e.code) && panelOpen()) queueAdjust(1);
     if (e.code === "KeyE") edges.interact = true;
     else if (e.code === "Space") edges.action = true;
     else if (e.code === "Escape" || e.code === "KeyP" || e.code === "Backspace") {
@@ -67,7 +85,7 @@ export function createInput({ stickZone, stick, useBtn, heatBtn, panelMinus, pan
     touch.oy = e.clientY;
     touch.vx = 0;
     touch.vy = 0;
-    stickZone.setPointerCapture?.(e.pointerId);
+    capture(stickZone, e.pointerId);
     stick.hidden = false;
     stick.style.left = `${e.clientX}px`;
     stick.style.top = `${e.clientY}px`;
@@ -106,7 +124,7 @@ export function createInput({ stickZone, stick, useBtn, heatBtn, panelMinus, pan
       if (e.pointerType !== "mouse") enterTouchMode();
       touch[key] = true;
       el.classList.add("active");
-      el.setPointerCapture?.(e.pointerId);
+      capture(el, e.pointerId);
       onPress?.();
       e.preventDefault();
     };
@@ -122,8 +140,8 @@ export function createInput({ stickZone, stick, useBtn, heatBtn, panelMinus, pan
   }
   holdButton(useBtn, "use", { onPress: () => (edges.interact = true) });
   holdButton(heatBtn, "heat", { onPress: () => (edges.action = true) });
-  holdButton(panelMinus, "minus");
-  holdButton(panelPlus, "plus");
+  holdButton(panelMinus, "minus", { onPress: () => queueAdjust(-1) });
+  holdButton(panelPlus, "plus", { onPress: () => queueAdjust(1) });
   holdButton(panelPrimary, "primary", { onPress: () => (edges.interact = true) });
 
   function releaseTouch() {
