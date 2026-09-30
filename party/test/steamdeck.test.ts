@@ -702,13 +702,19 @@ describe("Steam My Deck over Socket.IO", () => {
       await wait(() => latest.get(fresh)?.game?.you?.role === "runner", "back in as a runner");
       // Thad's last tilt (0.25, rightwards) may still slide Ann a little right; only a move left is steering.
       const [, atX, atY] = runner(host, ann.id)!;
+      const seqBefore = latest.get(fresh).game.you.jumpSeq;
       ann.s.emit("game:stream", { l: 1, r: 0, j: 99 });
       await new Promise((r) => setTimeout(r, 300));
       assert.ok(runner(host, ann.id)![1] >= atX - 2, "the replaced socket can't steer");
-      fresh.emit("game:stream", { l: 1, r: 0, j: latest.get(fresh).game.you.jumpSeq + 1 });
+      assert.equal(latest.get(fresh).game.you.jumpSeq, seqBefore, "the replaced socket's jump is ignored");
+      fresh.emit("game:stream", { l: 1, r: 0, j: seqBefore + 1 });
       await wait(() => {
-        const [, x2, y2, , state] = runner(host, ann.id)!;
-        return x2 < atX - 5 || y2 < atY - 20 || state !== 0;
+        const [, x2, y2, facing, state] = runner(host, ann.id)!;
+        // Thad's rightward tilt can carry Ann right, or off a ledge, faster than she walks left, so
+        // position alone is flaky. The direct proof is the server taking this socket's input: Ann
+        // turns left and the new socket's jump is consumed.
+        const tookInput = facing === -1 && latest.get(fresh).game.you.jumpSeq === seqBefore + 1;
+        return tookInput || x2 < atX - 5 || y2 < atY - 20 || state !== 0;
       }, "the new socket steers (left, or up with the jump)");
       // Host and phones agree on the same tick.
       await wait(() => latest.get(fresh).game.tick === latest.get(host).game.tick, "same tick");
