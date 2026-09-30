@@ -518,5 +518,7 @@ test("first-run setup offers the public Party server as one click", async () => 
   assert.match(html, /id="usePublicServer"[^>]*hidden/);
   assert.match(renderer, /usePublicServer\.hidden = !\(localDefault && config\?\.publicPartyBase\)/);
   assert.match(guide, /USE PUBLIC SERVER/);
-  assert.doesNotMatch(main, /issues\.push\(error instanceof Error \? error\.message : "Readiness check failed\."\);\n  \}\n\n  if \(!result\.server\)/);
+  // A bare network "fetch failed" (TypeError) is not echoed; the offline line already covers it.
+  assert.match(main, /else if \(!\(error instanceof TypeError\)\) result\.issues\.push/);
+  assert.match(main, /Party server is offline or unreachable\./);
 });
