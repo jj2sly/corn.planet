@@ -3355,8 +3355,8 @@ textarea.mc-answer {
   flex-direction: column;
   justify-content: center;
   gap: 2px;
-  min-height: 56px;
-  padding: 6px 2px;
+  min-height: 50px;
+  padding: 5px 2px;
   font-size: 0.72rem;
   text-align: center;
 }
@@ -3376,9 +3376,11 @@ textarea.mc-answer {
   max-width: 100%;
   overflow-wrap: anywhere;
   letter-spacing: 0;
+  font-size: 0.64rem;
 }
 
-@media (max-width: 400px) {
+/* Four across fits from 360px up (two rows, so Submit stays on screen); only the narrowest phones need three. */
+@media (max-width: 359px) {
   .phone .mc-tags {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
