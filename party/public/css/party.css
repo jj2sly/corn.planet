@@ -4924,8 +4924,9 @@ button.cpi-hh-face-btn:disabled {
   font-size: 0.8rem;
 }
 
+/* Touch screens have on-screen controls: no keyboard legends there. */
 @media (hover: none) {
-  .sd-runner .sd-keys {
+  .sd-keys {
     display: none;
   }
 }

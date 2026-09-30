@@ -241,7 +241,6 @@ function thadConsole({ stream, request }) {
   const meter = el("div", { class: "sd-meter", role: "meter", "aria-label": "Tilt", "aria-valuemin": "-100", "aria-valuemax": "100" }, el("div", { class: "sd-needle" }));
   const needle = meter.firstChild;
   const reading = el("p", { class: "sd-reading" });
-  const influence = el("p", { class: "sd-influence mono" });
   const limits = el("div", { class: "sd-limits", "aria-label": "Lean limit by phase" }, ["ESCAPE", "ESCALATION", "FINAL"].map((p, i) => el("span", { class: "sd-limit", dataset: { phase: p }, text: `${[14, 22, 30][i]}°` })));
   const chips = el("div", { class: "sd-sources", role: "list", "aria-label": "Tilt input" }, SOURCE_CHIPS.map(([id, text]) => el("span", { class: "sd-chip", role: "listitem", dataset: { source: id }, text })));
   const motionLine = el("p", { class: "sd-motion" });
@@ -322,7 +321,6 @@ function thadConsole({ stream, request }) {
     reading.textContent = pct < 3 ? "LEVEL" : `${value < 0 ? "◀ LEFT" : "RIGHT ▶"} ${deg.toFixed(1)}° · ${pct}%`;
     reading.classList.toggle("hot", pct > 50);
     // How hard the lean shoves a runner, as a share of gravity (sin of the angle).
-    influence.textContent = `Shove: ${Math.round(Math.sin((deg * Math.PI) / 180) * 100)}% of gravity · limit ${maxTilt}°`;
   };
   let painted = "";
   const paintDial = (value) => {
@@ -368,19 +366,19 @@ function thadConsole({ stream, request }) {
     "section",
     { class: "sd-console", "aria-label": "Thad's controls" },
     el("div", { class: "sd-console-head" }, el("span", { class: "sd-console-title", text: "DECK CONTROL" }), el("span", { class: "sd-console-sub", text: "YOU HOLD THE DECK" })),
+    // What's coming and who's out first; the controls next; input setup last.
+    el("div", { class: "sd-console-status" }, coming, runners),
     el("div", { class: "sd-dial-wrap" }, dial, reading),
     shakeBtn,
-    influence,
     limits,
     meter,
     slider,
-    el("p", { class: "sd-keys", text: "Keys: ← → lean (hold for more) · ↓ or Space: level · ↑ or W: SHAKE · or hold L / R on the Deck" }),
+    el("p", { class: "sd-keys", text: "← → lean · Space level · ↑ shake" }),
+    log,
+    note,
     chips,
     el("div", { class: "row sd-panel-buttons" }, motionBtn, calibrate, level),
     motionLine,
-    note,
-    el("div", { class: "sd-console-status" }, coming, runners),
-    log,
   );
   return {
     node,
@@ -802,7 +800,7 @@ function buildRunner(s, tools) {
   };
   window.addEventListener("keydown", onKey);
   window.addEventListener("keyup", onKey);
-  const keys = el("p", { class: "sd-keys", text: `Keys: ← → move · Space jump · E plank (arrows nudge, Enter place) · M map${g.level.exitUse ? " · ↓ enter the exit" : ""}` });
+  const keys = el("p", { class: "sd-keys", text: `← → move · Space jump · E plank · M map${g.level.exitUse ? " · ↓ exit" : ""}` });
 
   const setStatus = (next) => {
     const g2 = next.game;
