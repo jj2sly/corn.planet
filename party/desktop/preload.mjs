@@ -4,6 +4,8 @@ if (globalThis.location?.protocol === "file:") {
   contextBridge.exposeInMainWorld("cpiDesktop", {
     navigate: (target) => ipcRenderer.invoke("cpi:navigate", target),
     hostStatus: () => ipcRenderer.invoke("cpi:host-status"),
+    roomCode: () => ipcRenderer.invoke("cpi:room-code"),
+    copyRoomCode: () => ipcRenderer.invoke("cpi:copy-room-code"),
     returnHost: () => ipcRenderer.invoke("cpi:return-host"),
     stopHost: () => ipcRenderer.invoke("cpi:stop-host"),
     startPresentationHost: () => ipcRenderer.invoke("cpi:start-presentation-host"),
@@ -37,6 +39,11 @@ if (globalThis.location?.protocol === "file:") {
       const handler = (_event, detail) => callback(detail);
       ipcRenderer.on("cpi:host-state", handler);
       return () => ipcRenderer.removeListener("cpi:host-state", handler);
+    },
+    onRoomCode: (callback) => {
+      const handler = (_event, detail) => callback(detail);
+      ipcRenderer.on("cpi:room-code", handler);
+      return () => ipcRenderer.removeListener("cpi:room-code", handler);
     },
   });
 }
