@@ -1,4 +1,4 @@
-import { RespawnState, activateCheckpoint } from "./checkpoint-state.ts";
+import { type RespawnState, activateCheckpoint } from "./checkpoint-state.ts";
 import { CheckpointRegistry } from "./checkpoint.ts";
 
 export interface CheckpointStation { id: string; checkpointId: string; name: string; enabled: boolean; }

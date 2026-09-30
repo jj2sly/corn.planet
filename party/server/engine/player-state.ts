@@ -1,4 +1,4 @@
-import { HealthState, StatusTracker, createHealth } from "./status.ts";
+import { type HealthState, StatusTracker, createHealth } from "./status.ts";
 import { Inventory } from "./survival.ts";
 import { AuthoritativeState } from "./sync.ts";
 

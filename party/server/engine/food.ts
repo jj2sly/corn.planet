@@ -1,4 +1,4 @@
-import { EntityRegistry, WorldEntity } from "./entity.ts";
+import { EntityRegistry, type WorldEntity } from "./entity.ts";
 
 export type FoodBehavior = "IDLE" | "FLEE" | "HUNT" | "AMBUSH" | "TRAP" | "MUTATE";
 

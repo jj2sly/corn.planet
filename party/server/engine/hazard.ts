@@ -1,5 +1,5 @@
-import { EnvironmentZone } from "./environment.ts";
-import { HealthState, StatusTracker, applyDamage } from "./status.ts";
+import type { EnvironmentZone } from "./environment.ts";
+import { type HealthState, StatusTracker, applyDamage } from "./status.ts";
 
 export interface HazardResult {
   damage: number;

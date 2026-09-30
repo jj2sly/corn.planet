@@ -1,5 +1,5 @@
 import { EntityRegistry } from "./entity.ts";
-import { FoodState } from "./food.ts";
+import type { FoodState } from "./food.ts";
 
 export interface FoodSpawnDefinition {
   idPrefix: string;

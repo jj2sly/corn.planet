@@ -1,6 +1,6 @@
-import { SceneGraph, SceneNode, SceneTransform, identityTransform } from "./scene.ts";
-import { Interactable } from "./interactable.ts";
-import { TemperatureZone } from "./temperature.ts";
+import { SceneGraph, type SceneNode, type SceneTransform, identityTransform } from "./scene.ts";
+import type { Interactable } from "./interactable.ts";
+import type { TemperatureZone } from "./temperature.ts";
 
 export interface FridgeModule {
   id: string;

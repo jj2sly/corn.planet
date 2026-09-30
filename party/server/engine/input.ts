@@ -48,7 +48,7 @@ export function normalizeInput(input: {
 }): GameInput {
   if (!input.action) throw new Error("Input action is required.");
   if (!input.source) throw new Error("Input source is required.");
-  const out: GameInput = { action: input.action, source: input.source };
+  const out: { -readonly [K in keyof GameInput]: GameInput[K] } = { action: input.action, source: input.source };
   if (input.value !== undefined) { if (!finite(input.value)) throw new Error("Input value must be finite."); out.value = input.value; }
   if (input.x !== undefined) { if (!finite(input.x)) throw new Error("Input x must be finite."); out.x = input.x; }
   if (input.y !== undefined) { if (!finite(input.y)) throw new Error("Input y must be finite."); out.y = input.y; }

@@ -1,4 +1,4 @@
-import { setTemperatureTarget, TemperatureZone } from "./temperature.ts";
+import { setTemperatureTarget, type TemperatureZone } from "./temperature.ts";
 
 export interface TemperatureControl {
   id: string;

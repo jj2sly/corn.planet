@@ -1,5 +1,5 @@
-import { EventLog, GameEvent } from "./event.ts";
-import { InteractionRequest, InteractionResult, validateInteraction } from "./interaction-flow.ts";
+import { EventLog, type GameEvent } from "./event.ts";
+import { type InteractionRequest, type InteractionResult, validateInteraction } from "./interaction-flow.ts";
 
 export interface InteractionEventPayload {
   request: InteractionRequest;

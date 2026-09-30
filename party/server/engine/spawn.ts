@@ -23,7 +23,7 @@ export class PlayerSpawnRegistry {
     const list = this.spawns.get(zoneId);
     if (!list?.length) return null;
     const cursor = this.cursors.get(zoneId) ?? 0;
-    const spawn = list[cursor % list.length];
+    const spawn = list[cursor % list.length]!;
     this.cursors.set(zoneId, cursor + 1);
     return structuredClone(spawn);
   }

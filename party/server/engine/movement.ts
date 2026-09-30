@@ -21,7 +21,6 @@ export const DEFAULT_MOVEMENT: Readonly<MovementConfig> = Object.freeze({
   gravity: 15, jumpVelocity: 5.2, maxPitch: Math.PI * 0.49, maxLookRate: Math.PI * 2.5,
 });
 const clamp=(v:number,a:number,b:number)=>Math.max(a,Math.min(b,v));
-const approach=(c:number,t:number,a:number)=>c<t?Math.min(t,c+a):Math.max(t,c-a);
 export function normalizeMove(forward:number,right:number){
   const length=Math.hypot(forward,right);
   if(length<=1)return {forward:clamp(forward,-1,1),right:clamp(right,-1,1)};
@@ -36,8 +35,11 @@ export function stepMovement(state:MovementState,input:MovementInput,dt:number,c
   const sin=Math.sin(state.yaw),cos=Math.cos(state.yaw);
   const targetX=(move.right*cos+move.forward*sin)*speed;
   const targetZ=(move.right*-sin+move.forward*cos)*speed;
-  const accel=state.grounded?config.acceleration:config.airAcceleration;
-  const vx=approach(state.vx,targetX,accel*safeDt),vz=approach(state.vz,targetZ,accel*safeDt);
+  // Accelerate along the velocity difference as a vector so diagonals don't gain speed faster.
+  const accel=(state.grounded?config.acceleration:config.airAcceleration)*safeDt;
+  const dvx=targetX-state.vx,dvz=targetZ-state.vz,dv=Math.hypot(dvx,dvz);
+  const k=dv<=accel?1:accel/dv;
+  const vx=state.vx+dvx*k,vz=state.vz+dvz*k;
   let vy=state.vy-config.gravity*safeDt,y=state.y+vy*safeDt,grounded=state.grounded;
   if(input.jump&&grounded){vy=config.jumpVelocity;y=state.y+vy*safeDt;grounded=false;}
   if(y<=0){y=0;vy=0;grounded=true;}
