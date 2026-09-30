@@ -1,0 +1,182 @@
+name: Release CPI Party Desktop
+
+# Publishes a desktop version to GitHub Releases, where installed CPI Party builds look for updates.
+#
+# To release: bump "version" in party/desktop/package.json and push to cpst-party. That's it.
+# Pushes that don't change to a new version build nothing here (the regular desktop build workflow
+# still produces test artifacts). A version that is already published is never overwritten.
+#
+# Nothing is published unless the Party checks, the desktop checks and both platform builds (which
+# include the Electron launch smoke test) pass, and the update metadata matches the version.
+
+on:
+  push:
+    branches: [cpst-party]
+    paths:
+      - "party/desktop/package.json"
+      - ".github/workflows/cpi-desktop-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpi-desktop-release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      tag: ${{ steps.read.outputs.tag }}
+      publish: ${{ steps.release.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: read
+        run: |
+          version=$(node -p "require('./party/desktop/package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.read.outputs.tag }}
+        run: |
+          if state=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [ "$state" = "true" ]; then
+              # Left behind by an interrupted run: installed apps never see drafts, so start clean.
+              gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes
+              echo "publish=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "::notice::CPI Party $TAG is already published; bump party/desktop/package.json to release again."
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  checks:
+    needs: version
+    if: needs.version.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: party
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: party/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm --prefix desktop install
+      - run: npm --prefix desktop run check
+
+  build:
+    needs: [version, checks]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: party/desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm install
+      - run: npm run check
+      # predist stamps build-info.json and launch-tests the app; postdist writes BUILD-INFO.txt.
+      - run: npm run dist
+      - name: Copy Group Night guide beside the installers
+        run: node -e "require('fs').copyFileSync('START_HERE.txt','../dist-desktop/START_HERE.txt')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpi-party-${{ matrix.platform }}-${{ needs.version.outputs.tag }}
+          # Installers, update metadata and blockmaps only (not the unpacked app folders).
+          path: |
+            party/dist-desktop/*.exe
+            party/dist-desktop/*.dmg
+            party/dist-desktop/*.zip
+            party/dist-desktop/*.blockmap
+            party/dist-desktop/*.yml
+            party/dist-desktop/BUILD-INFO.txt
+            party/dist-desktop/START_HERE.txt
+            !party/dist-desktop/builder-debug.yml
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: ${{ needs.version.outputs.tag }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cpi-party-*-${{ needs.version.outputs.tag }}
+          path: assets
+      - name: Verify update assets
+        run: |
+          set -euo pipefail
+          mv assets/cpi-party-windows-*/BUILD-INFO.txt assets/BUILD-INFO-windows.txt
+          mv assets/cpi-party-macos-*/BUILD-INFO.txt assets/BUILD-INFO-macos.txt
+          mkdir release
+          find assets -type f ! -name START_HERE.txt -exec mv {} release/ \;
+          cp "$(find assets -name START_HERE.txt | head -1)" release/START_HERE.txt
+          cd release
+          ls -la
+          # electron-updater reads these; they must describe exactly this version.
+          for meta in latest.yml latest-mac.yml; do
+            test -f "$meta" || { echo "::error::$meta is missing"; exit 1; }
+            grep -q "^version: $VERSION$" "$meta" || { echo "::error::$meta is not version $VERSION"; cat "$meta"; exit 1; }
+            for file in $(grep -E '^[[:space:]]+- url: ' "$meta" | sed -E 's/^[[:space:]]+- url: //'); do
+              test -f "$file" || { echo "::error::$meta points at missing $file"; exit 1; }
+            done
+          done
+          test -f "CPI-Party-Setup-$VERSION.exe"
+          test -f "CPI-Party-Setup-$VERSION.exe.blockmap"
+          test -f "CPI-Party-Portable-$VERSION.exe"
+          # Intel (x64) and Apple silicon (arm64) Macs each need a DMG and an update ZIP.
+          for arch in x64 arm64; do
+            test -f "CPI-Party-$VERSION-$arch.dmg" || { echo "::error::missing $arch DMG"; exit 1; }
+            test -f "CPI-Party-$VERSION-$arch-mac.zip" || { echo "::error::missing $arch ZIP"; exit 1; }
+            grep -q "url: CPI-Party-$VERSION-$arch-mac.zip" latest-mac.yml || { echo "::error::latest-mac.yml has no $arch ZIP"; exit 1; }
+          done
+      - name: Publish GitHub Release
+        run: |
+          set -euo pipefail
+          cat > notes.md <<EOF
+          CPI Party desktop $VERSION, built from ${GITHUB_SHA::7} on cpst-party.
+
+          - **Windows:** \`CPI-Party-Setup-$VERSION.exe\` installs CPI Party and keeps it up to date automatically.
+            \`CPI-Party-Portable-$VERSION.exe\` runs without installing but does not update itself.
+          - **macOS, Intel:** \`CPI-Party-$VERSION-x64.dmg\`. **Apple silicon (M1 and newer):** \`CPI-Party-$VERSION-arm64.dmg\`.
+            These builds are not code-signed, so the app tells you when a new version is out (and which file
+            your Mac needs) and opens this page; install it by replacing the app in Applications.
+            First launch: right-click the app and choose Open.
+
+          See START_HERE.txt for Group Night setup.
+          EOF
+          # Upload to a draft first: installed apps ignore drafts, so a half-uploaded release is never seen.
+          gh release create "$TAG" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "CPI Party $VERSION" --notes-file notes.md --draft
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
