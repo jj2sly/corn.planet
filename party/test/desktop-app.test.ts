@@ -336,3 +336,21 @@ test("desktop phone join resolver prefers private LAN ranges", async () => {
   assert.match(main, /172\\\.\(\\d\+\)/);
   assert.match(main, /bestLanIpv4/);
 });
+
+
+test("desktop shell exposes the live four-letter room code", async () => {
+  const main = await readFile(new URL("../desktop/main.mjs", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../desktop/preload.mjs", import.meta.url), "utf8");
+  const renderer = await readFile(new URL("../desktop/renderer.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../desktop/index.html", import.meta.url), "utf8");
+
+  assert.match(main, /liveRoomCode/);
+  assert.match(main, /page-title-updated/);
+  assert.match(main, /cpi:room-code/);
+  assert.match(main, /cpi:copy-room-code/);
+  assert.match(preload, /roomCode/);
+  assert.match(preload, /copyRoomCode/);
+  assert.match(renderer, /paintRoomCode/);
+  assert.match(html, /LIVE ROOM CODE/);
+  assert.match(html, /COPY CODE/);
+});
