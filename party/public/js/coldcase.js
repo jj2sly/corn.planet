@@ -1,74 +1,205 @@
-const canvas=document.querySelector("#view"),gl=canvas.getContext("webgl");
-const healthEl=document.querySelector("#health"),threatEl=document.querySelector("#threat"),inventoryEl=document.querySelector("#inventory");
-const start=document.querySelector("#start"),begin=document.querySelector("#begin"),objective=document.querySelector("#objective"),tempEl=document.querySelector("#temp"),prompt=document.querySelector("#prompt"),repair=document.querySelector("#repair"),repairText=document.querySelector("#repairText"),repairButtons=document.querySelector("#repairButtons");
-let started=false,room="KITCHEN",temperature=21,repairStep=0,repairMode="POWER",doorOpen=false,powerRestored=false,coolingStable=false,milkAwake=false,milkPulse=0,last=0;
-let health=100,downed=false,downedUntil=0,damageCooldown=0,environmentTimer=0,threat="LOW",tool="THERMOMETER";
-const inventory=["THERMOMETER",null,null,null];
-const checkpoint={room:"PANTRY",x:0,z:7,temp:6};
-const milk={x:3.5,z:1.5,state:"IDLE",lastAttack:0};
-const ice={x:-5,z:-3,state:"DORMANT",lastAttack:0};
-const rooms={KITCHEN:{w:16,d:14,h:7,color:[.56,.52,.45]},FRIDGE_ENTRANCE:{w:18,d:18,h:9,color:[.25,.31,.34]},PANTRY:{w:22,d:20,h:9,color:[.25,.29,.25]},POWER_ROOM:{w:18,d:16,h:9,color:[.18,.21,.22]},FREEZER:{w:26,d:24,h:11,color:[.16,.25,.31]},TECHNICIAN_OUTPOST:{w:20,d:18,h:9,color:[.2,.22,.21]}};
-const p={x:0,y:1.6,z:4,yaw:0,pitch:0,forward:0,right:0,sprint:false};
-const keys=new Set();
-const vs=`attribute vec3 p; uniform mat4 mvp; uniform vec3 c; varying vec3 v; varying float fy; void main(){gl_Position=mvp*vec4(p,1.);v=c;fy=gl_Position.y/gl_Position.w;}`;
-const fs=`precision mediump float; varying vec3 v; varying float fy; uniform float fog; uniform float cold; void main(){float light=.88+.12*clamp(fy*.35+.5,0.,1.);vec3 c=v*light;if(cold>.5)c=mix(c,vec3(.68,.78,.82),.10);float f=clamp((1.0-fog)*.10,0.,.10);c=mix(c,vec3(.08,.11,.12),f);gl_FragColor=vec4(c,1.);}`;
-function shader(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);return s}
-const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,vs));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(prog);gl.useProgram(prog);
-const loc=gl.getAttribLocation(prog,"p"),mvpLoc=gl.getUniformLocation(prog,"mvp"),colorLoc=gl.getUniformLocation(prog,"c"),fogLoc=gl.getUniformLocation(prog,"fog"),coldLoc=gl.getUniformLocation(prog,"cold");
-const cube=new Float32Array([-1,-1,-1,1,-1,-1,1,1,-1,-1,1,-1,-1,-1,1,1,-1,1,1,1,1,-1,1,1,-1,-1,-1,-1,1,-1,-1,1,-1,-1,-1,1,1,-1,1,1,1,1,1,1,-1,1,-1,1]);
-const idx=new Uint16Array([0,1,2,0,2,3,4,6,5,4,7,6,0,4,5,0,5,1,3,2,6,3,6,7,1,5,6,1,6,2,0,3,7,0,7,4]);
-const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,cube,gl.STATIC_DRAW);const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,idx,gl.STATIC_DRAW);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,3,gl.FLOAT,false,0,0);gl.enable(gl.DEPTH_TEST);
-function mul(a,b){const o=new Float32Array(16);for(let c=0;c<4;c++)for(let r=0;r<4;r++)o[c*4+r]=a[r]*b[c*4]+a[4+r]*b[c*4+1]+a[8+r]*b[c*4+2]+a[12+r]*b[c*4+3];return o}
-function ident(){const a=new Float32Array(16);a[0]=a[5]=a[10]=a[15]=1;return a}
-function translate(x,y,z){const a=ident();a[12]=x;a[13]=y;a[14]=z;return a}
-function scale(x,y,z){const a=ident();a[0]=x;a[5]=y;a[10]=z;return a}
-function rotateY(t){const a=ident(),c=Math.cos(t),s=Math.sin(t);a[0]=c;a[2]=-s;a[8]=s;a[10]=c;return a}
-function rotateX(t){const a=ident(),c=Math.cos(t),s=Math.sin(t);a[5]=c;a[6]=s;a[9]=-s;a[10]=c;return a}
-function perspective(fov,aspect,n,f){const q=1/Math.tan(fov/2),a=new Float32Array(16);a[0]=q/aspect;a[5]=q;a[10]=(f+n)/(n-f);a[11]=-1;a[14]=2*f*n/(n-f);return a}
-function box(x,y,z,w,h,d,c){gl.uniform1f(fogLoc,Math.max(0,Math.min(1,Math.abs(z-p.z)/60)));gl.uniform1f(coldLoc,(room==="FREEZER"||room==="TECHNICIAN_OUTPOST")?1:0);const model=mul(translate(x,y,z),scale(w/2,h/2,d/2));gl.uniformMatrix4fv(mvpLoc,false,mul(view,model));gl.uniform3fv(colorLoc,c);gl.drawElements(gl.TRIANGLES,36,gl.UNSIGNED_SHORT,0)}
-let view=ident();
-const dist=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
-function rebuildView(){view=mul(perspective(1.05,canvas.width/canvas.height,.05,100),mul(rotateX(p.pitch),mul(rotateY(p.yaw),translate(-p.x,-p.y,-p.z))));}
-function colorTemp(c){return temperature<=0?[c[0]*.78,c[1]*.9,Math.min(1,c[2]*1.12+.04)]:temperature>=15?[Math.min(1,c[0]*1.08),c[1]*.94,c[2]*.82]:c;}
-function crate(x,y,z,w,h,d,c){box(x,y,z,w,h,d,colorTemp(c));box(x,y+h/2+.03,z,w*.78,.06,d*.78,colorTemp([c[0]*1.18,c[1]*1.15,c[2]*1.08]));}
-function pipe(x,y,z,w,h,d,c){box(x,y,z,w,h,d,c);if(h>0.5){box(x+w*.38,y+h*.2,z,.08,h*.45,.08,[.48,.5,.48]);box(x-w*.38,y+h*.75,z,.08,h*.25,.08,[.32,.34,.34]);}}
-function vent(x,y,z,w,d,c){box(x,y,z,w,.08,d,c);for(let i=-2;i<=2;i++)box(x+i*w*.17,y+.06,z,d*.08,.05,d*.65,[.12,.14,.15]);}
-function draw(){const q=rooms[room];gl.viewport(0,0,canvas.width,canvas.height);const cold=room==="FREEZER"||room==="TECHNICIAN_OUTPOST";const deep=room!=="KITCHEN";const pulse=.5+.5*Math.sin(performance.now()*.004);gl.clearColor(...q.color,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);rebuildView();
-box(0,-1,0,q.w,1,q.d,[.10,.12,.12]);box(0,q.h,0,q.w,.4,q.d,[.15,.17,.17]);for(const x of [-q.w*.32,0,q.w*.32])box(x,q.h-.08,-q.d*.18,1.8,.06,.45,room==="KITCHEN"?[.72,.68,.58]:[.38,.46,.48]);
-box(0,q.h/2,-q.d/2,q.w,q.h,.4,deep?[.18,.20,.21]:[.30,.30,.28]);box(-q.w/2,q.h/2,0,.4,q.h,q.d,[.22,.24,.24]);box(q.w/2,q.h/2,0,.4,q.h,q.d,[.22,.24,.24]);
-if(room==="KITCHEN"){for(const x of [-5.8,-3.0,-.2]){box(x,2.3,-6.0,2.5,4.6,.5,[.58,.55,.49]);box(x,2.45,-5.7,2.2,.08,.08,[.72,.69,.61]);}box(4,2,-2,3.2,6,3,[.68,.70,.68]);box(2.3,2,-2,.16,5.5,2.65,[.82,.85,.84]);box(2.28,2,-.68,.08,5.4,2.5,[.45,.58,.58]);box(-2,0,2,7,1,2,[.32,.33,.31]);box(-2,.58,1.0,7,.12,2.1,[.52,.48,.41]);for(const x of [-4,-2,0])crate(x,1.0,2.0,1.5,1.0,1.1,[.38,.34,.27]);for(const x of [-5,-2,1]){box(x,2.5,-5.7,2.4,5,.3,[.48,.46,.42]);box(x,4.5,-5.48,2,.08,.08,[.65,.62,.55]);}}
-if(room==="FRIDGE_ENTRANCE"){for(let z=-7;z<=7;z+=2)box(-3.8,7.3,z,.05,.05,.05,[.72,.9,1]);}if(room==="FRIDGE_ENTRANCE"){for(let z=-6;z<=6;z+=4){box(-5,1,z,1,4,3,[.48,.47,.43]);box(5,1,z,1,4,3,[.48,.47,.43]);box(-5,.1,z,1.2,.12,3,[.7,.68,.62]);}for(const z of [-7,-3,1,5])box(0,5.5,z,9,.12,.8,[.65,.68,.68]);}
-if(room==="PANTRY"){for(const x of [-6,0,6]){box(x,1,0,1,5,16,[.25,.22,.17]);for(const y of [1,2.7,4.4])box(x,y,0,1.25,.12,16,[.52,.46,.34]);}for(const x of [-9,-3,3,9])for(const z of [-6,0,6])crate(x,.8,z,1.8,1.4,1.2,[.48,.43,.32]);box(3.5,1.2,1.5,1,2.4,1,[.90,.90,.82]);if(milkAwake){milkPulse+=.045;box(milk.x,1.2+Math.sin(milkPulse)*.12,milk.z,1.05,2.4,1,[.96,.96,.88]);box(milk.x,2.45+Math.sin(milkPulse)*.12,milk.z,1.12,.08,1.06,[.72,.72,.66]);}}
-if(room==="POWER_ROOM"){for(const z of [-6,-2,2,6])vent(-8,5.5,z,2,1.2,[.34,.37,.38]);for(const z of [-6,-2,2,6])vent(8,5.5,z,2,1.2,[.34,.37,.38]);for(const x of [-5,-2,1,4])pipe(x,3,-4,.18,4,.18,[.42,.44,.43]);for(const x of [-6,-3,0,3,6])box(x,2,-5.8,.35,4,.35,[.12,.13,.14]);for(const x of [-6,-2,2,6]){box(x,1.2,-2,1.3,2.4,.7,[.20,.22,.23]);box(x,2.45,-2,1.05,.08,.55,[.55,.56,.52]);}box(0,2,-7.4,3.5,3,.5,[.07,.08,.08]);box(0,2,-7.05,2.8,2.3,.08,powerRestored?[.15,.85,.4]:[.8,.58,.05]);for(const x of [-3,3])box(x,2,-6.8,.25,4,.25,x<0?[.55,.1,.08]:[.1,.55,.65]);}
-if(room==="FREEZER"){for(const z of [-8,-4,0,4,8])vent(-10,6,z,2,1.3,[.45,.57,.62]);for(const z of [-8,-4,0,4,8])vent(10,6,z,2,1.3,[.45,.57,.62]);for(let i=0;i<18;i++){const x=((i*37)%180)/10-9,z=((i*71)%180)/10-9,y=1.5+((i*29)%55)/10;box(x,y,z,.025,.025,.025,[.72,.84,.9]);}for(const x of [-7,7]){box(x,1,0,1,6,18,[.35,.43,.48]);for(const z of [-7,0,7])box(x>0?x-.5:x+.5,2.8,z,2,.08,3,[.72,.82,.86]);}for(const z of [-8,0,8])box(0,3,z,5,.5,1,[.62,.72,.77]);for(const x of [-9,-3,3,9])box(x,4,-9,.5,1,.5,[.72,.82,.88]);if(ice.state!=="DORMANT"){box(ice.x,1.1,ice.z,1.5,2,1.5,[.82,.9,.96]);box(ice.x,2.15,ice.z,1.65,.12,1.65,[.68,.82,.9]);}}
-if(room==="TECHNICIAN_OUTPOST"){for(const x of [-7,-4,4,7])pipe(x,3,-5,.22,5,.22,[.38,.4,.39]);box(0,0,1,8,1.5,2,[.25,.26,.25]);box(0,2.5,-7.8,6,3,.3,[.12,.14,.14]);for(const x of [-3,-1,1,3])box(x,1.1,.7,.3,2,.3,[.55,.52,.45]);box(-2,1,-1,1.2,2.2,1.2,[.58,.55,.48]);box(-2,2.3,-1,1.5,.25,1.3,[.65,.65,.6]);for(const x of [-4,-2,0,2,4])box(x,4,-7.55,.08,.9,.08,[.8,.15,.1]);}
-if(room==="PANTRY"&&milkAwake){const d=dist(p,milk);if(d<4&&temperature<=5)threat="MEDIUM";else if(d<6)threat="HIGH";else threat="LOW";box(milk.x,1.2,milk.z,1.05,2.4,1,[.96,.96,.88]);box(milk.x,2.45,milk.z,1.12,.08,1.06,[.72,.72,.66]);box(milk.x+.02,2.55,milk.z,.65,.05,.65,[.86,.86,.8]);}else if(room==="FREEZER"&&ice.state!=="DORMANT"){const d=dist(p,ice);if(d<5)threat="HIGH";else threat="MEDIUM";box(ice.x,1.1,ice.z,1.5,2,1.5,[.82,.9,.96]);box(ice.x,2.15,ice.z,1.65,.12,1.65,[.68,.82,.9]);}else threat="LOW";
-healthEl.textContent=`HP ${Math.max(0,Math.round(health))}`;threatEl.textContent=`THREAT: ${threat}`;inventoryEl.textContent=`TOOL: ${tool}`;
-prompt.textContent=room==="KITCHEN"&&!doorOpen&&p.z<1&&p.x>1?"[E] OPEN REFRIGERATOR":room==="FRIDGE_ENTRANCE"&&p.z<-6?"[E] ENTER PANTRY":room==="PANTRY"&&p.z<-7?"[E] ENTER POWER ROOM":room==="PANTRY"&&p.x>2&&p.x<5&&p.z<3?"[E] ADJUST TEMPERATURE":room==="POWER_ROOM"&&powerRestored&&p.z<-5?"[E] ENTER FREEZER":room==="POWER_ROOM"&&p.z<-5?"[E] OPEN POWER PANEL":room==="FREEZER"&&!coolingStable&&p.z<-7?"[E] INSPECT COOLING VENT":room==="FREEZER"&&coolingStable&&p.z<-10?"[E] FOLLOW TECHNICIAN MARKINGS":room==="TECHNICIAN_OUTPOST"&&p.z<3?"[E] TALK TO CHUCK":"";}
-function takeDamage(amount){if(damageCooldown>0||downed)return;health=Math.max(0,health-amount);damageCooldown=1.2;if(health<=0){downed=true;downedUntil=performance.now()+8000;objective.textContent="YOU ARE DOWN — RESPawn AT LAST STABILIZED AREA";prompt.textContent="DOWNED";}}
-function respawn(){downed=false;health=100;room=checkpoint.room;p.x=checkpoint.x;p.z=checkpoint.z;temperature=checkpoint.temp;objective.textContent="OBJECTIVE: Continue the mission";prompt.textContent="";}
-function updateFood(dt,t){if(!started||downed)return;if(room==="PANTRY"&&milkAwake){const d=dist(p,milk);if(temperature<=5){milk.state=d<7?"HUNT":"PATROL";}else{milk.state=d<4?"FLEE":"IDLE";}if(milk.state==="HUNT"&&d>1.4){const dx=(p.x-milk.x)/Math.max(d,.01),dz=(p.z-milk.z)/Math.max(d,.01);milk.x+=dx*dt*1.8;milk.z+=dz*dt*1.8;}else if(milk.state==="FLEE"&&d<5){const dx=(milk.x-p.x)/Math.max(d,.01),dz=(milk.z-p.z)/Math.max(d,.01);milk.x+=dx*dt*1.2;milk.z+=dz*dt*1.2;}if(d<1.5&&t-milk.lastAttack>1600){milk.lastAttack=t;takeDamage(12);}}
-if(room==="FREEZER"&&coolingStable){if(ice.state==="DORMANT")ice.state="AWAKE";const d=dist(p,ice);if(temperature>-6)ice.state="MELTING";else ice.state=d<7?"HUNT":"PATROL";if(ice.state==="HUNT"&&d>1.5){const dx=(p.x-ice.x)/Math.max(d,.01),dz=(p.z-ice.z)/Math.max(d,.01);ice.x+=dx*dt*1.25;ice.z+=dz*dt*1.25;}if(d<1.7&&t-ice.lastAttack>1900){ice.lastAttack=t;takeDamage(16);}}if(environmentTimer>0)environmentTimer-=dt;if(environmentTimer<=0&&((room==="FREEZER"&&temperature>-1)||(room==="PANTRY"&&temperature>11))){environmentTimer=3;takeDamage(5);}}
-function interact(){if(room==="KITCHEN"&&p.z<1&&p.x>1){room="FRIDGE_ENTRANCE";p.x=0;p.z=7;temperature=4;objective.textContent="OBJECTIVE: Explore the impossible refrigerator interior";return}
-if(room==="FRIDGE_ENTRANCE"&&p.z<-6){room="PANTRY";p.x=0;p.z=7;temperature=6;checkpoint.room="PANTRY";checkpoint.x=0;checkpoint.z=7;checkpoint.temp=6;objective.textContent="OBJECTIVE: Investigate the pantry";return}
-if(room==="PANTRY"&&p.z<-7){room="POWER_ROOM";p.x=0;p.z=6;temperature=8;objective.textContent="OBJECTIVE: Restore main power";return}
-if(room==="POWER_ROOM"&&powerRestored&&p.z<-5){room="FREEZER";p.x=0;p.z=9;temperature=-12;tool="PRESSURE KIT";inventory[2]="PRESSURE KIT";objective.textContent="OBJECTIVE: Stabilize the cooling system";return}
-if(room==="PANTRY"&&p.x>2&&p.x<5&&p.z<3){temperature=temperature<5?12:3;milkAwake=true;milkPulse=1;objective.textContent=temperature>8?"OBJECTIVE: The milk changed when warmed. Find the power system":"OBJECTIVE: The milk is reacting to the cold. Find the power system";return}
-if(room==="TECHNICIAN_OUTPOST"&&p.z<3){tool="REPAIR KIT";inventory[3]="REPAIR KIT";objective.textContent="CHUCK: I can help stabilize the remaining systems.";return}if(room==="POWER_ROOM"&&p.z<-5){repair.hidden=false;renderRepair();}if(room==="FREEZER"&&p.z<-7){repairMode="COOLING";repairStep=0;repair.hidden=false;renderRepair();}}
-function renderRepair(){const labels=repairMode==="POWER"?["OPEN PANEL","COMPONENT A","COMPONENT B","RESET"]:["CLEAR VENT","REPLACE COIL","SET PRESSURE","START COOLING"];repairText.textContent=repairMode==="POWER"?(repairStep===0?"Open the panel.":repairStep===1?"Install component A.":repairStep===2?"Install component B.":"Reset the main breaker."):(repairStep===0?"Clear the frozen vent.":repairStep===1?"Replace the damaged cooling coil.":repairStep===2?"Set the pressure regulator.":"Start the cooling system.");repairButtons.replaceChildren();labels.forEach((x,i)=>{const b=document.createElement("button");b.className="repair-btn";b.textContent=x;b.disabled=i!==repairStep;b.onclick=()=>{repairStep++;if(repairStep===4){repair.hidden=true;if(repairMode==="POWER"){powerRestored=true;tool="WRENCH";inventory[1]="WRENCH";objective.textContent="OBJECTIVE: POWER RESTORED — THE REFRIGERATOR IS CHANGING";temperature=8}else{coolingStable=true;temperature=-4;checkpoint.room="FREEZER";checkpoint.x=0;checkpoint.z=9;checkpoint.temp=-4;objective.textContent="OBJECTIVE: COOLING STABILIZED — SOMETHING IS MOVING IN THE FREEZER";}}else renderRepair()};repairButtons.append(b)})}
-addEventListener("keydown",e=>{keys.add(e.code);if(e.code==="KeyE"&&!e.repeat&&started)interact()});addEventListener("keyup",e=>keys.delete(e.code));
-canvas.addEventListener("click",()=>canvas.requestPointerLock?.()?.catch?.(()=>{}));document.addEventListener("mousemove",e=>{if(document.pointerLockElement===canvas){p.yaw+=e.movementX*.002;p.pitch=Math.max(-1.2,Math.min(1.2,p.pitch+e.movementY*.002))}});
-begin.onclick=()=>{started=true;start.hidden=true;objective.textContent="OBJECTIVE: Enter the refrigerator";canvas.requestPointerLock?.()?.catch?.(()=>{});};
-function resize(){canvas.width=innerWidth*devicePixelRatio;canvas.height=innerHeight*devicePixelRatio}addEventListener("resize",resize);resize();
-function tick(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;if(started){if(damageCooldown>0)damageCooldown=Math.max(0,damageCooldown-dt);if(downed){if(t>=downedUntil)respawn();draw();requestAnimationFrame(tick);return;}const keyForward=(keys.has("KeyW")||keys.has("ArrowUp")?1:0)-(keys.has("KeyS")||keys.has("ArrowDown")?1:0);const keyRight=(keys.has("KeyD")||keys.has("ArrowRight")?1:0)-(keys.has("KeyA")||keys.has("ArrowLeft")?1:0);if(touchMove){p.forward=touchForward;p.right=touchRight}else{p.forward=keyForward;p.right=keyRight;}const sp=keys.has("ShiftLeft")||keys.has("ShiftRight")?5:3;const f=p.forward*sp*dt,r=p.right*sp*dt;p.x+=Math.cos(p.yaw)*r+Math.sin(p.yaw)*f;p.z+=-Math.cos(p.yaw)*f+Math.sin(p.yaw)*r;updateFood(dt,t);const q=rooms[room];p.x=Math.max(-q.w/2+1,Math.min(q.w/2-1,p.x));p.z=Math.max(-q.d/2+1,Math.min(q.d/2-1,p.z));tempEl.textContent=`TEMP ${temperature}°C`;draw()}requestAnimationFrame(tick)}requestAnimationFrame(tick);
+// CPI: Cold Case — the browser game. Wires the mission simulation (coldcase/sim.js) to the canvas
+// renderer, the HUD, input and sound, and runs the frame loop. Solo and local for now: the
+// simulation is deterministic and has no DOM, so a server could run it later for co-op.
+//
+// URL flags for testing: ?autopilot plays the mission with the scripted agent; ?debug exposes the
+// live state as window.__coldcase.
 
-const stick=document.querySelector("#stick"),nub=stick?.querySelector("i"),touchInteract=document.querySelector("#interact"),lookPad=document.querySelector("#look");
-let touchMove=null,touchLook=null,touchForward=0,touchRight=0;
-function moveTouch(x,y){const dx=x-touchMove.x,dy=y-touchMove.y; touchRight=Math.max(-1,Math.min(1,dx/55));touchForward=Math.max(-1,Math.min(1,-dy/55));p.right=touchRight;p.forward=touchForward; if(nub){nub.style.transform=`translate(${touchRight*32}px,${-touchForward*32}px)`;}}
-stick?.addEventListener("touchstart",e=>{const t=e.changedTouches[0];touchMove={id:t.identifier,x:t.clientX,y:t.clientY};e.preventDefault()},{passive:false});
-stick?.addEventListener("touchmove",e=>{const t=[...e.changedTouches].find(x=>x.identifier===touchMove?.id);if(t)moveTouch(t.clientX,t.clientY);e.preventDefault()},{passive:false});
-stick?.addEventListener("touchend",e=>{if([...e.changedTouches].some(x=>x.identifier===touchMove?.id)){touchMove=null;touchForward=0;touchRight=0;p.forward=0;p.right=0;if(nub)nub.style.transform="translate(0,0)"}e.preventDefault()},{passive:false});
-lookPad?.addEventListener("touchstart",e=>{const t=e.changedTouches[0];touchLook={id:t.identifier,x:t.clientX,y:t.clientY}},{passive:true});
-lookPad?.addEventListener("touchmove",e=>{const t=[...e.changedTouches].find(x=>x.identifier===touchLook?.id);if(t){p.yaw+=(t.clientX-touchLook.x)*.006;p.pitch=Math.max(-1.2,Math.min(1.2,p.pitch+(t.clientY-touchLook.y)*.006));touchLook.x=t.clientX;touchLook.y=t.clientY;}e.preventDefault()},{passive:false});
-lookPad?.addEventListener("touchend",e=>{if([...e.changedTouches].some(x=>x.identifier===touchLook?.id))touchLook=null},{passive:true});
-touchInteract?.addEventListener("pointerdown",e=>{e.preventDefault();if(started)interact()});
+import { store } from "./common.js";
+import { isMuted, setMuted } from "./games/mycob-sound.js";
+import { createAudio } from "./coldcase/audio.js";
+import { createHud } from "./coldcase/hud.js";
+import { createInput } from "./coldcase/input.js";
+import { createRenderer } from "./coldcase/render.js";
+import { beginMission, createGame, drainEvents, NO_INPUT, objectiveInfo, routeTo, stepGame } from "./coldcase/sim.js";
+
+const BEST_KEY = "cpst-party:coldcase-best";
+const params = new URLSearchParams(location.search);
+const $ = (id) => document.getElementById(id);
+const seedNow = () => Date.now() % 2147483647 || 1;
+
+const canvas = $("view");
+let state = createGame({ seed: seedNow() });
+const renderer = createRenderer(canvas, state.map);
+const hud = createHud();
+const audio = createAudio();
+let paused = false;
+let bot = null;
+let guide = null;
+let guideT = 0;
+let objective = objectiveInfo(state);
+let last = performance.now();
+
+const input = createInput({
+  stickZone: $("stickZone"),
+  stick: $("stick"),
+  useBtn: $("touchUse"),
+  heatBtn: $("touchHeat"),
+  panelMinus: $("panelMinus"),
+  panelPlus: $("panelPlus"),
+  panelPrimary: $("panelPrimary"),
+  onPause: () => togglePause(),
+  onMap: () => {
+    if (state.phase === "PLAYING" || state.phase === "DOWNED") hud.toggleMap(state, objective);
+  },
+  onBegin: () => {
+    if (state.phase === "BRIEFING") begin();
+    else if (state.phase === "COMPLETE") restart();
+  },
+  onTouch: () => hud.fillBriefing(true, best()),
+  panelOpen: () => Boolean(state.panel),
+});
+
+function best() {
+  const v = store.get("localStorage", BEST_KEY);
+  return typeof v === "number" && v > 0 ? v : null;
+}
+
+function begin() {
+  if (!beginMission(state)) return;
+  $("briefing").hidden = true;
+  input.reset();
+}
+
+function restart() {
+  state = createGame({ seed: seedNow(), map: state.map });
+  beginMission(state);
+  hud.resetZones();
+  renderer.snap(state.player.x, state.player.y);
+  for (const id of ["briefing", "debrief", "pause", "mapView"]) $(id).hidden = true;
+  paused = false;
+  guide = null;
+  input.reset();
+}
+
+function togglePause(force) {
+  const canPause = state.phase === "PLAYING" || state.phase === "DOWNED";
+  const next = force ?? !paused;
+  if (next && !canPause) return;
+  paused = next;
+  $("pause").hidden = !paused;
+  if (paused) {
+    hud.fillControls($("pauseControls"), input.touchMode);
+    input.reset();
+    audio.stop();
+    $("resume").focus();
+  }
+}
+
+function showDebrief() {
+  const time = state.missionTime;
+  const previous = best();
+  const isBest = !previous || time < previous;
+  if (isBest) store.set("localStorage", BEST_KEY, Math.round(time));
+  hud.fillDebrief(state, previous, isBest);
+  setTimeout(() => {
+    $("debrief").hidden = false;
+    $("replay").focus();
+  }, 1600);
+}
+
+function updateGuide(dt) {
+  guideT -= dt;
+  if (guideT > 0) return;
+  guideT = 0.35;
+  const target = objective.target;
+  const p = state.player;
+  if (!target || state.phase !== "PLAYING") {
+    guide = null;
+    return;
+  }
+  const route = routeTo(state, p.x, p.y, target.x, target.y);
+  if (route.length) {
+    let dist = 0;
+    let px = p.x;
+    let py = p.y;
+    for (const r of route) {
+      dist += Math.hypot(r.x - px, r.y - py);
+      px = r.x;
+      py = r.y;
+    }
+    const ahead = route[Math.min(4, route.length - 1)];
+    guide = { x: ahead.x, y: ahead.y, dist };
+  } else guide = { x: target.x, y: target.y, dist: Math.hypot(target.x - p.x, target.y - p.y) };
+}
+
+function frame(now) {
+  const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
+  last = now;
+  const running = !paused && (state.phase === "PLAYING" || state.phase === "DOWNED");
+  if (running) {
+    let remaining = dt;
+    let first = true;
+    while (remaining > 1e-6) {
+      const step = Math.min(1 / 60, remaining);
+      const controls = bot ? bot.next(state) : input.poll(step, first);
+      stepGame(state, controls, step);
+      remaining -= step;
+      first = false;
+    }
+  } else if (!paused) stepGame(state, NO_INPUT, dt);
+
+  for (const e of drainEvents(state)) {
+    renderer.onEvent(state, e);
+    hud.onEvent(state, e);
+    audio.onEvent(state, e);
+    if (e.type === "phase" && e.phase === "COMPLETE") showDebrief();
+  }
+
+  objective = objectiveInfo(state);
+  updateGuide(dt);
+  if (!paused) renderer.update(state, dt);
+  renderer.draw(state, { objective, guide });
+  hud.update(state, { objective, dt, touch: input.touchMode, paused });
+  audio.update(state, paused);
+  $("touch").hidden = !(input.touchMode && state.phase === "PLAYING" && !paused);
+  requestAnimationFrame(frame);
+}
+
+// ------------------------------------------------------------------ page wiring
+
+$("begin").addEventListener("click", begin);
+$("resume").addEventListener("click", () => togglePause(false));
+$("restart").addEventListener("click", restart);
+$("replay").addEventListener("click", restart);
+$("pauseBtn").addEventListener("click", () => togglePause());
+$("panelClose").addEventListener("click", () => {
+  if (state.panel) stepGame(state, { ...NO_INPUT, cancelPressed: true }, 0);
+});
+$("minimapBtn").addEventListener("click", () => hud.toggleMap(state, objective));
+$("mapView").addEventListener("click", () => hud.toggleMap(state, objective));
+const muteBtn = $("muteBtn");
+const paintMute = () => {
+  muteBtn.textContent = isMuted() ? "MUTE" : "SND";
+  muteBtn.setAttribute("aria-pressed", String(isMuted()));
+};
+muteBtn.addEventListener("click", () => {
+  setMuted(!isMuted());
+  paintMute();
+});
+paintMute();
+canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+addEventListener("resize", () => renderer.resize());
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && state.phase === "PLAYING") togglePause(true);
+});
+
+hud.fillBriefing(input.touchMode, best());
+if (params.has("autopilot")) {
+  import("./coldcase/bot.js").then(({ createBot }) => {
+    bot = createBot();
+    begin();
+  });
+}
+if (params.has("debug")) {
+  globalThis.__coldcase = {
+    get state() {
+      return state;
+    },
+    begin,
+    restart,
+    renderer,
+    setBot: (b) => (bot = b),
+  };
+}
+requestAnimationFrame(frame);

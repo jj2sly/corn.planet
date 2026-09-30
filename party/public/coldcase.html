@@ -1,1 +1,126 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#050606"><title>CPI: Cold Case</title><link rel="stylesheet" href="/css/coldcase.css"></head><body><main id="game"><canvas id="view" aria-label="Cold Case first-person game"></canvas><div id="hud"><div class="top"><span>CPI // CPST</span><span id="mission">COLD CASE</span><span id="temp">TEMP 21°C</span></div><div id="objective">OBJECTIVE: Enter the refrigerator</div><div id="status"><span id="health">HP 100</span><span id="threat">THREAT: LOW</span><span id="inventory">TOOL: THERMOMETER</span></div><div id="prompt"></div></div><div id="touch"><div id="stick"><i></i></div><button id="look" aria-label="Look"></button><button id="interact">INTERACT</button></div><div id="start"><p>CPST FIELD OPERATION</p><h1>CPI: COLD CASE</h1><span>ANOMALOUS REFRIGERATOR // INITIAL BRIEFING</span><button id="begin">BEGIN MISSION</button></div><div id="repair" hidden><h2>MAIN POWER</h2><p id="repairText">Electrical repair required.</p><div id="repairButtons"></div></div></main><script type="module" src="/js/coldcase.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#030405" />
+    <title>CPI: Cold Case</title>
+    <meta name="description" content="CPST field operation: an impossible refrigerator. Top-down, solo, desktop and phone." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/css/coldcase.css" />
+    <script type="module" src="/js/coldcase.js"></script>
+  </head>
+  <body>
+    <main id="game">
+      <canvas id="view" aria-label="Cold Case, top-down view"></canvas>
+
+      <div id="hud" hidden>
+        <section class="card objective" aria-live="polite">
+          <p class="kicker">OBJECTIVE</p>
+          <p id="objText" class="obj-text"></p>
+          <p id="objDetail" class="obj-detail"></p>
+          <div class="bar thin"><i id="objBar"></i></div>
+        </section>
+
+        <section class="card readout">
+          <p id="zoneName" class="zone">KITCHEN</p>
+          <p class="temp-row"><span id="temp" class="temp">21.0°C</span><span id="trend" class="trend"></span></p>
+          <button id="minimapBtn" class="minimap" type="button" aria-label="Map (M)"><canvas id="minimap" width="176" height="176"></canvas></button>
+        </section>
+
+        <section class="card vitals">
+          <div class="meter"><span>VITALS</span><b id="hpVal">100</b><div class="bar"><i id="hpBar"></i></div></div>
+          <div class="meter warmth"><span>WARMTH</span><b id="warmVal">100</b><div class="bar"><i id="warmBar"></i></div></div>
+          <p class="chips"><span id="packs" class="chip">HEAT PACKS 0</span><span id="threat" class="chip">THREAT NONE</span><span id="status" class="chip" hidden></span></p>
+        </section>
+
+        <div id="prompt" class="prompt" hidden><span id="promptKey" class="key">E</span><span id="promptText"></span><div class="bar thin"><i id="promptBar"></i></div></div>
+        <div id="banner" class="banner" hidden></div>
+        <ol id="feed" class="feed" aria-live="polite"></ol>
+        <div class="corner-buttons">
+          <button id="muteBtn" class="icon-btn" type="button" aria-label="Mute sound">SND</button>
+          <button id="pauseBtn" class="icon-btn" type="button" aria-label="Pause">II</button>
+        </div>
+      </div>
+
+      <section id="panel" class="panel" hidden aria-live="polite">
+        <header><p class="kicker" id="panelKicker">REPAIR</p><h2 id="panelTitle"></h2><button id="panelClose" class="icon-btn" type="button" aria-label="Close panel">✕</button></header>
+        <p id="panelHint" class="hint"></p>
+        <div id="panelBody" class="panel-body"></div>
+        <div class="panel-buttons">
+          <button id="panelMinus" class="pbtn" type="button">−</button>
+          <button id="panelPrimary" class="pbtn primary" type="button">CONFIRM</button>
+          <button id="panelPlus" class="pbtn" type="button">+</button>
+        </div>
+      </section>
+
+      <section id="dialogue" class="dialogue" hidden>
+        <p id="dialogueSpeaker" class="kicker"></p>
+        <p id="dialogueText"></p>
+      </section>
+
+      <div id="touch" class="touch" hidden>
+        <div id="stickZone" class="stick-zone"><div id="stick" class="stick" hidden><i></i></div></div>
+        <button id="touchHeat" class="tbtn heat" type="button">HEAT<small id="touchPacks">0</small></button>
+        <button id="touchUse" class="tbtn use" type="button">USE</button>
+      </div>
+
+      <section id="mapView" class="screen map-view" hidden>
+        <canvas id="bigmap" width="720" height="720"></canvas>
+        <p class="hint">M / tap to close</p>
+      </section>
+
+      <section id="briefing" class="screen briefing">
+        <div class="dossier">
+          <p class="stamp">CPI // CPST</p>
+          <p class="kicker" id="briefKicker"></p>
+          <h1 id="briefTitle"></h1>
+          <p class="file" id="briefFile"></p>
+          <dl class="facts">
+            <dt>SITE</dt><dd id="briefSite"></dd>
+            <dt>SITUATION</dt><dd id="briefSituation"></dd>
+          </dl>
+          <ol id="briefObjectives" class="brief-objectives"></ol>
+          <ul id="briefNotes" class="notes"></ul>
+          <div class="controls" id="briefControls"></div>
+          <button id="begin" class="btn" type="button">BEGIN OPERATION</button>
+          <p class="best" id="briefBest"></p>
+          <p class="small"><a href="/">Back to Corn Planet Party</a></p>
+        </div>
+      </section>
+
+      <section id="pause" class="screen" hidden>
+        <div class="dossier compact">
+          <p class="kicker">OPERATION PAUSED</p>
+          <h2>CPI: COLD CASE</h2>
+          <div class="controls" id="pauseControls"></div>
+          <div class="stack">
+            <button id="resume" class="btn" type="button">RESUME</button>
+            <button id="restart" class="btn ghost" type="button">RESTART OPERATION</button>
+            <a class="btn ghost" href="/">EXIT TO CORN PLANET PARTY</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="down" class="screen down" hidden>
+        <p class="kicker red">AGENT DOWN</p>
+        <p id="downText"></p>
+        <div class="bar"><i id="downBar"></i></div>
+      </section>
+
+      <section id="debrief" class="screen" hidden>
+        <div class="dossier">
+          <p class="stamp green">EXTRACTED</p>
+          <p class="kicker" id="debriefHeading"></p>
+          <h1 id="debriefStatus"></h1>
+          <dl class="facts" id="debriefFacts"></dl>
+          <ul class="systems" id="debriefSystems"></ul>
+          <div class="stack">
+            <button id="replay" class="btn" type="button">RUN IT AGAIN</button>
+            <a class="btn ghost" href="/">BACK TO CORN PLANET PARTY</a>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

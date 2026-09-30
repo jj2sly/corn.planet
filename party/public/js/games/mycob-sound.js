@@ -75,6 +75,38 @@ export const CUES = [
   "thud_kernels",
   "thud_breed",
   "thud_chain",
+  // CPI: Cold Case (playSfx).
+  "cc_fridge",
+  "cc_portal",
+  "cc_slam",
+  "cc_door",
+  "cc_panel",
+  "cc_dial",
+  "cc_relay",
+  "cc_fault",
+  "cc_power",
+  "cc_breaker",
+  "cc_valve",
+  "cc_overpressure",
+  "cc_cooling",
+  "cc_discovery",
+  "cc_pickup",
+  "cc_checkpoint",
+  "cc_heatpack",
+  "cc_lamp",
+  "cc_coil",
+  "cc_surge",
+  "cc_stabilized",
+  "cc_lift",
+  "cc_down",
+  "cc_hurt",
+  "cc_spoil",
+  "cc_windup",
+  "cc_lunge",
+  "cc_crack",
+  "cc_thaw",
+  "cc_arc",
+  "cc_vent",
 ];
 
 /** Never dropped to make room for something else. */
@@ -150,6 +182,38 @@ const SYNTH = {
   thud_breed: [tone(0, 0.1, 700, 1100, "sine", 0.1), tone(0.12, 0.1, 900, 1400, "sine", 0.1), tone(0.26, 0.05, 900, 900, "square", 0.06), tone(0.32, 0.08, 2400, 3000, "sine", 0.1)], // coo-coo, crack, cheep
   thud_chain: [hiss(0, 0.12, 0.14), tone(0, 0.1, 160, 70, "square", 0.1), hiss(0.14, 0.12, 0.12), tone(0.14, 0.1, 140, 60, "square", 0.1), tone(0.3, 0.5, 90, 36, "sine", 0.26), hiss(0.3, 0.4, 0.14)], // krak-krak-KABOOM
   thud_kernels: [tone(0, 0.05, 1320, 1320, "square", 0.05), tone(0.06, 0.1, 1760, 1760, "square", 0.05)], // ka-ching
+  // CPI: Cold Case. Industrial and cold: hisses, clunks, relays, ice.
+  cc_fridge: [hiss(0, 0.55, 0.1), tone(0, 0.12, 180, 90, "square", 0.08), tone(0.1, 0.6, 240, 200, "sine", 0.05)], // thunk, hsssss
+  cc_portal: [hiss(0, 0.8, 0.09), tone(0, 0.8, 260, 1300, "sine", 0.06, { rate: 5, depth: 30 })], // whooOOSH
+  cc_slam: [tone(0, 0.3, 90, 38, "sine", 0.32), hiss(0, 0.08, 0.14), tone(0.05, 0.12, 420, 200, "square", 0.05)], // SLAM
+  cc_door: [hiss(0, 0.35, 0.06), tone(0, 0.35, 150, 110, "sawtooth", 0.03)], // shhhk
+  cc_panel: [tone(0, 0.06, 880, 880, "square", 0.05), tone(0.07, 0.06, 1320, 1320, "square", 0.05)], // bip-bip
+  cc_dial: [tone(0, 0.04, 1500, 1000, "square", 0.05), tone(0.06, 0.22, 660, 660, "triangle", 0.12)], // tick, dong
+  cc_relay: [tone(0, 0.06, 220, 110, "square", 0.08), tone(0.07, 0.25, 1047, 1047, "triangle", 0.12)], // clunk-ding
+  cc_fault: [tone(0, 0.3, 120, 90, "sawtooth", 0.12, { rate: 40, depth: 30 }), hiss(0, 0.15, 0.1)], // bzzzt
+  cc_power: [tone(0, 0.9, 60, 240, "sawtooth", 0.1), tone(0.6, 0.4, 523, 523, "triangle", 0.12), tone(0.75, 0.55, 784, 784, "triangle", 0.12)], // vvvVVMMM, ding-dong
+  cc_breaker: [tone(0, 0.08, 160, 80, "square", 0.12), hiss(0, 0.05, 0.1)], // KLUNK
+  cc_valve: [tone(0, 0.35, 180, 120, "sawtooth", 0.06, { rate: 20, depth: 10 }), hiss(0.3, 0.5, 0.08)], // creeak, hsss
+  cc_overpressure: [hiss(0, 0.6, 0.16), tone(0, 0.2, 900, 400, "square", 0.05)], // PSSSHHH
+  cc_cooling: [tone(0, 1.4, 50, 110, "sawtooth", 0.1, { rate: 8, depth: 4 }), tone(1, 0.5, 784, 784, "triangle", 0.1), tone(1.15, 0.6, 1047, 1047, "triangle", 0.1)], // compressor spins up
+  cc_discovery: [tone(0, 0.12, 1319, 1319, "sine", 0.16), tone(0.12, 0.5, 1760, 1760, "sine", 0.16)], // ding-ding
+  cc_pickup: [tone(0, 0.08, 988, 988, "square", 0.06), tone(0.09, 0.14, 1319, 1319, "square", 0.06)], // bleep-bloop
+  cc_checkpoint: [tone(0, 0.18, 659, 659, "triangle", 0.12), tone(0.15, 0.18, 880, 880, "triangle", 0.12), tone(0.3, 0.5, 1319, 1319, "triangle", 0.1)], // chime
+  cc_heatpack: [hiss(0, 0.4, 0.07), tone(0, 0.5, 200, 500, "sine", 0.1)], // fwoomp
+  cc_lamp: [tone(0, 0.03, 2000, 1500, "square", 0.05), tone(0.03, 0.5, 120, 120, "sawtooth", 0.04)], // click, hmmm
+  cc_coil: [tone(0, 0.35, 300, 1600, "sawtooth", 0.06), hiss(0, 0.1, 0.06)], // zwiiip
+  cc_surge: [tone(0, 0.7, 70, 40, "sine", 0.3), hiss(0, 0.4, 0.08)], // WHOOM
+  cc_stabilized: [tone(0, 1.4, 392, 392, "triangle", 0.1), tone(0.1, 1.3, 494, 494, "triangle", 0.1), tone(0.2, 1.2, 587, 587, "triangle", 0.1), tone(0.3, 1.2, 784, 784, "triangle", 0.1)], // a settled chord
+  cc_lift: [tone(0, 1.2, 90, 140, "sawtooth", 0.06), tone(1.1, 0.4, 988, 988, "sine", 0.1)], // mmmmm, ding
+  cc_down: [tone(0, 0.8, 200, 50, "sawtooth", 0.14), hiss(0, 0.2, 0.08)], // wuuuuh
+  cc_hurt: [tone(0, 0.12, 300, 120, "square", 0.1), hiss(0, 0.04, 0.08)], // bonk
+  cc_spoil: [tone(0, 0.3, 300, 80, "sawtooth", 0.08, { rate: 30, depth: 40 })], // blorrp
+  cc_windup: [tone(0, 0.5, 300, 900, "sawtooth", 0.04)], // eeeEEE
+  cc_lunge: [hiss(0, 0.25, 0.1), tone(0, 0.25, 500, 150, "sine", 0.08)], // fwip
+  cc_crack: [hiss(0, 0.08, 0.16), tone(0, 0.06, 2400, 900, "square", 0.05)], // krk
+  cc_thaw: [hiss(0, 0.15, 0.12), tone(0.2, 0.08, 1400, 1800, "sine", 0.1), tone(0.45, 0.08, 1200, 1600, "sine", 0.08)], // crack, plip, plip
+  cc_arc: [hiss(0, 0.2, 0.08), tone(0, 0.2, 90, 60, "sawtooth", 0.08, { rate: 50, depth: 30 })], // BZZT
+  cc_vent: [hiss(0, 0.5, 0.12), tone(0, 0.4, 600, 200, "sine", 0.04)], // FSSSHH
 };
 
 // ------------------------------------------------------------------ settings (this device only)
@@ -430,6 +494,120 @@ export function timerWarning(key, timer) {
     warned.add(key);
     playCue("timer_warning");
   }, wait);
+}
+
+// ------------------------------------------------------------------ ambience
+
+const beds = new Map();
+
+/**
+ * Looping background beds for a game that needs room tone. `level` (0..1) fades the bed in or out;
+ * kinds: "hum" (a low mains drone, `freq` sets its pitch), "wind" (moving filtered noise), "alarm"
+ * (a pulsing two-tone) and "drone" (a deep, uneasy tone). Same mute and volumes as everything
+ * else; before the page has been tapped or typed on it simply stays silent. Never throws.
+ */
+export function setAmbience(id, level, { kind = id, freq } = {}) {
+  try {
+    const ac = context();
+    if (!ac || ac.state !== "running") return;
+    let bed = beds.get(id);
+    if (!bed) {
+      if (level <= 0.001) return;
+      bed = makeBed(ac, kind, freq);
+      beds.set(id, bed);
+    }
+    const target = Math.max(0, Math.min(1, level)) * bed.base * getSfxVolume();
+    bed.gain.gain.setTargetAtTime(target, ac.currentTime, 0.35);
+    if (freq && bed.setFreq) bed.setFreq(freq);
+  } catch {
+    /* no audio */
+  }
+}
+
+/** Fades every ambience bed out (pause, leaving the page). */
+export function stopAmbience() {
+  if (!ctx) return;
+  for (const bed of beds.values()) bed.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.15);
+}
+
+function noiseBuffer(ac, seconds = 2) {
+  const buffer = ac.createBuffer(1, Math.ceil(ac.sampleRate * seconds), ac.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  return buffer;
+}
+
+function makeBed(ac, kind, freq) {
+  const gain = ac.createGain();
+  gain.gain.value = 0;
+  gain.connect(master);
+  const osc = (type, f) => {
+    const o = ac.createOscillator();
+    o.type = type;
+    o.frequency.value = f;
+    o.start();
+    return o;
+  };
+  if (kind === "wind") {
+    const src = ac.createBufferSource();
+    src.buffer = noiseBuffer(ac);
+    src.loop = true;
+    const band = ac.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.value = 520;
+    band.Q.value = 0.7;
+    const lfo = osc("sine", 0.13);
+    const depth = ac.createGain();
+    depth.gain.value = 260;
+    lfo.connect(depth).connect(band.frequency);
+    src.connect(band).connect(gain);
+    src.start();
+    return { gain, base: 0.14 };
+  }
+  if (kind === "alarm") {
+    const o = osc("square", 770);
+    const lfo = osc("square", 1.3);
+    const depth = ac.createGain();
+    depth.gain.value = 110;
+    lfo.connect(depth).connect(o.frequency);
+    const lp = ac.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 1800;
+    o.connect(lp).connect(gain);
+    return { gain, base: 0.025 };
+  }
+  if (kind === "drone") {
+    const a = osc("sine", 41);
+    const b = osc("sine", 61.7);
+    const trem = ac.createGain();
+    trem.gain.value = 0.7;
+    const lfo = osc("sine", 0.31);
+    const depth = ac.createGain();
+    depth.gain.value = 0.3;
+    lfo.connect(depth).connect(trem.gain);
+    a.connect(trem);
+    b.connect(trem);
+    trem.connect(gain);
+    return { gain, base: 0.16 };
+  }
+  // "hum"
+  const f0 = freq ?? 55;
+  const a = osc("sawtooth", f0);
+  const b = osc("sine", f0 * 2.01);
+  const lp = ac.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 230;
+  a.connect(lp);
+  b.connect(lp);
+  lp.connect(gain);
+  return {
+    gain,
+    base: 0.07,
+    setFreq(f) {
+      a.frequency.setTargetAtTime(f, ac.currentTime, 0.6);
+      b.frequency.setTargetAtTime(f * 2.01, ac.currentTime, 0.6);
+    },
+  };
 }
 
 /** Mute button and volume slider, remembered on this device. */

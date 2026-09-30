@@ -1,35 +1,19 @@
-# CPI: Cold Case prototype
+# CPI: Cold Case (browser, top-down)
 
-The first playable slice is intentionally small and concrete.
+Open `/coldcase` on the Party server. Solo, no session needed; desktop keyboard first, touch and gamepad supported.
 
-## Browser entry
+The old first-person WebGL prototype is retired. Godot stays a possible native path; the web game does not depend on it.
 
-Open `/coldcase` on the Party server.
+## Files
 
-## Current slice
+- `public/js/coldcase/map.js` — the map: rooms, doors, stations, threats, hazards, lights (tile units, 1 tile = 1 m).
+- `public/js/coldcase/sim.js` — deterministic, DOM-free simulation (movement, temperature/warmth, food threats, doors, repair panels, checkpoints, objectives). Tuning lives in `CONFIG`.
+- `public/js/coldcase/content.js` — every visible line. **Chuck's lines are placeholders pending owner canon.**
+- `render.js` / `art.js` (canvas), `hud.js`, `input.js`, `audio.js` (through the shared `games/mycob-sound.js`), `bot.js` (scripted agent).
+- Tests: `test/coldcase.test.ts`, including full bot playthroughs.
 
-`KITCHEN → FRIDGE_ENTRANCE → PANTRY → POWER_ROOM`
+## Loop
 
-The client is a dependency-free WebGL prototype. It does not require Three.js or a bundler.
+Briefing → open fridge (portal) → food storage thermostat (thaws the power room hatch; above +6.5 °C the milk spoils) → breakers + main bus → freezer valves + compressor (ice cream hardens) → technician outpost (Chuck, warm zone, locker) → deep interior (heat lamps, vents) → core (coils, pressure, temperature, hold the ring) → emergency lift → exit → debrief (`STABILIZED — MONITORING REQUIRED`).
 
-Controls:
-- Desktop: WASD/arrows, mouse look, E to interact, Shift to sprint.
-- Touch: left joystick to move, right side swipe to look, INTERACT button.
-
-## Gameplay proof
-
-The slice demonstrates:
-1. normal kitchen
-2. anomalous refrigerator transition
-3. oversized refrigerator interior
-4. pantry exploration
-5. temperature manipulation
-6. first milk encounter
-7. power-room entry
-8. interactive four-step power repair
-
-The authoritative level description is `server/coldcase/level.ts`.
-
-## Expansion rule
-
-Do not add another generic engine abstraction unless the playable slice exposes a real missing capability. Expand the actual level first, then extract reusable behavior only when it is clearly shared by another Cold Case area or CPI game.
+Controls: WASD/arrows move, E interact (hold for repairs), Space heat pack, Esc/P pause, M map. `?autopilot` plays it with the bot; `?debug` exposes `window.__coldcase`.
