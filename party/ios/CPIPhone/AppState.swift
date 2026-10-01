@@ -11,10 +11,71 @@ final class AppState: ObservableObject {
     }
     @Published var roomCode = ""
     @Published var activePartyURL: URL?
+    @Published var activePortalURL: URL?
+    @Published var activePortalTitle = ""
     @Published var message: String?
+    @Published var serverOnline: Bool?
+    @Published var serverStatus = "Not checked"
 
     init() {
-        serverURL = UserDefaults.standard.string(forKey: Keys.serverURL) ?? ""
+        serverURL = UserDefaults.standard.string(forKey: Keys.serverURL) ?? "https://cornplanet-production.up.railway.app"
+    }
+
+    var normalizedServer: URL? {
+        normalizedServerURL(serverURL)
+    }
+
+    func checkServer() async {
+        guard let base = normalizedServerURL(serverURL) else {
+            serverOnline = false
+            serverStatus = "Invalid server"
+            return
+        }
+
+        do {
+            var request = URLRequest(url: base.appendingPathComponent("healthz"))
+            request.timeoutInterval = 6
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) {
+                serverURL = originString(base)
+                serverOnline = true
+                serverStatus = "Online"
+            } else {
+                serverOnline = false
+                serverStatus = "Unavailable"
+            }
+        } catch {
+            serverOnline = false
+            serverStatus = "Offline"
+        }
+    }
+
+    func openAccount() {
+        openPortal(path: "account", title: "CPI Account")
+    }
+
+    func openPrompts() {
+        openPortal(path: "prompts", title: "Prompts & Moderation")
+    }
+
+    func openHall() {
+        openPortal(path: "hall", title: "Hall of Fame")
+    }
+
+    func openDatabase() {
+        guard let url = URL(string: "https://jj2sly.github.io/corn.planet/") else { return }
+        activePortalTitle = "CPI Database"
+        activePortalURL = url
+    }
+
+    private func openPortal(path: String, title: String) {
+        guard let base = normalizedServerURL(serverURL) else {
+            message = "Enter a valid CPI Party server first."
+            return
+        }
+        serverURL = originString(base)
+        activePortalTitle = title
+        activePortalURL = base.appendingPathComponent(path)
     }
 
     func join() {
@@ -84,6 +145,11 @@ final class AppState: ObservableObject {
 
     func leaveController() {
         activePartyURL = nil
+    }
+
+    func closePortal() {
+        activePortalURL = nil
+        activePortalTitle = ""
     }
 
     private func normalizedServerURL(_ value: String) -> URL? {
