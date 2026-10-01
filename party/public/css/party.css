@@ -9219,3 +9219,63 @@ a.deck-tile {
     letter-spacing: 0.08em;
   }
 }
+
+
+@media (max-width: 600px) {
+  .party-active .topbar {
+    flex-wrap: nowrap;
+    min-height: 42px;
+    padding-top: max(5px, env(safe-area-inset-top));
+    padding-bottom: 5px;
+    border-bottom-color: #1b1b1b;
+  }
+
+  .party-active .topbar .brand {
+    overflow: hidden;
+    max-width: 11.5em;
+    font-size: 0.82rem;
+    letter-spacing: 0.07em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .party-active #whoami {
+    display: none;
+  }
+
+  .party-active .phone {
+    padding-top: 8px;
+  }
+
+  .phone input,
+  .phone textarea,
+  .phone select,
+  .phone button {
+    scroll-margin-top: calc(env(safe-area-inset-top) + 54px);
+    scroll-margin-bottom: 32vh;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 600px) {
+  body::before {
+    display: none;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
+  .party-active .topbar {
+    min-height: 34px;
+    padding-top: max(3px, env(safe-area-inset-top));
+    padding-bottom: 3px;
+  }
+
+  .party-active .phone {
+    max-width: 760px;
+    padding-top: 6px;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+
+  .party-active .phone .stack > * + * {
+    margin-top: 8px;
+  }
+}
