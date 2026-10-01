@@ -60,6 +60,18 @@
     </div>
 </div>
 
+<section class="orbStatus" aria-labelledby="orbStatusTitle">
+    <h2 id="orbStatusTitle">ORBITAL STATUS &middot; CORN PLANET</h2>
+    <dl>
+        <div class="decor"><dt>OBSERVATION</dt><dd>ACTIVE</dd></div>
+        <div class="decor"><dt>ORBIT</dt><dd>STABLE</dd></div>
+        <div><dt>DATABASE UPLINK</dt><dd id="orbUplink"><span class="dot" aria-hidden="true"></span>CONNECTING&hellip;</dd></div>
+        <div><dt>ARCHIVED RECORDS</dt><dd id="orbRecords">&mdash;</dd></div>
+        <div><dt>CLEARANCE</dt><dd id="orbClearance">GUEST</dd></div>
+        <div class="decor"><dt>CPST NETWORK</dt><dd>LINKED</dd></div>
+    </dl>
+</section>
+
 </div>
 
 <script>
@@ -87,6 +99,38 @@ if (sessionStorage.getItem("cpstEntered") === "true") {
 </script>
 
 <script type="module" src="nav-auth.js"></script>
+<script type="module">
+// Orbital status: real record counts and the visitor's own clearance. Read-only.
+import { collection, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { auth, db, getUserRole, ROLES } from "./roles.js";
+
+const uplink = document.getElementById("orbUplink");
+const records = document.getElementById("orbRecords");
+const clearance = document.getElementById("orbClearance");
+
+(async () => {
+    try {
+        const kinds = ["entities", "artifacts", "incidents", "personnel"];
+        const counts = await Promise.all(kinds.map((k) => getCountFromServer(collection(db, k)).then((s) => s.data().count).catch(() => null)));
+        const known = counts.filter((n) => n !== null);
+        if (!known.length) throw new Error("no counts");
+        records.textContent = known.reduce((a, b) => a + b, 0).toLocaleString();
+        records.title = kinds.map((k, i) => `${k}: ${counts[i] ?? "n/a"}`).join(" · ");
+        uplink.innerHTML = '<span class="dot" aria-hidden="true"></span>LINKED';
+    } catch {
+        records.textContent = "UNAVAILABLE";
+        uplink.innerHTML = '<span class="dot off" aria-hidden="true"></span>NO SIGNAL';
+    }
+})();
+
+onAuthStateChanged(auth, async (user) => {
+    if (!user) return (clearance.textContent = "GUEST");
+    const id = await getUserRole(user.uid);
+    const role = Object.values(ROLES).find((r) => r.id === id);
+    clearance.textContent = (role ? role.label : id).toUpperCase();
+});
+</script>
 <script src="cornfall.js"></script>
 <script src="transitions.js"></script>
 </body>
