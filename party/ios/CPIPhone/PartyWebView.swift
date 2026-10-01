@@ -27,7 +27,7 @@ struct PartyWebScreen: View {
             }
 
             if let currentError = errorMessage {
-                errorOverlay(errorMessage)
+                errorOverlay(currentError)
             }
         }
         .ignoresSafeArea(.keyboard)
