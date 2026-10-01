@@ -14,6 +14,16 @@ static func games() -> Array[Dictionary]:
             "scene": ""
         },
         {
+            "id": "budget-cuts",
+            "server_game_id": "budgetcuts",
+            "name": "BUDGET CUTS",
+            "category": "PARTY",
+            "description": "Split a shrinking emergency budget between CPI departments, then survive the incidents.",
+            "players": "2–8",
+            "status": "AVAILABLE",
+            "scene": ""
+        },
+        {
             "id": "corn-or-shit",
             "server_game_id": "cornorshit",
             "name": "CORN OR SHIT",

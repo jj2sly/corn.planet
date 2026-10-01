@@ -1,3 +1,4 @@
+import { budgetCutsGame } from "./budgetcuts.ts";
 import { chaosGame } from "./chaos.ts";
 import { cornOrShitGame } from "./cornorshit.ts";
 import { entityAuctionGame } from "./entityauction.ts";
@@ -12,6 +13,7 @@ import type { GameDefinition } from "./types.ts";
 function installed(mycob: MyCobOptions = {}): GameDefinition[] {
   return [
     chaosGame as GameDefinition,
+    budgetCutsGame as GameDefinition,
     cornOrShitGame as GameDefinition,
     entityAuctionGame as GameDefinition,
     createMyCobGame(mycob) as GameDefinition,

@@ -7,13 +7,14 @@ import { buildHub } from "./deck/hub.js";
 import { gameInfo, PLATFORM_NAME, setLibrary } from "./deck/library.js";
 import { installQuickMenu, playLaunch, rememberPlayed, setCoverPainters, setSystem } from "./deck/ui.js";
 import * as chaos from "./games/chaos-host.js";
+import * as budgetcuts from "./games/budgetcuts-host.js";
 import * as cornorshit from "./games/cornorshit-host.js";
 import * as entityauction from "./games/entityauction-host.js";
 import * as mycob from "./games/mycob-host.js";
 import * as steamdeck from "./games/steamdeck-host.js";
 import * as thud from "./games/thud-host.js";
 
-const RENDERERS = { chaos, cornorshit, entityauction, mycob, steamdeck, thud };
+const RENDERERS = { budgetcuts, chaos, cornorshit, entityauction, mycob, steamdeck, thud };
 const SESSION_KEY = "cpst-party:host";
 const hostParams = new URLSearchParams(location.search);
 const requestedGame = hostParams.get("game");
@@ -325,6 +326,16 @@ const SETTINGS_FORMS = {
       el("p", { class: "hint", text: CONTENT_LABELS[next.config.contentMode][1] }),
     ];
   },
+  budgetcuts(settings, configure) {
+    return [
+      choiceGroup("Budget cycles", "cycles", [[2, "2"], [3, "3"], [4, "4"]], settings.cycles, (v) => configure({ settings: { cycles: v } })),
+      choiceGroup("Negotiation time", "negotiateSeconds", [[60, "60s"], [75, "75s"], [90, "90s"]], settings.negotiateSeconds, (v) =>
+        configure({ settings: { negotiateSeconds: v } }),
+      ),
+      choiceGroup("Vote time", "voteSeconds", [[15, "15s"], [20, "20s"], [30, "30s"]], settings.voteSeconds, (v) => configure({ settings: { voteSeconds: v } })),
+      el("p", { class: "hint", text: "2–8 agents. Argue out loud; phones are for proposing, backing, deals and voting. Entity names come from the CPI Database; nothing is written back." }),
+    ];
+  },
   cornorshit(settings, configure) {
     return [
       choiceGroup("Rounds", "rounds", [[3, "3"], [5, "5"], [8, "8"]], settings.rounds, (v) => configure({ settings: { rounds: v } })),
@@ -459,7 +470,7 @@ function sourceWarning() {
     }
 
     // The handheld games (Angry Thud's Revenge, Escape Thad's Steam Deck) don't use the CPI Database.
-    if (gameId === "thud" || gameId === "steamdeck") return;
+    if (gameId === "thud" || gameId === "steamdeck" || gameId === "budgetcuts") return;
     if (!canon) return;
     const n = canon.entity + canon.incident + canon.personnel;
     node.hidden = n >= 8;

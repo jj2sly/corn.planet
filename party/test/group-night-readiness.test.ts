@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 
 const GAMES = [
+  ["budgetcuts", "budgetcuts-host.js", "budgetcuts-play.js"],
   ["chaos", "chaos-host.js", "chaos-play.js"],
   ["cornorshit", "cornorshit-host.js", "cornorshit-play.js"],
   ["entityauction", "entityauction-host.js", "entityauction-play.js"],
