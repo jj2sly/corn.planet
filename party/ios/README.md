@@ -66,3 +66,42 @@ The repository CI only checks that the app compiles for the iOS Simulator. Produ
 Do not duplicate the six Party controller implementations in Swift.
 
 When the website fixes a phone layout or game control, the iPhone app should receive the same fix automatically because it loads the existing `/play` client.
+
+
+## TestFlight release workflow
+
+GitHub Actions now includes **Publish CPI iPhone to TestFlight** at:
+
+`.github/workflows/cpi-ios-testflight.yml`
+
+It is manual-only (`workflow_dispatch`) so normal pushes do not upload builds to Apple.
+
+Before the first TestFlight upload, create the App Store Connect app for bundle ID:
+
+`com.cornplanet.party.iphone`
+
+Then add these repository secrets:
+
+- `APPLE_TEAM_ID`
+- `APP_STORE_CONNECT_KEY_ID`
+- `APP_STORE_CONNECT_ISSUER_ID`
+- `APP_STORE_CONNECT_API_KEY_P8`
+- `APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64`
+- `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD`
+
+The workflow:
+
+1. checks that every required secret exists
+2. imports the Apple Distribution certificate into a temporary CI keychain
+3. installs the App Store Connect API key only for the job
+4. performs a simulator compile first
+5. archives the signed iPhone app
+6. exports the IPA
+7. keeps the IPA as a short-lived GitHub artifact
+8. uploads it to App Store Connect/TestFlight
+
+No Apple credentials, private keys, certificates, or passwords belong in this repository.
+
+### App icon
+
+The CPI icon source is tracked as SVG in the Xcode asset catalog. A pre-build step converts it into the required 1024×1024 PNG before the asset catalog is compiled. This keeps the source editable while producing a valid iOS app icon for archives.
