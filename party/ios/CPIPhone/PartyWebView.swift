@@ -26,7 +26,7 @@ struct PartyWebScreen: View {
                 loadingOverlay("CONNECTING TO PARTY…")
             }
 
-            if let errorMessage {
+            if let currentError = errorMessage {
                 errorOverlay(errorMessage)
             }
         }
@@ -181,14 +181,14 @@ struct PortalWebScreen: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            if let errorMessage {
+            if let currentError = errorMessage {
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.largeTitle)
                         .foregroundStyle(.yellow)
                     Text("PAGE UNAVAILABLE")
                         .font(.headline.bold())
-                    Text(errorMessage)
+                    Text(currentError)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
