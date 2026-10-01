@@ -29,6 +29,7 @@ let state = null;
 let session = store.get("sessionStorage", SESSION_KEY);
 let lastPhase = null;
 let reconnectInFlight = null;
+let resetScrollAfterRender = false;
 // Why the last session ended ("The server is restarting…"). Kept until the player joins again so a
 // reconnect re-mounting the join form doesn't wipe the explanation.
 let endedMessage = null;
@@ -133,11 +134,13 @@ function onEnded(info) {
 
 function showJoin(message = endedMessage) {
   state = null;
+  resetScrollAfterRender = true;
   lastStatus = null;
   setSystem(null);
   menuButton.hidden = true;
   document.title = "Corn Planet Party — Join";
   mount(`join:${Date.now()}`, buildJoin, message);
+  resetPhoneScroll();
 }
 
 function buildJoin(message) {
@@ -262,11 +265,23 @@ function onState(next) {
   const phase = next.status === "IN_GAME" ? next.game?.phase : next.status;
   if (phase !== lastPhase) {
     lastPhase = phase;
+    resetScrollAfterRender = true;
     announce(PHASE_ANNOUNCEMENTS[phase] ?? "");
     if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(40);
   }
   renderBanner();
   render();
+  resetPhoneScroll();
+}
+
+function resetPhoneScroll() {
+  if (!resetScrollAfterRender) return;
+  resetScrollAfterRender = false;
+  requestAnimationFrame(() => {
+    const active = document.activeElement;
+    if (active?.matches?.("input, textarea, select, [contenteditable='true']")) return;
+    window.scrollTo(0, 0);
+  });
 }
 
 const PHASE_ANNOUNCEMENTS = {
