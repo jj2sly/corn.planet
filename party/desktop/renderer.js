@@ -1,6 +1,4 @@
 const status = document.querySelector("#serverStatus");
-const gameCatalog = document.querySelector("#gameCatalog");
-const catalogCount = document.querySelector("#catalogCount");
 const hostLiveBanner = document.querySelector("#hostLiveBanner");
 const returnToHost = document.querySelector("#returnToHost");
 const stopHostDisplay = document.querySelector("#stopHostDisplay");
@@ -178,18 +176,6 @@ for (const button of document.querySelectorAll("[data-target]")) {
   });
 }
 
-for (const button of document.querySelectorAll("[data-section]")) {
-  button.addEventListener("click", async () => {
-    const section = button.dataset.section;
-    if (section !== "settings") return;
-    await window.cpiDesktop.navigate("home");
-    requestAnimationFrame(() => {
-      paintActiveTarget("settings");
-      document.querySelector("#settingsSection")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-  });
-}
-
 window.cpiDesktop.onActiveTarget((target) => paintActiveTarget(target));
 window.cpiDesktop.onHostState((detail) => paintHostState(detail));
 window.cpiDesktop.onRoomCode((detail) => {
@@ -227,63 +213,17 @@ for (const button of document.querySelectorAll("[data-pc-game]")) {
   });
 }
 
-gameCatalog?.addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-game]");
-  if (!button || !gameCatalog.contains(button)) return;
-  const gameId = button.dataset.game;
-  if (!gameId) return;
-  button.disabled = true;
-  try {
-    await window.cpiDesktop.launchGame(gameId);
-  } catch (error) {
-    message.textContent = error?.message || "Could not launch that game.";
-    message.className = "server-message bad";
-  } finally {
-    refreshAvailabilityControls();
-  }
-});
-
-function playerRange(game) {
-  const min = Number(game?.minPlayers || 0);
-  const max = Number(game?.maxPlayers || 0);
-  if (min && max) return min === max ? `${min} agents` : `${min}–${max} agents`;
-  return "Party game";
-}
-
-async function refreshGameCatalog() {
-  if (!gameCatalog) return;
-  if (!serverOnline) {
-    gameCatalog.innerHTML = '<p class="loadingText">CONNECT TO THE PARTY SERVER TO LOAD GAMES</p>';
-    if (catalogCount) catalogCount.textContent = "—";
-    return;
-  }
-
-  try {
-    const games = await window.cpiDesktop.gameCatalog();
-    if (!Array.isArray(games) || !games.length) {
-      gameCatalog.innerHTML = '<p class="loadingText">NO PARTY GAMES REPORTED BY SERVER</p>';
-      if (catalogCount) catalogCount.textContent = "0";
-      return;
+for (const button of document.querySelectorAll("[data-game]")) {
+  button.addEventListener("click", async () => {
+    const gameId = button.dataset.game;
+    if (!gameId) return;
+    button.disabled = true;
+    try {
+      await window.cpiDesktop.launchGame(gameId);
+    } finally {
+      button.disabled = false;
     }
-
-    gameCatalog.replaceChildren(...games.map((game) => {
-      const button = document.createElement("button");
-      button.dataset.game = game.id;
-      button.title = game.description || game.tagline || "";
-      const strong = document.createElement("strong");
-      strong.textContent = String(game.name || game.id).toUpperCase();
-      const small = document.createElement("small");
-      small.textContent = playerRange(game);
-      button.append(strong, small);
-      return button;
-    }));
-
-    if (catalogCount) catalogCount.textContent = String(games.length);
-    refreshAvailabilityControls();
-  } catch (error) {
-    gameCatalog.innerHTML = '<p class="loadingText">GAME CATALOG UNAVAILABLE</p>';
-    if (catalogCount) catalogCount.textContent = "—";
-  }
+  });
 }
 
 async function refreshPlayerQr() {
@@ -324,9 +264,8 @@ async function performReadiness() {
   readyServer.textContent = result.server ? "ONLINE" : "OFFLINE";
   readyServer.className = result.server ? "ready-ok" : "ready-bad";
 
-  const expectedGames = Number(result.totalGames || result.games || 0);
-  readyGames.textContent = expectedGames ? String(result.games) : "—";
-  readyGames.className = result.games > 0 ? "ready-ok" : "ready-bad";
+  readyGames.textContent = `${result.games} / 6`;
+  readyGames.className = result.games >= 6 ? "ready-ok" : "ready-bad";
 
   readyCanon.textContent = result.entityCanon
     ? `${result.canon} TOTAL / ${result.entityCanon} ENT`
@@ -336,7 +275,7 @@ async function performReadiness() {
   readyProtocol.textContent = result.protocol ? String(result.protocol) : "—";
   readyProtocol.className = result.protocol ? "ready-ok" : "ready-bad";
 
-  const ready = result.server && result.games > 0 && result.canon >= 2 && !(result.issues?.length);
+  const ready = result.server && result.games >= 6 && result.canon >= 2 && !(result.issues?.length);
   startGroupNight.disabled = !ready;
 
   if (!ready) {
@@ -374,7 +313,6 @@ async function checkServer({ quiet = false } = {}) {
     connectionCard?.classList.remove("attention");
     usePublicServer.hidden = true;
     setServerDependentControls(true);
-    await refreshGameCatalog();
     healthCheckInFlight = false;
     return true;
   }
@@ -397,7 +335,6 @@ async function checkServer({ quiet = false } = {}) {
     }
   }
   setServerDependentControls(false);
-  await refreshGameCatalog();
   healthCheckInFlight = false;
   return false;
 }
