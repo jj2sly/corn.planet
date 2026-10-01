@@ -1,0 +1,131 @@
+name: Publish CPI iPhone to TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      marketing_version:
+        description: App version shown in TestFlight
+        required: true
+        default: "0.1.0"
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    name: Archive and upload CPI Party
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      BUNDLE_ID: com.cornplanet.party.iphone
+      MARKETING_VERSION: ${{ inputs.marketing_version }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify required Apple secrets
+        shell: bash
+        env:
+          CERT_P12: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          ASC_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in APPLE_TEAM_ID APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub secret: $name"
+              missing=1
+            fi
+          done
+          if [ -z "${CERT_P12:-}" ]; then
+            echo "::error::Missing GitHub secret: APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64"
+            missing=1
+          fi
+          if [ -z "${CERT_PASSWORD:-}" ]; then
+            echo "::error::Missing GitHub secret: APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD"
+            missing=1
+          fi
+          if [ -z "${ASC_KEY:-}" ]; then
+            echo "::error::Missing GitHub secret: APP_STORE_CONNECT_API_KEY_P8"
+            missing=1
+          fi
+          exit "$missing"
+
+      - name: Install distribution certificate
+        shell: bash
+        env:
+          CERT_P12: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/cpi-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          CERTIFICATE_PATH="$RUNNER_TEMP/distribution.p12"
+
+          printf '%s' "$CERT_P12" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERTIFICATE_PATH" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+
+      - name: Install App Store Connect API key
+        shell: bash
+        env:
+          ASC_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          KEY_DIR="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$KEY_DIR"
+          KEY_PATH="$KEY_DIR/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s' "$ASC_KEY" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Build iPhone simulator first
+        working-directory: party/ios
+        run: |
+          set -o pipefail
+          xcodebuild             -project CPIPhone.xcodeproj             -scheme CPIPhone             -configuration Debug             -sdk iphonesimulator             -destination 'generic/platform=iOS Simulator'             CODE_SIGNING_ALLOWED=NO             build
+
+      - name: Archive signed iPhone app
+        working-directory: party/ios
+        run: |
+          set -euo pipefail
+          rm -rf build/CPIPhone.xcarchive
+          xcodebuild             -project CPIPhone.xcodeproj             -scheme CPIPhone             -configuration Release             -destination 'generic/platform=iOS'             -archivePath build/CPIPhone.xcarchive             -allowProvisioningUpdates             -authenticationKeyPath "$ASC_KEY_PATH"             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID"             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"             DEVELOPMENT_TEAM="$APPLE_TEAM_ID"             PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID"             MARKETING_VERSION="$MARKETING_VERSION"             CURRENT_PROJECT_VERSION="$BUILD_NUMBER"             archive
+
+      - name: Export IPA
+        working-directory: party/ios
+        run: |
+          set -euo pipefail
+          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" ExportOptions.plist 2>/dev/null ||             /usr/libexec/PlistBuddy -c "Set :teamID $APPLE_TEAM_ID" ExportOptions.plist
+
+          rm -rf build/export
+          xcodebuild             -exportArchive             -archivePath build/CPIPhone.xcarchive             -exportPath build/export             -exportOptionsPlist ExportOptions.plist             -allowProvisioningUpdates             -authenticationKeyPath "$ASC_KEY_PATH"             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID"             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpi-party-iphone-${{ inputs.marketing_version }}-${{ github.run_number }}
+          path: party/ios/build/export/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload to TestFlight
+        shell: bash
+        run: |
+          set -euo pipefail
+          IPA="$(find party/ios/build/export -maxdepth 1 -name '*.ipa' -print -quit)"
+          if [ -z "$IPA" ]; then
+            echo "::error::No IPA was exported."
+            exit 1
+          fi
+          xcrun altool             --upload-app             --type ios             --file "$IPA"             --apiKey "$APP_STORE_CONNECT_KEY_ID"             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
