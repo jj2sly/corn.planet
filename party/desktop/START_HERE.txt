@@ -6,7 +6,7 @@ GROUP NIGHT
    https://cornplanet-production.up.railway.app), or paste another Party server URL and choose SAVE & CHECK.
 3. Wait for GROUP NIGHT READINESS to show:
    - SERVER: ONLINE
-   - GAMES: the live server catalog loads successfully
+   - GAMES: 6 / 6
    - CANON: at least 2 records
    - PROTOCOL: a number
 4. Use START GROUP NIGHT for the full-screen host display.
@@ -46,10 +46,7 @@ PC Games -> Corn or Shit — Solo
 This mode uses keyboard/mouse and live CPI canon. It does not require phones or a room.
 
 CURRENT MULTIPLAYER CATALOG
-The Command Center now reads this list from the Party server instead of hard-coding it. Current games include:
 - Cornlashing
-- Budget Cuts
-- Channel Cob
 - Corn or Shit
 - Entity Auction
 - My Cob Escaped, What Do I Do Now???
