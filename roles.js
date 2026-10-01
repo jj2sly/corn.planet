@@ -65,17 +65,47 @@ export const can = {
 // Ensures a users/{uid} doc exists. Called right after signup or first
 // login. New users always land as VIEWER until promoted by a CPI Exec.
 export async function ensureUserDoc(user) {
-    const ref = doc(db, "users", user.uid);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-        await setDoc(ref, {
-            email: user.email,
-            role: ROLES.VIEWER.id,
-            createdAt: new Date().toISOString()
-        });
-        return ROLES.VIEWER.id;
+    if (!user?.uid) {
+        throw new Error("Cannot sync CPI account: missing authenticated user.");
     }
-    return snap.data().role || ROLES.VIEWER.id;
+
+    const ref = doc(db, "users", user.uid);
+
+    // Firebase Auth can finish a fraction before Firestore/security-rule auth
+    // state is fully usable in the browser. Retry the mirror operation so a
+    // valid Auth account does not silently end up missing from CPI personnel.
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            const snap = await getDoc(ref);
+
+            if (!snap.exists()) {
+                await setDoc(ref, {
+                    email: user.email || "",
+                    role: ROLES.VIEWER.id,
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            // Verify the website-side account mirror exists before returning.
+            const verified = await getDoc(ref);
+            if (!verified.exists()) {
+                throw new Error("CPI user record was not created.");
+            }
+
+            return verified.data().role || ROLES.VIEWER.id;
+        } catch (err) {
+            lastError = err;
+            console.warn(`CPI account sync attempt ${attempt} failed:`, err);
+
+            if (attempt < 3) {
+                await new Promise(resolve => setTimeout(resolve, attempt * 400));
+            }
+        }
+    }
+
+    throw lastError || new Error("CPI account sync failed.");
 }
 
 // Fetches the current role for a uid. Returns VIEWER if no doc exists
