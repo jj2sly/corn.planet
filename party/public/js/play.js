@@ -8,13 +8,14 @@ import { gameInfo, PLATFORM_NAME, setLibrary } from "./deck/library.js";
 import { installQuickMenu, playLaunch, quickMenuButton, rememberPlayed, setCoverPainters, setSystem } from "./deck/ui.js";
 import * as chaos from "./games/chaos-play.js";
 import * as budgetcuts from "./games/budgetcuts-play.js";
+import * as channelcob from "./games/channelcob-play.js";
 import * as cornorshit from "./games/cornorshit-play.js";
 import * as entityauction from "./games/entityauction-play.js";
 import * as mycob from "./games/mycob-play.js";
 import * as steamdeck from "./games/steamdeck-play.js";
 import * as thud from "./games/thud-play.js";
 
-const RENDERERS = { budgetcuts, chaos, cornorshit, entityauction, mycob, steamdeck, thud };
+const RENDERERS = { budgetcuts, channelcob, chaos, cornorshit, entityauction, mycob, steamdeck, thud };
 const SESSION_KEY = "cpst-party:player"; // { code, token, name }
 const NAME_KEY = "cpst-party:last-name";
 

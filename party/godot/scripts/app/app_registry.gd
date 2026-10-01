@@ -24,6 +24,16 @@ static func games() -> Array[Dictionary]:
             "scene": ""
         },
         {
+            "id": "channel-cob",
+            "server_game_id": "channelcob",
+            "name": "CHANNEL COB",
+            "category": "PARTY",
+            "description": "Improvise a live CPI news broadcast where everyone knows something different.",
+            "players": "2–8",
+            "status": "AVAILABLE",
+            "scene": ""
+        },
+        {
             "id": "corn-or-shit",
             "server_game_id": "cornorshit",
             "name": "CORN OR SHIT",

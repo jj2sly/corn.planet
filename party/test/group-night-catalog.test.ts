@@ -4,7 +4,7 @@ import type { CanonRecord } from "../server/canon.ts";
 import { GAMES } from "../server/games/registry.ts";
 import { makeRooms, roomWithPlayers, stubCanon, TEST_CANON } from "./helpers.ts";
 
-const FRIDAY_GAMES = ["budgetcuts", "chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"] as const;
+const FRIDAY_GAMES = ["budgetcuts", "channelcob", "chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"] as const;
 
 function groupCanon(): CanonRecord[] {
   const generated: CanonRecord[] = Array.from({ length: 30 }, (_, i) => ({
