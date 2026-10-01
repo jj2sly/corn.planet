@@ -75,7 +75,6 @@
 			buildConfigurationList = A90000000000000000000002 /* Build configuration list for PBXNativeTarget "CPIPhone" */;
 			buildPhases = (
 				A60000000000000000000001 /* Sources */,
-				AB0000000000000000000001 /* Generate App Icon */,
 				A30000000000000000000001 /* Frameworks */,
 				A70000000000000000000001 /* Resources */,
 			);
@@ -132,25 +131,7 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		AB0000000000000000000001 /* Generate App Icon */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/CPIPhone/Assets.xcassets/AppIcon.appiconset/AppIconSource.svg",
-			);
-			name = "Generate App Icon";
-			outputPaths = (
-				"$(SRCROOT)/CPIPhone/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -e\nSRC=\"$SRCROOT/CPIPhone/Assets.xcassets/AppIcon.appiconset/AppIconSource.svg\"\nOUT_DIR=\"$SRCROOT/CPIPhone/Assets.xcassets/AppIcon.appiconset\"\nOUT=\"$OUT_DIR/AppIcon-1024.png\"\nTMP=\"${TMPDIR%/}/cpi-app-icon\"\nrm -rf \"$TMP\" && mkdir -p \"$TMP\"\nqlmanage -t -s 1024 -o \"$TMP\" \"$SRC\" >/dev/null 2>&1\nCANDIDATE=\"$TMP/$(basename \"$SRC\").png\"\nif [ ! -f \"$CANDIDATE\" ]; then\n  CANDIDATE=$(find \"$TMP\" -maxdepth 1 -name '*.png' -print -quit)\nfi\nif [ -z \"${CANDIDATE:-}\" ] || [ ! -f \"$CANDIDATE\" ]; then\n  echo \"error: Failed to generate CPI app icon\"\n  exit 1\nfi\ncp \"$CANDIDATE\" \"$OUT\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
+
 
 /* Begin PBXSourcesBuildPhase section */
 		A60000000000000000000001 /* Sources */ = {
