@@ -1,4 +1,5 @@
-// Cornlashing on a phone. Views are keyed so typing and focus survive live state updates.
+// Cornlashing on a phone: prompt + answer box, then two buttons to vote, then a one-line result.
+// Views are keyed so typing and focus survive live state updates.
 
 import { el, letter, notice, ordinal, plural, rank, store, timerEl } from "../common.js";
 
@@ -46,20 +47,17 @@ function buildIntro(s) {
     "div",
     { class: "stack" },
     t.node,
-    g.breach
-      ? el("div", { class: "warning", text: "Total breach" })
-      : null,
     statusCard(
       g.breach ? "☢" : "🌽",
-      g.breach ? "EVERYONE GETS THE SAME INCIDENT" : `ROUND ${g.round} INCOMING`,
-      `Points this round ×${g.multiplier}. Incidents are being assigned…`,
+      g.breach ? "TOTAL BREACH" : `ROUND ${g.round}`,
+      g.breach ? "Everyone answers the same prompt. Everyone votes." : "You'll get prompts here. Write the funniest answer you can.",
     ),
   );
   return { node, update: (next) => t.set(next.timer) };
 }
 
 function buildAnswerForm(s, assignment, index, total, tools) {
-  const t = timerRow(s.timer, `WRITE · incident ${index + 1} of ${total}`);
+  const t = timerRow(s.timer, total > 1 ? `Prompt ${index + 1} of ${total}` : "Your prompt");
   const note = el("p", { class: "notice" });
   const saved = drafts()[assignment.incidentId];
   const textarea = el("textarea", {
@@ -72,7 +70,7 @@ function buildAnswerForm(s, assignment, index, total, tools) {
   });
   textarea.value = saved ?? assignment.answer ?? "";
   const counter = el("p", { class: "counter", id: "answerCount", "aria-live": "polite" });
-  const submit = el("button", { class: "btn big", type: "submit", text: assignment.answer ? "Update report" : "File report" });
+  const submit = el("button", { class: "btn big", type: "submit", text: assignment.answer ? "Update answer" : "Send answer" });
 
   const updateCounter = () => {
     const length = textarea.value.length;
@@ -92,7 +90,7 @@ function buildAnswerForm(s, assignment, index, total, tools) {
       onsubmit: async (e) => {
         e.preventDefault();
         if (!textarea.value.trim()) {
-          notice(note, "Your report is empty.", "error");
+          notice(note, "Write something first.", "error");
           return textarea.focus();
         }
         submit.disabled = true;
@@ -108,7 +106,7 @@ function buildAnswerForm(s, assignment, index, total, tools) {
       },
     },
     el("p", { class: "phone-prompt", id: "prompt", text: assignment.prompt }),
-    el("label", { for: "answer", text: "Your report (funniest wins)" }),
+    el("label", { for: "answer", text: "Your answer" }),
     textarea,
     counter,
     submit,
@@ -128,13 +126,13 @@ function buildAnswerForm(s, assignment, index, total, tools) {
 }
 
 function buildFiled(s, tools) {
-  const t = timerRow(s.timer, "All reports filed");
+  const t = timerRow(s.timer, "All answers in");
   const list = el("ul", { class: "list" });
   const node = el(
     "div",
     { class: "stack" },
     t.node,
-    statusCard("✓", "REPORTS FILED", "Waiting for the other agents. You can still edit."),
+    statusCard("✓", "ANSWERS SENT", "Waiting for the others. You can still edit."),
     list,
     tools.leaveButton(),
   );
@@ -168,15 +166,18 @@ function renderAnswering(mount, s, tools) {
 
 function buildVoting(s, tools) {
   const g = s.game;
-  const t = timerRow(s.timer, g.breach ? "VOTE · Total Breach" : `VOTE · incident ${g.incidentNumber} of ${g.incidentCount}`);
+  const t = timerRow(s.timer, g.breach ? "Vote · Total Breach" : `Vote · matchup ${g.incidentNumber} of ${g.incidentCount}`);
 
   if (!g.canVote) {
+    const mine = !!g.ownReportId;
     return {
       node: el(
         "div",
         { class: "stack" },
         t.node,
-        statusCard("📄", "YOUR REPORT IS UP", "The others are voting. Try to look innocent."),
+        g.roomJudges
+          ? statusCard("📺", "ROOM VOTE", mine ? "Your answer is up. Make your case — the winner is picked on the big screen." : "The winner is picked on the big screen.")
+          : statusCard("📄", "YOUR ANSWER IS UP", "Everyone else is voting. Look innocent."),
         el("p", { class: "phone-prompt", text: g.prompt }),
       ),
       update: (next) => t.set(next.timer),
@@ -204,7 +205,7 @@ function buildVoting(s, tools) {
           }
         },
       },
-      el("span", { class: "letter", text: own ? `REPORT ${letter(i)} · YOUR REPORT` : `REPORT ${letter(i)}` }),
+      el("span", { class: "letter", text: own ? `${letter(i)} · YOURS` : letter(i) }),
       r.text,
     );
   });
@@ -214,7 +215,7 @@ function buildVoting(s, tools) {
     { class: "stack" },
     t.node,
     el("p", { class: "phone-prompt", text: g.prompt }),
-    el("p", { class: "label", id: "voteLabel", text: "Tap the best report." }),
+    el("p", { class: "label", id: "voteLabel", text: "Tap the funnier answer." }),
     el("div", { class: "vote-options", role: "group", "aria-labelledby": "voteLabel" }, buttons),
     locked,
     note,
@@ -232,7 +233,7 @@ function buildVoting(s, tools) {
         b.classList.toggle("chosen", chosen);
         b.setAttribute("aria-pressed", String(chosen));
       }
-      locked.textContent = "Vote locked in. Results on the big screen.";
+      locked.textContent = "Vote in. Watch the big screen.";
     },
   };
 }
@@ -243,24 +244,26 @@ function buildVerdict(s) {
   const mine = g.verdict.entries.filter((e) => e.authorId === me);
   const winners = g.verdict.entries.filter((e) => g.verdict.winningReportIds.includes(e.reportId));
 
+  const total = g.verdict.totalVotes;
   let card;
   if (mine.length) {
     const entry = mine[0];
+    const won = g.verdict.winningReportIds.includes(entry.reportId);
     card = statusCard(
-      entry.points > 0 ? "★" : "✕",
+      won || g.verdict.defaulted ? "★" : "✕",
       `+${g.yourPoints} POINTS`,
       g.verdict.defaulted
-        ? "Default ruling: yours was the only report filed."
+        ? "No rival answer — free points."
         : entry.unanimous
-          ? `Unanimous ruling! ${plural(entry.votes, "vote")}.`
-          : `${plural(entry.votes, "vote")} for your report.`,
+          ? `CORNLASH! Every vote went to you.`
+          : `${plural(entry.votes, "vote")}${total ? ` (${Math.round((entry.votes / total) * 100)}%)` : ""}. ${won ? (g.verdict.winningReportIds.length > 1 ? "Tie!" : "You won this one.") : "Lost this one."}`,
       el("p", {}, el("strong", { text: `“${entry.text}”` })),
     );
   } else {
     card = statusCard(
       "⚖",
-      "RULING ISSUED",
-      winners.length ? `Accepted: “${winners.map((w) => w.text).join("” / “")}”` : "No report received a vote.",
+      winners.length > 1 ? "TIE" : "WINNER",
+      winners.length ? winners.map((w) => `${w.authorName}: “${w.text}”`).join(" / ") : "No votes this time.",
     );
   }
   return { node: el("div", { class: "stack" }, el("p", { class: "phone-prompt", text: g.prompt }), card) };
@@ -273,7 +276,7 @@ function buildStandings(s) {
     node: statusCard(
       "📊",
       me ? `${ordinal(me.placement)} PLACE` : "STANDINGS",
-      me ? `${me.score.toLocaleString()} points so far. Standings are on the host screen.` : "Standings are on the host screen.",
+      me ? `${me.score.toLocaleString()} points. Scores are on the big screen.` : "Scores are on the big screen.",
     ),
   };
 }

@@ -426,3 +426,34 @@ describe("Cornlashing: settings", () => {
     assert.deepEqual(chaosGame.parseSettings(null), chaosGame.defaultSettings);
   });
 });
+
+describe("Cornlashing: answer → reveal → vote → score with 2–8 agents", () => {
+  it("completes every matchup of a round and scores the vote split", () => {
+    for (const count of [2, 3, 5, 8]) {
+      const names = Array.from({ length: count }, (_, i) => `Agent${i}`);
+      const { room, ids } = startGame(names, { rounds: 1, totalBreach: false });
+      mock.timers.tick(CHAOS_TIMING.introMs);
+      answerAll(room, ids);
+      let matchups = 0;
+      while (gameView(room).phase === "VOTING") {
+        const view = gameView(room);
+        assert.equal(view.reports!.length, 2, "two answers revealed together");
+        if (count === 2) {
+          assert.equal(view.roomJudges, true);
+          expectError(() => room.gameInput(ids[0]!, "vote", { incidentId: view.incidentId, reportId: view.reports![0]!.id }), "NOT_ELIGIBLE");
+          room.hostGameAction("judge", { reportId: view.reports![0]!.id });
+        } else voteFirstAllowed(room, ids);
+        const verdict = gameView(room).verdict!;
+        assert.equal(gameView(room).phase, "VERDICT");
+        assert.ok(verdict.entries.reduce((n, e) => n + e.points, 0) > 0, `${count} players: votes became points`);
+        matchups += 1;
+        mock.timers.tick(CHAOS_TIMING.verdictMs);
+      }
+      assert.equal(matchups, count === 2 ? 2 : count);
+      assert.equal(gameView(room).phase, "STANDINGS");
+      mock.timers.tick(CHAOS_TIMING.standingsMs);
+      assert.equal(room.status, "FINAL_RESULTS");
+      assert.ok(room.viewFor({ kind: "host" }).results!.standings[0]!.score > 0);
+    }
+  });
+});

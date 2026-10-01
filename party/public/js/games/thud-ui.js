@@ -18,8 +18,8 @@ export const PHASE_TITLE = {
   LAUNCH: "LAUNCHING",
   BUILD: "BUILD PHASE",
   ACTION: "LAUNCH PHASE",
-  PROCESS: "PIGGY TURN",
-  COW: "RED COW PROGRESS",
+  PROCESS: "PIGGIES' TURN",
+  COW: "THE RED COW GROWS",
   OVER: "OPERATION OVER",
 };
 
@@ -152,7 +152,8 @@ export function levelCard(g) {
 export function meters({ compact = false } = {}) {
   const corrFill = el("span", { class: "td-meter-fill" });
   const corrValue = el("span", { class: "td-meter-value" });
-  const corr = el("div", { class: "td-meter corruption", role: "meter", "aria-label": "Corruption", "aria-valuemin": "0", "aria-valuemax": "100" }, el("span", { class: "td-meter-label", text: "CORRUPTION" }), el("span", { class: "td-meter-bar" }, corrFill), corrValue);
+  const corrNote = el("span", { class: "td-meter-note", text: compact ? "" : "0% = TEAM WINS · pop piggies, wreck forts" });
+  const corr = el("div", { class: "td-meter corruption", role: "meter", "aria-label": "Corruption", "aria-valuemin": "0", "aria-valuemax": "100" }, el("span", { class: "td-meter-label", text: "CORRUPTION" }), el("span", { class: "td-meter-bar" }, corrFill), corrValue, corrNote);
   const cowFill = el("span", { class: "td-meter-fill" });
   const cowValue = el("span", { class: "td-meter-value" });
   const cowNote = el("span", { class: "td-meter-note" });
@@ -184,9 +185,9 @@ export function meters({ compact = false } = {}) {
       cowValue.textContent = `${p}%`;
       cow.setAttribute("aria-valuenow", String(p));
       cow.classList.toggle("danger", p >= 60);
-      cowNote.textContent = compact ? "" : `+${Math.round(g.cow.step * 100)}% in ${g.cow.nextIn} turn${g.cow.nextIn === 1 ? "" : "s"}`;
+      cowNote.textContent = compact ? "" : `100% = TEAM LOSES · +${Math.round(g.cow.step * 100)}% in ${g.cow.nextIn} turn${g.cow.nextIn === 1 ? "" : "s"}`;
       const k = g.kernels.balance;
-      kernels.textContent = `🌽 ${k}`;
+      kernels.textContent = compact ? `🌽 ${k}` : `🌽 ${k} TEAM`;
       kernels.title = `Shared kernels: ${k} (earned ${g.kernels.earned}, spent ${g.kernels.spent})`;
       if (lastKernels !== null && k !== lastKernels) {
         kernels.classList.remove("bump");

@@ -83,9 +83,11 @@ function actionBand(g) {
   if (a.stage === "NEED_BIRD") return el("div", { class: "td-band danger" }, el("span", { class: "td-band-tag", text: "NEEDS A BIRD" }), el("span", { text: `${p.name} is out of birds. Anyone: DONATE one from your phone.` }));
   const type = a.flying?.bird ?? p.birds[p.selected] ?? p.bird;
   const b = birdType(type);
-  const turn = `${a.index + 1}/${a.queue.length}`;
-  if (a.stage === "FLIGHT") return el("div", { class: "td-band" }, el("span", { class: "td-band-tag", text: `${turn} · IN FLIGHT` }), el("span", { text: `${p.name}'s ${b?.name ?? "bird"} · ${b?.usage ?? ""}` }));
-  if (a.stage === "AIM") return el("div", { class: "td-band" }, el("span", { class: "td-band-tag", text: `${turn} · ${p.name.toUpperCase()} IS UP` }), el("span", { text: `${b?.icon ?? ""} ${b?.name ?? "Bird"}: ${b?.blurb ?? ""}` }));
+  const turn = `SHOT ${a.index + 1}/${a.queue.length}`;
+  const nextUp = g.roster.find((q) => q.id === a.queue[a.index + 1]);
+  const then = nextUp ? ` · next: ${nextUp.name}` : " · last shot, then the piggies' turn";
+  if (a.stage === "FLIGHT") return el("div", { class: "td-band" }, el("span", { class: "td-band-tag", text: `${turn} · IN FLIGHT` }), el("span", { text: `${p.name}'s ${b?.name ?? "bird"} · ${b?.usage ?? ""}${then}` }));
+  if (a.stage === "AIM") return el("div", { class: "td-band" }, el("span", { class: "td-band-tag", text: `${turn} · ${p.name.toUpperCase()}'S TURN` }), el("span", { text: `Aiming on their phone · ${b?.icon ?? ""} ${b?.name ?? "Bird"}${then}` }));
   return null;
 }
 
@@ -93,8 +95,8 @@ function buildBand(g) {
   return el(
     "div",
     { class: "td-band" },
-    el("span", { class: "td-band-tag", text: `TURN ${g.turn} · BUILD` }),
-    el("span", { text: `Spend the team's ${g.kernels.balance} kernels on your phones. Skip: ${g.build.votes}/${g.build.needed} votes.` }),
+    el("span", { class: "td-band-tag", text: `TURN ${g.turn} · BUILD PHASE` }),
+    el("span", { text: `Spend the team's ${g.kernels.balance} 🌽 on your phones: walls protect, nests hatch birds. Done? Vote skip (${g.build.votes}/${g.build.needed}) → Launch Phase.` }),
   );
 }
 
@@ -163,7 +165,7 @@ function buildScreen(s) {
       } else band(next);
     } else if (p === "ACTION") {
       if (live) {
-        hh.overlay(stamp("LAUNCH!", "warn"), "stamp", { ms: 900 });
+        hh.overlay(stamp("LAUNCH PHASE", "warn"), "stamp", { ms: 900 });
         setTimeout(() => phase === "ACTION" && ((bandSig = ""), band(g)), 950);
         if (next.weather) {
           hh.notify(`WEATHER: ${next.weather.label.toUpperCase()} · ${next.weather.severity}`, { kind: "warn", icon: "⛈", ms: 3200 });

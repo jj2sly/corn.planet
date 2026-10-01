@@ -225,12 +225,12 @@ describe("configuration and starting", () => {
     expectError(() => room.configure({ contentMode: "spicy" }), "INVALID_INPUT");
   });
 
-  it("requires 3 connected players and refuses to start twice", () => {
+  it("requires 2 connected players and refuses to start twice", () => {
     const { manager } = makeRooms();
-    const { room } = roomWithPlayers(manager, ["A", "B", "C"]);
-    room.detachPlayerSocket("socket-2");
+    const { room } = roomWithPlayers(manager, ["A", "B"]);
+    room.detachPlayerSocket("socket-1");
     expectError(() => room.startGame(), "NOT_ENOUGH_PLAYERS");
-    room.attachPlayer(room.players[2]!, "socket-2b");
+    room.attachPlayer(room.players[1]!, "socket-1b");
     room.startGame();
     assert.equal(room.status, "IN_GAME");
     expectError(() => room.startGame(), "INVALID_ACTION");

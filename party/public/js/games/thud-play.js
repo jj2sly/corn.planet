@@ -189,14 +189,20 @@ function buildScreen(s, tools) {
   const corrFill = el("span", { class: "td-hud-fill" });
   const corrValue = el("span", { class: "td-hud-value" });
   const cowValue = el("span", { class: "td-hud-cow" });
-  const corrChip = el("div", { class: "td-hud-chip corruption", role: "meter", "aria-label": "Corruption", "aria-valuemin": "0", "aria-valuemax": "100" }, el("span", { class: "td-hud-label", text: "☣" }), el("span", { class: "td-hud-bar" }, corrFill), corrValue, cowValue);
+  const cowFill = el("span", { class: "td-hud-fill" });
+  const corrChip = el("div", { class: "td-hud-chip corruption", role: "meter", "aria-label": "Corruption", "aria-valuemin": "0", "aria-valuemax": "100" }, el("span", { class: "td-hud-label", text: "☣" }), el("span", { class: "td-hud-bar" }, corrFill), corrValue);
+  const cowChip = el("div", { class: "td-hud-chip cow", role: "meter", "aria-label": "Red Cow construction", "aria-valuemin": "0", "aria-valuemax": "100" }, el("span", { class: "td-hud-label", text: "🐄" }), el("span", { class: "td-hud-bar" }, cowFill), cowValue);
+  // The objective, always on the glass: what wins and what loses.
+  const goal = el("p", { class: "td-hud-goal" }, el("span", { class: "win", text: "WIN: ☣ → 0%" }), el("span", { class: "lose", text: "LOSE: 🐄 → 100%" }));
   const skyChip = el("button", { class: "td-hud-chip sky", type: "button" });
   skyChip.addEventListener("click", () => setTab("sky", { user: true }));
-  const hudTop = el("div", { class: "td-hud-top" }, corrChip, skyChip);
+  const hudTop = el("div", { class: "td-hud-top" }, el("div", { class: "td-hud-meters" }, corrChip, cowChip, goal), skyChip);
   const birdChip = el("button", { class: "td-bird-chip", type: "button", "aria-label": "Your birds" });
   birdChip.addEventListener("click", () => setTab("birds", { user: true }));
   const barMain = el("div", { class: "td-bar-main", role: "status" });
-  const bar = el("div", { class: "td-bar" }, birdChip, barMain);
+  // One short line saying what's happening and what you should do: the coach.
+  const coach = el("p", { class: "td-coach", "aria-live": "polite" });
+  const bar = el("div", { class: "td-bar" }, coach, birdChip, barMain);
   hh.screen.append(hudTop, bar);
 
   // The menu's page: a sheet over the screen on a phone, a column beside the device when wide.
@@ -507,7 +513,7 @@ function buildScreen(s, tools) {
     const out = [];
     const k = g.kernels.balance;
     const open = g.phase === "BUILD";
-    out.push(el("p", { class: "td-page-lead" }, el("strong", { text: `🌽 ${k}` }), open ? " shared kernels to spend. Pick something, then place it on the battlefield." : " shared kernels. Building opens in the next Build Phase."));
+    out.push(el("p", { class: "td-page-lead" }, el("strong", { text: `🌽 ${k} team kernels` }), open ? " · one pile, shared by everyone. Pick something, then place it in your zone." : " · one pile, shared by everyone. You can spend them in the next Build Phase."));
     const hurt = g.build.structures.filter((q) => q.maxHp && q.hp < q.maxHp * 0.5);
     if (hurt.length) out.push(el("p", { class: "td-alert", text: `⚠ Needs protection: ${hurt.map((q) => `${def(q.type)?.name ?? q.type} ${Math.round((q.hp / q.maxHp) * 100)}%`).join(", ")}` }));
     out.push(
@@ -677,9 +683,13 @@ function buildScreen(s, tools) {
     corrFill.style.setProperty("--pct", `${c}%`);
     corrValue.textContent = `${c.toFixed(c % 1 ? 1 : 0)}%`;
     corrChip.setAttribute("aria-valuenow", String(Math.round(c)));
-    corrChip.title = `Corruption ${c}% · Red Cow ${Math.round(g.cow.progress * 100)}%`;
-    cowValue.textContent = `🐄 ${Math.round(g.cow.progress * 100)}%`;
-    cowValue.classList.toggle("danger", g.cow.progress >= 0.6);
+    corrChip.title = `Corruption ${c}%: get it to 0% to win`;
+    const cowPct = Math.round(g.cow.progress * 100);
+    cowFill.style.setProperty("--pct", `${cowPct}%`);
+    cowValue.textContent = `${cowPct}%`;
+    cowChip.setAttribute("aria-valuenow", String(cowPct));
+    cowChip.title = `Red Cow ${cowPct}% built: if it reaches 100%, the team loses`;
+    cowChip.classList.toggle("danger", g.cow.progress >= 0.6);
     const w = g.weather;
     const wind = g.world.wind ?? 0;
     const windText = wind ? ` ${wind > 0 ? "→" : "←"}${Math.abs(Math.round(wind / 10))}` : "";
@@ -702,12 +712,13 @@ function buildScreen(s, tools) {
     skyChip.setAttribute("aria-label", `Weather: ${sky}. Open the SKY tab.`);
     const p = mine();
     const type = p?.birds[p.selected] ?? p?.bird;
-    const key = JSON.stringify([type, p?.skin, p?.birds.length]);
+    const key = JSON.stringify([type, p?.skin, p?.birds.length, g.phase === "SELECT" || g.phase === "LAUNCH"]);
     if (key !== hudKey) {
       hudKey = key;
       const b = birdType(type);
       const c2 = birdBadge(type, p?.skin ?? "classic", { size: 34 });
-      birdChip.replaceChildren(c2, el("span", { class: "td-bird-chip-text" }, el("strong", { text: b?.name ?? "—" }), el("span", { text: `×${p?.birds.length ?? 0}` })));
+      const n = p?.birds.length ?? 0;
+      birdChip.replaceChildren(c2, el("span", { class: "td-bird-chip-text" }, el("strong", { text: b?.name ?? "—" }), el("span", { text: g.phase === "SELECT" || g.phase === "LAUNCH" ? "PICK" : n ? `${n} LEFT` : "NONE" })));
       birdChip.setAttribute("aria-label", `Your bird: ${b?.name ?? "none"}, ${p?.birds.length ?? 0} in hand. Open BIRDS.`);
       birdChip.classList.toggle("empty", !p?.birds.length);
       animateBirds([c2]);
@@ -724,6 +735,38 @@ function buildScreen(s, tools) {
   const say = (text, cls = "") => el("span", { class: `td-say ${cls}`.trim(), text });
   let barKey = "";
 
+  const names = (ids) => ids.map((id) => (id === me ? "YOU" : g.roster.find((q) => q.id === id)?.name ?? "?"));
+
+  /** One line: which phase this is, whose turn, and what you should do next. */
+  function coachText() {
+    const p = mine();
+    const a = g.action;
+    const st = stage();
+    if (placing) return ["PLACING · drag or ◀ ▶ to move it inside your zone, then ✓ PLACE", ""];
+    switch (g.phase) {
+      case "LAUNCH":
+        return [`Loading ${g.level.name}…`, ""];
+      case "SELECT":
+        return p?.ready ? ["Ready ✓ · waiting for the team", "go"] : ["① Pick a bird  ② Tap READY", "go"];
+      case "BUILD":
+        return [`BUILD PHASE · spend the team's 🌽 on walls & nests, then SKIP to start shooting`, ""];
+      case "ACTION": {
+        const shooter = g.roster.find((q) => q.id === a?.shooterId);
+        if (a?.stage === "NEED_BIRD") return a.shooterId === me ? ["You're out of birds · a teammate can give you one", "bad"] : [`${shooter?.name} has no birds · give one!`, "bad"];
+        if (st === "AIM") return ["YOUR TURN · drag back & let go · hit the 🐷 piggies and their fort", "go"];
+        if (st === "FLIGHT") return ["IN FLIGHT", "go"];
+        return [`LAUNCH PHASE · ${shooter?.name ?? "?"}'s turn · one bird each`, ""];
+      }
+      case "PROCESS":
+        return ["PIGGIES' TURN · they strike back · just watch", "bad"];
+      case "COW":
+        return ["RED COW GROWS · at 100% the team loses · purge ☣ faster", "bad"];
+      case "OVER":
+        return g.over?.result === "victory" ? ["TEAM VICTORY · corruption purged", "go"] : ["TEAM DEFEAT · the Red Cow was finished", "bad"];
+    }
+    return ["", ""];
+  }
+
   /** The bar along the bottom of the screen: what's happening and what you can do about it now. */
   function renderBar(force) {
     const p = mine();
@@ -732,6 +775,10 @@ function buildScreen(s, tools) {
     const key = JSON.stringify([g.phase, a?.stage, a?.shooterId, a?.uses, st === "FLIGHT" ? Math.round((a?.fuel ?? 0) * 10) : null, g.phase === "BUILD" ? [g.kernels.balance, g.build.votes, g.build.needed, p?.vote] : null, placing ? [placing.type, placing.ok, placing.reason] : null, g.phase === "SELECT" ? [p?.ready, p?.bird] : null, a?.stage === "NEED_BIRD" ? [p?.birds.length, p?.selected] : null, g.process?.index, a ? a.queue.indexOf(me) - a.index : null]);
     if (!force && key === barKey) return;
     barKey = key;
+    const [line, tone] = coachText();
+    coach.textContent = line;
+    coach.className = `td-coach ${tone}`.trim();
+    coach.hidden = !line;
     const out = [];
     if (placing) {
       const d = def(placing.type);
@@ -741,14 +788,17 @@ function buildScreen(s, tools) {
     } else if (g.phase === "BUILD") {
       const k = g.kernels.balance;
       const votes = `${g.build.votes}/${g.build.needed}`;
-      out.push(act(`🔨 BUILD · ${k}🌽`, () => setTab(tab === "build" && !wide ? "game" : "build", { user: true }), "go", `🔨 ${k}🌽`), act(p?.vote ? `SKIP ✓ ${votes}` : `⏭ SKIP ${votes}`, () => request("vote_skip", { vote: !p?.vote }), p?.vote ? "done" : "ghost", p?.vote ? `✓ ${votes}` : `⏭ ${votes}`));
+      out.push(act(`🔨 BUILD · TEAM 🌽${k}`, () => setTab(tab === "build" && !wide ? "game" : "build", { user: true }), "go", `🔨 🌽${k}`), act(p?.vote ? `SKIP ✓ ${votes}` : `⏭ DONE, SKIP ${votes}`, () => request("vote_skip", { vote: !p?.vote }), p?.vote ? "done" : "ghost", p?.vote ? `✓ ${votes}` : `⏭ ${votes}`));
     } else if (g.phase === "ACTION") {
       const shooter = g.roster.find((q) => q.id === a.shooterId);
       if (a.stage === "NEED_BIRD" && a.shooterId !== me) {
         const type = p?.birds[p.selected];
         out.push(type ? act(`🎁 GIVE ${shooter?.name?.toUpperCase()} YOUR ${birdType(type)?.name?.toUpperCase()}`, () => request("donate", { to: a.shooterId, index: p.selected }), "go", `🎁 GIVE ${shooter?.name?.toUpperCase()} A BIRD`) : say(`${shooter?.name} needs a bird (you have none)`, "bad"));
       } else if (a.stage === "NEED_BIRD") out.push(say("OUT OF BIRDS · waiting for a teammate to give you one", "bad"));
-      else if (st === "AIM") out.push(say("YOUR SHOT · drag back, let go", "go"));
+      else if (st === "AIM") {
+        const b = birdType(p?.birds[p.selected]);
+        out.push(say(b ? `${b.icon} ${b.name} · ability: ${abilityHow(b).replace(/^In flight, /, "in flight, ").replace(/ \(.*\)\.?$|\.$/, "")}` : "Drag back, let go", "go"));
+      }
       else if (st === "FLIGHT") {
         const b = birdType(a.flying?.bird);
         const ab = b?.ability;
@@ -757,13 +807,14 @@ function buildScreen(s, tools) {
         else if (ab?.trigger === "hold") out.push(say(`HOLD ◀ ▶: GLIDE · ${a.fuel.toFixed(1)}s`, "go"));
         else out.push(say(`${b?.name}: ${b?.usage.toLowerCase()}`));
       } else {
+        // Turn order, with whoever's shooting in brackets and you marked.
         const pos = a.queue.indexOf(me) - a.index;
-        out.push(say(`${shooter?.name ?? "?"} is shooting${pos > 0 ? ` · you're up in ${pos}` : " · you've shot this turn"}`));
+        const order = names(a.queue.slice(a.index)).map((n, i) => (i === 0 ? `[${n}]` : n)).join(" ▸ ");
+        out.push(say(pos > 0 ? `${order} · you're up in ${pos}` : `${order} · you've fired this turn`));
       }
     } else if (g.phase === "PROCESS") out.push(say(g.process ? `PIGGY TURN ${g.process.index + 1}/${g.process.total} · ${g.process.label}` : "PIGGY TURN", "bad"));
     else if (g.phase === "COW") out.push(say("THE RED COW GROWS", "bad"));
     else if (g.phase === "OVER") out.push(say(g.over?.result === "victory" ? "TEAM VICTORY" : "TEAM DEFEAT", g.over?.result === "victory" ? "go" : "bad"), act("📋 REPORT", () => setTab("team", { user: true }), "go"));
-    else if (g.phase === "LAUNCH") out.push(say(`Loading ${g.level.name}…`));
     barMain.replaceChildren(...out);
     aBtn.querySelector(".cpi-hh-label").textContent = placing ? "PLACE" : ACTION_LABEL[st] ?? "A";
   }
@@ -798,10 +849,11 @@ function buildScreen(s, tools) {
     if (p === "LAUNCH" && (remainingMs ?? 0) > 3000) hh.sequence(launchSteps(next));
     else if (p === "BUILD") {
       hh.clearOverlay();
-      if (live) hh.notify(`BUILD PHASE · ${next.kernels.balance} kernels`, { kind: "info", icon: "🔨", replace: true });
+      if (live) hh.notify(`BUILD PHASE · the team has ${next.kernels.balance} 🌽 to spend`, { kind: "info", icon: "🔨", replace: true });
     } else if (p === "ACTION") {
       hh.clearOverlay();
       if (live && next.weather) hh.notify(`WEATHER: ${next.weather.label.toUpperCase()} · ${next.weather.severity}`, { kind: "warn", icon: "⛈", ms: 3000 });
+      else if (live && next.action?.shooterId !== me) hh.notify("LAUNCH PHASE · everyone fires one bird, in turn", { kind: "info", icon: "🎯", ms: 2600 });
     } else if (p === "PROCESS") hh.overlay(processBanner(next), "band");
     else if (p === "COW") {
       hh.overlay(cowBand(next), "band");

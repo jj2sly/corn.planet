@@ -22,12 +22,26 @@ function rr(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// Resolution-aware rendering, set per person by drawPerson from the context's real scale:
+// OUTLINE thins the ink lines as a character gets bigger on screen (so close-ups stay clean instead
+// of chunky) while small, in-game runners keep a full ~1 device pixel line; DETAIL does the same for
+// fine lines (mouths, glasses, prints). SHADE is a soft top-light gradient, only drawn when the
+// character is big enough on screen for it to show.
+let OUTLINE = 1;
+let DETAIL = 1;
+let SHADE = null;
+let flat = 0; // > 0 inside a rotated limb: the body's light gradient doesn't apply there
+
 function paint(ctx, fill, line = INK, width = 1.3) {
   ctx.fillStyle = fill;
   ctx.fill();
+  if (SHADE && !flat) {
+    ctx.fillStyle = SHADE;
+    ctx.fill();
+  }
   if (line) {
     ctx.strokeStyle = line;
-    ctx.lineWidth = width;
+    ctx.lineWidth = width * OUTLINE;
     ctx.stroke();
   }
 }
@@ -42,12 +56,14 @@ function limb(ctx, px, py, angle, length, width, fill, end, line) {
   ctx.save();
   ctx.translate(px, py);
   ctx.rotate(-angle);
+  flat += 1;
   rr(ctx, -width / 2, -width / 2, width, length + width / 2, width / 2);
   paint(ctx, fill, line);
   if (end) {
     rr(ctx, -width / 2, length - 2, width, 2 + width / 2, width / 2);
     paint(ctx, end, null);
   }
+  flat -= 1;
   ctx.restore();
 }
 
@@ -183,7 +199,7 @@ function face(ctx, look, eyes, blink, line) {
   eyes(ctx, "#2a1c14", blink);
   // Mouth.
   ctx.strokeStyle = "#7a3a2e";
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1 * DETAIL;
   ctx.lineCap = "round";
   ctx.beginPath();
   if (look.smile) ctx.arc(6, -21.5, 2.2, 0.15, Math.PI - 0.15);
@@ -194,7 +210,7 @@ function face(ctx, look, eyes, blink, line) {
   ctx.stroke();
   if (look.glasses === "rect") {
     ctx.strokeStyle = "#141414";
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.2 * DETAIL;
     for (const x of [3.2, 7.8]) {
       rr(ctx, x - 2.4, -28, 4.8, 3.8, 0.8);
       ctx.stroke();
@@ -205,7 +221,7 @@ function face(ctx, look, eyes, blink, line) {
     ctx.stroke();
   } else if (look.glasses === "round") {
     ctx.strokeStyle = "#8a8f98";
-    ctx.lineWidth = 1.1;
+    ctx.lineWidth = 1.1 * DETAIL;
     for (const x of [3.2, 7.8]) {
       ctx.beginPath();
       ctx.arc(x, -26, 2.5, 0, TAU);
@@ -234,7 +250,7 @@ function hat(ctx, kind, line) {
     ctx.closePath();
     paint(ctx, "#3a2a20", line);
     ctx.strokeStyle = "rgba(255,255,255,0.12)";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1 * DETAIL;
     ctx.beginPath();
     ctx.moveTo(-10, -33);
     ctx.quadraticCurveTo(1, -37, 12, -33);
@@ -258,7 +274,7 @@ function torso(ctx, top, line) {
     ctx.closePath();
     paint(ctx, color, line, 1.1);
     ctx.strokeStyle = top.trim ?? "#fff";
-    ctx.lineWidth = 1.1;
+    ctx.lineWidth = 1.1 * DETAIL;
     ctx.beginPath();
     ctx.moveTo(-3.5, -18);
     ctx.quadraticCurveTo(1, -11.8, 5.5, -18);
@@ -296,7 +312,7 @@ function torso(ctx, top, line) {
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = "#c9ccd2";
-      ctx.lineWidth = 0.9;
+      ctx.lineWidth = 0.9 * DETAIL;
       ctx.beginPath();
       ctx.moveTo(1.5, -14);
       ctx.lineTo(1.5, -8);
@@ -310,7 +326,7 @@ function torso(ctx, top, line) {
       break;
     case "hoodie":
       ctx.strokeStyle = "rgba(255,255,255,0.5)";
-      ctx.lineWidth = 0.8;
+      ctx.lineWidth = 0.8 * DETAIL;
       ctx.beginPath();
       ctx.moveTo(0, -18);
       ctx.lineTo(0, -12);
@@ -363,7 +379,7 @@ function torso(ctx, top, line) {
 function extrasOnTorso(ctx, extras, line) {
   if (extras.includes("lanyard")) {
     ctx.strokeStyle = "#111";
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.2 * DETAIL;
     ctx.beginPath();
     ctx.moveTo(-3, -18.5);
     ctx.lineTo(2, -9);
@@ -372,7 +388,7 @@ function extrasOnTorso(ctx, extras, line) {
   }
   if (extras.includes("ribbon")) {
     ctx.strokeStyle = "#9fd8f0";
-    ctx.lineWidth = 1.1;
+    ctx.lineWidth = 1.1 * DETAIL;
     ctx.beginPath();
     ctx.moveTo(-5, -9.5);
     ctx.lineTo(-3.5, -14);
@@ -381,7 +397,7 @@ function extrasOnTorso(ctx, extras, line) {
   }
   if (extras.includes("necklace")) {
     ctx.strokeStyle = "#cfd3d8";
-    ctx.lineWidth = 0.8;
+    ctx.lineWidth = 0.8 * DETAIL;
     ctx.beginPath();
     ctx.moveTo(-3, -18.5);
     ctx.quadraticCurveTo(1.5, -13, 6, -18.5);
@@ -432,7 +448,7 @@ function ballAndChain(ctx, legAngle, speed, t, state, line) {
   ctx.fill();
   const roll = airborne ? 0 : -t * speed * 0.05;
   ctx.strokeStyle = "rgba(255,255,255,0.18)";
-  ctx.lineWidth = 0.8;
+  ctx.lineWidth = 0.8 * DETAIL;
   ctx.beginPath();
   ctx.moveTo(bx, by);
   ctx.lineTo(bx + Math.cos(roll) * 3, by + Math.sin(roll) * 3);
@@ -456,14 +472,14 @@ function prop(ctx, kind, line) {
     ctx.ellipse(8.5, -14, 4, 1.5, 0, 0, TAU);
     ctx.fill();
     ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 0.9;
+    ctx.lineWidth = 0.9 * DETAIL;
     ctx.beginPath();
     ctx.moveTo(9.5, -14);
     ctx.lineTo(12, -18);
     ctx.stroke();
   } else if (kind === "headgear") {
     ctx.strokeStyle = "#111";
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.2 * DETAIL;
     ctx.beginPath();
     ctx.arc(8.5, -9, 3.6, 0, TAU);
     ctx.stroke();
@@ -479,6 +495,27 @@ function prop(ctx, kind, line) {
  * expression; `ghost` draws a tail instead of legs.
  */
 export function drawPerson(ctx, look, j, { eyes, blink, clock, speed, state, line }) {
+  // Device pixels per drawing unit, whatever transforms (camera, DPR, close-up) got us here.
+  const m = ctx.getTransform();
+  const px = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
+  OUTLINE = Math.max(0.38, Math.min(1, 0.9 / px + 0.3));
+  DETAIL = Math.max(0.5, Math.min(1, OUTLINE * 1.25));
+  if (px >= 2.2) {
+    SHADE = ctx.createLinearGradient(-6, -40, 6, 0);
+    SHADE.addColorStop(0, "rgba(255, 255, 255, 0.16)");
+    SHADE.addColorStop(0.45, "rgba(255, 255, 255, 0)");
+    SHADE.addColorStop(1, "rgba(0, 0, 0, 0.16)");
+  } else SHADE = null;
+  flat = 0;
+  try {
+    drawBody(ctx, look, j, { eyes, blink, clock, speed, state, line });
+  } finally {
+    SHADE = null;
+    OUTLINE = DETAIL = 1;
+  }
+}
+
+function drawBody(ctx, look, j, { eyes, blink, clock, speed, state, line }) {
   const top = { ...look.top, skin: look.skin };
   const sleeve = top.style === "singlet" ? look.skin : top.color;
   const legs = look.legs ?? "#2e3440";

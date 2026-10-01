@@ -179,6 +179,7 @@ export interface ChaosView {
   reports?: { id: string; text: string }[];
   votesCast?: number;
   votesNeeded?: number;
+  roomJudges?: boolean;
   canVote?: boolean;
   ownReportId?: string | null;
   yourVote?: string | null;

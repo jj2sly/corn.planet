@@ -193,6 +193,13 @@ async function skip() {
   if (!result.ok && result.error !== "PHASE_CLOSED") setBanner(el("div", { class: "banner danger", role: "alert", text: result.message }));
 }
 
+/** A game-specific host action (e.g. the room picking a winner), tied to the phase on screen. */
+async function hostRequest(action, payload) {
+  const result = await conn.request("game:host", { action, payload, step: state?.step });
+  if (!result.ok && result.error !== "PHASE_CLOSED") setBanner(el("div", { class: "banner danger", role: "alert", text: result.message }));
+  return result;
+}
+
 // ------------------------------------------------------------------ rendering
 
 function onState(next) {
@@ -230,7 +237,7 @@ function render() {
   if (state.status === "LOBBY") return mount(`lobby:${state.code}`, buildLobby, state);
   if (state.status === "FINAL_RESULTS") return mount(`results:${state.code}:${JSON.stringify(state.results?.standings)}`, buildResults, state);
   const renderer = RENDERERS[state.config.gameId];
-  if (renderer && state.game) renderer.render(mount, state);
+  if (renderer && state.game) renderer.render(mount, state, { hostRequest });
 }
 
 let barStatus = null;
@@ -294,7 +301,7 @@ const CONTENT_LABELS = {
 const SETTINGS_FORMS = {
   chaos(settings, configure, next) {
     return [
-      choiceGroup("Paired rounds", "rounds", [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (v) => configure({ settings: { rounds: v } })),
+      choiceGroup("Rounds", "rounds", [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (v) => configure({ settings: { rounds: v } })),
       choiceGroup(
         "Final round",
         "totalBreach",
@@ -302,7 +309,7 @@ const SETTINGS_FORMS = {
         settings.totalBreach,
         (v) => configure({ settings: { totalBreach: v } }),
       ),
-      choiceGroup("Report time", "answerSeconds", [[60, "60s"], [90, "90s"], [120, "120s"]], settings.answerSeconds, (v) =>
+      choiceGroup("Answer time", "answerSeconds", [[60, "60s"], [90, "90s"], [120, "120s"]], settings.answerSeconds, (v) =>
         configure({ settings: { answerSeconds: v } }),
       ),
       choiceGroup("Vote time", "voteSeconds", [[15, "15s"], [25, "25s"], [40, "40s"]], settings.voteSeconds, (v) =>

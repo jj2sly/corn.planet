@@ -8700,3 +8700,127 @@ a.deck-tile {
     transform: translateY(6px);
   }
 }
+
+/* Cornlashing: two answers head-to-head with a VS between, then the vote split. */
+.lash-duel {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
+  gap: clamp(10px, 1.6vw, 28px);
+  margin-top: clamp(16px, 3vw, 40px);
+}
+
+.lash-vs {
+  align-self: center;
+  font-family: var(--head);
+  font-size: clamp(1.6rem, 4vw, 4.4rem);
+  color: var(--danger);
+  letter-spacing: 0.04em;
+}
+
+.lash-card .text {
+  font-size: clamp(1.4rem, 3vw, 3.2rem);
+}
+
+.lash-card .btn {
+  align-self: flex-start;
+}
+
+.lash-bar {
+  height: clamp(10px, 1.2vw, 18px);
+  background: var(--line);
+}
+
+.lash-bar span {
+  display: block;
+  height: 100%;
+  background: var(--yellow);
+  transition: width 0.6s ease-out;
+}
+
+@media (max-width: 640px) {
+  .lash-duel {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Angry Thud's Revenge clarity: the meters stack top-left with the win/lose line under them, and
+   the coach line sits above the action bar. */
+.td-hud-meters {
+  display: grid;
+  gap: 3px;
+  justify-items: start;
+  min-width: 0;
+  max-width: 60%;
+}
+
+.td-hud-meters .td-hud-chip {
+  max-width: 100%;
+  min-height: 24px;
+}
+
+.td-hud-chip.cow .td-hud-fill {
+  background: linear-gradient(90deg, #8e1410, #ff4a3d);
+}
+
+.td-hud-chip.cow .td-hud-cow {
+  color: #ff9d90;
+}
+
+.td-hud-chip.cow.danger {
+  border-color: rgba(255, 90, 74, 0.6);
+}
+
+.td-hud-chip.cow.danger .td-hud-cow {
+  color: #ff5a4a;
+  animation: td-throb 0.9s ease-in-out infinite;
+}
+
+.td-hud-goal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 0;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(8, 10, 14, 0.55);
+  font: 700 9.5px/1.2 var(--mono);
+  letter-spacing: 0.04em;
+}
+
+.td-hud-goal .win {
+  color: #d9b8ff;
+}
+
+.td-hud-goal .lose {
+  color: #ff9d90;
+}
+
+.td-bar {
+  flex-wrap: wrap;
+}
+
+.td-coach {
+  flex: 1 0 100%;
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: rgba(8, 10, 14, 0.78);
+  color: #f2f4f7;
+  font: 700 12px/1.25 var(--mono);
+  text-align: center;
+}
+
+.td-coach.go {
+  color: var(--ok);
+}
+
+.td-coach.bad {
+  color: #ff8a7a;
+}
+
+@media (max-width: 440px) {
+  .td-coach {
+    font-size: 11px;
+  }
+}

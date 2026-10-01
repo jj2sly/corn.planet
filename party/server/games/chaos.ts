@@ -1,5 +1,6 @@
-// CORNLASHING — every prompt is an incident, players file anonymous incident reports,
-// and everyone else on the review board votes for the report they accept.
+// CORNLASHING — two agents answer the same prompt privately, both answers hit the big screen
+// together, everyone else votes, the split becomes points, next matchup. With only two agents the
+// room picks the winner on the host screen instead.
 
 import { randomBytes } from "node:crypto";
 import type { PickedPrompt } from "../db.ts";
@@ -16,13 +17,16 @@ export interface ChaosSettings {
 }
 
 export const CHAOS_TIMING = {
-  introMs: 5_000,
-  verdictMs: 8_000,
-  breachVerdictMs: 12_000,
-  standingsMs: 8_000,
+  introMs: 3_000,
+  verdictMs: 6_000,
+  breachVerdictMs: 9_000,
+  standingsMs: 6_000,
 };
 
 export const POINTS_PER_VOTE = 100;
+
+/** The vote key used when the room judges from the host screen (two-agent games). */
+const ROOM_VOTER = "__room__";
 
 type Phase = "INTRO" | "ANSWERING" | "VOTING" | "VERDICT" | "STANDINGS";
 
@@ -104,6 +108,11 @@ class ChaosGame implements GameInstance {
     return this.incidents[this.index];
   }
 
+  /** Two agents can't vote on their own matchup, so the room picks on the host screen. */
+  private roomJudges(): boolean {
+    return this.ctx.players().length < 3;
+  }
+
   private activeIds(): Set<string> {
     return new Set(this.ctx.players().map((p) => p.id));
   }
@@ -130,7 +139,7 @@ class ChaosGame implements GameInstance {
 
   private beginRound(): void {
     const players = this.ctx.players();
-    if (players.length < 3) return this.finish();
+    if (players.length < 2) return this.finish();
 
     this.round += 1;
     this.breach = this.settings.totalBreach && this.round === this.totalRounds;
@@ -152,7 +161,7 @@ class ChaosGame implements GameInstance {
       this.incidents = [makeIncident(prompt!, players.map((p) => p.id))];
     } else {
       // A shuffled ring: incident i goes to players i and i+1, so everyone answers exactly two
-      // and (with 3+ players) no pair of agents meets twice in a round.
+      // and (with 3+ players) no pair of agents meets twice in a round. Two agents share both.
       const ring = this.shuffle(players.map((p) => p.id));
       const prompts = this.ctx.pickPrompts(ring.length);
       this.incidents = ring.map((id, i) => makeIncident(prompts[i]!, [id, ring[(i + 1) % ring.length]!]));
@@ -192,7 +201,7 @@ class ChaosGame implements GameInstance {
 
     incident.order = this.shuffle(filed.map((r) => r.id));
     if (filed.length === 1) return this.revealVerdict(true);
-    if (this.eligibleVoters(incident).length === 0) return this.revealVerdict(false);
+    if (this.eligibleVoters(incident).length === 0 && !this.roomJudges()) return this.revealVerdict(false);
 
     this.phase = "VOTING";
     this.schedule(this.settings.voteSeconds * 1000, () => this.revealVerdict(false));
@@ -200,6 +209,7 @@ class ChaosGame implements GameInstance {
   }
 
   private eligibleVoters(incident: Incident): string[] {
+    if (this.roomJudges()) return [];
     return this.ctx
       .players()
       .map((p) => p.id)
@@ -207,6 +217,7 @@ class ChaosGame implements GameInstance {
   }
 
   private allVoted(incident: Incident): boolean {
+    if (this.roomJudges()) return incident.votes.has(ROOM_VOTER);
     return this.eligibleVoters(incident).every((id) => incident.votes.has(id));
   }
 
@@ -252,7 +263,7 @@ class ChaosGame implements GameInstance {
     // The Hall of Fame keeps the report(s) the review board accepted. A default ruling (only one
     // report filed) was never judged against anything, so it doesn't count.
     if (!defaulted && maxVotes > 0) {
-      const board = this.eligibleVoters(incident).length;
+      const board = Math.max(1, this.eligibleVoters(incident).length);
       for (const entry of entries.filter((e) => e.votes === maxVotes)) {
         this.ctx.saveMoment({
           authorId: entry.authorId,
@@ -340,6 +351,7 @@ class ChaosGame implements GameInstance {
     const incident = this.current;
     if (this.phase !== "VOTING" || !incident || payload.incidentId !== incident.id) throw new PartyError("PHASE_CLOSED");
     if (!incident.authorsMayVote && incident.authorIds.includes(playerId)) throw new PartyError("NOT_ELIGIBLE");
+    if (this.roomJudges()) throw new PartyError("NOT_ELIGIBLE");
     if (incident.votes.has(playerId)) throw new PartyError("ALREADY_VOTED");
 
     const report = [...incident.reports.values()].find((r) => r.id === payload.reportId);
@@ -353,11 +365,21 @@ class ChaosGame implements GameInstance {
     this.ctx.changed();
   }
 
-  hostAction(action: string): void {
+  hostAction(action: string, payload?: unknown): void {
+    if (action === "judge") return this.roomVote(asRecord(payload));
     if (action !== "skip" || !this.nextStep) throw new PartyError("INVALID_ACTION");
     const step = this.nextStep;
     this.ctx.clearTimer();
     step();
+  }
+
+  private roomVote(payload: Record<string, unknown>): void {
+    const incident = this.current;
+    if (this.phase !== "VOTING" || !incident || !this.roomJudges() || incident.votes.has(ROOM_VOTER)) throw new PartyError("PHASE_CLOSED");
+    const report = [...incident.reports.values()].find((r) => r.id === payload.reportId);
+    if (!report) throw new PartyError("INVALID_VOTE");
+    incident.votes.set(ROOM_VOTER, report.id);
+    this.revealVerdict(false);
   }
 
   playerLeft(): void {
@@ -414,7 +436,8 @@ class ChaosGame implements GameInstance {
         ...shared,
         reports: incident.order.map((id) => ({ id, text: reportsById.get(id)!.text })),
         votesCast: incident.votes.size,
-        votesNeeded: eligible.length,
+        votesNeeded: this.roomJudges() ? 1 : eligible.length,
+        roomJudges: this.roomJudges(),
       };
       if (!playerId) return view;
       return {
@@ -438,18 +461,18 @@ class ChaosGame implements GameInstance {
 export const chaosGame: GameDefinition<ChaosSettings> = {
   id: "chaos",
   name: "Cornlashing",
-  tagline: "File the funniest incident report. Survive the review board.",
+  tagline: "Two agents. One prompt. The room picks the funnier answer.",
   description:
-    "Each round, agents receive classified incidents on their phones and file short, anonymous reports. " +
-    "Reports go head-to-head on the big screen and the review board votes. Votes are points. " +
-    "The optional final round, Total Breach, puts everyone on the same incident.",
-  minPlayers: 3,
+    "Answer prompts privately on your phone. Each prompt goes to two agents; both answers hit the big screen " +
+    "side by side and everyone else votes. Votes are points. " +
+    "The optional final round, Total Breach, puts everyone on the same prompt.",
+  minPlayers: 2,
   maxPlayers: 8,
   defaultSettings: { rounds: 2, answerSeconds: 90, voteSeconds: 25, totalBreach: true },
   deck: {
     shelf: "party",
-    genre: "Report battle",
-    controls: ["Phone: type your incident report", "Phone: vote for the better one", "Big screen: the review board"],
+    genre: "Answer battle",
+    controls: ["Phone: write a funny answer", "Phone: vote for the funnier one", "Big screen: head-to-head reveals"],
     length: "15–25 min",
     art: { from: "#3d100c", to: "#120403", accent: "#ff6b5e", glyph: "📋", motif: "stripes" },
   },
