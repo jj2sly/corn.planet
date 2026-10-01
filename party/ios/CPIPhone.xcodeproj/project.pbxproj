@@ -12,6 +12,7 @@
 		A10000000000000000000003 /* JoinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* JoinView.swift */; };
 		A10000000000000000000004 /* PartyWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* PartyWebView.swift */; };
 		A10000000000000000000005 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* QRScannerView.swift */; };
+		A10000000000000000000006 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +23,7 @@
 		A20000000000000000000005 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		A20000000000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000007 /* CPI Party.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "CPI Party.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000008 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,6 +56,7 @@
 				A20000000000000000000004 /* PartyWebView.swift */,
 				A20000000000000000000005 /* QRScannerView.swift */,
 				A20000000000000000000006 /* Info.plist */,
+				A20000000000000000000008 /* Assets.xcassets */,
 			);
 		};
 		A40000000000000000000003 /* Products */ = {
@@ -72,6 +75,7 @@
 			buildConfigurationList = A90000000000000000000002 /* Build configuration list for PBXNativeTarget "CPIPhone" */;
 			buildPhases = (
 				A60000000000000000000001 /* Sources */,
+				AB0000000000000000000001 /* Generate App Icon */,
 				A30000000000000000000001 /* Frameworks */,
 				A70000000000000000000001 /* Resources */,
 			);
@@ -122,10 +126,31 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000006 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AB0000000000000000000001 /* Generate App Icon */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/CPIPhone/Assets.xcassets/AppIcon.appiconset/AppIconSource.svg",
+			);
+			name = "Generate App Icon";
+			outputPaths = (
+				"$(SRCROOT)/CPIPhone/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nSRC=\"$SRCROOT/CPIPhone/Assets.xcassets/AppIcon.appiconset/AppIconSource.svg\"\nOUT_DIR=\"$SRCROOT/CPIPhone/Assets.xcassets/AppIcon.appiconset\"\nOUT=\"$OUT_DIR/AppIcon-1024.png\"\nTMP=\"${TMPDIR%/}/cpi-app-icon\"\nrm -rf \"$TMP\" && mkdir -p \"$TMP\"\nqlmanage -t -s 1024 -o \"$TMP\" \"$SRC\" >/dev/null 2>&1\nCANDIDATE=\"$TMP/$(basename \"$SRC\").png\"\nif [ ! -f \"$CANDIDATE\" ]; then\n  CANDIDATE=$(find \"$TMP\" -maxdepth 1 -name '*.png' -print -quit)\nfi\nif [ -z \"${CANDIDATE:-}\" ] || [ ! -f \"$CANDIDATE\" ]; then\n  echo \"error: Failed to generate CPI app icon\"\n  exit 1\nfi\ncp \"$CANDIDATE\" \"$OUT\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A60000000000000000000001 /* Sources */ = {
@@ -178,6 +203,7 @@
 		AA0000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -202,6 +228,7 @@
 		AA0000000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
