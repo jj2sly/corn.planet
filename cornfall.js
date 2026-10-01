@@ -225,6 +225,7 @@
         scene.appendChild(layer("cpVeil"));
         scene.appendChild(hud());
         document.body.insertBefore(scene, document.body.firstChild);
+        if (/\/(index\.html)?$/.test(location.pathname)) document.body.classList.add("cpHome");
     }
 
     try {
