@@ -28,6 +28,7 @@ let hello = { loggedIn: false, displayName: null };
 let state = null;
 let session = store.get("sessionStorage", SESSION_KEY);
 let lastPhase = null;
+let reconnectInFlight = null;
 // Why the last session ended ("The server is restarting…"). Kept until the player joins again so a
 // reconnect re-mounting the join form doesn't wipe the explanation.
 let endedMessage = null;
@@ -86,12 +87,31 @@ async function onStatus(status) {
     return;
   }
   setBanner();
+
+  // Keep one recovery attempt in flight. A reconnect transition can arrive again while the first
+  // resume ack is still pending, especially on phones switching between Wi-Fi and cellular.
+  if (!reconnectInFlight) {
+    reconnectInFlight = recoverAfterConnect().finally(() => {
+      reconnectInFlight = null;
+    });
+  }
+  await reconnectInFlight;
+}
+
+async function recoverAfterConnect() {
   await Promise.race([helloReady, new Promise((r) => setTimeout(r, 1500))]);
   if (session) {
     const resumed = await conn.request("player:resume", { code: session.code, token: session.token });
     if (resumed.ok) return saveSession({ code: resumed.code, token: resumed.token, name: resumed.name });
+
+    if (resumed.error === "NETWORK") {
+      // A timeout is not proof that the room or seat is gone. Preserve the token so the Rejoin
+      // button can recover the exact seat instead of forcing the player to enter as someone new.
+      return showJoin("The server did not answer the reconnect request. Your seat is still saved — try Rejoin.");
+    }
+
     saveSession(null);
-    return showJoin(resumed.error === "NETWORK" ? resumed.message : "Your previous session has ended. Join the new one with the code on the host screen.");
+    return showJoin("Your previous session has ended. Join the new one with the code on the host screen.");
   }
   showJoin();
 }
