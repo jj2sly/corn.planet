@@ -22,6 +22,7 @@
       <button data-target="prompts">PROMPTS</button>
       <button data-target="hall">HALL OF FAME</button>
       <button data-target="pc-games">PC GAMES</button>
+      <button data-section="settings">SETTINGS</button>
     </nav>
     <div class="rail-foot">CPST NETWORK<br />DESKTOP CLIENT</div>
   </aside>
@@ -66,7 +67,7 @@
       </div>
       <div class="hero-stat">
         <span>PARTY CATALOG</span>
-        <strong>6</strong>
+        <strong id="catalogCount">—</strong>
         <small>server games</small>
       </div>
     </section>
@@ -79,13 +80,8 @@
         </div>
         <span>PHONE-CONTROLLED PARTY GAMES</span>
       </div>
-      <div class="games">
-        <button data-game="chaos"><strong>CORNLASHING</strong><small>3–8 agents</small></button>
-        <button data-game="cornorshit"><strong>CORN OR SHIT</strong><small>3–8 agents</small></button>
-        <button data-game="entityauction"><strong>ENTITY AUCTION</strong><small>3–8 agents</small></button>
-        <button data-game="mycob"><strong>MY COB ESCAPED</strong><small>3–8 agents</small></button>
-        <button data-game="steamdeck"><strong>ESCAPE THAD'S STEAM DECK</strong><small>2–8 agents</small></button>
-        <button data-game="thud"><strong>ANGRY THUD'S REVENGE</strong><small>2–8 agents</small></button>
+      <div id="gameCatalog" class="games">
+        <p class="loadingText">LOADING LIVE GAME CATALOG…</p>
       </div>
     </section>
 
@@ -166,7 +162,7 @@
       </div>
     </section>
 
-    <section class="settings-card">
+    <section id="settingsSection" class="settings-card">
       <div>
         <p class="eyebrow accent">CONNECTION</p>
         <h3>Party Server</h3>

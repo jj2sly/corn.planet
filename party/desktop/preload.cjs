@@ -13,6 +13,7 @@ if (globalThis.location?.protocol === "file:") {
     startPresentationHost: () => ipcRenderer.invoke("cpi:start-presentation-host"),
     togglePresentation: () => ipcRenderer.invoke("cpi:toggle-presentation"),
     launchGame: (gameId) => ipcRenderer.invoke("cpi:launch-game", gameId),
+    gameCatalog: () => ipcRenderer.invoke("cpi:game-catalog"),
     launchPcGame: (gameId) => ipcRenderer.invoke("cpi:launch-pc-game", gameId),
     fetchCanon: () => ipcRenderer.invoke("cpi:fetch-canon"),
     openCanonUrl: (url) => ipcRenderer.invoke("cpi:open-canon-url", url),
