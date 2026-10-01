@@ -30,6 +30,7 @@ let session = store.get("sessionStorage", SESSION_KEY);
 let lastPhase = null;
 let reconnectInFlight = null;
 let resetScrollAfterRender = false;
+let wakeLock = null;
 // Why the last session ended ("The server is restarting…"). Kept until the player joins again so a
 // reconnect re-mounting the join form doesn't wipe the explanation.
 let endedMessage = null;
@@ -119,6 +120,7 @@ async function recoverAfterConnect() {
 
 function onEnded(info) {
   bannerKey = null;
+  void syncWakeLock();
   saveSession(null);
   state = null;
   lastPhase = null;
@@ -272,7 +274,37 @@ function onState(next) {
   renderBanner();
   render();
   resetPhoneScroll();
+  void syncWakeLock();
 }
+
+async function syncWakeLock() {
+  if (!("wakeLock" in navigator)) return;
+  const shouldHold = state?.status === "IN_GAME" && document.visibilityState === "visible";
+
+  if (!shouldHold) {
+    if (wakeLock) {
+      try {
+        await wakeLock.release();
+      } catch {}
+      wakeLock = null;
+    }
+    return;
+  }
+
+  if (wakeLock) return;
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => {
+      wakeLock = null;
+    }, { once: true });
+  } catch {
+    // Browser denied it or the page has not had enough user interaction yet. Gameplay continues.
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  void syncWakeLock();
+});
 
 function resetPhoneScroll() {
   if (!resetScrollAfterRender) return;
