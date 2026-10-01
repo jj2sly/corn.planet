@@ -16,6 +16,23 @@ describe("database: seeding and migrations", () => {
     assert.ok(db.listCategories().includes("general"));
   });
 
+  it("keeps File Prompt screen settings across restarts", () => {
+    const dir = mkdtempSync(join(tmpdir(), "cpst-party-"));
+    try {
+      const path = join(dir, "party.db");
+      let db = new PartyDb(path);
+      assert.equal(db.getSettings().promptScreen.tags, true);
+      db.updateSettings({ promptScreen: { ...db.getSettings().promptScreen, tags: false, rating: false } });
+      db.close();
+      db = new PartyDb(path);
+      const screen = db.getSettings().promptScreen;
+      assert.deepEqual([screen.tags, screen.rating, screen.category], [false, false, true]);
+      db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("clears the old library once when upgrading, and never touches prompts added afterwards", () => {
     const dir = mkdtempSync(join(tmpdir(), "cpst-party-"));
     try {

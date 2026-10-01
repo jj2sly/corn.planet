@@ -46,9 +46,14 @@ export interface Pack {
   promptCount: number;
 }
 
+/** Optional parts of the prompt library's File Prompt screen a moderator can hide (true = shown). */
+export const PROMPT_SCREEN_PARTS = ["heading", "filingAs", "counter", "promptHint", "category", "tags", "rating", "ratingHint"] as const;
+export type PromptScreen = Record<(typeof PROMPT_SCREEN_PARTS)[number], boolean>;
+
 export interface Settings {
   moderationPolicy: ModerationPolicy;
   reportThreshold: number;
+  promptScreen: PromptScreen;
 }
 
 export interface PickedPrompt {
@@ -149,7 +154,8 @@ export interface HistoryEntry {
 
 type Row = Record<string, SQLInputValue>;
 
-const DEFAULT_SETTINGS: Settings = { moderationPolicy: "safe", reportThreshold: 2 };
+const allShown = (): PromptScreen => Object.fromEntries(PROMPT_SCREEN_PARTS.map((k) => [k, true])) as PromptScreen;
+const DEFAULT_SETTINGS: Settings = { moderationPolicy: "safe", reportThreshold: 2, promptScreen: allShown() };
 
 const SCHEMA_V1 = `
 CREATE TABLE profiles (
@@ -478,12 +484,20 @@ CREATE INDEX IF NOT EXISTS aborted_games_game ON aborted_games(game_id);
 
   getSettings(): Settings {
     const rows = this.db.prepare("SELECT key, value FROM settings").all() as Row[];
-    const settings: Settings = { ...DEFAULT_SETTINGS };
+    const settings: Settings = { ...DEFAULT_SETTINGS, promptScreen: allShown() };
     for (const row of rows) {
       if (row.key === "moderationPolicy" && MODERATION_POLICIES.includes(row.value as ModerationPolicy)) {
         settings.moderationPolicy = row.value as ModerationPolicy;
       }
       if (row.key === "reportThreshold") settings.reportThreshold = Number(row.value);
+      if (row.key === "promptScreen") {
+        try {
+          const saved = JSON.parse(String(row.value)) as Record<string, unknown>;
+          for (const k of PROMPT_SCREEN_PARTS) if (typeof saved[k] === "boolean") settings.promptScreen[k] = saved[k];
+        } catch {
+          // A corrupt value just means everything shows.
+        }
+      }
     }
     return settings;
   }
@@ -494,7 +508,7 @@ CREATE INDEX IF NOT EXISTS aborted_games_game ON aborted_games(game_id);
     );
     this.transaction(() => {
       for (const [key, value] of Object.entries(changes)) {
-        if (value !== undefined) upsert.run(key, String(value));
+        if (value !== undefined) upsert.run(key, typeof value === "object" ? JSON.stringify(value) : String(value));
       }
     });
     return this.getSettings();

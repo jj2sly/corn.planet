@@ -159,10 +159,26 @@ describe("REST API", () => {
 
     assert.equal((await call("PUT", "/api/mod/settings", MOD, { reportThreshold: -1 })).status, 400);
     assert.equal((await call("PUT", "/api/mod/settings", MOD, { moderationPolicy: "yolo" })).status, 400);
-    assert.deepEqual((await call("PUT", "/api/mod/settings", MOD, { moderationPolicy: "all", reportThreshold: 3 })).json, {
-      moderationPolicy: "all",
-      reportThreshold: 3,
-    });
+    const saved = (await call("PUT", "/api/mod/settings", MOD, { moderationPolicy: "all", reportThreshold: 3 })).json;
+    assert.deepEqual([saved.moderationPolicy, saved.reportThreshold], ["all", 3]);
+  });
+
+  it("lets only moderators toggle File Prompt screen parts, and prompts still file with them hidden", async () => {
+    assert.equal((await call("PUT", "/api/mod/settings", ALICE, { promptScreen: { tags: false } })).status, 403);
+    assert.equal((await call("GET", "/api/mod/settings", ALICE)).status, 403);
+    assert.equal((await call("PUT", "/api/mod/settings", MOD, { promptScreen: { text: false } })).status, 400, "the prompt box isn't optional");
+    assert.equal((await call("PUT", "/api/mod/settings", MOD, { promptScreen: { tags: "no" } })).status, 400);
+    const parts = ["heading", "filingAs", "counter", "promptHint", "category", "tags", "rating", "ratingHint"];
+    for (const part of parts) {
+      const res = await call("PUT", "/api/mod/settings", MOD, { promptScreen: { [part]: false } });
+      assert.equal(res.json.promptScreen[part], false, part);
+    }
+    const config = (await call("GET", "/api/config")).json;
+    assert.ok(parts.every((p) => config.promptScreen[p] === false), "everyone sees the screen settings");
+    // With every optional field hidden, the page sends its defaults.
+    const filed = await call("POST", "/api/prompts", ALICE, { text: "Nobody asked for ____.", category: "general", tags: "", rating: "safe" });
+    assert.equal(filed.status, 201);
+    await call("PUT", "/api/mod/settings", MOD, { promptScreen: Object.fromEntries(parts.map((p) => [p, true])) });
   });
 
   it("returns safe errors for malformed input and unknown routes", async () => {

@@ -5,6 +5,7 @@ import {
   CONTENT_MODES,
   MODERATION_POLICIES,
   MOMENT_STATUSES,
+  PROMPT_SCREEN_PARTS,
   PROMPT_RATINGS,
   PROMPT_STATUSES,
   type ModerationPolicy,
@@ -14,6 +15,7 @@ import {
   type Prompt,
   type PromptInput,
   type PromptRating,
+  type PromptScreen,
   type PromptStatus,
 } from "./db.ts";
 import { toClientError, PartyError, type ErrorCode } from "./errors.ts";
@@ -175,6 +177,8 @@ export function createApi({ db, auth, canon, firebase }: ApiDeps): express.Route
       games: gameSummaries(),
       contentModes: CONTENT_MODES,
       categories: db.listCategories(),
+      // Which optional parts of the File Prompt screen moderators have left on.
+      promptScreen: db.getSettings().promptScreen,
       promptCounts: db.countPlayablePrompts(),
       // Lets the host lobby warn when a canon-driven game has nothing to draw on.
       canonCounts: {
@@ -448,7 +452,17 @@ export function createApi({ db, auth, canon, firebase }: ApiDeps): express.Route
 
   mod.put("/settings", (req, res) => {
     const input = body(req);
-    const changes: { moderationPolicy?: ModerationPolicy; reportThreshold?: number } = {};
+    const changes: { moderationPolicy?: ModerationPolicy; reportThreshold?: number; promptScreen?: PromptScreen } = {};
+    if (input.promptScreen !== undefined) {
+      const raw = input.promptScreen;
+      if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new PartyError("INVALID_INPUT");
+      const next = { ...db.getSettings().promptScreen };
+      for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        if (!(PROMPT_SCREEN_PARTS as readonly string[]).includes(k) || typeof v !== "boolean") throw new PartyError("INVALID_INPUT");
+        next[k as keyof PromptScreen] = v;
+      }
+      changes.promptScreen = next;
+    }
     if (input.moderationPolicy !== undefined) {
       if (!MODERATION_POLICIES.includes(input.moderationPolicy as ModerationPolicy)) throw new PartyError("INVALID_INPUT");
       changes.moderationPolicy = input.moderationPolicy as ModerationPolicy;

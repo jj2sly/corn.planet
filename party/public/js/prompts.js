@@ -27,7 +27,24 @@ function stamps(p) {
   );
 }
 
-function ratingChoices(name, current = "safe") {
+/**
+ * The optional parts of the File Prompt screen (moderators toggle them in Moderation → File Prompt
+ * screen). The prompt text box and the submit button are never optional.
+ */
+const SCREEN_PARTS = [
+  ["heading", "Show section heading", "“File a new incident prompt” above the form."],
+  ["filingAs", "Show “Filing as” line", "Your name (and moderator badge) above the tabs."],
+  ["counter", "Show character counter", "The 0/150 count under the prompt box."],
+  ["promptHint", "Show writing tip", "“Use ____ for a blank…” under the prompt box."],
+  ["category", "Show category selector", "Hidden: new prompts are filed as “general”."],
+  ["tags", "Show tags", "Hidden: new prompts have no tags."],
+  ["rating", "Show rating selector", "Safe / Chaos. Hidden: new prompts are rated Safe."],
+  ["ratingHint", "Show rating guidance", "The line explaining Safe vs Chaos (only if the selector shows)."],
+];
+/** Is this part shown? Everything shows outside the File Prompt tab (editing, moderation). */
+const shown = (part, screen) => !screen || screen[part] !== false;
+
+function ratingChoices(name, current = "safe", screen = null) {
   return el(
     "fieldset",
     {},
@@ -42,7 +59,7 @@ function ratingChoices(name, current = "safe") {
         el("label", { class: "choice" }, el("input", { type: "radio", name, value, checked: value === current }), el("span", { text: label })),
       ),
     ),
-    el("p", { class: "hint", text: "Safe: general silly humor. Chaos: edgier and more absurd. Never sexual content or graphic violence." }),
+    shown("ratingHint", screen) ? el("p", { class: "hint", text: "Safe: general silly humor. Chaos: edgier and more absurd. Never sexual content or graphic violence." }) : null,
   );
 }
 
@@ -83,7 +100,7 @@ function editButton(item, p, onDone) {
 }
 
 /** The shared create/edit form. onSave receives the payload and returns the saved prompt. */
-function promptForm({ prompt, submitLabel, onSave, onCancel }) {
+function promptForm({ prompt, submitLabel, onSave, onCancel, screen = null }) {
   const uid = Math.random().toString(36).slice(2, 8);
   const note = el("p", { class: "notice" });
   const text = el("textarea", { id: `text-${uid}`, maxlength: String(config.limits.promptMax), rows: "3", required: true });
@@ -94,7 +111,13 @@ function promptForm({ prompt, submitLabel, onSave, onCancel }) {
   updateCounter();
   const category = categorySelect(`cat-${uid}`, prompt?.category ?? "general");
   const tags = el("input", { id: `tags-${uid}`, type: "text", value: (prompt?.tags ?? []).join(", "), placeholder: "silo, cob-ai" });
-  const rating = ratingChoices(`rating-${uid}`, prompt?.rating ?? "safe");
+  const rating = ratingChoices(`rating-${uid}`, prompt?.rating ?? "safe", screen);
+  // Hidden parts aren't added to the page at all (no gaps), but still supply their defaults.
+  const show = (part) => shown(part, screen);
+  const optional = [
+    show("category") ? el("div", { class: "field" }, el("label", { for: `cat-${uid}`, text: "Category" }), category) : null,
+    show("tags") ? el("div", { class: "field" }, el("label", { for: `tags-${uid}`, text: "Tags (optional, comma separated)" }), tags) : null,
+  ].filter(Boolean);
   const submit = el("button", { class: "btn", type: "submit", text: submitLabel });
 
   const form = el(
@@ -109,7 +132,7 @@ function promptForm({ prompt, submitLabel, onSave, onCancel }) {
             text: text.value,
             category: category.value,
             tags: tags.value,
-            rating: form.querySelector(`input[name="rating-${uid}"]:checked`).value,
+            rating: rating.querySelector(`input[name="rating-${uid}"]:checked`)?.value ?? "safe",
           });
           notice(note, savedMessage(saved, Boolean(prompt)), "ok");
           if (!prompt) {
@@ -129,11 +152,11 @@ function promptForm({ prompt, submitLabel, onSave, onCancel }) {
       { class: "field" },
       el("label", { for: `text-${uid}`, text: "Incident prompt" }),
       text,
-      counter,
-      el("p", { class: "hint", text: "Use ____ for a blank, or ask a question. 5–150 characters." }),
+      show("counter") ? counter : null,
+      show("promptHint") ? el("p", { class: "hint", text: "Use ____ for a blank, or ask a question. 5–150 characters." }) : null,
     ),
-    el("div", { class: "grid-2" }, el("div", { class: "field" }, el("label", { for: `cat-${uid}`, text: "Category" }), category), el("div", { class: "field" }, el("label", { for: `tags-${uid}`, text: "Tags (optional, comma separated)" }), tags)),
-    rating,
+    optional.length === 2 ? el("div", { class: "grid-2" }, optional) : optional[0] ?? null,
+    show("rating") ? rating : null,
     el("div", { class: "row" }, submit, onCancel ? el("button", { class: "btn subtle", type: "button", text: "Cancel", onclick: onCancel }) : null),
     note,
   );
@@ -146,8 +169,8 @@ function writeTab() {
   return el(
     "section",
     { class: "panel stack" },
-    el("h2", { text: "File a new incident prompt" }),
-    promptForm({ submitLabel: "File prompt", onSave: (body) => call("/prompts", { method: "POST", body }) }),
+    shown("heading", config.promptScreen) ? el("h2", { text: "File a new incident prompt" }) : null,
+    promptForm({ submitLabel: "File prompt", screen: config.promptScreen ?? {}, onSave: (body) => call("/prompts", { method: "POST", body }) }),
   );
 }
 
@@ -298,6 +321,7 @@ function moderationTab() {
     ["approved", "Approved"],
     ["packs", "Packs & categories"],
     ["settings", "Policy"],
+    ["screen", "File Prompt screen"],
     ["auction", "Entity Auction"],
   ];
   let view = "pending";
@@ -314,6 +338,7 @@ function moderationTab() {
     try {
       if (view === "packs") return content.replaceChildren(await packsView());
       if (view === "settings") return content.replaceChildren(await settingsView());
+      if (view === "screen") return content.replaceChildren(await screenView());
       if (view === "auction") return content.replaceChildren(await auctionView(load));
       const [prompts, packs] = await Promise.all([call(`/mod/prompts?view=${view}`), call("/mod/packs")]);
       content.replaceChildren(
@@ -499,6 +524,35 @@ async function packsView() {
     ),
   );
   return node;
+}
+
+async function screenView() {
+  const settings = await call("/mod/settings");
+  const note = el("p", { class: "notice" });
+  const boxes = SCREEN_PARTS.map(([id, label, hint]) => {
+    const box = el("input", { type: "checkbox", name: id, checked: settings.promptScreen?.[id] !== false });
+    box.addEventListener("change", async () => {
+      box.disabled = true;
+      try {
+        const saved = await call("/mod/settings", { method: "PUT", body: { promptScreen: { [id]: box.checked } } });
+        config.promptScreen = saved.promptScreen;
+        notice(note, `Saved: ${label.replace(/^Show /, "")} ${box.checked ? "shown" : "hidden"} for everyone.`, "ok");
+      } catch (err) {
+        box.checked = !box.checked;
+        notice(note, err.message, "error");
+      } finally {
+        box.disabled = false;
+      }
+    });
+    return el("div", {}, el("label", { class: "choice" }, box, el("span", { text: label })), el("p", { class: "hint", text: hint }));
+  });
+  return el(
+    "div",
+    { class: "stack" },
+    el("p", { class: "hint", text: "What everyone sees on the File prompt tab. The prompt box and the File prompt button always stay. Changes save immediately." }),
+    el("fieldset", {}, el("legend", { text: "File Prompt screen" }), el("div", { class: "stack" }, boxes)),
+    note,
+  );
 }
 
 async function settingsView() {
@@ -769,7 +823,7 @@ async function render() {
   );
   main.replaceChildren(
     masthead,
-    el("p", { class: "muted" }, `Filing as `, el("strong", { text: me.displayName }), me.isModerator ? " · prompt moderator" : ""),
+    ...[shown("filingAs", config.promptScreen) ? el("p", { class: "muted" }, `Filing as `, el("strong", { text: me.displayName }), me.isModerator ? " · prompt moderator" : "") : null].filter(Boolean),
     tablist,
     panel,
   );
