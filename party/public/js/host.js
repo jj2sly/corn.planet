@@ -30,6 +30,7 @@ let conn = null;
 let state = null;
 let session = store.get("sessionStorage", SESSION_KEY);
 let lastStatus = null;
+let attachInFlight = null;
 
 function saveSession(value) {
   session = value;
@@ -96,13 +97,23 @@ async function onStatus(status) {
     return;
   }
   setBanner(null);
-  await attach();
+
+  // Socket.IO can deliver another connected transition while an earlier resume/create request is
+  // still settling. Keep one attach flow in flight so a network blip cannot accidentally open two
+  // host sessions or race a resume against a fresh room.
+  if (!attachInFlight) {
+    attachInFlight = attach().finally(() => {
+      attachInFlight = null;
+    });
+  }
+  await attachInFlight;
 }
 
 async function attach() {
   if (session) {
     const resumed = await conn.request("host:resume", session);
     if (resumed.ok) return;
+    if (resumed.error === "NETWORK") return;
     saveSession(null);
   }
   const previous = store.get("localStorage", SESSION_KEY);
@@ -211,9 +222,14 @@ function onState(next) {
   setSoundScope(next.status === "IN_GAME" ? next.config.gameId : "lobby");
 
   if (!requestedGameHandled && state.status === "LOBBY" && requestedGame && config?.games?.some((g) => g.id === requestedGame)) {
-    requestedGameHandled = true;
-    if (state.config.gameId !== requestedGame) {
-      void conn.request("room:configure", { gameId: requestedGame });
+    if (state.config.gameId === requestedGame) {
+      requestedGameHandled = true;
+    } else {
+      // Mark the deep link handled only after the server accepts it. A brief network failure during
+      // startup should retry on the next lobby state instead of silently launching the wrong game.
+      void conn.request("room:configure", { gameId: requestedGame }).then((result) => {
+        if (result.ok) requestedGameHandled = true;
+      });
     }
   }
 
