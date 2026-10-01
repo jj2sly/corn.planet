@@ -120,9 +120,9 @@ async function recoverAfterConnect() {
 
 function onEnded(info) {
   bannerKey = null;
-  void syncWakeLock();
   saveSession(null);
   state = null;
+  void syncWakeLock();
   lastPhase = null;
   lastStatus = null;
   setSystem(null);
@@ -136,6 +136,7 @@ function onEnded(info) {
 
 function showJoin(message = endedMessage) {
   state = null;
+  void syncWakeLock();
   resetScrollAfterRender = true;
   lastStatus = null;
   setSystem(null);
