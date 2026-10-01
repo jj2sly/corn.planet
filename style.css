@@ -1090,57 +1090,6 @@ html {
 }
 
 /* =========================================
-   AMBIENT CORN FALL EFFECT (legacy, superseded by
-   the Corn Solar System effect below — safe to remove,
-   left here only so nothing breaks if referenced elsewhere)
-========================================= */
-
-#cornFallContainer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-    pointer-events: none;
-    z-index: 1;
-}
-
-.cornParticle {
-    position: absolute;
-    top: -40px;
-    opacity: 0.35;
-    filter: drop-shadow(0 0 4px rgba(255, 212, 0, 0.15));
-    animation-name: cornFall;
-    animation-timing-function: linear;
-    animation-fill-mode: forwards;
-    will-change: transform, opacity;
-}
-
-@keyframes cornFall {
-    0% {
-        transform: translateY(0) translateX(0) rotate(0deg);
-        opacity: 0;
-    }
-    10% {
-        opacity: 0.35;
-    }
-    90% {
-        opacity: 0.3;
-    }
-    100% {
-        transform: translateY(110vh) translateX(var(--drift)) rotate(var(--spin));
-        opacity: 0;
-    }
-}
-
-@media (max-width: 600px) {
-    .cornParticle {
-        font-size: 1rem !important;
-    }
-}
-
-/* =========================================
    GATE BUTTON ROW (Enter + Login/Sign Up)
 ========================================= */
 
@@ -1235,79 +1184,151 @@ html {
 }
 
 /* =========================================
-   CORN SOLAR SYSTEM (replaces falling corn effect)
-   A corn-cob sun sits centered behind the page content with
-   the full system of orbiting planets visible at once, scaled
-   to viewport size (vmin) so nothing gets cut off on any screen.
+   CORN PLANET (cornfall.js)
+   One giant Corn Planet seen from orbit: its upper limb fills the
+   lower part of the screen and the database floats above it. The
+   kernel/husk surface is drawn once to a canvas by cornfall.js; only
+   transforms animate, so it stays cheap on phones.
 ========================================= */
 
-#cornSystemContainer {
+#cornPlanetScene {
     position: fixed;
-    top: 50vh;
-    left: 50vw;
-    width: 1px;
-    height: 1px;
+    inset: 0;
+    overflow: hidden;
     pointer-events: none;
     z-index: 0;
-    opacity: 0.85;
+    background: radial-gradient(ellipse at 70% 10%, #0d0c14 0%, #050507 55%, #000 100%);
 }
 
-#cornSun {
+.cpStars {
     position: absolute;
     top: 0;
     left: 0;
-    transform: translate(-50%, -50%);
-    font-size: 5vmin;
-    z-index: 3;
-    filter: drop-shadow(0 0 2vmin rgba(255, 212, 0, 0.75));
-    animation: sunPulse 4s ease-in-out infinite;
+    width: calc(100% + 512px);
+    height: 100%;
+    background-repeat: repeat;
+    animation: cpDrift 400s linear infinite;
+    will-change: transform;
 }
 
-@keyframes sunPulse {
-    0%, 100% { filter: drop-shadow(0 0 2vmin rgba(255, 212, 0, 0.75)); }
-    50%      { filter: drop-shadow(0 0 3.2vmin rgba(255, 212, 0, 1)); }
+.cpStars.far { opacity: 0.55; animation-duration: 900s; }
+
+@keyframes cpDrift {
+    to { transform: translateX(-512px); }
 }
 
-#cornSunGlow {
+/* The planet: a huge sphere whose top edge is the horizon. */
+.cpPlanet {
+    --d: 260vmin;
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 16vmin;
-    height: 16vmin;
-    transform: translate(-50%, -50%);
+    left: 50%;
+    top: 54vh;
+    width: var(--d);
+    height: var(--d);
+    margin-left: calc(var(--d) / -2);
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 212, 0, 0.3) 0%, rgba(255, 212, 0, 0) 70%);
-    z-index: 2;
+    overflow: hidden;
+    background: #3a2a00;
+    box-shadow:
+        0 0 3vmin 0.6vmin rgba(255, 214, 90, 0.55),
+        0 0 14vmin 3vmin rgba(255, 190, 40, 0.22),
+        0 0 40vmin 8vmin rgba(255, 170, 0, 0.08);
 }
 
-.orbitRing {
+.cpSurface,
+.cpClouds {
     position: absolute;
     top: 0;
     left: 0;
-    transform: translate(-50%, -50%);
-    border: 1px dashed rgba(255, 212, 0, 0.2);
-    border-radius: 50%;
-    z-index: 1;
+    height: 100%;
+    width: calc(100% + var(--tile, 1024px) * 2);
+    background-repeat: repeat;
+    will-change: transform;
 }
 
-.planetOrbit {
+.cpSurface { animation: cpSpin 720s linear infinite; }
+.cpClouds  { opacity: 0.5; mix-blend-mode: screen; animation: cpSpin 420s linear infinite; }
+
+@keyframes cpSpin {
+    to { transform: translateX(calc(var(--tile, 1024px) * -2)); }
+}
+
+/* Sphere shading: lit from the upper left, night side lower right, darker limb. */
+.cpShade {
     position: absolute;
-    top: 0;
-    left: 0;
-    transform: translate(-50%, -50%);
+    inset: 0;
     border-radius: 50%;
-    z-index: 2;
-    animation-name: orbitSpin;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
+    background:
+        radial-gradient(circle at 38% 6%, rgba(255, 236, 160, 0.28) 0%, rgba(255, 236, 160, 0) 22%),
+        radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, 0.55) 70.7%),
+        linear-gradient(115deg, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.55) 62%, rgba(0, 0, 0, 0.85) 80%);
 }
 
-@keyframes orbitSpin {
-    from { transform: translate(-50%, -50%) rotate(0deg); }
-    to   { transform: translate(-50%, -50%) rotate(360deg); }
+/* Thin bright atmosphere on the limb. */
+.cpAtmo {
+    position: absolute;
+    inset: -1px;
+    border-radius: 50%;
+    box-shadow: inset 0 1.2vmin 2.4vmin rgba(255, 230, 140, 0.55), inset 0 0 6vmin rgba(255, 200, 60, 0.25);
 }
 
-/* Keep actual page content above the corn-system layer */
+/* CPI orbital HUD: reticle, sector ticks along the horizon, readouts, a slow scan line. */
+.cpHud {
+    position: absolute;
+    inset: 0;
+    color: rgba(255, 212, 0, 0.55);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.cpHud svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.cpReadout {
+    position: absolute;
+    bottom: 14px;
+    left: 18px;
+    line-height: 1.6;
+}
+
+.cpReadout.right {
+    left: auto;
+    right: 18px;
+    text-align: right;
+}
+
+.cpScan {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255, 212, 0, 0.35), transparent);
+    animation: cpScan 14s ease-in-out infinite;
+    opacity: 0;
+}
+
+@keyframes cpScan {
+    0%   { transform: translateY(54vh); opacity: 0; }
+    10%  { opacity: 1; }
+    60%  { transform: translateY(100vh); opacity: 0.6; }
+    61%, 100% { transform: translateY(100vh); opacity: 0; }
+}
+
+/* Keeps text readable: the upper sky stays dark, and a soft veil sits over the horizon. */
+.cpVeil {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.1) 45%, rgba(0, 0, 0, 0.35) 75%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+/* Keep actual page content above the planet layer */
 header,
 .file,
 .database,
@@ -1320,65 +1341,13 @@ header,
     z-index: 2;
 }
 
-/* On small screens, keep it visible but a touch dimmer behind content
-   so text stays easy to read; full system still shown, not hidden. */
 @media (max-width: 600px) {
-    #cornSystemContainer {
-        opacity: 0.5;
-    }
-
-    #cornSun {
-        font-size: 6vmin;
-    }
+    .cpPlanet { --d: 210vw; top: 60vh; }
+    .cpReadout.right { display: none; }
+    .cpHud { font-size: 9px; }
 }
 
-/* =========================================
-   REAL PLANET IMAGES (replaces emoji planets)
-========================================= */
-
-.cornPlanet {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    object-fit: cover;
-    box-shadow:
-        inset -3px -3px 6px rgba(0, 0, 0, 0.5),
-        0 0 10px rgba(255, 255, 255, 0.35),
-        0 0 4px rgba(255, 255, 255, 0.5);
-    background: #000;
-    filter: brightness(1.5) contrast(1.15) saturate(1.3);
-}
-
-.saturnRing {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-20deg);
-    border: 2px solid rgba(210, 180, 140, 0.55);
-    border-radius: 50%;
-    pointer-events: none;
-}
-
-#textureCredit {
-    position: fixed;
-    bottom: 6px;
-    right: 8px;
-    font-size: 0.6rem;
-    color: #444;
-    text-decoration: none;
-    z-index: 500;
-    letter-spacing: 0.5px;
-    font-family: 'PT Sans', Arial, sans-serif;
-}
-
-#textureCredit:hover {
-    color: #ffd400;
-}
-
-@media (max-width: 600px) {
-    #textureCredit {
-        display: none;
-    }
+@media (prefers-reduced-motion: reduce) {
+    .cpStars, .cpSurface, .cpClouds, .cpScan { animation: none; }
+    .cpScan { display: none; }
 }
