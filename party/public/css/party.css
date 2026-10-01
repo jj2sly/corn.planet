@@ -9058,3 +9058,164 @@ a.deck-tile {
 .snd-table tr.off td:first-child { opacity: 0.5; text-decoration: line-through; }
 .snd-table select { max-width: 260px; }
 .snd-path { display: block; font-size: 0.75rem; font-family: var(--mono); }
+
+
+/* ------------------------------------------------------------------ mobile web controller optimization
+   Shared phone ergonomics: safe areas, touch targets, less accidental zoom/selection and lighter
+   decorative work on coarse-pointer devices. Keep game-specific layouts above this section. */
+
+@media (max-width: 600px) {
+  :root {
+    --gutter: 12px;
+  }
+
+  html {
+    overscroll-behavior-y: none;
+  }
+
+  body {
+    min-height: 100svh;
+    overflow-x: hidden;
+  }
+
+  .topbar {
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-right: max(var(--gutter), env(safe-area-inset-right));
+    padding-left: max(var(--gutter), env(safe-area-inset-left));
+  }
+
+  .phone {
+    max-width: none;
+    padding-top: 10px;
+    padding-right: max(var(--gutter), env(safe-area-inset-right));
+    padding-bottom: max(28px, calc(env(safe-area-inset-bottom) + 18px));
+    padding-left: max(var(--gutter), env(safe-area-inset-left));
+  }
+
+  .sticky-banner {
+    top: env(safe-area-inset-top, 0px);
+  }
+
+  .phone > .stack,
+  .phone form.stack {
+    gap: 0;
+  }
+
+  .phone .stack > * + * {
+    margin-top: 12px;
+  }
+
+  .phone .panel {
+    padding: 12px;
+  }
+
+  .phone .masthead {
+    margin-top: 6px;
+    margin-bottom: 14px;
+  }
+
+  .phone .masthead h1 {
+    font-size: clamp(1.55rem, 7vw, 1.9rem);
+  }
+
+  .phone-prompt {
+    font-size: clamp(1.2rem, 5.4vw, 1.45rem);
+    margin-bottom: 12px;
+  }
+
+  .phone .btn,
+  .phone button,
+  .phone [role="button"],
+  .topbar button,
+  .topbar a {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .phone .btn.small {
+    min-height: 44px;
+  }
+
+  .phone .choice span {
+    min-height: 48px;
+  }
+
+  .phone input[type="text"],
+  .phone input[type="email"],
+  .phone input[type="password"],
+  .phone input[type="search"],
+  .phone select,
+  .phone textarea {
+    font-size: 16px;
+  }
+
+  .phone textarea {
+    min-height: 96px;
+  }
+
+  .vote-option {
+    min-height: 64px;
+  }
+
+  .phone .row {
+    gap: 8px;
+  }
+
+  .phone .list > li {
+    padding: 10px 0;
+  }
+
+  .phone .reference {
+    padding: 10px 12px;
+  }
+
+  .code-input {
+    font-size: clamp(1.7rem, 10vw, 2.2rem) !important;
+  }
+}
+
+@media (pointer: coarse) {
+  body::before {
+    opacity: 0.55;
+  }
+
+  .btn:hover,
+  .btn.ghost:hover,
+  .btn.subtle:hover,
+  .vote-option:hover:not(:disabled) {
+    box-shadow: none;
+  }
+
+  button,
+  .btn,
+  .choice,
+  .vote-option,
+  .game-choice {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .phone {
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-left: max(10px, env(safe-area-inset-left));
+  }
+
+  .phone .panel {
+    padding: 10px;
+  }
+
+  .phone .stack > * + * {
+    margin-top: 10px;
+  }
+
+  .phone-prompt {
+    font-size: 1.18rem;
+  }
+
+  .topbar .brand {
+    font-size: 0.92rem;
+    letter-spacing: 0.08em;
+  }
+}
