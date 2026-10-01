@@ -63,8 +63,25 @@ const updates = createUpdateController({
   },
 });
 
-const GAME_IDS = new Set(["chaos", "cornorshit", "entityauction", "mycob", "steamdeck", "thud"]);
 const PC_GAME_IDS = new Set(["cornorshit-solo", "coldcase"]);
+
+async function fetchGameCatalog() {
+  const current = loadSettings();
+  const response = await fetch(`${current.partyBase}/api/native/games`, { signal: AbortSignal.timeout(5000) });
+  if (!response.ok) throw new Error(`Game catalog request failed (${response.status}).`);
+  const data = await response.json();
+  const games = Array.isArray(data?.games) ? data.games : [];
+  return games
+    .filter((game) => game && typeof game.id === "string" && typeof game.name === "string")
+    .map((game) => ({
+      id: game.id,
+      name: game.name,
+      tagline: typeof game.tagline === "string" ? game.tagline : "",
+      description: typeof game.description === "string" ? game.description : "",
+      minPlayers: Number(game.minPlayers || 0),
+      maxPlayers: Number(game.maxPlayers || 0),
+    }));
+}
 
 function cleanBase(value) {
   return String(value || "").trim().replace(/\/+$/, "");
@@ -743,12 +760,15 @@ handle("cpi:config", () => ({
   build: BUILD_INFO ? { commit: String(BUILD_INFO.commit || "").slice(0, 7), builtAt: BUILD_INFO.builtAt || null } : null,
 }));
 
-handle("cpi:launch-game", (_event, gameId) => {
+handle("cpi:launch-game", async (_event, gameId) => {
   const id = String(gameId);
-  if (!GAME_IDS.has(id)) throw new Error("Unknown CPI Party game");
+  const games = await fetchGameCatalog();
+  if (!games.some((game) => game.id === id)) throw new Error("Unknown CPI Party game");
   openContent(partyHostUrl(id), "party", { retain: true, forceNavigate: true });
   return true;
 });
+
+handle("cpi:game-catalog", () => fetchGameCatalog());
 
 handle("cpi:open-canon-url", (_event, value) => {
   const raw = String(value || "");
@@ -788,6 +808,7 @@ handle("cpi:readiness", async () => {
   const result = {
     server: false,
     games: 0,
+    totalGames: 0,
     canon: 0,
     entityCanon: 0,
     cornOrShitPlayable: false,
@@ -823,10 +844,10 @@ handle("cpi:readiness", async () => {
 
     if (gamesResponse.ok) {
       const games = await gamesResponse.json();
-      const installedIds = new Set(Array.isArray(games.games) ? games.games.map((game) => String(game?.id || "")) : []);
-      result.games = [...GAME_IDS].filter((id) => installedIds.has(id)).length;
-      const missing = [...GAME_IDS].filter((id) => !installedIds.has(id));
-      if (missing.length) result.issues.push(`Missing Party games: ${missing.join(", ")}.`);
+      const catalog = Array.isArray(games.games) ? games.games.filter((game) => game?.id && game?.name) : [];
+      result.games = catalog.length;
+      result.totalGames = catalog.length;
+      if (!catalog.length) result.issues.push("Party server returned an empty game catalog.");
     } else {
       result.issues.push("Game catalog could not be loaded.");
     }
