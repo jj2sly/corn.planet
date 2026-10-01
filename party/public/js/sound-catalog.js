@@ -99,6 +99,45 @@ export const SOUND_SCOPES = {
   channelcob: { tags: ["broadcast_intro", "breaking_news", "live_transition", "incoming_update", "scoop", "decision_made", "broadcast_error", "segment_end", "segment_good", "segment_bad", "final_results"] },
 };
 
+export const SOUND_FAMILIES = {
+  ui: { label: "UI / menu", gain: 0.68, cooldown: 0.06, priority: 0 },
+  movement: { label: "Movement / texture", gain: 0.62, cooldown: 0.08, priority: 0 },
+  action: { label: "Action", gain: 0.76, cooldown: 0.1, priority: 1 },
+  info: { label: "Information", gain: 0.78, cooldown: 0.2, priority: 1 },
+  tension: { label: "Warning / tension", gain: 0.82, cooldown: 0.55, priority: 2 },
+  result: { label: "Result", gain: 0.9, cooldown: 0.45, priority: 3 },
+  critical: { label: "Critical event", gain: 0.94, cooldown: 0.8, priority: 4 },
+};
+
+const FAMILY_OVERRIDES = {
+  device_boot: "ui", ui_click: "ui", achievement: "result",
+  jump: "movement", land: "movement", tilt_creak: "movement", static: "movement",
+  plank_place: "action", response_in: "action", decision_made: "action",
+  discovery: "info", incoming_update: "info", budget_briefing: "info",
+  timer_warning: "tension", alert: "tension", hazard_arm: "tension", incident_alarm: "tension",
+  breaking_news: "tension", live_transition: "tension", scoop: "tension",
+  success: "result", vote_start: "info", vote_result: "result", budget_approved: "result",
+  budget_rejected: "result", incident_resolved: "result", segment_end: "result", segment_good: "result",
+  game_start: "result", broadcast_intro: "result", final_results: "result", game_end: "result",
+  major_failure: "critical", life_lost: "critical", contained: "critical", terminated: "critical",
+  escaped: "critical", everyone_dies: "critical", emergency_allocation: "critical",
+  incident_failed: "critical", department_failure: "critical", broadcast_error: "critical",
+  segment_bad: "critical", deck_shake: "critical",
+};
+
+/** Shared audio-direction policy for a cue. Games still choose the clip; this controls how it sits in the mix. */
+export function soundPolicy(tag) {
+  let family = FAMILY_OVERRIDES[tag];
+  if (!family && tag.startsWith("thud_")) {
+    family = /victory|defeat|cow|boom|lightning|tornado|chain/.test(tag) ? "critical"
+      : /weather|pig_pop|ability|breed|clone|purge/.test(tag) ? "result"
+      : /launch|break|pig_hit|repair|build|nest|lob|splash|shield|kernels|donate/.test(tag) ? "action"
+      : "movement";
+  }
+  if (!family) family = "action";
+  return { family, ...SOUND_FAMILIES[family] };
+}
+
 export const SOUND_BASE = "/sounds/mycob/";
 const TAG_RE = /^[a-z][a-z0-9_]{0,39}$/;
 const FILE_RE = /^[A-Za-z0-9_][A-Za-z0-9_\-./]{0,199}\.(mp3|ogg|wav|m4a)$/;
