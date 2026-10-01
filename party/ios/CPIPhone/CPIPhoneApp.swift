@@ -20,6 +20,8 @@ private struct RootView: View {
         Group {
             if let url = appState.activePartyURL {
                 PartyWebScreen(url: url)
+            } else if let url = appState.activePortalURL {
+                PortalWebScreen(url: url, title: appState.activePortalTitle)
             } else {
                 JoinView()
             }
