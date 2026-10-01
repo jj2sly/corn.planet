@@ -4,21 +4,26 @@ import Foundation
 final class AppState: ObservableObject {
     private enum Keys {
         static let serverURL = "cpi.iphone.serverURL"
+        static let roomCode = "cpi.iphone.roomCode"
     }
 
     @Published var serverURL: String {
         didSet { UserDefaults.standard.set(serverURL, forKey: Keys.serverURL) }
     }
-    @Published var roomCode = ""
+    @Published var roomCode: String {
+        didSet { UserDefaults.standard.set(roomCode, forKey: Keys.roomCode) }
+    }
     @Published var activePartyURL: URL?
     @Published var activePortalURL: URL?
     @Published var activePortalTitle = ""
     @Published var message: String?
     @Published var serverOnline: Bool?
     @Published var serverStatus = "Not checked"
+    @Published var checkingServer = false
 
     init() {
         serverURL = UserDefaults.standard.string(forKey: Keys.serverURL) ?? "https://cornplanet-production.up.railway.app"
+        roomCode = UserDefaults.standard.string(forKey: Keys.roomCode) ?? ""
     }
 
     var normalizedServer: URL? {
@@ -26,12 +31,17 @@ final class AppState: ObservableObject {
     }
 
     func checkServer() async {
+        checkingServer = true
+        defer { checkingServer = false }
+
         guard let base = normalizedServerURL(serverURL) else {
             serverOnline = false
             serverStatus = "Invalid server"
+            message = "Enter a valid CPI Party server."
             return
         }
 
+        serverStatus = "Checking"
         do {
             var request = URLRequest(url: base.appendingPathComponent("healthz"))
             request.timeoutInterval = 6
@@ -40,6 +50,9 @@ final class AppState: ObservableObject {
                 serverURL = originString(base)
                 serverOnline = true
                 serverStatus = "Online"
+                if message == "Party server is offline." || message == "Enter a valid CPI Party server." {
+                    message = nil
+                }
             } else {
                 serverOnline = false
                 serverStatus = "Unavailable"
@@ -100,6 +113,7 @@ final class AppState: ObservableObject {
         serverURL = originString(base)
         roomCode = code
         message = nil
+        activePortalURL = nil
         activePartyURL = url
     }
 
@@ -125,6 +139,7 @@ final class AppState: ObservableObject {
             }
 
             if scannedURL.path == "/play" || scannedURL.path.hasSuffix("/play") {
+                activePortalURL = nil
                 activePartyURL = scannedURL
                 message = nil
                 return
@@ -145,6 +160,17 @@ final class AppState: ObservableObject {
 
     func leaveController() {
         activePartyURL = nil
+    }
+
+    func clearRoomCode() {
+        roomCode = ""
+    }
+
+    func usePublicServer() {
+        serverURL = "https://cornplanet-production.up.railway.app"
+        serverOnline = nil
+        serverStatus = "Not checked"
+        message = nil
     }
 
     func closePortal() {
