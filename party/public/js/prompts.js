@@ -1,5 +1,6 @@
 import { $, api, el, notice, plural } from "./common.js";
 import { currentUser, getToken, initAuth, onAuthChange, authMode } from "./auth.js";
+import { hasTone, previewSound } from "./games/mycob-sound.js";
 
 const main = $("#main");
 const masthead = main.querySelector(".masthead");
@@ -323,6 +324,7 @@ function moderationTab() {
     ["settings", "Policy"],
     ["screen", "File Prompt screen"],
     ["auction", "Entity Auction"],
+    ["sounds", "Sound effects"],
   ];
   let view = "pending";
   const bar = el("div", { class: "choices", role: "group", "aria-label": "Moderation view" });
@@ -340,6 +342,7 @@ function moderationTab() {
       if (view === "settings") return content.replaceChildren(await settingsView());
       if (view === "screen") return content.replaceChildren(await screenView());
       if (view === "auction") return content.replaceChildren(await auctionView(load));
+      if (view === "sounds") return content.replaceChildren(await soundsView());
       const [prompts, packs] = await Promise.all([call(`/mod/prompts?view=${view}`), call("/mod/packs")]);
       content.replaceChildren(
         prompts.length ? el("ul", { class: "list" }, prompts.map((p) => moderationItem(p, packs, load))) : el("p", { class: "muted", text: "Nothing in this queue. Suspiciously calm." }),
@@ -606,6 +609,121 @@ async function settingsView() {
     el("button", { class: "btn", type: "submit", text: "Save policy" }),
     note,
   );
+}
+
+// ------------------------------------------------------------------ sound effects
+
+// Which sound plays for which trigger, per game. Every change saves at once; nothing here touches a
+// running game except through the list the game loads when it starts.
+
+const soundName = (source) => (source.startsWith("file:") ? source.slice(5).split("/").pop() : `Built-in tone (${source.slice(6)})`);
+
+async function soundsView() {
+  const catalog = await call("/mod/sounds");
+  const note = el("p", { class: "notice", role: "status" });
+  const picker = el("select", { id: "soundGame", "aria-label": "Game" }, catalog.scopes.map((g) => el("option", { value: g.id, text: g.global ? `${g.name} (GLOBAL)` : g.name })));
+  const body = el("div", { class: "stack" });
+  let scope = catalog.scopes[0];
+  let rows = [];
+  let customised = false;
+
+  const tagLabel = (t) => `${t} — ${catalog.tags[t]?.label ?? ""}`;
+  const save = async (next, message = "Saved.") => {
+    try {
+      const res = await call(`/mod/sounds/${scope.id}`, { method: "PUT", body: { rows: next } });
+      rows = res.rows;
+      customised = res.customised;
+      notice(note, message, "ok");
+    } catch (err) {
+      notice(note, err.message, "error");
+    }
+    draw();
+  };
+
+  const draw = () => {
+    const silent = scope.tags.filter((t) => !rows.some((r) => r.tag === t && r.enabled));
+    const sorted = [...rows].sort((a, b) => scope.tags.indexOf(a.tag) - scope.tags.indexOf(b.tag));
+    const table = el(
+      "table",
+      { class: "snd-table" },
+      el("thead", {}, el("tr", {}, ["Sound", "Trigger", "On", "", ""].map((t) => el("th", { text: t })))),
+      el(
+        "tbody",
+        {},
+        sorted.map((r) => {
+          const toneMissing = r.source.startsWith("synth:") && !hasTone(r.source.slice(6));
+          const tag = el("select", { "aria-label": `Trigger for ${soundName(r.source)}`, onchange: () => save(rows.map((x) => (x.id === r.id ? { ...x, tag: tag.value } : x)), `${soundName(r.source)} now plays for ${tag.value}.`) }, scope.tags.map((t) => el("option", { value: t, text: tagLabel(t), selected: t === r.tag })));
+          const on = el("input", { type: "checkbox", checked: r.enabled, "aria-label": `Enable ${soundName(r.source)}`, onchange: () => save(rows.map((x) => (x.id === r.id ? { ...x, enabled: on.checked } : x)), on.checked ? "Enabled." : "Disabled. It won't play.") });
+          return el(
+            "tr",
+            { class: r.enabled ? "" : "off" },
+            el("td", {}, el("strong", { text: soundName(r.source) }), r.source.startsWith("file:") ? el("span", { class: "muted snd-path", text: r.source.slice(5) }) : toneMissing ? el("span", { class: "muted snd-path", text: "no tone for this one — silent" }) : null),
+            el("td", {}, tag),
+            el("td", {}, on),
+            el("td", {}, el("button", { class: "btn small ghost", type: "button", text: "▶ Preview", onclick: async () => ((await previewSound(r.source, r.volume)) ? null : notice(note, "That sound couldn't be played.", "error")) })),
+            el("td", {}, el("button", { class: "btn small subtle", type: "button", title: "Remove from this game (the file stays)", text: "✕", onclick: () => save(rows.filter((x) => x.id !== r.id), "Removed from this game. The file is still there.") })),
+          );
+        }),
+      ),
+    );
+
+    // Add any sound file (or a built-in tone) to a trigger.
+    const addFile = el(
+      "select",
+      { "aria-label": "Sound to add" },
+      el("optgroup", { label: "Sound files" }, catalog.files.map((f) => el("option", { value: `file:${f}`, text: f }))),
+      el("optgroup", { label: "Built-in tones" }, Object.keys(catalog.tags).filter(hasTone).map((t) => el("option", { value: `synth:${t}`, text: `tone: ${t}` }))),
+    );
+    const addTag = el("select", { "aria-label": "Trigger for the new sound" }, scope.tags.map((t) => el("option", { value: t, text: tagLabel(t) })));
+    const preview = el("button", { class: "btn small ghost", type: "button", text: "▶", title: "Preview", onclick: () => previewSound(addFile.value) });
+    const add = el("button", {
+      class: "btn small",
+      type: "button",
+      text: "Add",
+      onclick: () => save([...rows, { id: `${addTag.value}:${addFile.value}:${Date.now().toString(36)}`, source: addFile.value, tag: addTag.value, enabled: true, volume: 1 }], "Added."),
+    });
+
+    body.replaceChildren(
+      ...[
+      el(
+        "div",
+        { class: "row" },
+        el("span", { class: `stamp ${customised ? "" : "muted"}`, text: customised ? "Customised" : "Defaults" }),
+        scope.global ? el("span", { class: "stamp", text: "GLOBAL — plays in the menus, outside any game" }) : el("span", { class: "muted", text: "Only affects this game." }),
+        el("button", { class: "btn small ghost", type: "button", text: "Enable all", onclick: () => save(rows.map((r) => ({ ...r, enabled: true })), "All enabled.") }),
+        el("button", { class: "btn small ghost", type: "button", text: "Disable all", onclick: () => save(rows.map((r) => ({ ...r, enabled: false })), "All disabled. This game is silent.") }),
+        el("button", {
+          class: "btn small subtle",
+          type: "button",
+          text: "Restore defaults",
+          onclick: async () => {
+            const res = await call(`/mod/sounds/${scope.id}`, { method: "DELETE" });
+            rows = res.rows;
+            customised = res.customised;
+            notice(note, "Back to the defaults for this game.", "ok");
+            draw();
+          },
+        }),
+      ),
+      silent.length ? el("p", { class: "hint", text: `Silent (no enabled sound): ${silent.join(", ")}` }) : null,
+      el("div", { class: "snd-scroll" }, table),
+      el("fieldset", {}, el("legend", { text: "Add a sound to a trigger" }), el("div", { class: "row" }, addFile, preview, el("span", { text: "→" }), addTag, add)),
+      el("p", { class: "hint", text: "Several enabled sounds on one trigger: one is picked at random each time. Changes apply from the next game started." }),
+      ].filter(Boolean),
+    );
+  };
+
+  const load = async () => {
+    scope = catalog.scopes.find((g) => g.id === picker.value) ?? catalog.scopes[0];
+    const res = await call(`/mod/sounds/${scope.id}`);
+    rows = res.rows;
+    customised = res.customised;
+    notice(note, "");
+    draw();
+  };
+  picker.addEventListener("change", () => load().catch((err) => notice(note, err.message, "error")));
+  await load();
+  return el("div", { class: "stack" }, el("div", { class: "field" }, el("label", { for: "soundGame", text: "Game" }), picker), body, note);
 }
 
 // ------------------------------------------------------------------ entity auction library

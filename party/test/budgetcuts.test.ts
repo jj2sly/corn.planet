@@ -38,7 +38,7 @@ function view(room: Room, playerId?: string): View {
   return room.viewFor(playerId ? { kind: "player", playerId } : { kind: "host" }).game as View;
 }
 
-function start(count: number, random = seededRandom(7), settings: object = {}) {
+function start(count: number, random = seededRandom(7), settings: object = { tutorial: false }) {
   const rooms = makeRooms({ canon: stubCanon(), random });
   const { room, players } = roomWithPlayers(rooms.manager, NAMES.slice(0, count));
   room.configure({ gameId: "budgetcuts", settings });
@@ -243,6 +243,28 @@ describe("Budget Cuts", () => {
     assert.equal(v.stability, START_STABILITY + v.incidents[0]!.stabilityDelta);
     assert.equal(v.incidents[0]!.outcome, "FAILED");
     assert.ok(v.incidents[0]!.blamed);
+  });
+
+  it("opens with a skippable tutorial that ends when everyone is ready", () => {
+    const { room, ids } = start(3, seededRandom(7), {});
+    const v = view(room) as View & { tutorial: { index: number; total: number; step: { ask: string } } };
+    assert.equal(v.phase, "TUTORIAL");
+    assert.equal(v.tutorial.total, 8);
+    assert.match(JSON.stringify((room.viewFor({ kind: "host" }).game as { tutorial: unknown }).tutorial), /WHEN DO WE VOTE\?/);
+    skip(room);
+    assert.equal((view(room) as unknown as { tutorial: { index: number } }).tutorial.index, 1, "host pages on");
+    for (const id of ids) room.gameInput(id, "tutorialReady", {});
+    assert.equal(view(room).phase, "BRIEFING", "everyone ready ends it");
+    assert.equal((view(room) as unknown as { tutorial: unknown }).tutorial, null);
+  });
+
+  it("the host can skip the whole tutorial, and it also times out", () => {
+    const a = start(2, seededRandom(7), {});
+    a.room.hostGameAction("skipTutorial", {});
+    assert.equal(view(a.room).phase, "BRIEFING");
+    const b = start(2, seededRandom(7), {});
+    for (let i = 0; i < 8; i++) mock.timers.tick(7_000);
+    assert.equal(view(b.room).phase, "BRIEFING");
   });
 
   it("funding tiers read as words", () => {

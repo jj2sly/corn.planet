@@ -3,6 +3,7 @@
 
 import { el, plural, rank, scoreboardEl, timerEl } from "../common.js";
 import { playNewCues } from "./mycob-sound.js";
+import { renderHostTutorial } from "./party-tutorial.js";
 
 const TIER_CLASS = ["t0", "t1", "t2", "t3", "t4"];
 const HEALTH_CLASS = ["h0", "h1", "h2", "h3"];
@@ -394,9 +395,10 @@ const BUILDERS = {
   AUDIT: buildAudit,
 };
 
-export function render(mount, state) {
+export function render(mount, state, tools) {
   const g = state.game;
   playNewCues(`budgetcuts:${state.code}`, g.cues ?? []);
+  if (g.phase === "TUTORIAL") return renderHostTutorial(mount, state, { hostRequest: tools.hostRequest, title: "Budget Cuts" });
   const build = BUILDERS[g.phase];
   if (!build) return;
   // The host has no inputs, so it simply rebuilds when anything on screen changes.

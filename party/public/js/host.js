@@ -3,6 +3,7 @@
 
 import { $, announce, createMount, el, flavorLine, loadConfig, notice, plural, scoreboardEl, startCountdowns, store } from "./common.js";
 import { connect } from "./connection.js";
+import { setSoundScope } from "./games/mycob-sound.js";
 import { buildHub } from "./deck/hub.js";
 import { gameInfo, PLATFORM_NAME, setLibrary } from "./deck/library.js";
 import { installQuickMenu, playLaunch, rememberPlayed, setCoverPainters, setSystem } from "./deck/ui.js";
@@ -206,6 +207,8 @@ async function hostRequest(action, payload) {
 
 function onState(next) {
   state = next;
+  // Each game plays its own moderated sound list; the menus use the GLOBAL one.
+  setSoundScope(next.status === "IN_GAME" ? next.config.gameId : "lobby");
 
   if (!requestedGameHandled && state.status === "LOBBY" && requestedGame && config?.games?.some((g) => g.id === requestedGame)) {
     requestedGameHandled = true;
@@ -334,6 +337,7 @@ const SETTINGS_FORMS = {
         configure({ settings: { negotiateSeconds: v } }),
       ),
       choiceGroup("Vote time", "voteSeconds", [[15, "15s"], [20, "20s"], [30, "30s"]], settings.voteSeconds, (v) => configure({ settings: { voteSeconds: v } })),
+      choiceGroup("Tutorial", "tutorial", [[true, "First-timers"], [false, "Off"]], settings.tutorial, (v) => configure({ settings: { tutorial: v } })),
       el("p", { class: "hint", text: "2–8 agents. Argue out loud; phones are for proposing, backing, deals and voting. Entity names come from the CPI Database; nothing is written back." }),
     ];
   },
@@ -342,6 +346,7 @@ const SETTINGS_FORMS = {
       choiceGroup("Segments", "segments", [[2, "2"], [3, "3"], [4, "4"]], settings.segments, (v) => configure({ settings: { segments: v } })),
       choiceGroup("Live segment", "liveSeconds", [[60, "60s"], [75, "75s"], [90, "90s"]], settings.liveSeconds, (v) => configure({ settings: { liveSeconds: v } })),
       choiceGroup("Prep time", "prepSeconds", [[20, "20s"], [25, "25s"], [30, "30s"]], settings.prepSeconds, (v) => configure({ settings: { prepSeconds: v } })),
+      choiceGroup("Tutorial", "tutorial", [[true, "First-timers"], [false, "Off"]], settings.tutorial, (v) => configure({ settings: { tutorial: v } })),
       el("p", { class: "hint", text: "2–8 agents. Talk out loud — phones hold your role, private notes and breaking news. The incident is built from the CPI Database; nothing is written back." }),
     ];
   },

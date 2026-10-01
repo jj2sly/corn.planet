@@ -12,6 +12,7 @@
 // just silence.
 
 import { el, store } from "../common.js";
+import { baseTag, SOUND_BASE, SOUND_SCOPES, SOUND_TAGS } from "../sound-catalog.js";
 
 const BASE = "/sounds/mycob/";
 const MANIFEST = `${BASE}sounds.json`;
@@ -107,6 +108,8 @@ export const CUES = [
   "cc_thaw",
   "cc_arc",
   "cc_vent",
+  // Game-specific tags from the sound catalog (Budget Cuts, Channel Cob, …).
+  ...Object.keys(SOUND_TAGS).filter((t) => SOUND_TAGS[t].base),
 ];
 
 /** Never dropped to make room for something else. */
@@ -394,7 +397,25 @@ async function play(cue) {
   const ac = context();
   if (!ac) return;
   if (ac.state !== "running") return unlock();
-  const entry = (await loadManifest()).get(cue);
+  const choice = await chooseSound(cue);
+  if (choice === null) return;
+  if (choice) {
+    // A moderator's choice for this game. If it can't load, it's silence, not something else.
+    if (choice.url) {
+      const buffer = await decode(ac, choice.url);
+      if (!buffer) return;
+      const start = slot(ac, cue, buffer.duration);
+      if (start !== null) playBuffer(ac, buffer, choice.volume, start);
+      return;
+    }
+    const parts = SYNTH[choice.synth];
+    if (!parts) return;
+    const start = slot(ac, cue, Math.max(...parts.map((p) => p.at + p.dur)));
+    if (start !== null) synth(ac, parts, start, choice.volume);
+    return;
+  }
+  const map = await loadManifest();
+  const entry = map.get(cue) ?? map.get(baseTag(cue));
   if (entry) {
     const url = entry.files[Math.floor(Math.random() * entry.files.length)];
     const buffer = await decode(ac, url);
@@ -404,10 +425,83 @@ async function play(cue) {
       return;
     }
   }
-  const parts = SYNTH[cue];
+  const parts = SYNTH[cue] ?? SYNTH[baseTag(cue)];
   if (!parts) return;
   const start = slot(ac, cue, Math.max(...parts.map((p) => p.at + p.dur)));
   if (start !== null) synth(ac, parts, start);
+}
+
+// ------------------------------------------------------------------ per-game sound lists
+
+// Moderators choose, per game, which sounds play for which trigger tag (Moderation → Sound
+// effects; see sound-catalog.js). The screens say which game is on with setSoundScope().
+let scopeId = null;
+let scopeRows = null; // Promise<Map<tag, enabled rows>> | null
+
+/** Which game's sound list to use ("lobby" for the Steam My Deck menus, null for none). */
+export function setSoundScope(id) {
+  if (id === scopeId) return;
+  scopeId = id;
+  scopeRows = null;
+  if (!id || !SOUND_SCOPES[id]) return;
+  scopeRows = fetch(`/api/sounds/${encodeURIComponent(id)}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((json) => {
+      if (!json || !Array.isArray(json.rows)) return null;
+      const map = new Map(SOUND_SCOPES[id].tags.map((t) => [t, []]));
+      for (const row of json.rows) if (row.enabled) map.get(row.tag)?.push(row);
+      for (const rows of map.values()) for (const r of rows) if (r.source.startsWith("file:")) fetchBytes(SOUND_BASE + r.source.slice(5));
+      return map;
+    })
+    .catch(() => null);
+}
+
+/**
+ * What to play for a tag under the current game's list: { url | synth, volume }, null for silence
+ * (the tag's sounds are all disabled), or undefined when the list doesn't cover it (the defaults).
+ */
+export async function chooseSound(cue) {
+  const map = scopeRows ? await scopeRows.catch(() => null) : null;
+  if (!map || !map.has(cue)) return undefined;
+  const rows = map.get(cue);
+  if (!rows.length) return null;
+  const row = rows[Math.floor(Math.random() * rows.length)];
+  return row.source.startsWith("file:") ? { url: SOUND_BASE + row.source.slice(5), volume: row.volume } : { synth: row.source.slice(6), volume: row.volume };
+}
+
+/** Is there a built-in tone for this tag? */
+export const hasTone = (tag) => Boolean(SYNTH[tag] ?? SYNTH[baseTag(tag)]);
+
+/**
+ * Plays one sound right now for Moderation's Preview button: "file:<path>" or "synth:<tag>".
+ * Ignores mute and the queue, touches no game. Resolves false if it couldn't play.
+ */
+export async function previewSound(source, volume = 1) {
+  const ac = context();
+  if (!ac) return false;
+  if (ac.state !== "running") await ac.resume().catch(() => {});
+  const out = ac.createGain();
+  out.gain.value = Math.min(2, Math.max(0, volume));
+  out.connect(ac.destination);
+  if (source.startsWith("file:")) {
+    const buffer = await decode(ac, SOUND_BASE + source.slice(5));
+    if (!buffer) return false;
+    const node = ac.createBufferSource();
+    node.buffer = buffer;
+    node.connect(out);
+    node.start();
+    return true;
+  }
+  const parts = SYNTH[source.slice(6)] ?? SYNTH[baseTag(source.slice(6))];
+  if (!parts) return false;
+  const saved = master;
+  master = out; // synth() connects to master; borrow it for this one preview
+  try {
+    synth(ac, parts, ac.currentTime + 0.02);
+  } finally {
+    master = saved;
+  }
+  return true;
 }
 
 let queue = Promise.resolve();
@@ -443,6 +537,21 @@ export function playSfx(cue, { volume = 1 } = {}) {
     sfxPlaying = sfxPlaying.filter((end) => end > now);
     if (sfxPlaying.length >= MAX_SFX) return;
     sfxLast.set(cue, now);
+    const choice = await chooseSound(cue);
+    if (choice === null) return;
+    if (choice) {
+      const buffer = choice.url ? await decode(ac, choice.url) : null;
+      const parts = choice.synth ? SYNTH[choice.synth] : null;
+      if (buffer) {
+        sfxPlaying.push(now + buffer.duration);
+        return playBuffer(ac, buffer, choice.volume * volume, ac.currentTime + 0.01);
+      }
+      if (parts) {
+        sfxPlaying.push(now + Math.max(...parts.map((p) => p.at + p.dur)));
+        synth(ac, parts, ac.currentTime + 0.01, choice.volume * volume);
+      }
+      return;
+    }
     const entry = (await loadManifest()).get(cue);
     if (entry) {
       const buffer = await decode(ac, entry.files[Math.floor(Math.random() * entry.files.length)]);

@@ -514,6 +514,30 @@ CREATE INDEX IF NOT EXISTS aborted_games_game ON aborted_games(game_id);
     return this.getSettings();
   }
 
+  // ---------------------------------------------------------------- sound effects
+
+  /** A game's moderated sound list (see sounds.ts), or null when it uses the defaults. */
+  getSoundConfig(scope: string): unknown[] | null {
+    const row = this.db.prepare("SELECT value FROM settings WHERE key = ?").get(`sounds:${scope}`) as Row | undefined;
+    if (!row) return null;
+    try {
+      const value = JSON.parse(String(row.value)) as unknown;
+      return Array.isArray(value) ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
+  setSoundConfig(scope: string, rows: unknown[] | null): void {
+    if (rows === null) {
+      this.db.prepare("DELETE FROM settings WHERE key = ?").run(`sounds:${scope}`);
+      return;
+    }
+    this.db
+      .prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+      .run(`sounds:${scope}`, JSON.stringify(rows));
+  }
+
   /** The status a newly written (or edited) prompt gets under the current moderation policy. */
   private statusForNewText(rating: PromptRating): PromptStatus {
     const { moderationPolicy } = this.getSettings();

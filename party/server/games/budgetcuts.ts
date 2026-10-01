@@ -7,12 +7,15 @@
 // written back to the CPI Database. Without canon the game uses fallback names and still plays.
 
 import { PartyError } from "../errors.ts";
+import { BUDGET_CUTS_TUTORIAL, GroupTutorial, TUTORIAL_STEP_MS } from "./tutorial.ts";
 import type { GameContext, GameDefinition, GameInstance, Highlight, Viewer } from "./types.ts";
 
 export interface BudgetCutsSettings {
   cycles: number;
   negotiateSeconds: number;
   voteSeconds: number;
+  /** Run the group tutorial first (it ends at once when every phone has seen it before). */
+  tutorial: boolean;
 }
 
 export const BUDGET_TIMING = {
@@ -135,7 +138,7 @@ const FORCED_RULES = [
 
 // ------------------------------------------------------------------ state
 
-type Phase = "BRIEFING" | "NEGOTIATE" | "VOTE" | "VERDICT" | "FORCED" | "INCIDENTS" | "CONSEQUENCES" | "AUDIT";
+type Phase = "TUTORIAL" | "BRIEFING" | "NEGOTIATE" | "VOTE" | "VERDICT" | "FORCED" | "INCIDENTS" | "CONSEQUENCES" | "AUDIT";
 type Alloc = Record<string, number>;
 
 type ObjectiveKind = "share" | "starve" | "patron" | "scapegoat" | "untouchable" | "lean" | "survivor" | "hero";
@@ -244,6 +247,7 @@ class BudgetCutsGame implements GameInstance {
   private nextStep: (() => void) | null = null;
   private audit: unknown = null;
   private readonly usedEntities = new Set<string>();
+  private tutorial: GroupTutorial | null = null;
 
   constructor(ctx: GameContext, settings: BudgetCutsSettings) {
     this.ctx = ctx;
@@ -312,8 +316,39 @@ class BudgetCutsGame implements GameInstance {
     }));
     this.assignObjectives();
     this.cue("game_start");
+    if (this.settings.tutorial) this.openTutorial();
+    else this.beginCycle();
+  }
+
+  // ------------------------------------------------------------------ tutorial
+
+  private openTutorial(): void {
+    this.tutorial = new GroupTutorial(BUDGET_CUTS_TUTORIAL);
+    this.phase = "TUTORIAL";
+    this.schedule(TUTORIAL_STEP_MS, () => this.tutorialNext());
+    this.ctx.changed();
+  }
+
+  private tutorialNext(): void {
+    if (this.tutorial?.advance()) {
+      this.schedule(TUTORIAL_STEP_MS, () => this.tutorialNext());
+      this.ctx.changed();
+    } else this.endTutorial();
+  }
+
+  private endTutorial(): void {
+    this.ctx.clearTimer();
+    this.tutorial = null;
     this.beginCycle();
   }
+
+  private tutorialInput(playerId: string): void {
+    if (this.phase !== "TUTORIAL" || !this.tutorial) throw new PartyError("PHASE_CLOSED");
+    this.tutorial.markReady(playerId);
+    if (this.tutorial.allReady(this.ctx.players().map((p) => p.id))) return this.endTutorial();
+    this.ctx.changed();
+  }
+
 
   private assignObjectives(): void {
     const n = this.depts.length;
@@ -407,7 +442,7 @@ class BudgetCutsGame implements GameInstance {
     this.cycleStartStability = this.stability;
 
     this.phase = "BRIEFING";
-    this.cue("alert");
+    this.cue("budget_briefing");
     this.schedule(BUDGET_TIMING.briefingMs, () => this.openNegotiation(this.settings.negotiateSeconds * 1000));
     this.ctx.changed();
   }
@@ -538,10 +573,10 @@ class BudgetCutsGame implements GameInstance {
     this.phase = "VERDICT";
     if (passed) {
       this.finalAlloc = { ...this.leading().alloc };
-      this.cue("success");
+      this.cue("budget_approved");
       this.schedule(BUDGET_TIMING.verdictMs, () => this.lockBudget());
     } else {
-      this.cue("vote_result");
+      this.cue("budget_rejected");
       if (this.voteAttempt >= MAX_VOTES) this.schedule(BUDGET_TIMING.verdictMs, () => this.forceBudget());
       else this.schedule(BUDGET_TIMING.verdictMs, () => this.openNegotiation(BUDGET_TIMING.renegotiateMs));
     }
@@ -554,7 +589,7 @@ class BudgetCutsGame implements GameInstance {
     this.stability = Math.max(0, this.stability - 4);
     this.funnies.push(`Cycle ${this.cycle}: nobody could agree, so ${this.forced.name} took over.`);
     this.phase = "FORCED";
-    this.cue("major_failure");
+    this.cue("emergency_allocation");
     this.schedule(BUDGET_TIMING.forcedMs, () => this.lockBudget());
     this.ctx.changed();
   }
@@ -613,7 +648,7 @@ class BudgetCutsGame implements GameInstance {
     this.stability = Math.max(0, Math.min(100, this.stability + inc.stabilityDelta));
     this.carriedLoss += inc.kernelsLost;
     if (inc.outcome === "FAILED") {
-      this.cue("major_failure");
+      this.cue("incident_failed");
       if (inc.blamed) {
         const d = this.dept(inc.blamed)!;
         d.blamed += 1;
@@ -621,7 +656,7 @@ class BudgetCutsGame implements GameInstance {
         this.ctx.countStat(d.playerId, "budgetBlamed");
       }
     } else {
-      this.cue("success");
+      this.cue("incident_resolved");
       for (const f of inc.funding) {
         if (f.tier < 2) continue;
         const d = this.dept(f.dept)!;
@@ -635,7 +670,7 @@ class BudgetCutsGame implements GameInstance {
   /** Reveals the next incident and applies it at once, so the screen and the stability bar agree. */
   private revealIncident(): void {
     this.incidentIndex += 1;
-    this.cue("alert");
+    this.cue("incident_alarm");
     this.applyIncident(this.planned[this.incidentIndex]!);
     const last = this.stability <= 0 || this.incidentIndex + 1 >= this.planned.length;
     this.schedule(BUDGET_TIMING.incidentMs, () => (last ? this.endCycle() : this.revealIncident()));
@@ -661,7 +696,7 @@ class BudgetCutsGame implements GameInstance {
       if (to !== from) {
         changes.push({ dept: d.def.id, from, to, reason });
         if (to === 3 && from < 3) {
-          this.cue("major_failure");
+          this.cue("department_failure");
           this.funnies.push(`${d.def.name} officially ceased to function. Its plant is now in charge.`);
         }
       }
@@ -740,7 +775,7 @@ class BudgetCutsGame implements GameInstance {
       funniest: this.funnies.length ? this.pick(this.funnies) : null,
     };
     this.phase = "AUDIT";
-    this.cue("game_end");
+    this.cue("final_results");
     this.schedule(BUDGET_TIMING.auditMs, () => this.finish());
     this.ctx.changed();
   }
@@ -784,6 +819,7 @@ class BudgetCutsGame implements GameInstance {
   }
 
   handleInput(playerId: string, action: string, payload: unknown): void {
+    if (action === "tutorialReady") return this.tutorialInput(playerId);
     const me = this.deptOf(playerId);
     if (!me) throw new PartyError("INVALID_ACTION");
 
@@ -847,6 +883,7 @@ class BudgetCutsGame implements GameInstance {
   }
 
   hostAction(action: string): void {
+    if (action === "skipTutorial" && this.phase === "TUTORIAL") return this.endTutorial();
     if (action !== "skip" || !this.nextStep) throw new PartyError("INVALID_ACTION");
     const step = this.nextStep;
     this.ctx.clearTimer();
@@ -855,6 +892,7 @@ class BudgetCutsGame implements GameInstance {
 
   playerLeft(): void {
     const players = this.ctx.players();
+    if (this.phase === "TUTORIAL" && this.tutorial?.allReady(players.map((p) => p.id))) return this.endTutorial();
     if (this.phase === "VOTE" && players.length && players.every((p) => this.votes.has(p.id))) {
       this.ctx.clearTimer();
       this.tallyVote();
@@ -942,6 +980,7 @@ class BudgetCutsGame implements GameInstance {
       collapsed: this.collapsed,
       audit: this.phase === "AUDIT" ? this.audit : null,
       cues: this.cues,
+      tutorial: this.phase === "TUTORIAL" && this.tutorial ? this.tutorial.view(playerId, this.ctx.players().length) : null,
     };
 
     if (!playerId) return view;
@@ -976,7 +1015,7 @@ export const budgetCutsGame: GameDefinition<BudgetCutsSettings> = {
     "saves the day and who gets blamed. Keep the CPI stable, or watch it collapse into paperwork.",
   minPlayers: 2,
   maxPlayers: 8,
-  defaultSettings: { cycles: 3, negotiateSeconds: 75, voteSeconds: 20 },
+  defaultSettings: { cycles: 3, negotiateSeconds: 75, voteSeconds: 20, tutorial: true },
   deck: {
     shelf: "party",
     genre: "Negotiation",
@@ -991,6 +1030,7 @@ export const budgetCutsGame: GameDefinition<BudgetCutsSettings> = {
       cycles: clampInt(input.cycles, 2, 4, d.cycles),
       negotiateSeconds: clampInt(input.negotiateSeconds, 30, 120, d.negotiateSeconds),
       voteSeconds: clampInt(input.voteSeconds, 10, 40, d.voteSeconds),
+      tutorial: typeof input.tutorial === "boolean" ? input.tutorial : d.tutorial,
     };
   },
   create(ctx, settings) {

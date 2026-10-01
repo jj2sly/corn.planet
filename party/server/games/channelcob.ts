@@ -11,12 +11,15 @@
 // other games show. Nothing is written back. Without canon the game uses fallback scenarios.
 
 import { PartyError } from "../errors.ts";
+import { CHANNEL_COB_TUTORIAL, GroupTutorial, TUTORIAL_STEP_MS } from "./tutorial.ts";
 import type { GameContext, GameDefinition, GameInstance, Highlight, Viewer } from "./types.ts";
 
 export interface ChannelCobSettings {
   segments: number;
   liveSeconds: number;
   prepSeconds: number;
+  /** Run the group tutorial first (it ends at once when every phone has seen it before). */
+  tutorial: boolean;
 }
 
 export const COB_TIMING = {
@@ -156,7 +159,7 @@ const FILLER_TICKER = ["CORN FUTURES STEADY", "LOCAL MAN SURE HE SAW SOMETHING",
 
 // ------------------------------------------------------------------ state
 
-type Phase = "INTRO" | "PREP" | "LIVE" | "POLL" | "RECAP" | "FINALE";
+type Phase = "TUTORIAL" | "INTRO" | "PREP" | "LIVE" | "POLL" | "RECAP" | "FINALE";
 
 interface PendingDev {
   id: number;
@@ -254,6 +257,7 @@ class ChannelCobGame implements GameInstance {
   private cues: { id: number; cue: string }[] = [];
   private nextStep: (() => void) | null = null;
   private finale: unknown = null;
+  private tutorial: GroupTutorial | null = null;
 
   constructor(ctx: GameContext, settings: ChannelCobSettings) {
     this.ctx = ctx;
@@ -322,9 +326,40 @@ class ChannelCobGame implements GameInstance {
     this.scenario = this.buildScenario();
     this.seatOrder = this.shuffle(this.ctx.players().map((p) => p.id));
     this.ticker = [...FILLER_TICKER];
-    this.cue("game_start");
+    this.cue("broadcast_intro");
+    if (this.settings.tutorial) this.openTutorial();
+    else this.beginSegment();
+  }
+
+  // ------------------------------------------------------------------ tutorial
+
+  private openTutorial(): void {
+    this.tutorial = new GroupTutorial(CHANNEL_COB_TUTORIAL);
+    this.phase = "TUTORIAL";
+    this.schedule(TUTORIAL_STEP_MS, () => this.tutorialNext());
+    this.ctx.changed();
+  }
+
+  private tutorialNext(): void {
+    if (this.tutorial?.advance()) {
+      this.schedule(TUTORIAL_STEP_MS, () => this.tutorialNext());
+      this.ctx.changed();
+    } else this.endTutorial();
+  }
+
+  private endTutorial(): void {
+    this.ctx.clearTimer();
+    this.tutorial = null;
     this.beginSegment();
   }
+
+  private tutorialInput(playerId: string): void {
+    if (this.phase !== "TUTORIAL" || !this.tutorial) throw new PartyError("PHASE_CLOSED");
+    this.tutorial.markReady(playerId);
+    if (this.tutorial.allReady(this.ctx.players().map((p) => p.id))) return this.endTutorial();
+    this.ctx.changed();
+  }
+
 
   private buildScenario(): Scenario {
     const entities = this.ctx.canon.sample("entity", 2).filter((r) => r.title);
@@ -403,7 +438,7 @@ class ChannelCobGame implements GameInstance {
     for (let i = 0; i < decCount; i++) this.decisionPlan.add(decTurns[i]!);
 
     this.phase = "INTRO";
-    this.cue("alert");
+    this.cue("breaking_news");
     this.schedule(COB_TIMING.introMs, () => this.openPrep());
     this.ctx.changed();
   }
@@ -420,7 +455,7 @@ class ChannelCobGame implements GameInstance {
 
   private goLive(): void {
     this.phase = "LIVE";
-    this.cue("vote_start");
+    this.cue("live_transition");
     this.turn = 0;
     this.nextTurn();
   }
@@ -440,7 +475,7 @@ class ChannelCobGame implements GameInstance {
       if (!d.revealed && !d.scooped && this.turn - d.deliveredTurn >= 2) {
         d.revealed = true;
         this.pushTicker(`${d.ticker} (CHANNEL COB MISSED IT)`);
-        this.cue("major_failure");
+        this.cue("broadcast_error");
         this.segmentHighlights.push(`Nobody went live with "${d.ticker}" — viewers read it on the ticker first.`);
       }
     }
@@ -486,7 +521,7 @@ class ChannelCobGame implements GameInstance {
     this.meters(def);
     if (def.sets) this.scenario.facts[def.sets.fact].truth = this.fill(def.sets.truth);
     this.stat(playerId).panicCaused += Math.max(0, def.panic ?? 0);
-    this.cue("discovery");
+    this.cue("incoming_update");
   }
 
   private openDecision(): void {
@@ -523,7 +558,7 @@ class ChannelCobGame implements GameInstance {
     this.ctx.addPoints(d.playerId, COB_POINTS.decision + (opt.honest ? COB_POINTS.confirm : 0));
     this.pushTicker(opt.ticker);
     this.moments.push(`${ROLE_BY_ID.get(d.role)!.name} (${this.ctx.playerName(d.playerId)}) chose ${opt.label}: "${opt.ticker}"`);
-    this.cue("response_in");
+    this.cue("decision_made");
   }
 
   private endLive(): void {
@@ -540,7 +575,7 @@ class ChannelCobGame implements GameInstance {
     ]);
     this.poll = { fact: key, question: f.question, options };
     this.phase = "POLL";
-    this.cue("vote_result");
+    this.cue("segment_end");
     this.schedule(COB_TIMING.pollMs, () => this.recap());
     this.ctx.changed();
   }
@@ -597,7 +632,7 @@ class ChannelCobGame implements GameInstance {
     for (const p of players) this.ctx.countStat(p.id, "roundsPlayed");
 
     this.phase = "RECAP";
-    this.cue(stars >= 3 ? "success" : "major_failure");
+    this.cue(stars >= 3 ? "segment_good" : "segment_bad");
     const last = this.segment >= this.settings.segments;
     this.schedule(COB_TIMING.recapMs, () => (last ? this.openFinale() : this.beginSegment()));
     this.ctx.changed();
@@ -642,7 +677,7 @@ class ChannelCobGame implements GameInstance {
       segments: this.results,
     };
     this.phase = "FINALE";
-    this.cue("game_end");
+    this.cue("final_results");
     this.schedule(COB_TIMING.finaleMs, () => this.finish());
     this.ctx.changed();
   }
@@ -660,6 +695,7 @@ class ChannelCobGame implements GameInstance {
   // ------------------------------------------------------------------ input
 
   handleInput(playerId: string, action: string, payload: unknown): void {
+    if (action === "tutorialReady") return this.tutorialInput(playerId);
     const role = this.roles.get(playerId);
     if (!role) throw new PartyError("INVALID_ACTION");
     const input = payload === undefined ? {} : asRecord(payload);
@@ -675,7 +711,7 @@ class ChannelCobGame implements GameInstance {
         this.ctx.addPoints(playerId, COB_POINTS.scoop);
         this.pushTicker(`BREAKING: ${dev.ticker}`);
         this.moments.push(`The ${ROLE_BY_ID.get(role)!.name} broke it live: "${dev.ticker}"`);
-        this.cue("alert");
+        this.cue("scoop");
         // Cut straight to whoever has the news, for a full turn.
         this.ctx.clearTimer();
         this.breakingSpeaker = role;
@@ -724,6 +760,7 @@ class ChannelCobGame implements GameInstance {
   }
 
   hostAction(action: string): void {
+    if (action === "skipTutorial" && this.phase === "TUTORIAL") return this.endTutorial();
     if (action !== "skip" || !this.nextStep) throw new PartyError("INVALID_ACTION");
     const step = this.nextStep;
     this.ctx.clearTimer();
@@ -731,6 +768,7 @@ class ChannelCobGame implements GameInstance {
   }
 
   playerLeft(): void {
+    if (this.phase === "TUTORIAL" && this.tutorial?.allReady(this.ctx.players().map((p) => p.id))) return this.endTutorial();
     if (this.phase === "POLL" && this.pollDone()) {
       this.ctx.clearTimer();
       this.recap();
@@ -802,6 +840,7 @@ class ChannelCobGame implements GameInstance {
       recap: this.phase === "RECAP" ? { ...this.results.at(-1)!, panicLabel: panicLabel(this.panic), repLabel: repLabel(this.rep), coherenceLabel: coherenceLabel(this.results.at(-1)!.coherence), truth: this.poll!.options.find((o) => o.correct)!.text } : null,
       finale: this.phase === "FINALE" ? this.finale : null,
       cues: this.cues,
+      tutorial: this.phase === "TUTORIAL" && this.tutorial ? this.tutorial.view(playerId, this.ctx.players().length) : null,
     };
     if (!playerId) return view;
 
@@ -840,7 +879,7 @@ export const channelCobGame: GameDefinition<ChannelCobSettings> = {
     "you received, make snap calls, and try to keep the story straight across three escalating segments.",
   minPlayers: 2,
   maxPlayers: 8,
-  defaultSettings: { segments: 3, liveSeconds: 75, prepSeconds: 25 },
+  defaultSettings: { segments: 3, liveSeconds: 75, prepSeconds: 25, tutorial: true },
   deck: {
     shelf: "party",
     genre: "Live improv",
@@ -855,6 +894,7 @@ export const channelCobGame: GameDefinition<ChannelCobSettings> = {
       segments: clampInt(input.segments, 2, 4, d.segments),
       liveSeconds: clampInt(input.liveSeconds, 45, 120, d.liveSeconds),
       prepSeconds: clampInt(input.prepSeconds, 15, 45, d.prepSeconds),
+      tutorial: typeof input.tutorial === "boolean" ? input.tutorial : d.tutorial,
     };
   },
   create(ctx, settings) {

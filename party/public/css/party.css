@@ -9031,3 +9031,30 @@ a.deck-tile {
 .cc-choices.col { grid-template-columns: 1fr; }
 .cc-choices .btn { min-height: 52px; }
 .cc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ------------------------------------------------------------------ group tutorial (Budget Cuts, Channel Cob) */
+
+.pt { display: flex; flex-direction: column; gap: 16px; max-width: 980px; margin: 0 auto; }
+.pt-card { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 20px 16px; border: 2px solid var(--yellow); background: var(--panel); }
+.pt-card.big { padding: 36px 24px; }
+.pt-glyph { font-size: 3rem; }
+.pt-card.big .pt-glyph { font-size: 5rem; }
+.pt-ask { margin: 0; font-family: var(--head); font-size: 1.7rem; color: var(--yellow); text-transform: uppercase; }
+.pt-card.big .pt-ask { font-size: 3.2rem; }
+.pt-lines { list-style: none; margin: 4px 0 0; padding: 0; }
+.pt-lines li { margin: 4px 0; font-size: 1.1rem; }
+.pt-card.big .pt-lines li { font-size: 1.6rem; }
+.pt-dots { display: flex; gap: 6px; margin-top: 10px; }
+.pt-dots span { width: 10px; height: 10px; border: 1px solid var(--muted); }
+.pt-dots span.done { background: var(--muted); }
+.pt-dots span.on { background: var(--yellow); border-color: var(--yellow); }
+.pt-actions { justify-content: flex-end; align-items: center; gap: 12px; }
+.pt-actions .muted { margin-right: auto; }
+
+/* Moderation → Sound effects */
+.snd-scroll { overflow-x: auto; }
+.snd-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.snd-table th, .snd-table td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.snd-table tr.off td:first-child { opacity: 0.5; text-decoration: line-through; }
+.snd-table select { max-width: 260px; }
+.snd-path { display: block; font-size: 0.75rem; font-family: var(--mono); }

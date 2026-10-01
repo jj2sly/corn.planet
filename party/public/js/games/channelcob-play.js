@@ -2,6 +2,7 @@
 // No typing — you say it out loud.
 
 import { el, notice, timerEl } from "../common.js";
+import { rememberTutorialSeen, renderPhoneTutorial } from "./party-tutorial.js";
 
 function whoAmI(s) {
   const g = s.game;
@@ -156,6 +157,8 @@ function buildFinale(s) {
 
 export function render(mount, state, tools) {
   const g = state.game;
+  if (g.phase === "TUTORIAL") return renderPhoneTutorial(mount, state, tools);
+  rememberTutorialSeen(state);
   if (!g.you) return mount("channelcob:watch", () => ({ node: el("div", { class: "big-status" }, el("h2", { text: "Watching Channel Cob" }), el("p", { class: "muted", text: "Follow the big screen." })) }), state);
   const y = g.you;
   const key = `channelcob:${g.phase}:${g.segment}:${JSON.stringify([g.turn, y.onAir, y.upNext, y.prompt, y.breaking, y.decision, y.known.length, y.answer, y.mvp, y.lost])}`;

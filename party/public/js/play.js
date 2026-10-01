@@ -3,6 +3,7 @@
 
 import { $, announce, createMount, el, loadConfig, notice, ordinal, rank, startCountdowns, store } from "./common.js";
 import { connect } from "./connection.js";
+import { setSoundScope } from "./games/mycob-sound.js";
 import { buildHub } from "./deck/hub.js";
 import { gameInfo, PLATFORM_NAME, setLibrary } from "./deck/library.js";
 import { installQuickMenu, playLaunch, quickMenuButton, rememberPlayed, setCoverPainters, setSystem } from "./deck/ui.js";
@@ -224,6 +225,8 @@ let lastStatus = null;
 
 function onState(next) {
   state = next;
+  // Each game plays its own moderated sound list; the menus use the GLOBAL one.
+  setSoundScope(next.status === "IN_GAME" ? next.config.gameId : "lobby");
   const info = gameInfo(next.config.gameId);
   document.title = next.status === "IN_GAME" ? `${info?.title ?? "Corn Planet Party"} — ${PLATFORM_NAME}` : `${PLATFORM_NAME} — ${next.code}`;
   if (next.status !== lastStatus) {

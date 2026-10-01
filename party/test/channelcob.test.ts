@@ -35,10 +35,10 @@ const NAMES = ["Ann", "Bo", "Cy", "Di", "Ed", "Flo", "Gus", "Hal"];
 const view = (room: Room, pid?: string) => room.viewFor(pid ? { kind: "player", playerId: pid } : { kind: "host" }).game as View;
 const skip = (room: Room) => room.hostGameAction("skip", {});
 
-function start(n: number, random = seededRandom(3)) {
+function start(n: number, random = seededRandom(3), settings: object = { tutorial: false }) {
   const rooms = makeRooms({ canon: stubCanon(), random });
   const { room, players } = roomWithPlayers(rooms.manager, NAMES.slice(0, n));
-  room.configure({ gameId: "channelcob", settings: {} });
+  room.configure({ gameId: "channelcob", settings });
   room.startGame();
   return { ...rooms, room, ids: players.map((p) => p.id) };
 }
@@ -202,10 +202,27 @@ describe("Channel Cob", () => {
     assert.equal(r.coherence, 100);
   });
 
+  it("opens with a skippable tutorial; phones and host see the same card, then the game starts", () => {
+    const { room, ids } = start(4, seededRandom(3), {});
+    const host = view(room) as View & { tutorial: { total: number; step: { ask: string } } };
+    assert.equal(host.phase, "TUTORIAL");
+    assert.equal(host.tutorial.total, 7);
+    assert.equal(host.tutorial.step.ask, "WHO AM I?");
+    const phone = view(room, ids[0]) as View & { tutorial: { step: { ask: string }; ready: boolean } };
+    assert.equal(phone.tutorial.step.ask, "WHO AM I?");
+    assert.equal(phone.tutorial.ready, false);
+    room.gameInput(ids[0]!, "tutorialReady", {});
+    assert.equal(view(room).phase, "TUTORIAL", "waits for everyone");
+    room.hostGameAction("skipTutorial", {});
+    assert.equal(view(room).phase, "INTRO");
+    toLive(room);
+    playLive(room, ids);
+  });
+
   it("works without any canon", () => {
     const rooms = makeRooms({ canon: stubCanon([]) });
     const { room } = roomWithPlayers(rooms.manager, ["A", "B"]);
-    room.configure({ gameId: "channelcob", settings: {} });
+    room.configure({ gameId: "channelcob", settings: { tutorial: false } });
     room.startGame();
     assert.ok(view(room).entity.length > 0);
     assert.ok(COB_TIMING.turnsPerSegment > 0);

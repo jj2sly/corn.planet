@@ -2,6 +2,7 @@
 // The arguing happens out loud; the phone only needs taps.
 
 import { el, notice, timerEl } from "../common.js";
+import { rememberTutorialSeen, renderPhoneTutorial } from "./party-tutorial.js";
 
 const TIER_CLASS = ["t0", "t1", "t2", "t3", "t4"];
 
@@ -296,6 +297,8 @@ function buildAudit(s) {
 
 export function render(mount, state, tools) {
   const g = state.game;
+  if (g.phase === "TUTORIAL") return renderPhoneTutorial(mount, state, tools);
+  rememberTutorialSeen(state);
   if (!g.you) return mount("budgetcuts:spectator", (s) => simple(s, "You're watching this one.", "Follow the big screen."), state);
   const key = `budgetcuts:${g.phase}:${g.cycle}:${g.voteAttempt}:${g.incidentIndex}`;
   switch (g.phase) {

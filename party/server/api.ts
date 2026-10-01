@@ -30,6 +30,8 @@ import {
 } from "./games/auctioneffects.ts";
 import { gameSummaries } from "./games/registry.ts";
 import { promotionUrl } from "./promotion.ts";
+import { createSoundService, isSoundScope } from "./sounds.ts";
+import { SOUND_SCOPES, SOUND_TAGS } from "../public/js/sound-catalog.js";
 import { RateLimiter } from "./ratelimit.ts";
 import { cleanName, cleanTags, cleanText, LIMITS } from "./text.ts";
 
@@ -188,6 +190,14 @@ export function createApi({ db, auth, canon, firebase }: ApiDeps): express.Route
       },
       limits: LIMITS,
     });
+  });
+
+  // Which sounds a game plays. Public: every screen needs it to play anything.
+  const sounds = createSoundService(db);
+  api.get("/sounds/:scope", (req, res) => {
+    const scope = String(req.params.scope);
+    if (!isSoundScope(scope)) throw new PartyError("NOT_FOUND");
+    res.json({ scope, ...sounds.rows(scope) });
   });
 
   // ------------------------------------------------------------ profile & stats
@@ -444,6 +454,38 @@ export function createApi({ db, auth, canon, firebase }: ApiDeps): express.Route
     if (!existing) throw new PartyError("NOT_FOUND");
     const { kind: _kind, ...changes } = parseAuctionEffect(body(req), existing);
     res.json(db.updateAuctionEffect(existing.id, changes));
+  });
+
+  // ------------------------------------------------------------ sound effects
+
+  mod.get("/sounds", (_req, res) => {
+    // Games from the registry that use the sound system, plus the GLOBAL menus.
+    const names = new Map(gameSummaries().map((g) => [g.id, g.name]));
+    const scopes = Object.entries(SOUND_SCOPES)
+      .filter(([id, s]) => s.global || names.has(id))
+      .map(([id, s]) => ({ id, name: s.name ?? names.get(id) ?? id, global: !!s.global, tags: s.tags, customised: sounds.rows(id).customised }));
+    res.json({ scopes, tags: SOUND_TAGS, files: [...sounds.files()].sort() });
+  });
+
+  mod.get("/sounds/:scope", (req, res) => {
+    const scope = String(req.params.scope);
+    if (!isSoundScope(scope)) throw new PartyError("NOT_FOUND");
+    res.json({ scope, ...sounds.rows(scope) });
+  });
+
+  mod.put("/sounds/:scope", (req, res) => {
+    const scope = String(req.params.scope);
+    if (!isSoundScope(scope)) throw new PartyError("NOT_FOUND");
+    const saved = sounds.save(scope, body(req).rows);
+    if (typeof saved === "string") throw new PartyError("INVALID_INPUT", saved);
+    res.json({ scope, ...sounds.rows(scope) });
+  });
+
+  mod.delete("/sounds/:scope", (req, res) => {
+    const scope = String(req.params.scope);
+    if (!isSoundScope(scope)) throw new PartyError("NOT_FOUND");
+    sounds.reset(scope);
+    res.json({ scope, ...sounds.rows(scope) });
   });
 
   mod.get("/settings", (_req, res) => {

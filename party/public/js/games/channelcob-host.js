@@ -3,6 +3,7 @@
 
 import { el, rank, scoreboardEl, timerEl } from "../common.js";
 import { playNewCues } from "./mycob-sound.js";
+import { renderHostTutorial } from "./party-tutorial.js";
 
 const stars = (n) => "★".repeat(n) + "☆".repeat(5 - n);
 
@@ -206,9 +207,10 @@ function buildFinale(s) {
 
 const BUILDERS = { INTRO: buildIntro, PREP: buildPrep, LIVE: buildLive, POLL: buildPoll, RECAP: buildRecap, FINALE: buildFinale };
 
-export function render(mount, state) {
+export function render(mount, state, tools) {
   const g = state.game;
   playNewCues(`channelcob:${state.code}`, g.cues ?? []);
+  if (g.phase === "TUTORIAL") return renderHostTutorial(mount, state, { hostRequest: tools.hostRequest, title: "Channel Cob" });
   const build = BUILDERS[g.phase];
   if (!build) return;
   // No inputs on the host, so it rebuilds whenever the on-screen state changes.
