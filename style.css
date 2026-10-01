@@ -1196,7 +1196,8 @@ html {
     inset: 0;
     overflow: hidden;
     pointer-events: none;
-    z-index: 0;
+    /* Behind everything on the page, whatever its markup. */
+    z-index: -1;
     background: radial-gradient(ellipse at 70% 10%, #0d0c14 0%, #050507 55%, #000 100%);
 }
 
@@ -1326,6 +1327,16 @@ html {
     position: absolute;
     inset: 0;
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.1) 45%, rgba(0, 0, 0, 0.35) 75%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+/* The page column is a dark translucent panel over the planet so records stay readable;
+   the homepage keeps it light so the planet stays the centerpiece. */
+body {
+    background: rgba(0, 0, 0, 0.78);
+}
+
+body.cpHome {
+    background: rgba(0, 0, 0, 0.2);
 }
 
 /* Keep actual page content above the planet layer */
