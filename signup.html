@@ -51,20 +51,30 @@ document.getElementById("signupBtn").addEventListener("click", async () => {
 
     status.textContent = "Creating account...";
 
+    let authAccountCreated = false;
+
     try {
         await setPersistence(auth, browserLocalPersistence);
         const result = await createUserWithEmailAndPassword(auth, email, password);
+        authAccountCreated = true;
 
-        // Every new signup lands as VIEWER until a CPI Exec promotes them.
+        // Registration is not complete until the matching Firestore personnel
+        // record exists. This is what makes the account appear in CPI Admin.
         await ensureUserDoc(result.user);
 
-        status.textContent = "Account created. Redirecting...";
+        status.textContent = "Account created and synced. Redirecting...";
         setTimeout(() => {
             window.location.href = "index.html";
         }, 600);
     } catch (error) {
         console.error(error);
-        status.textContent = error.code || "Registration failed.";
+
+        if (authAccountCreated) {
+            status.textContent =
+                "Account was created, but CPI database sync failed. Log in again to retry the sync.";
+        } else {
+            status.textContent = error.code || error.message || "Registration failed.";
+        }
     }
 });
 </script>
