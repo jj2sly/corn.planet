@@ -1,6 +1,7 @@
 import { $, api, el, notice, plural } from "./common.js";
 import { currentUser, getToken, initAuth, onAuthChange, authMode } from "./auth.js";
 import { hasTone, previewSound } from "./games/mycob-sound.js";
+import { soundPolicy } from "./sound-catalog.js";
 
 const main = $("#main");
 const masthead = main.querySelector(".masthead");
@@ -646,7 +647,7 @@ async function soundsView() {
     const table = el(
       "table",
       { class: "snd-table" },
-      el("thead", {}, el("tr", {}, ["Sound", "Trigger", "On", "", ""].map((t) => el("th", { text: t })))),
+      el("thead", {}, el("tr", {}, ["Sound", "Trigger", "Family", "On", "", ""].map((t) => el("th", { text: t })))),
       el(
         "tbody",
         {},
@@ -659,6 +660,7 @@ async function soundsView() {
             { class: r.enabled ? "" : "off" },
             el("td", {}, el("strong", { text: soundName(r.source) }), r.source.startsWith("file:") ? el("span", { class: "muted snd-path", text: r.source.slice(5) }) : toneMissing ? el("span", { class: "muted snd-path", text: "no tone for this one — silent" }) : null),
             el("td", {}, tag),
+            el("td", {}, el("span", { class: "stamp muted", text: soundPolicy(r.tag).label })),
             el("td", {}, on),
             el("td", {}, el("button", { class: "btn small ghost", type: "button", text: "▶ Preview", onclick: async () => ((await previewSound(r.source, r.volume)) ? null : notice(note, "That sound couldn't be played.", "error")) })),
             el("td", {}, el("button", { class: "btn small subtle", type: "button", title: "Remove from this game (the file stays)", text: "✕", onclick: () => save(rows.filter((x) => x.id !== r.id), "Removed from this game. The file is still there.") })),
@@ -708,7 +710,7 @@ async function soundsView() {
       silent.length ? el("p", { class: "hint", text: `Silent (no enabled sound): ${silent.join(", ")}` }) : null,
       el("div", { class: "snd-scroll" }, table),
       el("fieldset", {}, el("legend", { text: "Add a sound to a trigger" }), el("div", { class: "row" }, addFile, preview, el("span", { text: "→" }), addTag, add)),
-      el("p", { class: "hint", text: "Several enabled sounds on one trigger: one is picked at random each time. Changes apply from the next game started." }),
+      el("p", { class: "hint", text: "Several enabled sounds on one trigger rotate without immediate repeats. Audio families control loudness, cooldown and priority so UI clicks, warnings and major results do not compete equally. Changes apply from the next game started." }),
       ].filter(Boolean),
     );
   };
