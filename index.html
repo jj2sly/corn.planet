@@ -8,8 +8,6 @@
 </head>
 <body>
 
-<a href="login.html" class="adminLink">LOGIN / SIGN UP</a>
-<a href="records.html" class="recordsLink">RECORDS DIVISION</a>
 
 <div id="gateOverlay">
     <div id="gateContent">
@@ -98,7 +96,7 @@ if (sessionStorage.getItem("cpstEntered") === "true") {
 }
 </script>
 
-<script type="module" src="nav-auth.js"></script>
+<script type="module" src="cpi-shell.js"></script>
 <script type="module">
 // Orbital status: real record counts and the visitor's own clearance. Read-only.
 import { collection, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
