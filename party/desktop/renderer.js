@@ -178,6 +178,18 @@ for (const button of document.querySelectorAll("[data-target]")) {
   });
 }
 
+for (const button of document.querySelectorAll("[data-section]")) {
+  button.addEventListener("click", async () => {
+    const section = button.dataset.section;
+    if (section !== "settings") return;
+    await window.cpiDesktop.navigate("home");
+    requestAnimationFrame(() => {
+      paintActiveTarget("settings");
+      document.querySelector("#settingsSection")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+}
+
 window.cpiDesktop.onActiveTarget((target) => paintActiveTarget(target));
 window.cpiDesktop.onHostState((detail) => paintHostState(detail));
 window.cpiDesktop.onRoomCode((detail) => {
