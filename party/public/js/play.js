@@ -136,6 +136,7 @@ function onEnded(info) {
 
 function showJoin(message = endedMessage) {
   state = null;
+  document.body.classList.remove("party-active");
   void syncWakeLock();
   resetScrollAfterRender = true;
   lastStatus = null;
@@ -251,6 +252,7 @@ let lastStatus = null;
 
 function onState(next) {
   state = next;
+  document.body.classList.toggle("party-active", next.status === "IN_GAME");
   // Each game plays its own moderated sound list; the menus use the GLOBAL one.
   setSoundScope(next.status === "IN_GAME" ? next.config.gameId : "lobby");
   const info = gameInfo(next.config.gameId);
