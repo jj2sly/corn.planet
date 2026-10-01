@@ -46,7 +46,7 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
     } catch (error) {
         console.error(error);
         document.getElementById("status").textContent =
-            error.code;
+            error.code || error.message || "Login or CPI account sync failed.";
     }
 });
 </script>
