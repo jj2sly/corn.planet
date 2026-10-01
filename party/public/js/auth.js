@@ -9,7 +9,9 @@ const DEV_TOKEN_KEY = "cpst-party:dev-token";
 let ready = null;
 let mode = "none";
 let firebaseAuth = null;
+let firebaseDb = null;
 let fb = null;
+let fs = null;
 const listeners = new Set();
 
 function emit() {
@@ -23,13 +25,16 @@ export function initAuth() {
     const config = await loadConfig();
     mode = config.auth.mode;
     if (mode === "firebase" && config.auth.firebase) {
-      const [{ initializeApp }, authModule] = await Promise.all([
+      const [{ initializeApp }, authModule, firestoreModule] = await Promise.all([
         import(`${FIREBASE_SDK}/firebase-app.js`),
         import(`${FIREBASE_SDK}/firebase-auth.js`),
+        import(`${FIREBASE_SDK}/firebase-firestore.js`),
       ]);
       fb = authModule;
+      fs = firestoreModule;
       const app = initializeApp(config.auth.firebase, "cpst-party");
       firebaseAuth = fb.getAuth(app);
+      firebaseDb = fs.getFirestore(app);
       await fb.setPersistence(firebaseAuth, fb.browserLocalPersistence);
       await new Promise((resolve) => {
         const stop = fb.onAuthStateChanged(firebaseAuth, () => {
@@ -84,21 +89,48 @@ function friendly(err) {
   return new Error(FIREBASE_ERRORS[err?.code] ?? "Login failed. Try again.");
 }
 
+/**
+ * Keep Corn Planet Party accounts synchronized with the CPI Database role system.
+ * The CPI website reads personnel from Firestore users/{uid}; Firebase Auth alone
+ * is not enough for an account to appear in the Super Admin Panel.
+ */
+async function ensureCpiUserDoc(user) {
+  if (!user?.uid || !firebaseDb || !fs) throw new Error("CPI account sync unavailable.");
+
+  const ref = fs.doc(firebaseDb, "users", user.uid);
+  const snap = await fs.getDoc(ref);
+  if (snap.exists()) return snap.data()?.role ?? "VIEWER";
+
+  await fs.setDoc(ref, {
+    email: user.email || "",
+    role: "VIEWER",
+    createdAt: new Date().toISOString(),
+  });
+
+  const verified = await fs.getDoc(ref);
+  if (!verified.exists()) throw new Error("CPI account record was not created.");
+  return verified.data()?.role ?? "VIEWER";
+}
+
 export async function signIn(email, password) {
   await initAuth();
   try {
-    await fb.signInWithEmailAndPassword(firebaseAuth, email, password);
+    const result = await fb.signInWithEmailAndPassword(firebaseAuth, email, password);
+    await ensureCpiUserDoc(result.user);
   } catch (err) {
-    throw friendly(err);
+    if (err?.code) throw friendly(err);
+    throw new Error(err?.message ?? "CPI account sync failed. Try again.");
   }
 }
 
 export async function register(email, password) {
   await initAuth();
   try {
-    await fb.createUserWithEmailAndPassword(firebaseAuth, email, password);
+    const result = await fb.createUserWithEmailAndPassword(firebaseAuth, email, password);
+    await ensureCpiUserDoc(result.user);
   } catch (err) {
-    throw friendly(err);
+    if (err?.code) throw friendly(err);
+    throw new Error(err?.message ?? "Account created, but CPI database sync failed. Log in again to retry.");
   }
 }
 
