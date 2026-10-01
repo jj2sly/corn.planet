@@ -8,8 +8,7 @@
 </head>
 <body>
 <header>
-    <a href="login.html" class="adminLink">LOGIN / SIGN UP</a>
-<a href="records.html" class="recordsLink">RECORDS DIVISION</a>
+    
     <h1>CORN PLANET INCIDENT DATABASE</h1>
     <p>RECORD • REVIEW • LEARN NOTHING</p>
 </header>
@@ -21,21 +20,22 @@
     <div class="database">
   <h2>Incident Index</h2>
 
-  <label for="sortSelect" style="color:#ffd400; font-weight:bold; margin-right:8px;">Sort by:</label>
+  <div class="filterBar">
+  <label for="sortSelect">Sort by</label>
   <select id="sortSelect">
       <option value="id">ID Number</option>
       <option value="titleAsc">Title (A–Z)</option>
       <option value="titleDesc">Title (Z–A)</option>
       <option value="severity">Severity</option>
   </select>
+  </div>
 
-  <br><br>
-
-  <div id="container"><p class="loadingText">DECRYPTING DATABASE...</p></div>
+  <div id="container" class="recordGrid"><p class="loadingText">DECRYPTING DATABASE...</p></div>
 </div>
 <script type="module">
   import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { db } from "./roles.js";
+  import { recordCard } from "./cpi-ui.js";
 
   const container = document.getElementById("container");
 
@@ -63,7 +63,9 @@
           items.push({
               id: docSnap.id,
               title: data.title || "UNTITLED INCIDENT",
-              severity: (data.severity || "UNKNOWN").toString().toUpperCase()
+              severity: (data.severity || "UNKNOWN").toString().toUpperCase(),
+              status: (data.status || "").toString(),
+              date: (data.date || "").toString()
           });
       });
 
@@ -86,23 +88,17 @@
 
           container.innerHTML = "";
           sorted.forEach((item) => {
-              const div = document.createElement("div");
-              div.className = "entry";
-              const color = SEVERITY_COLORS[item.severity] || "#888";
-
-              const link = document.createElement("a");
-              link.href = `incident-entry.html?id=${encodeURIComponent(item.id)}`;
-              link.textContent = item.title;
-
-              const tag = document.createElement("span");
-              tag.className = "class";
-              tag.style.background = color;
-              tag.style.color = "#000";
-              tag.textContent = item.severity;
-
-              div.appendChild(link);
-              div.appendChild(tag);
-              container.appendChild(div);
+              container.appendChild(recordCard({
+                  href: `incident-entry.html?id=${encodeURIComponent(item.id)}`,
+                  id: item.id,
+                  type: "INCIDENT",
+                  title: item.title,
+                  subtitle: item.date,
+                  tags: [
+                      { key: "Severity", value: item.severity, color: SEVERITY_COLORS[item.severity] },
+                      { key: "Status", value: item.status }
+                  ]
+              }));
           });
       }
 
@@ -118,7 +114,7 @@
       container.innerHTML = "<p>Could not reach the database.</p>";
   });
 </script>
-<script type="module" src="nav-auth.js"></script>
+<script type="module" src="cpi-shell.js"></script>
 <script src="cornfall.js"></script>
 <script src="transitions.js"></script>
 </body>

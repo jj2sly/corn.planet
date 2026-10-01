@@ -230,7 +230,7 @@
         // room, or below the content; otherwise spread across the planet.
         var col = document.body.getBoundingClientRect();
         var gutter = Math.min(col.left, vw - col.right);
-        var roomy = gutter >= 170;
+        var roomy = gutter >= 140;
         // Without real gutters the corner readout and reticle would just peek out from behind the page.
         var hudEl = scene.querySelector(".cpHud");
         if (hudEl) hudEl.classList.toggle("cramped", !roomy);
@@ -315,7 +315,9 @@
                 pin(scene);
             });
         });
+        // The full planet belongs to the homepage; every other page keeps a faint horizon.
         if (/\/(index\.html)?$/.test(location.pathname)) document.body.classList.add("cpHome");
+        else document.body.classList.add("cpSecondary");
     }
 
     try {
