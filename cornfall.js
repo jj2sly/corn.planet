@@ -181,26 +181,103 @@
         return d;
     }
 
+    // Orbital observation layer. Everything here is decorative interface labelling (no canon,
+    // no data), hidden from screen readers. Markers are pinned to points on the planet's
+    // surface and re-pinned when the window changes size.
+    var MARKERS = [
+        // side: which side of the page column it sits beside on wide screens ("center" = below the
+        // content). u: fallback position across the planet (0..1). depth: px below the limb.
+        { side: "left", u: 0.22, depth: 40, label: "SECTOR C-04", cls: "" },
+        { side: "center", u: 0.52, depth: 26, label: "NORTHERN OBSERVATION ZONE", cls: "keep" },
+        { side: "right", u: 0.80, depth: 70, label: "RESTRICTED SURFACE REGION", cls: "warn" }
+    ];
+
     function hud() {
         var h = document.createElement("div");
         h.className = "cpHud";
         h.setAttribute("aria-hidden", "true");
-        // Reticle above the horizon, faint orbital grid arcs and sector ticks.
+        var markers = MARKERS.map(function (m) {
+            return '<div class="cpMarker ' + m.cls + '"><span class="cpDot"></span><span class="cpLead"></span><span class="cpTag">' + m.label + '</span></div>';
+        }).join("");
         h.innerHTML =
-            '<svg viewBox="0 0 1000 1000" preserveAspectRatio="none">' +
-            '<g fill="none" stroke="rgba(255,212,0,0.18)" stroke-width="1" vector-effect="non-scaling-stroke">' +
-            '<path d="M0 470 Q500 420 1000 470" stroke-dasharray="4 10"/>' +
-            '<path d="M0 410 Q500 365 1000 410" stroke-dasharray="2 14"/>' +
-            '</g>' +
-            '<g stroke="rgba(255,212,0,0.35)" stroke-width="1" vector-effect="non-scaling-stroke">' +
-            '<line x1="120" y1="455" x2="120" y2="470"/><line x1="320" y1="433" x2="320" y2="448"/>' +
-            '<line x1="680" y1="433" x2="680" y2="448"/><line x1="880" y1="455" x2="880" y2="470"/>' +
-            '</g>' +
-            '</svg>' +
-            '<div class="cpReadout">CPI ORBITAL OBSERVATION &middot; SECTOR 7-K<br>TARGET: CORN PLANET &middot; CLASS: ANOMALOUS<br>ALT 41,200 KM &middot; TRACKING</div>' +
-            '<div class="cpReadout right">LAT 12.04&deg;N &middot; LON 088.31&deg;W<br>SURFACE: KERNEL / HUSK<br>OBSERVATION LOGGED</div>' +
-            '<div class="cpScan"></div>';
+            markers +
+            '<div class="cpReticle"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i><b></b>' +
+            '<span class="cpRetLabel">OBS-07 &middot; MONITORING</span>' +
+            '<span class="cpRetCoord">12.04&deg;N 088.31&deg;W</span></div>' +
+            '<div class="cpReadout">CPI ORBITAL OBSERVATION &middot; CORN PLANET<br><span class="cpLive">&#9679;</span> OBSERVATION FEED ACTIVE</div>' +
+            '<div class="cpSweep"></div>';
         return h;
+    }
+
+    // Pins markers and the reticle to the planet's actual surface (its curve differs on phones).
+    function pin(scene) {
+        var planet = scene.querySelector(".cpPlanet");
+        if (!planet) return;
+        var r = planet.getBoundingClientRect();
+        var R = r.width / 2;
+        var cx = r.left + R;
+        var cy = r.top + R;
+        var vw = window.innerWidth;
+        function surfaceY(x) {
+            var dx = Math.max(-R, Math.min(R, x - cx));
+            return cy - Math.sqrt(R * R - dx * dx);
+        }
+        var left = Math.max(0, r.left);
+        var width = Math.min(vw, r.right) - left;
+        var vh = window.innerHeight;
+
+        // Keep markers out from under the page column: beside it in the gutters when there is
+        // room, or below the content; otherwise spread across the planet.
+        var col = document.body.getBoundingClientRect();
+        var gutter = Math.min(col.left, vw - col.right);
+        var roomy = gutter >= 170;
+        // Without real gutters the corner readout and reticle would just peek out from behind the page.
+        var hudEl = scene.querySelector(".cpHud");
+        if (hudEl) hudEl.classList.toggle("cramped", !roomy);
+        var content = document.getElementById("mainContent");
+        var contentBottom = content && content.offsetParent ? content.getBoundingClientRect().bottom : 0;
+
+        function place(el, x, y, flip) {
+            var visible = y > 0 && y < vh - 40;
+            el.style.visibility = visible ? "" : "hidden";
+            el.classList.toggle("flip", !!flip);
+            el.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)" + (flip ? " translateX(-100%)" : "");
+            // Never let a label run off the screen: point it the other way instead.
+            var box = el.getBoundingClientRect();
+            if (box.width && (box.right > vw - 6 || box.left < 6)) {
+                flip = !flip;
+                el.classList.toggle("flip", flip);
+                el.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)" + (flip ? " translateX(-100%)" : "");
+                box = el.getBoundingClientRect();
+                if (box.right > vw - 6 || box.left < 6) {
+                    // Too wide either way (narrow phones): slide it fully on screen, label to the right.
+                    el.classList.remove("flip");
+                    x = Math.max(6, Math.min(x, vw - 6 - box.width));
+                    el.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)";
+                }
+            }
+        }
+
+        scene.querySelectorAll(".cpMarker").forEach(function (el, i) {
+            var m = MARKERS[i];
+            var x = left + width * m.u;
+            var y = surfaceY(x) + m.depth;
+            var flip = m.u > 0.6; // labels on the right half point inward
+            if (roomy && m.side === "left") x = col.left * 0.5, y = surfaceY(x) + m.depth;
+            else if (roomy && m.side === "right") x = col.right + (vw - col.right) * 0.7, y = surfaceY(x) + m.depth, flip = true;
+            else if (m.side === "center" && contentBottom) y = Math.max(surfaceY(x) + m.depth, contentBottom + 36);
+            place(el, x, y, flip);
+        });
+        var ret = scene.querySelector(".cpReticle");
+        if (ret) {
+            var rx = roomy ? col.left * 0.5 : left + width * 0.66;
+            var ry = surfaceY(rx) + (roomy ? 110 : 90);
+            if (!roomy && contentBottom) ry = Math.max(ry, contentBottom + 70);
+            ry = Math.min(ry, vh - 120); // stays clear of the corner readout
+            place(ret, rx, ry, false);
+        }
+        var sweep = scene.querySelector(".cpSweep");
+        if (sweep) sweep.style.setProperty("--horizon", Math.round(Math.max(0, r.top)) + "px");
     }
 
     function build() {
@@ -225,6 +302,19 @@
         scene.appendChild(layer("cpVeil"));
         scene.appendChild(hud());
         document.body.insertBefore(scene, document.body.firstChild);
+        pin(scene);
+        // Content can change size after load (records render, the gate opens): re-pin then too.
+        window.addEventListener("load", function () { pin(scene); });
+        if (window.ResizeObserver) new ResizeObserver(function () { pin(scene); }).observe(document.body);
+        var queued = false;
+        window.addEventListener("resize", function () {
+            if (queued) return;
+            queued = true;
+            requestAnimationFrame(function () {
+                queued = false;
+                pin(scene);
+            });
+        });
         if (/\/(index\.html)?$/.test(location.pathname)) document.body.classList.add("cpHome");
     }
 
