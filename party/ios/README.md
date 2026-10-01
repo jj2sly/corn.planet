@@ -2,7 +2,7 @@
 
 CPI Party for iPhone is the CPI mobile operations hub plus a native shell around the existing CPI Party phone controller.
 
-The app home screen now provides quick access to Party joining, CPI account/stats, the CPI Database, Hall of Fame, prompts/moderation and saved server settings. The web controller remains the source of truth for game-specific UI, so Party game updates still reach the phone app without duplicating each controller in Swift.
+The app home screen now provides quick access to Party joining, CPI account/stats, the CPI Database, Hall of Fame, prompts/moderation and saved server settings. The mobile shell also provides network status, remembered room/server state, meaningful haptics, and native loading/error/back controls around embedded CPI pages. The web controller remains the source of truth for game-specific UI, so Party game updates still reach the phone app without duplicating each controller in Swift.
 
 The iOS shell adds the parts that are better handled natively:
 
@@ -15,7 +15,10 @@ The iOS shell adds the parts that are better handled natively:
 - screen-awake behavior while playing
 - safe same-origin navigation
 - embedded CPI account/database/management pages
-- Party server health status and remembered server settings
+- Party server health status, remembered room code and remembered server settings
+- native loading/error/retry states for embedded CPI pages
+- native back/close behavior for embedded portal navigation
+- restrained haptic feedback for join/navigation actions
 - external links opened outside the embedded controller
 
 ## Requirements
