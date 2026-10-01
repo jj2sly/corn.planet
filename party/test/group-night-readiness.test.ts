@@ -38,3 +38,22 @@ test("host deep links can preselect a requested group game", async () => {
   assert.match(host, /requestedGame/);
   assert.match(host, /room:configure/);
 });
+
+
+test("host startup serializes reconnect attachment and retries failed game deep links", async () => {
+  const host = await readFile(new URL("../public/js/host.js", import.meta.url), "utf8");
+  assert.match(host, /attachInFlight/);
+  assert.match(host, /if \(resumed\.error === "NETWORK"\) return;/);
+  assert.match(host, /if \(result\.ok\) requestedGameHandled = true;/);
+});
+
+test("phone reconnect timeouts preserve the saved seat", async () => {
+  const play = await readFile(new URL("../public/js/play.js", import.meta.url), "utf8");
+  assert.match(play, /reconnectInFlight/);
+  assert.match(play, /if \(resumed\.error === "NETWORK"\)/);
+  assert.match(play, /Your seat is still saved/);
+
+  const networkBranch = play.slice(play.indexOf('if (resumed.error === "NETWORK")'), play.indexOf('saveSession(null);', play.indexOf('if (resumed.error === "NETWORK")')));
+  assert.ok(networkBranch.length > 0, "network timeout branch must appear before destructive session clearing");
+  assert.doesNotMatch(networkBranch, /saveSession\(null\)/, "network timeout must not clear the reconnect token");
+});
