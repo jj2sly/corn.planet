@@ -12,7 +12,7 @@
 // just silence.
 
 import { el, store } from "../common.js";
-import { baseTag, SOUND_BASE, SOUND_SCOPES, SOUND_TAGS } from "../sound-catalog.js";
+import { baseTag, soundPolicy, SOUND_BASE, SOUND_SCOPES, SOUND_TAGS } from "../sound-catalog.js";
 
 const BASE = "/sounds/mycob/";
 const MANIFEST = `${BASE}sounds.json`;
@@ -113,9 +113,7 @@ export const CUES = [
 ];
 
 /** Never dropped to make room for something else. */
-const IMPORTANT = new Set(["game_start", "life_lost", "contained", "terminated", "escaped", "everyone_dies", "game_end", "thud_cow", "thud_victory", "thud_defeat"]);
 /** The same cue again within this many seconds is dropped: four agents filing at once is one bloop. */
-const SAME_CUE_GAP = 0.35;
 /** Cues play one after another; the next may start this many seconds into a long one. */
 const MAX_SLOT = 1.5;
 /** A cue that would have to wait longer than this is dropped, unless important. */
@@ -329,39 +327,42 @@ const unlock = () => {
 for (const type of ["pointerdown", "keydown", "touchend"]) globalThis.addEventListener?.(type, unlock, { passive: true, capture: true });
 
 let nextFree = 0;
-let playing = []; // end times of the sounds scheduled so far
+let playing = []; // { end, priority } entries for sounds scheduled so far
 const lastStart = new Map(); // cue -> start time
 
-/** When this cue may start, or null to drop it. */
+/** When this cue may start, or null to drop it. Higher-priority events cut through noisy moments. */
 function slot(ac, cue, length) {
   const now = ac.currentTime;
-  const important = IMPORTANT.has(cue);
+  const policy = soundPolicy(cue);
   const start = Math.max(now + 0.02, nextFree);
-  if (start - (lastStart.get(cue) ?? -Infinity) < SAME_CUE_GAP) return null;
-  playing = playing.filter((end) => end > start);
-  if (!important && (start - now > MAX_BACKLOG || playing.length >= MAX_VOICES)) return null;
-  playing.push(start + length);
+  if (start - (lastStart.get(cue) ?? -Infinity) < policy.cooldown) return null;
+  playing = playing.filter((entry) => entry.end > start);
+  const backlog = start - now;
+  const crowded = playing.length >= MAX_VOICES;
+  if (policy.priority < 3 && (backlog > MAX_BACKLOG || crowded)) return null;
+  if (policy.priority >= 3 && backlog > 0.35) nextFree = now + 0.02;
+  playing.push({ end: start + length, priority: policy.priority });
   lastStart.set(cue, start);
-  nextFree = start + Math.min(length, MAX_SLOT) + 0.1;
+  nextFree = start + Math.min(length, MAX_SLOT) + (policy.priority >= 3 ? 0.04 : 0.1);
   return start;
 }
 
-function playBuffer(ac, buffer, volume, start) {
+function playBuffer(ac, buffer, volume, start, cue = "action") {
   const source = ac.createBufferSource();
   source.buffer = buffer;
   const gain = ac.createGain();
-  gain.gain.value = volume;
+  gain.gain.value = volume * soundPolicy(cue).gain;
   source.connect(gain).connect(master);
   source.start(start);
 }
 
-function synth(ac, parts, start, volume = 1) {
+function synth(ac, parts, start, volume = 1, cue = "action") {
   for (const p of parts) {
     const t0 = start + p.at;
     const t1 = t0 + p.dur;
     const gain = ac.createGain();
     gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, p.gain * volume), t0 + 0.01);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, p.gain * volume * soundPolicy(cue).gain), t0 + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, t1);
     gain.connect(master);
     let source;
@@ -405,13 +406,13 @@ async function play(cue) {
       const buffer = await decode(ac, choice.url);
       if (!buffer) return;
       const start = slot(ac, cue, buffer.duration);
-      if (start !== null) playBuffer(ac, buffer, choice.volume, start);
+      if (start !== null) playBuffer(ac, buffer, choice.volume, start, cue);
       return;
     }
     const parts = SYNTH[choice.synth];
     if (!parts) return;
     const start = slot(ac, cue, Math.max(...parts.map((p) => p.at + p.dur)));
-    if (start !== null) synth(ac, parts, start, choice.volume);
+    if (start !== null) synth(ac, parts, start, choice.volume, cue);
     return;
   }
   const map = await loadManifest();
@@ -421,14 +422,14 @@ async function play(cue) {
     const buffer = await decode(ac, url);
     if (buffer) {
       const start = slot(ac, cue, buffer.duration);
-      if (start !== null) playBuffer(ac, buffer, entry.volume, start);
+      if (start !== null) playBuffer(ac, buffer, entry.volume, start, cue);
       return;
     }
   }
   const parts = SYNTH[cue] ?? SYNTH[baseTag(cue)];
   if (!parts) return;
   const start = slot(ac, cue, Math.max(...parts.map((p) => p.at + p.dur)));
-  if (start !== null) synth(ac, parts, start);
+  if (start !== null) synth(ac, parts, start, 1, cue);
 }
 
 // ------------------------------------------------------------------ per-game sound lists
@@ -443,6 +444,9 @@ export function setSoundScope(id) {
   if (id === scopeId) return;
   scopeId = id;
   scopeRows = null;
+  lastChoice.clear();
+  lastStart.clear();
+  nextFree = 0;
   if (!id || !SOUND_SCOPES[id]) return;
   scopeRows = fetch(`/api/sounds/${encodeURIComponent(id)}`)
     .then((r) => (r.ok ? r.json() : null))
@@ -460,13 +464,22 @@ export function setSoundScope(id) {
  * What to play for a tag under the current game's list: { url | synth, volume }, null for silence
  * (the tag's sounds are all disabled), or undefined when the list doesn't cover it (the defaults).
  */
+const lastChoice = new Map();
+
+/** Picks a mapped sound without immediately repeating the same clip when alternatives exist. */
 export async function chooseSound(cue) {
   const map = scopeRows ? await scopeRows.catch(() => null) : null;
   if (!map || !map.has(cue)) return undefined;
   const rows = map.get(cue);
   if (!rows.length) return null;
-  const row = rows[Math.floor(Math.random() * rows.length)];
-  return row.source.startsWith("file:") ? { url: SOUND_BASE + row.source.slice(5), volume: row.volume } : { synth: row.source.slice(6), volume: row.volume };
+  const previous = lastChoice.get(cue);
+  const candidates = rows.length > 1 ? rows.filter((row) => row.id !== previous) : rows;
+  const pool = candidates.length ? candidates : rows;
+  const row = pool[Math.floor(Math.random() * pool.length)];
+  lastChoice.set(cue, row.id);
+  return row.source.startsWith("file:")
+    ? { url: SOUND_BASE + row.source.slice(5), volume: row.volume }
+    : { synth: row.source.slice(6), volume: row.volume };
 }
 
 /** Is there a built-in tone for this tag? */
@@ -544,11 +557,11 @@ export function playSfx(cue, { volume = 1 } = {}) {
       const parts = choice.synth ? SYNTH[choice.synth] : null;
       if (buffer) {
         sfxPlaying.push(now + buffer.duration);
-        return playBuffer(ac, buffer, choice.volume * volume, ac.currentTime + 0.01);
+        return playBuffer(ac, buffer, choice.volume * volume, ac.currentTime + 0.01, cue);
       }
       if (parts) {
         sfxPlaying.push(now + Math.max(...parts.map((p) => p.at + p.dur)));
-        synth(ac, parts, ac.currentTime + 0.01, choice.volume * volume);
+        synth(ac, parts, ac.currentTime + 0.01, choice.volume * volume, cue);
       }
       return;
     }
@@ -557,13 +570,13 @@ export function playSfx(cue, { volume = 1 } = {}) {
       const buffer = await decode(ac, entry.files[Math.floor(Math.random() * entry.files.length)]);
       if (buffer) {
         sfxPlaying.push(now + buffer.duration);
-        return playBuffer(ac, buffer, entry.volume * volume, ac.currentTime + 0.01);
+        return playBuffer(ac, buffer, entry.volume * volume, ac.currentTime + 0.01, cue);
       }
     }
     const parts = SYNTH[cue];
     if (!parts) return;
     sfxPlaying.push(now + Math.max(...parts.map((p) => p.at + p.dur)));
-    synth(ac, parts, ac.currentTime + 0.01, volume);
+    synth(ac, parts, ac.currentTime + 0.01, volume, cue);
   })().catch(() => {});
 }
 

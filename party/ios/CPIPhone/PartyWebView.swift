@@ -115,3 +115,46 @@ struct PartyWebView: UIViewRepresentable {
         }
     }
 }
+
+
+struct PortalWebScreen: View {
+    @EnvironmentObject private var appState: AppState
+    let url: URL
+    let title: String
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            PartyWebView(url: url, allowedOrigin: origin(of: url))
+
+            HStack(spacing: 10) {
+                Button {
+                    appState.closePortal()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(0.65))
+                }
+                .accessibilityLabel("Close \(title)")
+
+                Text(title.uppercased())
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.black.opacity(0.65), in: Capsule())
+            }
+            .padding(.top, 8)
+            .padding(.leading, 8)
+        }
+        .ignoresSafeArea(.keyboard)
+    }
+
+    private func origin(of url: URL) -> String {
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        components?.path = ""
+        components?.query = nil
+        components?.fragment = nil
+        return components?.string?.trimmingCharacters(in: CharacterSet(charactersIn: "/")) ?? ""
+    }
+}

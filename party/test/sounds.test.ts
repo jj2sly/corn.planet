@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
-import { checkRows, defaultRows, SOUND_SCOPES } from "../public/js/sound-catalog.js";
+import { checkRows, defaultRows, soundPolicy, SOUND_SCOPES } from "../public/js/sound-catalog.js";
 import { chooseSound, CUES, hasTone, setSoundScope } from "../public/js/games/mycob-sound.js";
 import { createPartyServer, type PartyServer } from "../server/app.ts";
 import { createAuthVerifier } from "../server/auth.ts";
@@ -31,6 +31,16 @@ describe("sound catalog", () => {
     assert.equal(bc.filter((r) => r.tag === "incident_failed").length, 3, "a list in sounds.json becomes several rows, one picked at random");
     for (const tag of Object.values(SOUND_SCOPES).flatMap((s) => s.tags)) assert.ok(CUES.includes(tag), `${tag} is a known cue`);
     assert.ok(hasTone("budget_approved"), "new tags fall back to their base tone");
+  });
+
+  it("gives cues a shared mix policy so critical events outrank texture", () => {
+    assert.equal(soundPolicy("ui_click").family, "ui");
+    assert.equal(soundPolicy("jump").family, "movement");
+    assert.equal(soundPolicy("breaking_news").family, "tension");
+    assert.equal(soundPolicy("budget_approved").family, "result");
+    assert.equal(soundPolicy("department_failure").family, "critical");
+    assert.ok(soundPolicy("department_failure").priority > soundPolicy("ui_click").priority);
+    assert.ok(soundPolicy("ui_click").gain < soundPolicy("department_failure").gain);
   });
 
   it("rejects triggers a game doesn't use, missing files and path tricks", () => {
