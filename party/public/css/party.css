@@ -9961,8 +9961,9 @@ a.deck-tile {
 }
 
 /* ---- the case-file launch (js/deck/casefile.js) ---- */
-/* A dark operations table; papers land, the folder slides in, AUTHORIZED, the title is declassified,
-   POP. Everything is a finite transform / opacity animation timed by custom properties the script
+/* The lamp comes up on a dark operations table; papers land, the folder drops, the file is processed
+   (clip, evidence tag, classification strip, case number, redaction), AUTHORIZED, the title is
+   declassified, POP. Everything is a finite transform / opacity animation timed by custom properties the script
    sets (--d, --dur, --t-stamp, --t-declass, --t-pop); sizes are in cqw of a 16:9 table, so the
    composition is the same on any screen. */
 
@@ -9984,7 +9985,17 @@ a.deck-tile {
 
 .cf-launch.leaving {
   opacity: 0;
-  transition: opacity 0.32s ease;
+  transition: opacity 0.38s ease;
+}
+
+/* Skipped: straight to the game. */
+.cf-launch.skipped {
+  transition-duration: 0.14s;
+}
+
+.cf-launch.skipped .cf-desk {
+  transform: none;
+  transition: none;
 }
 
 .cf-desk {
@@ -10003,6 +10014,45 @@ a.deck-tile {
 .cf-launch.leaving .cf-desk {
   transform: scale(1.045);
   transition: transform 0.34s ease-in;
+}
+
+/* The overhead lamp: comes up as the desk appears, then drifts a little for the rest of the launch. */
+.cf-lamp {
+  position: absolute;
+  inset: -8%;
+  pointer-events: none;
+  background: radial-gradient(36% 34% at 50% 42%, rgba(255, 236, 190, 0.12), transparent 70%);
+  animation: cf-lamp var(--t-total, 6s) ease-in-out both;
+}
+
+@keyframes cf-lamp {
+  from {
+    opacity: 0.3;
+    transform: translateX(-2%);
+  }
+  10% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: translateX(2%);
+  }
+}
+
+.cf-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  opacity: 0;
+  background: #000;
+  pointer-events: none;
+  animation: cf-dim 0.55s ease-out backwards;
+}
+
+@keyframes cf-dim {
+  from {
+    opacity: 0.94;
+  }
 }
 
 .cf-desk-label {
@@ -10027,7 +10077,23 @@ a.deck-tile {
   width: min(100vw, 177.78vh);
   height: min(56.25vw, 100vh);
   container-type: size;
-  animation: cf-shake 0.22s var(--t-stamp, 0ms) linear both;
+  /* No fill: both only move the table while they run (the folder's thud, the stamp's hit). */
+  animation:
+    cf-thud 0.32s var(--t-land, 0ms) ease-out,
+    cf-shake 0.24s var(--t-stamp, 0ms) linear;
+}
+
+@keyframes cf-thud {
+  0%,
+  100% {
+    transform: none;
+  }
+  30% {
+    transform: translateY(0.32vw) scale(0.997);
+  }
+  65% {
+    transform: translateY(-0.08vw);
+  }
 }
 
 @keyframes cf-shake {
@@ -10063,16 +10129,30 @@ a.deck-tile {
     inset 0 0 0 1px rgba(0, 0, 0, 0.06);
   color: #2a241a;
   transform: rotate(var(--r));
-  animation: cf-fly var(--dur, 0.48s) var(--d, 0ms) cubic-bezier(0.2, 0.85, 0.25, 1.08) both;
+  animation: cf-fly var(--dur, 0.6s) var(--d, 0ms) cubic-bezier(0.22, 0.75, 0.3, 1) both;
 }
 
+/* Every other paper sits a little higher off the desk. */
+.cf-paper:nth-child(even) {
+  box-shadow:
+    0 1.1cqw 2.8cqw rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+/* A paper glides in, lands a touch past its tilt, lifts on the air under it and settles. */
 @keyframes cf-fly {
   from {
     opacity: 0;
-    transform: translate(var(--fx), var(--fy)) rotate(var(--fr)) scale(1.08);
+    transform: translate(var(--fx), var(--fy)) rotate(var(--fr)) scale(1.12);
   }
-  55% {
+  40% {
     opacity: 1;
+  }
+  70% {
+    transform: translate(0, 0) rotate(calc(var(--r) + var(--wob, 1.6deg))) scale(0.99);
+  }
+  85% {
+    transform: translate(0, -0.3cqw) rotate(calc(var(--r) - var(--wob, 1.6deg) * 0.4)) scale(1.004);
   }
   to {
     transform: rotate(var(--r));
@@ -10109,6 +10189,61 @@ a.deck-tile {
   height: 5cqw;
   padding: 0.55cqw;
   background: repeating-linear-gradient(-45deg, var(--yellow) 0 1.1cqw, #141414 1.1cqw 2.2cqw);
+}
+
+.cf-slip {
+  width: 16cqw;
+  height: 9.5cqw;
+  gap: 0.6cqw;
+  padding: 1cqw 1.2cqw;
+  background: linear-gradient(170deg, #e8edef, #cdd5d8);
+}
+
+.cf-slip-body {
+  display: flex;
+  flex: 1;
+  gap: 1cqw;
+}
+
+.cf-slip-face {
+  flex: none;
+  width: 4.4cqw;
+  height: 5.2cqw;
+  border: 0.15cqw solid rgba(42, 36, 26, 0.4);
+  background:
+    radial-gradient(circle at 50% 36%, #949da2 0 21%, transparent 23%),
+    radial-gradient(ellipse at 50% 100%, #949da2 0 44%, transparent 46%),
+    #dde3e6;
+}
+
+.cf-slip-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.7cqw;
+}
+
+.cf-card {
+  width: 14cqw;
+  height: 8.5cqw;
+  gap: 0.8cqw;
+  padding: 1cqw 1.2cqw;
+  border-top: 0.9cqw solid #b3261e;
+  background: #f3eee1;
+}
+
+.cf-card-head {
+  color: #b3261e;
+  font: 700 1.05cqw/1 var(--mono);
+  letter-spacing: 0.2em;
+}
+
+.cf-card-foot {
+  margin-top: auto;
+  color: rgba(42, 36, 26, 0.7);
+  font: 700 0.7cqw/1 var(--mono);
+  letter-spacing: 0.14em;
 }
 
 .cf-note {
@@ -10265,16 +10400,23 @@ a.deck-tile {
   z-index: 3;
   width: 54cqw;
   transform: rotate(-1.5deg);
-  animation: cf-folder-in var(--dur, 0.52s) var(--d, 0ms) cubic-bezier(0.18, 0.9, 0.3, 1.06) both;
+  animation: cf-folder-in var(--dur, 0.7s) var(--d, 0ms) cubic-bezier(0.3, 0.7, 0.35, 1) both;
 }
 
+/* Heavier than a loose paper: it drops, squashes a little on impact and settles. */
 @keyframes cf-folder-in {
   from {
     opacity: 0;
-    transform: translate(0, 62cqh) rotate(7deg) scale(1.05);
+    transform: translate(0, 62cqh) rotate(7deg) scale(1.06);
   }
-  50% {
+  45% {
     opacity: 1;
+  }
+  78% {
+    transform: translate(0, 0.5cqw) rotate(-1.9deg) scale(0.992, 0.984);
+  }
+  90% {
+    transform: translate(0, -0.15cqw) rotate(-1.4deg);
   }
   to {
     transform: rotate(-1.5deg);
@@ -10298,12 +10440,13 @@ a.deck-tile {
 }
 
 .cf-folder-face {
+  position: relative;
   display: grid;
   grid-template-columns: 20cqw minmax(0, 1fr);
   gap: 2.6cqw;
   align-items: center;
   min-height: 29cqw;
-  padding: 2.6cqw 3cqw 3.2cqw;
+  padding: 4.4cqw 3cqw 3.2cqw;
   border-radius: 0.4cqw 0.8cqw 0.8cqw;
   background: linear-gradient(165deg, #e8ca88, #d6af62 58%, #c99f4e);
   box-shadow:
@@ -10318,6 +10461,134 @@ a.deck-tile {
   background: #f6f2e8;
   box-shadow: 0 0.5cqw 1.2cqw rgba(0, 0, 0, 0.35);
   transform: rotate(-3deg);
+  /* Lands askew; the clip snaps it straight. */
+  animation: cf-snap-set 0.34s var(--t-clip, 0ms) ease-out backwards;
+}
+
+@keyframes cf-snap-set {
+  from {
+    transform: translate(-0.6cqw, 0.5cqw) rotate(-8deg);
+  }
+}
+
+/* The processing beat: clip, evidence tag, classification strip, case number. */
+.cf-clip {
+  animation: cf-clip 0.32s var(--t-clip, 0ms) cubic-bezier(0.3, 1.7, 0.5, 1) backwards;
+}
+
+@keyframes cf-clip {
+  from {
+    opacity: 0;
+    transform: translateY(-3cqw) rotate(-24deg);
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.cf-evidence {
+  position: absolute;
+  right: -6.5cqw;
+  bottom: 5cqw;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  gap: 0.3cqw;
+  width: 9.5cqw;
+  height: 4.8cqw;
+  padding: 0 0.9cqw 0 2.6cqw;
+  background: linear-gradient(170deg, #ead6a0, #d5bb78);
+  box-shadow: 0 0.5cqw 1.2cqw rgba(0, 0, 0, 0.45);
+  clip-path: polygon(14% 0, 100% 0, 100% 100%, 14% 100%, 0 50%);
+  transform: rotate(8deg);
+  animation: cf-evidence 0.42s var(--t-tag, 0ms) cubic-bezier(0.25, 0.9, 0.35, 1.1) backwards;
+}
+
+.cf-evidence-hole {
+  position: absolute;
+  top: 50%;
+  left: 1.1cqw;
+  width: 0.9cqw;
+  height: 0.9cqw;
+  border-radius: 50%;
+  background: #1b150e;
+  transform: translateY(-50%);
+}
+
+.cf-evidence-text {
+  color: #7c1d12;
+  font: 700 1.05cqw/1 var(--head);
+  letter-spacing: 0.18em;
+}
+
+.cf-evidence-no {
+  color: #2a2010;
+  font: 700 0.75cqw/1 var(--mono);
+  letter-spacing: 0.08em;
+}
+
+@keyframes cf-evidence {
+  from {
+    opacity: 0;
+    transform: translateX(9cqw) rotate(20deg);
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.cf-class-strip {
+  position: absolute;
+  top: 1.1cqw;
+  left: -1.2cqw;
+  right: -1.2cqw;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  height: 2.2cqw;
+  background: #b3261e;
+  box-shadow: 0 0.3cqw 0.6cqw rgba(0, 0, 0, 0.3);
+  color: #f6efe0;
+  font: 700 1cqw/1 var(--mono);
+  letter-spacing: 0.3em;
+  white-space: nowrap;
+  transform: rotate(-1deg);
+  animation: cf-strip 0.42s var(--t-strip, 0ms) cubic-bezier(0.6, 0, 0.3, 1) backwards;
+}
+
+@keyframes cf-strip {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.cf-caseno {
+  display: flex;
+  align-items: center;
+  gap: 1cqw;
+  margin-top: 0.6cqw !important;
+  color: #2a1a0a;
+  font: 700 1.1cqw/1 var(--mono);
+  letter-spacing: 0.12em;
+  animation: cf-print 0.5s var(--t-print, 0ms) steps(12, end) backwards;
+}
+
+.cf-barcode {
+  width: 8cqw;
+  height: 1.5cqw;
+  background: repeating-linear-gradient(90deg, #1a1206 0 0.18cqw, transparent 0.18cqw 0.32cqw, #1a1206 0.32cqw 0.62cqw, transparent 0.62cqw 0.78cqw, #1a1206 0.78cqw 0.86cqw, transparent 0.86cqw 1.1cqw);
+}
+
+@keyframes cf-print {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 .cf-snap .deck-cover {
@@ -10381,11 +10652,33 @@ a.deck-tile {
   background: linear-gradient(#0d0b08, #0d0b08) no-repeat right center / 100% 100%;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-  animation: cf-declass 0.46s var(--t-declass, 0ms) cubic-bezier(0.6, 0, 0.3, 1) both;
+  /* Blank until the bars go on (the processing beat), then peeled off to the right. */
+  /* The ink stays invisible under the bars (it would show through them) until they peel away. */
+  animation:
+    cf-redact 0.3s var(--t-redact, 0ms) cubic-bezier(0.6, 0, 0.3, 1) both,
+    cf-declass 0.6s var(--t-declass, 0ms) cubic-bezier(0.6, 0, 0.3, 1) forwards;
+}
+
+@keyframes cf-redact {
+  from {
+    color: transparent;
+    background-position: left center;
+    background-size: 0% 100%;
+  }
+  to {
+    color: transparent;
+    background-position: left center;
+  }
 }
 
 @keyframes cf-declass {
+  from {
+    color: transparent;
+    background-position: right center;
+  }
   to {
+    color: #1a1206;
+    background-position: right center;
     background-size: 0% 100%;
   }
 }
@@ -10551,7 +10844,14 @@ a.deck-tile {
 .cf-launch.calm .cf-folder,
 .cf-launch.calm .cf-stamp,
 .cf-launch.calm .cf-title,
-.cf-launch.calm .cf-pop {
+.cf-launch.calm .cf-pop,
+.cf-launch.calm .cf-lamp,
+.cf-launch.calm .cf-dim,
+.cf-launch.calm .cf-snap,
+.cf-launch.calm .cf-clip,
+.cf-launch.calm .cf-evidence,
+.cf-launch.calm .cf-class-strip,
+.cf-launch.calm .cf-caseno {
   animation: none;
 }
 
@@ -10575,7 +10875,14 @@ a.deck-tile {
   .cf-folder,
   .cf-stamp,
   .cf-title,
-  .cf-pop {
+  .cf-pop,
+  .cf-lamp,
+  .cf-dim,
+  .cf-snap,
+  .cf-clip,
+  .cf-evidence,
+  .cf-class-strip,
+  .cf-caseno {
     animation: none;
   }
 

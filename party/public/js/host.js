@@ -7,7 +7,7 @@ import { setSoundScope } from "./games/mycob-sound.js";
 import { buildHub } from "./deck/hub.js";
 import { gameInfo, PLATFORM_NAME, setLibrary } from "./deck/library.js";
 import { installQuickMenu, rememberPlayed, setCoverPainters, setSystem } from "./deck/ui.js";
-import { playCaseFileLaunch, stopCaseFileLaunch } from "./deck/casefile.js";
+import { playCaseFileLaunch, shouldPlayLaunch, stopCaseFileLaunch } from "./deck/casefile.js";
 import { buildDebrief } from "./deck/debrief.js";
 import * as chaos from "./games/chaos-host.js";
 import * as budgetcuts from "./games/budgetcuts-host.js";
@@ -252,7 +252,7 @@ function onState(next) {
   if (state.status !== lastStatus) {
     announce(state.status === "LOBBY" ? `${PLATFORM_NAME}: home` : state.status === "IN_GAME" ? `Launching ${info?.title ?? "the game"}` : "Final debrief");
     // Seen live (not on a reload mid-game): the case files hit the desk and the game is declassified.
-    if (state.status === "IN_GAME" && lastStatus !== null && info) playCaseFileLaunch(info);
+    if (shouldPlayLaunch(lastStatus, state.status) && info) playCaseFileLaunch(info);
     else if (state.status !== "IN_GAME") stopCaseFileLaunch();
     if (state.status === "IN_GAME") rememberPlayed(state.config.gameId);
     lastStatus = state.status;

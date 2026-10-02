@@ -1,25 +1,108 @@
-// The host screen as a show: the shared launch stays short (and shorter on repeats and with reduced
-// motion), the final debrief leads with the right thing for every kind of game, and Cornlashing's
-// cob scoreboard lights the right kernels. Browser code, run here without a browser: these parts
-// are plain logic.
+// The host screen as a show: the shared launch keeps its timing budget (shorter on repeats and with
+// reduced motion), plays each sound once, skips cleanly and never replays on a reload; the final
+// debrief leads with the right thing for every kind of game; and Cornlashing's cob scoreboard
+// lights the right kernels. Browser code, run here without a browser: these parts are plain logic.
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { LAUNCH_PACES } from "../public/js/deck/casefile.js";
+import { caseNumber, LAUNCH_PACES, launchCues, launchTimeline, shouldPlayLaunch } from "../public/js/deck/casefile.js";
 import { headline, teamOutcome } from "../public/js/deck/debrief.js";
 import { COB_COLUMNS, cobRowsPerLane, cobStandings } from "../public/js/games/chaos-cob.js";
 
 describe("the case-file launch", () => {
-  it("runs 2.5–4 s the first time, quicker on repeat games, and briefly with reduced motion", () => {
-    const total = (p: { exit: number; leave: number }) => p.exit + p.leave;
-    assert.ok(total(LAUNCH_PACES.full) >= 2500 && total(LAUNCH_PACES.full) <= 4000, `full: ${total(LAUNCH_PACES.full)} ms`);
-    assert.ok(total(LAUNCH_PACES.quick) < total(LAUNCH_PACES.full), "repeat launches are brisker");
-    assert.ok(total(LAUNCH_PACES.calm) <= 1600, "reduced motion is a short still frame");
-    for (const [name, p] of Object.entries(LAUNCH_PACES)) {
-      // Each beat lands before the next one starts, and the reveal is on screen before the exit.
-      assert.ok(p.stamp <= p.declass && p.declass <= p.pop && p.pop < p.exit, `${name}: beats in order`);
-      assert.ok(p.exit - p.pop >= 600, `${name}: the revealed title stays up long enough to read`);
+  const total = (p: { exit: number; leave: number }) => p.exit + p.leave;
+
+  it("runs about 6 s the first time, about 5 s on repeat games, and 2 s with reduced motion", () => {
+    assert.ok(total(LAUNCH_PACES.full) >= 5500 && total(LAUNCH_PACES.full) <= 6500, `full: ${total(LAUNCH_PACES.full)} ms`);
+    assert.ok(total(LAUNCH_PACES.quick) >= 4500 && total(LAUNCH_PACES.quick) <= 5500, `quick: ${total(LAUNCH_PACES.quick)} ms`);
+    assert.ok(total(LAUNCH_PACES.quick) < total(LAUNCH_PACES.full), "repeat launches are tighter");
+    assert.ok(Math.abs(total(LAUNCH_PACES.calm) - 2000) <= 200, `reduced motion: ${total(LAUNCH_PACES.calm)} ms`);
+  });
+
+  it("keeps every beat, in order, on first and repeat launches", () => {
+    for (const [name, p] of [["full", LAUNCH_PACES.full], ["quick", LAUNCH_PACES.quick]] as const) {
+      const lastPaper = p.paper + 7 * p.stagger + p.fly;
+      const land = p.folder + p.folderFly;
+      const beats = [p.paper, p.folder, land, p.clip, p.tag, p.strip, p.print, p.redact, p.stamp, p.declass, p.pop, p.exit];
+      assert.ok(beats.every((b, i) => i === 0 || b > beats[i - 1]!), `${name}: beats in order ${beats.join(" < ")}`);
+      assert.ok(lastPaper <= land, `${name}: the papers are down before the folder lands`);
+      assert.ok(p.exit - p.pop >= 700, `${name}: the uncovered title stays up long enough to read`);
     }
+    const calm = LAUNCH_PACES.calm;
+    assert.ok(calm.stamp < calm.pop && calm.pop < calm.exit);
+  });
+
+  /** A hand-cranked clock: run(ms) fires everything due by then, like the browser would. */
+  function fakeClock() {
+    let now = 0;
+    let next = 1;
+    const timers = new Map<number, { at: number; fn: () => void }>();
+    return {
+      schedule: (fn: () => void, ms: number) => (timers.set(next, { at: ms, fn }), next++),
+      cancel: (id: number) => void timers.delete(id),
+      pending: () => timers.size,
+      run(until: number) {
+        for (const [id, t] of [...timers].sort((a, b) => a[1].at - b[1].at)) {
+          if (t.at > until) continue;
+          timers.delete(id);
+          now = t.at;
+          t.fn();
+        }
+        now = until;
+      },
+      // A timer the browser had already queued when it was cancelled: fire it anyway.
+      fireStale(fn: () => void) {
+        fn();
+      },
+      get now() {
+        return now;
+      },
+    };
+  }
+
+  it("plays each sound once and exits once when left to run", () => {
+    const clock = fakeClock();
+    const sounds: string[] = [];
+    const exits: boolean[] = [];
+    launchTimeline(LAUNCH_PACES.full, { sound: (cue) => sounds.push(cue), exit: (skipped) => exits.push(skipped), schedule: clock.schedule, cancel: clock.cancel });
+    clock.run(60_000);
+    assert.deepEqual(sounds, ["launch_shuffle", "launch_stamp", "launch_pop"]);
+    assert.deepEqual(exits, [false]);
+    assert.equal(clock.pending(), 0);
+    assert.deepEqual(launchCues(LAUNCH_PACES.calm, { calm: true }).map((c) => c.cue), ["launch_stamp", "launch_pop"], "reduced motion: no paper rustle");
+  });
+
+  it("skips cleanly: cancels what's pending, exits once, never sounds again", () => {
+    const clock = fakeClock();
+    const sounds: string[] = [];
+    const exits: boolean[] = [];
+    const scheduled: (() => void)[] = [];
+    const timeline = launchTimeline(LAUNCH_PACES.full, {
+      sound: (cue) => sounds.push(cue),
+      exit: (skipped) => exits.push(skipped),
+      schedule: (fn, ms) => (scheduled.push(fn), clock.schedule(fn, ms)),
+      cancel: clock.cancel,
+    });
+    clock.run(LAUNCH_PACES.full.stamp + 10); // papers and the stamp have played
+    timeline.skip();
+    timeline.skip();
+    assert.deepEqual(exits, [true], "one exit, marked skipped");
+    assert.equal(clock.pending(), 0, "no timers left behind");
+    assert.equal(timeline.over, true);
+    for (const fn of scheduled) clock.fireStale(fn); // even a stale timer that fires anyway
+    clock.run(60_000);
+    assert.deepEqual(sounds, ["launch_shuffle", "launch_stamp"], "no pop after the skip, nothing twice");
+    assert.deepEqual(exits, [true]);
+  });
+
+  it("plays only when a game starts in front of the host, never on a reload mid-game", () => {
+    assert.equal(shouldPlayLaunch("LOBBY", "IN_GAME"), true);
+    assert.equal(shouldPlayLaunch("FINAL_RESULTS", "IN_GAME"), true, "play again");
+    assert.equal(shouldPlayLaunch(null, "IN_GAME"), false, "the host loaded or reloaded mid-game");
+    assert.equal(shouldPlayLaunch("IN_GAME", "IN_GAME"), false);
+    assert.equal(shouldPlayLaunch("IN_GAME", "LOBBY"), false);
+    assert.equal(caseNumber("chaos"), caseNumber("chaos"), "a game's case number never changes");
+    assert.match(caseNumber("thud"), /^CF-\d{4}-[A-Z]$/);
   });
 });
 
