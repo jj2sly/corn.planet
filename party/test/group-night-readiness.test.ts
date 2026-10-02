@@ -57,3 +57,20 @@ test("phone reconnect timeouts preserve the saved seat", async () => {
   assert.ok(networkBranch.length > 0, "network timeout branch must appear before destructive session clearing");
   assert.doesNotMatch(networkBranch, /saveSession\(null\)/, "network timeout must not clear the reconnect token");
 });
+
+
+test("group-night phone UI keeps critical small-screen safeguards", async () => {
+  const css = await readFile(new URL("../public/css/party.css", import.meta.url), "utf8");
+  const chaos = await readFile(new URL("../public/js/games/chaos-play.js", import.meta.url), "utf8");
+
+  assert.match(chaos, /chaos-answer-form/);
+  assert.match(css, /focused small-phone game audit/);
+  assert.match(css, /\.chaos-answer-form > \.btn\.big\[type="submit"\]/);
+  assert.match(css, /\.bc-lock/);
+  assert.match(css, /\.cc-who/);
+  assert.match(css, /\.phone \.ea-readout/);
+  assert.match(css, /\.mc-submit/);
+  assert.match(css, /\.sd-console/);
+  assert.match(css, /\.td-tab-label/);
+  assert.match(css, /env\(safe-area-inset-bottom\)/);
+});
