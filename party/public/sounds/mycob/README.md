@@ -56,7 +56,8 @@ four are already playing). All have synthesized placeholders; map a file to repl
 
 The host screen's launch (every game) and Cornlashing's round scoreboard use a few more effects,
 also with placeholders. The launch ones belong to the Steam My Deck menus (GLOBAL) in Moderation →
-Sound effects; the cob ones to Cornlashing.
+Sound effects; the cob ones to Cornlashing. A list a moderator saved before a trigger existed gets
+that trigger with its default sound; removing it there afterwards keeps it silent.
 
 | Effect | When | Where it plays |
 |---|---|---|

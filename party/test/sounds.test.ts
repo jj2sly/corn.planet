@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
-import { checkRows, defaultRows, soundPolicy, SOUND_SCOPES } from "../public/js/sound-catalog.js";
+import { checkRows, defaultRows, soundPolicy, SOUND_SCOPES, withNewTriggers } from "../public/js/sound-catalog.js";
 import { chooseSound, CUES, hasTone, setSoundScope } from "../public/js/games/mycob-sound.js";
 import { createPartyServer, type PartyServer } from "../server/app.ts";
 import { createAuthVerifier } from "../server/auth.ts";
@@ -90,6 +90,39 @@ describe("sound settings storage", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("gives triggers added after a list was saved their defaults, and keeps emptied ones silent", () => {
+    const db = new PartyDb(":memory:");
+    const svc = createSoundService(db);
+    const tagsOf = (scope: string) => new Set(svc.rows(scope).rows.map((r) => r.tag));
+
+    // A menus list saved before lists recorded their triggers (production has one): the launch
+    // sounds didn't exist then, so they start with their defaults; ui_click was emptied on purpose.
+    const legacy = defaultRows("lobby", manifest).filter((r) => r.tag === "device_boot" || r.tag === "achievement");
+    db.setSoundConfig("lobby", legacy);
+    const merged = tagsOf("lobby");
+    for (const tag of ["launch_shuffle", "launch_stamp", "launch_pop"]) assert.ok(merged.has(tag), `${tag} starts with its default`);
+    assert.ok(!merged.has("ui_click"), "a trigger emptied before tracking stays silent");
+    assert.equal(svc.rows("lobby").customised, true);
+
+    // Saved now: the list remembers its triggers, so emptying a launch sound sticks.
+    const withoutPop = svc.rows("lobby").rows.filter((r) => r.tag !== "launch_pop");
+    assert.equal(typeof svc.save("lobby", withoutPop), "object");
+    assert.ok(!tagsOf("lobby").has("launch_pop"), "emptied after saving: silent");
+    assert.ok(tagsOf("lobby").has("launch_stamp"));
+
+    // A trigger the game gains in future: a list saved without it gets the default.
+    const future = withNewTriggers("lobby", legacy, ["device_boot", "achievement", "ui_click", "launch_shuffle", "launch_stamp", "launch_pop"], manifest);
+    assert.deepEqual(future, legacy, "nothing new: unchanged");
+    const gained = withNewTriggers("lobby", legacy, ["device_boot", "achievement", "ui_click"], manifest);
+    assert.deepEqual([...new Set(gained.map((r) => r.tag))].sort(), ["achievement", "device_boot", "launch_pop", "launch_shuffle", "launch_stamp"]);
+
+    // Restoring the defaults forgets the recorded triggers too.
+    svc.reset("lobby");
+    assert.equal(db.getSoundTags("lobby"), null);
+    assert.equal(svc.rows("lobby").customised, false);
+    db.close();
   });
 });
 

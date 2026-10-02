@@ -1,11 +1,12 @@
 // Sound effects moderation: each game's sound list (see public/js/sound-catalog.js) as moderators
 // have set it, falling back to the defaults from public/sounds/mycob/sounds.json. Stored in the
-// settings table, one row per game, so it survives restarts and deploys.
+// settings table, one row per game (plus the triggers it was saved with), so it survives restarts
+// and deploys. A trigger the game gained after a list was saved starts with its defaults there.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkRows, defaultRows, SOUND_SCOPES, type SoundRow } from "../public/js/sound-catalog.js";
+import { checkRows, defaultRows, SOUND_SCOPES, type SoundRow, withNewTriggers } from "../public/js/sound-catalog.js";
 import type { PartyDb } from "./db.ts";
 
 const SOUND_DIR = fileURLToPath(new URL("../public/sounds/mycob/", import.meta.url));
@@ -61,17 +62,22 @@ export function createSoundService(db: PartyDb, dir = SOUND_DIR): SoundService {
         const sourceOf = (r: unknown) => String((r as { source?: unknown } | null)?.source ?? "");
         const usable = saved.filter((r) => !sourceOf(r).startsWith("file:") || have.has(sourceOf(r).slice(5)));
         const checked = checkRows(scope, usable, have);
-        if (typeof checked !== "string") return { rows: checked, customised: true };
+        if (typeof checked !== "string") return { rows: withNewTriggers(scope, checked, db.getSoundTags(scope), manifest), customised: true };
       }
       return { rows: defaultRows(scope, manifest), customised: false };
     },
     save(scope, rows) {
       const checked = checkRows(scope, rows, files());
-      if (typeof checked !== "string") db.setSoundConfig(scope, checked);
+      if (typeof checked !== "string") {
+        db.setSoundConfig(scope, checked);
+        // What the moderator saw: from now on, an emptied trigger here is a choice, not a gap.
+        db.setSoundTags(scope, SOUND_SCOPES[scope]?.tags ?? []);
+      }
       return checked;
     },
     reset(scope) {
       db.setSoundConfig(scope, null);
+      db.setSoundTags(scope, null);
     },
   };
 }

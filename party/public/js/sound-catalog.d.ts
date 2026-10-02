@@ -9,7 +9,7 @@ export interface SoundRow {
   volume: number;
 }
 
-export declare const SOUND_TAGS: Record<string, { label: string; base?: string }>;
+export declare const SOUND_TAGS: Record<string, { label: string; base?: string; since?: number }>;
 export declare const SOUND_SCOPES: Record<string, { name?: string; global?: boolean; tags: string[] }>;
 export interface SoundFamily {
   label: string;
@@ -22,4 +22,6 @@ export declare function soundPolicy(tag: string): SoundFamily & { family: string
 export declare const SOUND_BASE: string;
 export declare function baseTag(tag: string): string;
 export declare function defaultRows(scopeId: string, manifest: unknown): SoundRow[];
+/** Saved rows plus default rows for triggers the game gained after the list was saved. */
+export declare function withNewTriggers(scopeId: string, rows: SoundRow[], savedTags: readonly string[] | null, manifest: unknown): SoundRow[];
 export declare function checkRows(scopeId: string, rows: unknown, files: ReadonlySet<string>): SoundRow[] | string;

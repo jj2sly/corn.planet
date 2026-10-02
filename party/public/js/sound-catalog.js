@@ -9,8 +9,16 @@
 //
 // Every game has its own rows, so retagging a sound in Channel Cob never touches Angry Thud's.
 // "lobby" covers the Steam My Deck menus, which play outside any one game, so it is marked GLOBAL.
+//
+// A moderator's saved list remembers which triggers it was saved with. A trigger added to the game
+// later starts with its default sounds in that list (nobody chose otherwise yet); a trigger the
+// moderator emptied stays silent.
 
-/** id -> { label, base? }. `base`: a game-specific tag starts with that tag's sounds and tone. */
+/**
+ * id -> { label, base?, since? }. `base`: a game-specific tag starts with that tag's sounds and
+ * tone. `since: 2`: added after saved lists began recording their triggers, so a list saved before
+ * that doesn't cover it.
+ */
 export const SOUND_TAGS = {
   game_start: { label: "Game start" },
   alert: { label: "Alert / alarm" },
@@ -86,11 +94,11 @@ export const SOUND_TAGS = {
   segment_bad: { label: "Bad segment", base: "major_failure" },
   final_results: { label: "Final results", base: "game_end" },
   // The host screen's case-file launch (every game) and Cornlashing's cob scoreboard
-  launch_shuffle: { label: "Launch: papers land" },
-  launch_stamp: { label: "Launch: stamp" },
-  launch_pop: { label: "Launch: title pops" },
-  cob_pop: { label: "Cob scoreboard: kernels pop" },
-  cob_sting: { label: "Cob scoreboard: top agent" },
+  launch_shuffle: { label: "Launch: papers land", since: 2 },
+  launch_stamp: { label: "Launch: stamp", since: 2 },
+  launch_pop: { label: "Launch: title pops", since: 2 },
+  cob_pop: { label: "Cob scoreboard: kernels pop", since: 2 },
+  cob_sting: { label: "Cob scoreboard: top agent", since: 2 },
 };
 
 const THUD = Object.keys(SOUND_TAGS).filter((t) => t.startsWith("thud_"));
@@ -175,6 +183,21 @@ export function defaultRows(scopeId, manifest) {
     else rows.push({ id: `${tag}:synth`, source: `synth:${baseTag(tag)}`, tag, enabled: true, volume: 1 });
   }
   return rows;
+}
+
+/**
+ * A moderator's saved rows plus the default rows for any trigger the game gained after they were
+ * saved. `savedTags`: the triggers the list was saved with, or null for a list saved before lists
+ * recorded them (it covers every trigger that existed then: those without `since`).
+ */
+export function withNewTriggers(scopeId, rows, savedTags, manifest) {
+  const scope = SOUND_SCOPES[scopeId];
+  if (!scope) return rows;
+  const covered = new Set(Array.isArray(savedTags) ? savedTags : scope.tags.filter((t) => !SOUND_TAGS[t]?.since));
+  const added = new Set(scope.tags.filter((t) => !covered.has(t)));
+  if (!added.size) return rows;
+  const ids = new Set(rows.map((r) => r.id));
+  return [...rows, ...defaultRows(scopeId, manifest).filter((r) => added.has(r.tag) && !ids.has(r.id))];
 }
 
 /**

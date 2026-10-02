@@ -538,6 +538,28 @@ CREATE INDEX IF NOT EXISTS aborted_games_game ON aborted_games(game_id);
       .run(`sounds:${scope}`, JSON.stringify(rows));
   }
 
+  /** The triggers a game's sound list was saved with, or null (saved before lists recorded them). */
+  getSoundTags(scope: string): string[] | null {
+    const row = this.db.prepare("SELECT value FROM settings WHERE key = ?").get(`sound-tags:${scope}`) as Row | undefined;
+    if (!row) return null;
+    try {
+      const value = JSON.parse(String(row.value)) as unknown;
+      return Array.isArray(value) ? value.filter((t): t is string => typeof t === "string") : null;
+    } catch {
+      return null;
+    }
+  }
+
+  setSoundTags(scope: string, tags: readonly string[] | null): void {
+    if (tags === null) {
+      this.db.prepare("DELETE FROM settings WHERE key = ?").run(`sound-tags:${scope}`);
+      return;
+    }
+    this.db
+      .prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+      .run(`sound-tags:${scope}`, JSON.stringify(tags));
+  }
+
   /** The status a newly written (or edited) prompt gets under the current moderation policy. */
   private statusForNewText(rating: PromptRating): PromptStatus {
     const { moderationPolicy } = this.getSettings();
