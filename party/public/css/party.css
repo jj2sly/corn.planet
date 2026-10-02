@@ -9279,3 +9279,220 @@ a.deck-tile {
     margin-top: 8px;
   }
 }
+
+
+/* ------------------------------------------------------------------ focused small-phone game audit */
+
+@media (max-width: 600px) {
+  /* Cornlashing: keep the timed send action reachable while the keyboard is open. */
+  .chaos-answer-form > .btn.big[type="submit"] {
+    position: sticky;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    z-index: 3;
+    box-shadow: 0 -10px 20px rgba(0, 0, 0, 0.72);
+  }
+
+  /* Budget Cuts: the lock action is the important end-of-negotiation control. */
+  .bc-lock {
+    bottom: max(8px, calc(env(safe-area-inset-bottom) + 6px));
+  }
+
+  .bc-phone-top {
+    row-gap: 2px;
+  }
+
+  .bc-phone-top .timer {
+    margin-left: auto;
+  }
+
+  /* Channel Cob: let role/status/timer wrap cleanly instead of crushing the role name. */
+  .cc-who {
+    flex-wrap: wrap;
+    gap: 6px 8px;
+  }
+
+  .cc-who > div {
+    flex: 1 1 130px;
+    min-width: 0;
+  }
+
+  .cc-clock {
+    flex: none;
+  }
+
+  .cc-chips .btn.small {
+    min-height: 44px;
+  }
+
+  /* Entity Auction: keep the live bidding controls visually denser than the reveal content. */
+  .phone .ea-readout {
+    gap: 4px 10px;
+  }
+
+  .phone .ea-readout dd {
+    font-size: 1rem;
+  }
+
+  .phone .ea-readout dd.big {
+    font-size: 1.25rem;
+  }
+
+  /* My Cob: timed incident responses should never lose the submit control below the keyboard. */
+  .mc-submit {
+    position: sticky;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    z-index: 3;
+    box-shadow: 0 -10px 20px rgba(0, 0, 0, 0.72);
+  }
+
+  .mc-top {
+    margin-inline: calc(-1 * var(--gutter));
+  }
+
+  /* Steam Deck: Thad's console can get extremely tall in portrait. */
+  .sd-console {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .sd-dial {
+    height: 76px;
+  }
+
+  .sd-log li:nth-child(n + 3) {
+    display: none;
+  }
+
+  .sd-panel-buttons {
+    flex-wrap: nowrap;
+  }
+
+  .sd-panel-buttons .btn {
+    min-width: 0;
+    padding-inline: 8px;
+    font-size: 0.78rem;
+  }
+
+  /* Angry Thud: preserve the whole six-tab control strip without making each target tiny. */
+  .td-tabs {
+    gap: 3px;
+  }
+
+  .td-tab {
+    min-height: 46px;
+    padding-inline: 1px;
+  }
+
+  .td-sheet-body {
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 359px) {
+  .cc-who-glyph {
+    display: none;
+  }
+
+  .cc-who strong {
+    font-size: 1.1rem;
+  }
+
+  .cc-live.small,
+  .cc-tag {
+    font-size: 0.7rem;
+  }
+
+  .bc-tabs {
+    gap: 4px;
+  }
+
+  .bc-tabs .btn.small {
+    padding-inline: 5px;
+    font-size: 0.72rem;
+  }
+
+  .bc-row {
+    grid-template-columns: minmax(0, 1fr) 44px 2.7em 44px;
+    gap: 4px;
+  }
+
+  .phone .bid-grid {
+    gap: 4px;
+  }
+
+  .phone .bid-option {
+    padding-inline: 3px;
+    font-size: 0.8rem;
+  }
+
+  .phone .bay-large {
+    width: min(100%, 220px);
+  }
+
+  .td-tab-label {
+    display: none;
+  }
+
+  .td-tab-icon {
+    font-size: 18px;
+  }
+
+  .td-tab {
+    min-height: 44px;
+  }
+
+  .sd-console {
+    padding: 8px;
+  }
+
+  .sd-dial {
+    height: 68px;
+  }
+
+  .sd-shake {
+    min-height: 58px;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
+  .chaos-answer-form .phone-prompt,
+  .mc-phone .phone-prompt {
+    font-size: 1.05rem;
+    margin-bottom: 8px;
+  }
+
+  .chaos-answer-form textarea,
+  textarea.mc-answer {
+    min-height: 72px;
+  }
+
+  .cc-know {
+    max-height: 34vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .phone .bay-large {
+    width: min(210px, 34vh);
+  }
+
+  .sd-thad-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 34vw);
+    align-items: start;
+  }
+
+  .sd-console {
+    max-height: calc(100dvh - 18px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .sd-console .sd-log {
+    display: none;
+  }
+
+  .td-sheet-body {
+    gap: 6px;
+    padding-top: 6px;
+  }
+}
