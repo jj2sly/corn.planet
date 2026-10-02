@@ -9,12 +9,13 @@
     <link rel="stylesheet" href="/css/party.css" />
     <script type="module" src="/js/host.js"></script>
   </head>
-  <body class="host-body">
+  <body class="host-body" data-host-mode="boot">
     <header class="host-bar">
       <a class="brand" href="/">CORN PLANET PARTY</a>
       <p class="join-hint" id="joinHint" hidden>
-        Join at <span class="mono" id="joinUrl"></span> · code<span class="code" id="barCode"></span>
+        <span class="join-label">Join at</span> <span class="mono join-url" id="joinUrl"></span> <span class="join-label">· code</span><span class="code" id="barCode"></span>
       </p>
+      <span class="conn-status" id="connStatus" role="status" data-link="pending">CONNECTING…</span>
       <div class="host-controls" id="hostControls"></div>
     </header>
     <div id="banner" class="sticky-banner"></div>
@@ -23,7 +24,7 @@
     </main>
     <footer class="host-foot">
       <span class="ticker" id="ticker">CLASSIFIED PARTY SESSION</span>
-      <span id="connStatus" role="status">CONNECTING…</span>
+      <span class="host-foot-mark" aria-hidden="true">CPI · CPST OPERATIONS DISPLAY</span>
     </footer>
   </body>
 </html>

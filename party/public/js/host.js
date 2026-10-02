@@ -72,6 +72,14 @@ function setBanner(node) {
   $("#banner").replaceChildren(...(node ? [node] : []));
 }
 
+/**
+ * What the TV is showing: "boot" | "lobby" | "game" | "results" | "closed". The chrome follows it
+ * (party.css): a full header in the lobby, a slim presentation strip while a game runs.
+ */
+function setHostMode(mode) {
+  if (document.body.dataset.hostMode !== mode) document.body.dataset.hostMode = mode;
+}
+
 // ------------------------------------------------------------------ connection
 
 async function init() {
@@ -91,7 +99,9 @@ async function init() {
 }
 
 async function onStatus(status) {
-  $("#connStatus").textContent = status === "connected" ? "SECURE LINK ESTABLISHED" : "SIGNAL LOST — RECONNECTING…";
+  const link = $("#connStatus");
+  link.textContent = status === "connected" ? "SECURE LINK ESTABLISHED" : "SIGNAL LOST — RECONNECTING…";
+  link.dataset.link = status === "connected" ? "ok" : "lost";
   if (status !== "connected") {
     setBanner(el("div", { class: "banner danger", role: "alert", text: "Connection to the Corn Planet Party server lost. Reconnecting…" }));
     return;
@@ -123,6 +133,7 @@ async function attach() {
 
 async function createSession() {
   barStatus = null;
+  setHostMode("boot");
   stage.replaceChildren(el("p", { class: "boot", text: "OPENING CLASSIFIED PARTY SESSION..." }));
   const created = await conn.request("host:create");
   if (created.ok) {
@@ -143,6 +154,7 @@ async function createSession() {
 
 function showResumeChoice(previous) {
   lastStatus = null;
+  setHostMode("boot");
   const note = el("p", { class: "notice" });
   stage.replaceChildren(
     el(
@@ -179,6 +191,7 @@ function onEnded(info) {
   $("#joinHint").hidden = true;
   $("#hostControls").replaceChildren();
   barStatus = null;
+  setHostMode("closed");
   stage.replaceChildren(
     el(
       "div",
@@ -250,6 +263,7 @@ function onState(next) {
 }
 
 function render() {
+  setHostMode(state.status === "LOBBY" ? "lobby" : state.status === "IN_GAME" ? "game" : "results");
   $("#joinHint").hidden = false;
   $("#joinUrl").textContent = joinUrl();
   $("#barCode").textContent = state.code;
@@ -270,9 +284,9 @@ function renderBarControls() {
   const buttons = [];
   if (state.status === "IN_GAME") {
     buttons.push(
-      el("button", { class: "btn ghost small", type: "button", text: "Skip ▸", title: "Advance to the next phase", onclick: () => skip() }),
+      el("button", { class: "btn ghost small host-ctl", type: "button", text: "Skip ▸", title: "Advance to the next phase", onclick: () => skip() }),
       el("button", {
-        class: "btn subtle small",
+        class: "btn subtle small host-ctl",
         type: "button",
         text: "End game",
         title: `End the game and go back to ${PLATFORM_NAME}`,
@@ -282,7 +296,7 @@ function renderBarControls() {
   } else {
     buttons.push(
       el("button", {
-        class: "btn subtle small",
+        class: "btn subtle small host-ctl",
         type: "button",
         text: "Close session",
         onclick: () => confirm("Close this session for everyone?") && act("room:close"),

@@ -36,6 +36,12 @@ function press(button, fn) {
 
 const moreAgents = (n) => plural(n, "more agent").toUpperCase();
 
+/** The join link, allowed to wrap before its query (the code) rather than mid-word. */
+function joinUrlEl(url) {
+  const at = url.indexOf("?");
+  return el("p", { class: "deck-join-url mono" }, at > 0 ? [url.slice(0, at), el("wbr"), url.slice(at)] : url);
+}
+
 /** The Deck powers on once per page load (a second or so, skippable), not every time it's shown. */
 let booted = false;
 const bootLines = () => [
@@ -211,7 +217,7 @@ export function buildHub(s, opts) {
             el(
               "li",
               { class: `${p.connected ? "" : "offline"} ${p.id === r.you?.playerId ? "me" : ""}`.trim(), title: p.name },
-              avatar(p, i, { size: 42 }),
+              avatar(p, i, { size: host ? 54 : 42 }),
               el("span", { class: "deck-agent-row-name", text: p.id === r.you?.playerId ? `${p.name} (you)` : p.name }),
               p.id === r.leaderId ? el("span", { class: "deck-crown", "aria-label": "leader", text: "★" }) : null,
             ),
@@ -231,7 +237,13 @@ export function buildHub(s, opts) {
     const hero = el(
       "section",
       { class: "deck-hero", "aria-labelledby": "deck-hero-title" },
-      el("button", { class: "deck-hero-art", type: "button", "data-nav": "", dataset: { key: `hero:${info.id}` }, "aria-label": `${info.title}: title card`, onclick: () => openCard(info.id, `hero:${info.id}`) }, cover(info, { size: "hero", label: false })),
+      el(
+        "button",
+        { class: "deck-hero-art", type: "button", "data-nav": "", dataset: { key: `hero:${info.id}` }, "aria-label": `${info.title}: title card`, onclick: () => openCard(info.id, `hero:${info.id}`) },
+        cover(info, { size: "hero", label: false }),
+        // The big screen stamps the selected game once enough agents are in (party.css shows it).
+        host ? el("span", { class: "deck-hero-stamp", "aria-hidden": "true", text: "CLEARED FOR LAUNCH" }) : null,
+      ),
       el(
         "div",
         { class: "deck-hero-body" },
@@ -240,8 +252,10 @@ export function buildHub(s, opts) {
         el("p", { class: "deck-hero-tag", text: info.tagline }),
         facts(info),
         launch.node,
-        warningSlot,
+        host ? null : warningSlot,
       ),
+      // On the TV a heads-up sits under the cover, so it doesn't push the shelf off the screen.
+      host ? warningSlot : null,
     );
     const others = homeOrder(library(), recentGames(), info.id).filter((g) => g.id !== info.id);
     const shelf = el(
@@ -254,26 +268,50 @@ export function buildHub(s, opts) {
     let side;
     let paintSide = () => {};
     if (host) {
-      const code = el("p", { class: "deck-join-code mono" });
+      // The TV's join plate: the code is the thing to read from across the room; the link is
+      // secondary. Under it, how close the selected game is to launching.
+      const code = el("p", { class: "deck-join-code mono", role: "img" });
       const count = el("span", { class: "deck-row-count" });
+      const pips = el("span", { class: "deck-ready-pips", "aria-hidden": "true" });
+      const readiness = el("p", { class: "deck-ready-text", role: "status" });
       side = el(
         "aside",
         { class: "deck-side" },
         el(
           "section",
           { class: "deck-join", "aria-label": "How to join" },
-          el("p", { class: "deck-kicker", text: "JOIN ON YOUR PHONE" }),
-          el("p", { class: "deck-join-url mono", text: opts.join?.url ?? "" }),
+          el("p", { class: "deck-kicker deck-join-kicker", text: "JOIN ON YOUR PHONE" }),
+          el("p", { class: "deck-join-label", "aria-hidden": "true", text: "ACCESS CODE" }),
           code,
-          el("p", { class: "deck-hint", text: "Enter the code and an agent name. The first agent in leads the session." }),
+          joinUrlEl(opts.join?.url ?? ""),
+          el("p", { class: "deck-hint", text: "Open the link, enter the code and an agent name. The first agent in leads the session." }),
           opts.join?.localhost ? el("p", { class: "deck-warn", text: "Phones can't open “localhost”. Open this page at this computer's network address (it's in the server console) so the link works." }) : null,
         ),
-        el("section", { class: "deck-agents-mini", "aria-label": "Agents" }, el("header", { class: "deck-row-head" }, el("h3", {}, "AGENTS ", count), el("button", { class: "deck-link", type: "button", "data-nav": "", dataset: { key: "agents" }, text: "MANAGE ›", onclick: () => go("profile", { user: true }) })), agents.node),
+        el(
+          "section",
+          { class: "deck-agents-mini", "aria-label": "Agents" },
+          el("header", { class: "deck-row-head" }, el("h3", {}, "AGENTS ", count), el("button", { class: "deck-link", type: "button", "data-nav": "", dataset: { key: "agents" }, text: "MANAGE ›", onclick: () => go("profile", { user: true }) })),
+          el("div", { class: "deck-ready" }, pips, readiness),
+          agents.node,
+        ),
       );
       paintSide = (r) => {
-        code.textContent = r.code;
-        code.setAttribute("aria-label", `Session code ${r.code.split("").join(" ")}`);
+        if (code.dataset.code !== r.code) {
+          code.dataset.code = r.code;
+          code.replaceChildren(...[...r.code].map((ch) => el("span", { class: "deck-code-char", text: ch })));
+          code.setAttribute("aria-label", `Session code ${r.code.split("").join(" ")}`);
+        }
         count.textContent = `${r.players.length}/${r.maxPlayers}`;
+        const info = selected();
+        const here = connected();
+        const need = missing(info);
+        const slots = Math.min(r.maxPlayers, Math.max(info.minPlayers, here));
+        if (pips.childElementCount !== slots || pips.dataset.here !== String(here)) {
+          pips.dataset.here = String(here);
+          pips.replaceChildren(...Array.from({ length: slots }, (_, i) => el("span", { class: i < here ? "on" : "" })));
+        }
+        readiness.textContent = need > 0 ? `WAITING FOR ${moreAgents(need)}` : `READY · ${plural(here, "agent").toUpperCase()} CONNECTED`;
+        nodeOut.dataset.ready = String(need === 0);
       };
     } else {
       const who = el("div", { class: "deck-me" });
