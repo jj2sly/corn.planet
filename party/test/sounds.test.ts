@@ -112,8 +112,8 @@ describe("sound moderation API", () => {
     const res = await call("GET", "/api/mod/sounds", MOD);
     assert.equal(res.status, 200);
     const ids = res.json.scopes.map((s: { id: string }) => s.id);
-    for (const id of ["lobby", "mycob", "steamdeck", "thud", "budgetcuts", "channelcob"]) assert.ok(ids.includes(id), id);
-    assert.ok(!ids.includes("chaos"), "games without sounds aren't listed");
+    for (const id of ["lobby", "mycob", "steamdeck", "thud", "budgetcuts", "channelcob", "chaos"]) assert.ok(ids.includes(id), id);
+    assert.ok(!ids.includes("cornorshit"), "games without sounds aren't listed");
     assert.equal(res.json.scopes.find((s: { id: string }) => s.id === "lobby").global, true);
     assert.ok(res.json.files.includes("outcomes/correct.mp3"));
   });
@@ -155,6 +155,21 @@ describe("sound playback choices", () => {
     assert.equal(await chooseSound("final_results"), null, "no sounds left on a tag: silent");
     assert.deepEqual(await chooseSound("breaking_news"), { synth: "alert", volume: 1 });
     assert.equal(await chooseSound("thud_boom"), undefined, "tags outside this game use the defaults");
+
+    // A cue can name its own list while another game's is on: the host's launch plays the GLOBAL
+    // menus' moderated sounds even though the game's list has just taken over.
+    const lobbyRows = [
+      { id: "l1", source: "synth:launch_pop", tag: "launch_pop", enabled: true, volume: 0.4 },
+      { id: "l2", source: "synth:launch_stamp", tag: "launch_stamp", enabled: false, volume: 1 },
+    ];
+    globalThis.fetch = (async (url: string) =>
+      String(url).startsWith("/api/sounds/lobby") ? new Response(JSON.stringify({ rows: lobbyRows })) : new Response(JSON.stringify({ rows: [] }))) as typeof fetch;
+    setSoundScope("lobby");
+    setSoundScope("chaos");
+    assert.deepEqual(await chooseSound("launch_pop", "lobby"), { synth: "launch_pop", volume: 0.4 });
+    assert.equal(await chooseSound("launch_stamp", "lobby"), null, "disabled in the menus' list: silent");
+    assert.equal(await chooseSound("launch_pop"), undefined, "the current game's list doesn't cover it: the defaults");
+    assert.equal(await chooseSound("cob_pop"), null, "Cornlashing's own list, emptied by a moderator: silent");
 
     // The list can't be loaded: everything falls back to the defaults, nothing throws.
     globalThis.fetch = (async () => {

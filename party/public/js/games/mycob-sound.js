@@ -108,6 +108,12 @@ export const CUES = [
   "cc_thaw",
   "cc_arc",
   "cc_vent",
+  // The host screen's case-file launch (Steam My Deck menus) and Cornlashing's cob scoreboard.
+  "launch_shuffle",
+  "launch_stamp",
+  "launch_pop",
+  "cob_pop",
+  "cob_sting",
   // Game-specific tags from the sound catalog (Budget Cuts, Channel Cob, …).
   ...Object.keys(SOUND_TAGS).filter((t) => SOUND_TAGS[t].base),
 ];
@@ -155,6 +161,12 @@ const SYNTH = {
   ui_click: [tone(0, 0.035, 1300, 900, "square", 0.04)], // tick
   achievement: [tone(0, 0.09, 880, 880, "square", 0.06), tone(0.1, 0.09, 1175, 1175, "square", 0.06), tone(0.2, 0.25, 1760, 1760, "square", 0.06)], // bleep-bloop-BLEEP
   static: [hiss(0, 0.35, 0.07)], // kkssshhh
+  // The case-file launch: papers land, a stamp, the title pops. Cornlashing's cob: kernels, a sting.
+  launch_shuffle: [hiss(0, 0.07, 0.05), hiss(0.09, 0.06, 0.04), hiss(0.18, 0.09, 0.05), hiss(0.31, 0.12, 0.035)], // shff shff shffff
+  launch_stamp: [tone(0, 0.14, 150, 55, "sine", 0.32), hiss(0, 0.05, 0.12), tone(0, 0.05, 460, 210, "square", 0.04)], // THUNK
+  launch_pop: [tone(0, 0.05, 950, 320, "sine", 0.2), hiss(0, 0.02, 0.1), tone(0.07, 0.05, 1150, 380, "sine", 0.16), tone(0.11, 0.05, 820, 300, "sine", 0.14), tone(0.17, 0.3, 1568, 1568, "triangle", 0.07), tone(0.21, 0.4, 2093, 2093, "triangle", 0.06)], // pop-pop-pop, ting
+  cob_pop: [tone(0, 0.045, 1050, 360, "sine", 0.13), hiss(0, 0.018, 0.05)], // pok
+  cob_sting: [tone(0, 0.32, 131, 98, "sine", 0.2), tone(0, 0.1, 659, 659, "square", 0.06), tone(0.1, 0.1, 784, 784, "square", 0.06), tone(0.2, 0.45, 1047, 1060, "square", 0.06), tone(0.2, 0.45, 1319, 1330, "triangle", 0.05)], // bum, ta-ta-TAAA
   deck_shake: [tone(0, 0.5, 70, 50, "sawtooth", 0.12, { rate: 18, depth: 12 }), hiss(0.42, 0.18, 0.12), tone(0.45, 0.2, 140, 60, "square", 0.14)], // rrrrumble, WHUMP
   // Angry Thud's Revenge.
   thud_cow: [tone(0, 0.9, 190, 120, "sawtooth", 0.14, { rate: 5, depth: 8 }), tone(0.95, 0.06, 300, 150, "square", 0.1), hiss(0.95, 0.04, 0.08), tone(1.15, 0.06, 300, 150, "square", 0.1), hiss(1.15, 0.04, 0.08)], // MOOOO, clonk clonk
@@ -438,17 +450,13 @@ async function play(cue) {
 // effects; see sound-catalog.js). The screens say which game is on with setSoundScope().
 let scopeId = null;
 let scopeRows = null; // Promise<Map<tag, enabled rows>> | null
+// Lists for scopes other than the current one, for a sound that names its own (the host's launch
+// plays the GLOBAL menus' list while the game's list is already on). A scope left behind keeps its
+// list here; making it current again fetches it fresh.
+const otherRows = new Map(); // scope id -> Promise<Map<tag, enabled rows> | null>
 
-/** Which game's sound list to use ("lobby" for the Steam My Deck menus, null for none). */
-export function setSoundScope(id) {
-  if (id === scopeId) return;
-  scopeId = id;
-  scopeRows = null;
-  lastChoice.clear();
-  lastStart.clear();
-  nextFree = 0;
-  if (!id || !SOUND_SCOPES[id]) return;
-  scopeRows = fetch(`/api/sounds/${encodeURIComponent(id)}`)
+function fetchRows(id) {
+  return fetch(`/api/sounds/${encodeURIComponent(id)}`)
     .then((r) => (r.ok ? r.json() : null))
     .then((json) => {
       if (!json || !Array.isArray(json.rows)) return null;
@@ -460,15 +468,39 @@ export function setSoundScope(id) {
     .catch(() => null);
 }
 
+/** Which game's sound list to use ("lobby" for the Steam My Deck menus, null for none). */
+export function setSoundScope(id) {
+  if (id === scopeId) return;
+  if (scopeId && scopeRows) otherRows.set(scopeId, scopeRows);
+  scopeId = id;
+  scopeRows = null;
+  lastChoice.clear();
+  lastStart.clear();
+  nextFree = 0;
+  if (!id || !SOUND_SCOPES[id]) return;
+  otherRows.delete(id);
+  scopeRows = fetchRows(id);
+}
+
+/** The list for a named scope: the current one, one seen earlier, or fetched now. */
+function rowsFor(id) {
+  if (id === scopeId) return scopeRows;
+  if (!id || !SOUND_SCOPES[id]) return null;
+  if (!otherRows.has(id)) otherRows.set(id, fetchRows(id));
+  return otherRows.get(id);
+}
+
 /**
- * What to play for a tag under the current game's list: { url | synth, volume }, null for silence
- * (the tag's sounds are all disabled), or undefined when the list doesn't cover it (the defaults).
+ * What to play for a tag under the current game's list (or `scope`'s): { url | synth, volume }, null
+ * for silence (the tag's sounds are all disabled), or undefined when the list doesn't cover it (the
+ * defaults).
  */
 const lastChoice = new Map();
 
 /** Picks a mapped sound without immediately repeating the same clip when alternatives exist. */
-export async function chooseSound(cue) {
-  const map = scopeRows ? await scopeRows.catch(() => null) : null;
+export async function chooseSound(cue, scope) {
+  const source = scope === undefined ? scopeRows : rowsFor(scope);
+  const map = source ? await source.catch(() => null) : null;
   if (!map || !map.has(cue)) return undefined;
   const rows = map.get(cue);
   if (!rows.length) return null;
@@ -536,9 +568,10 @@ const sfxLast = new Map();
 /**
  * A short game effect (a jump, a landing): plays right away, beside the cues rather than queued
  * behind them, and is dropped rather than delayed when too many are already playing. Same mute,
- * volume and sounds.json mapping as every cue. Never throws.
+ * volume and sounds.json mapping as every cue. `scope` plays it from that game's moderated list
+ * instead of the current one's (the launch is the menus' sound). Never throws.
  */
-export function playSfx(cue, { volume = 1 } = {}) {
+export function playSfx(cue, { volume = 1, scope } = {}) {
   volume *= getSfxVolume();
   (async () => {
     if (isMuted() || volume <= 0) return;
@@ -550,7 +583,7 @@ export function playSfx(cue, { volume = 1 } = {}) {
     sfxPlaying = sfxPlaying.filter((end) => end > now);
     if (sfxPlaying.length >= MAX_SFX) return;
     sfxLast.set(cue, now);
-    const choice = await chooseSound(cue);
+    const choice = await chooseSound(cue, scope);
     if (choice === null) return;
     if (choice) {
       const buffer = choice.url ? await decode(ac, choice.url) : null;

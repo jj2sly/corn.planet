@@ -54,6 +54,18 @@ four are already playing). All have synthesized placeholders; map a file to repl
 | `achievement` | A silly achievement pops (lava, drowning, a part found…) | Your phone, for your own |
 | `static` | The stalker is close (SLIM) | Your phone |
 
+The host screen's launch (every game) and Cornlashing's round scoreboard use a few more effects,
+also with placeholders. The launch ones belong to the Steam My Deck menus (GLOBAL) in Moderation →
+Sound effects; the cob ones to Cornlashing.
+
+| Effect | When | Where it plays |
+|---|---|---|
+| `launch_shuffle` | Case files land on the desk as a game launches | Host |
+| `launch_stamp` | The launch's AUTHORIZED stamp | Host |
+| `launch_pop` | The game's title is declassified (a short pop) | Host |
+| `cob_pop` | Kernels pop onto the cob scoreboard (a few, not one per kernel) | Host |
+| `cob_sting` | The cob crowns the top agent | Host |
+
 ## `sounds.json`
 
 Each cue takes one file, a list of variants (one is picked at random each time), or an object with

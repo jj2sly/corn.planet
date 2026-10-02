@@ -9937,3 +9937,632 @@ a.deck-tile {
     animation: none;
   }
 }
+
+/* ---- the case-file launch (js/deck/casefile.js) ---- */
+/* A dark operations table; papers land, the folder slides in, AUTHORIZED, the title is declassified,
+   POP. Everything is a finite transform / opacity animation timed by custom properties the script
+   sets (--d, --dur, --t-stamp, --t-declass, --t-pop); sizes are in cqw of a 16:9 table, so the
+   composition is the same on any screen. */
+
+.cf-launch {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  overflow: hidden;
+  background: #050403;
+  cursor: pointer;
+  animation: cf-in 0.16s ease-out backwards;
+}
+
+@keyframes cf-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.cf-launch.leaving {
+  opacity: 0;
+  transition: opacity 0.32s ease;
+}
+
+.cf-desk {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(58% 52% at 50% 44%, color-mix(in srgb, var(--accent, #ffd400) 9%, rgba(255, 233, 180, 0.14)), transparent 72%),
+    radial-gradient(120% 95% at 50% 42%, transparent 48%, rgba(0, 0, 0, 0.8) 100%),
+    repeating-linear-gradient(92deg, rgba(255, 255, 255, 0.016) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 36px),
+    linear-gradient(180deg, #1b150e, #0c0906 70%, #080605);
+}
+
+.cf-launch.leaving .cf-desk {
+  transform: scale(1.045);
+  transition: transform 0.34s ease-in;
+}
+
+.cf-desk-label {
+  position: absolute;
+  top: 2.4vh;
+  left: 2.4vw;
+  color: rgba(255, 212, 0, 0.45);
+  font: 700 clamp(10px, 0.95vw, 16px) / 1 var(--mono);
+  letter-spacing: 0.3em;
+}
+
+.cf-desk-edge {
+  position: absolute;
+  inset: auto 0 0;
+  height: max(6px, 1.1vh);
+  background: repeating-linear-gradient(-45deg, var(--yellow) 0 14px, #111 14px 28px);
+  opacity: 0.85;
+}
+
+.cf-stage {
+  position: relative;
+  width: min(100vw, 177.78vh);
+  height: min(56.25vw, 100vh);
+  container-type: size;
+  animation: cf-shake 0.22s var(--t-stamp, 0ms) linear both;
+}
+
+@keyframes cf-shake {
+  0%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: translate(0.3vw, 0.25vw);
+  }
+  50% {
+    transform: translate(-0.25vw, -0.15vw);
+  }
+  75% {
+    transform: translate(0.12vw, -0.18vw);
+  }
+}
+
+/* Papers */
+
+.cf-paper {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9cqw;
+  padding: 1.6cqw 1.5cqw;
+  border-radius: 0.3cqw;
+  background: linear-gradient(170deg, #f1ebdb, #d9cfb6);
+  box-shadow:
+    0 0.8cqw 2.2cqw rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  color: #2a241a;
+  transform: rotate(var(--r));
+  animation: cf-fly var(--dur, 0.48s) var(--d, 0ms) cubic-bezier(0.2, 0.85, 0.25, 1.08) both;
+}
+
+@keyframes cf-fly {
+  from {
+    opacity: 0;
+    transform: translate(var(--fx), var(--fy)) rotate(var(--fr)) scale(1.08);
+  }
+  55% {
+    opacity: 1;
+  }
+  to {
+    transform: rotate(var(--r));
+  }
+}
+
+.cf-form {
+  width: 23cqw;
+  height: 30cqw;
+}
+
+.cf-memo {
+  width: 21cqw;
+  height: 26cqw;
+}
+
+.cf-sheet {
+  width: 22cqw;
+  height: 27cqw;
+  padding-top: 0;
+  overflow: hidden;
+}
+
+.cf-photo {
+  width: 15cqw;
+  height: 18.5cqw;
+  gap: 0;
+  padding: 1cqw 1cqw 0;
+  background: #f4f1ea;
+}
+
+.cf-tag {
+  width: 15cqw;
+  height: 5cqw;
+  padding: 0.55cqw;
+  background: repeating-linear-gradient(-45deg, var(--yellow) 0 1.1cqw, #141414 1.1cqw 2.2cqw);
+}
+
+.cf-note {
+  width: 11cqw;
+  height: 11cqw;
+  background: linear-gradient(160deg, #ffe874, #f3cc2a);
+}
+
+.cf-line {
+  display: block;
+  flex: none;
+  width: var(--w, 80%);
+  height: 0.55cqw;
+  border-radius: 0.2cqw;
+  background: rgba(42, 36, 26, 0.26);
+}
+
+.cf-line.redacted {
+  height: 1.05cqw;
+  border-radius: 0;
+  background: #14110c;
+}
+
+.cf-doc-head {
+  padding-bottom: 0.6cqw;
+  border-bottom: 0.18cqw solid rgba(42, 36, 26, 0.55);
+  font: 700 1cqw/1.2 var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.cf-doc-foot {
+  margin-top: auto;
+  color: #a3271b;
+  font: 700 0.8cqw/1.2 var(--mono);
+  letter-spacing: 0.14em;
+}
+
+.cf-boxes {
+  display: flex;
+  gap: 0.6cqw;
+}
+
+.cf-boxes span {
+  width: 3.4cqw;
+  height: 2.2cqw;
+  border: 0.15cqw solid rgba(42, 36, 26, 0.5);
+}
+
+.cf-sign {
+  width: 46%;
+  height: 2cqw;
+  margin-top: auto;
+  border-bottom: 0.15cqw solid rgba(42, 36, 26, 0.6);
+  background: radial-gradient(60% 40% at 30% 70%, transparent 58%, rgba(20, 40, 120, 0.55) 60% 66%, transparent 68%);
+}
+
+.cf-sheet-band {
+  margin: 0 -1.5cqw 0.6cqw;
+  padding: 1.1cqw 1.5cqw 0.9cqw;
+  border-bottom: 0.9cqw solid transparent;
+  border-image: repeating-linear-gradient(-45deg, #141414 0 0.8cqw, var(--yellow) 0.8cqw 1.6cqw) 1;
+  background: var(--yellow);
+  color: #141414;
+  font: 700 1.15cqw/1 var(--head);
+  letter-spacing: 0.18em;
+}
+
+.cf-checks {
+  display: flex;
+  gap: 0.8cqw;
+}
+
+.cf-checks span {
+  position: relative;
+  width: 1.7cqw;
+  height: 1.7cqw;
+  border: 0.15cqw solid rgba(42, 36, 26, 0.6);
+}
+
+.cf-checks span.on::after {
+  content: "";
+  position: absolute;
+  left: 28%;
+  top: 6%;
+  width: 34%;
+  height: 62%;
+  border: solid #1d5e19;
+  border-width: 0 0.3cqw 0.3cqw 0;
+  transform: rotate(40deg);
+}
+
+.cf-photo-img {
+  position: relative;
+  display: block;
+  height: 13.6cqw;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #41443a, #121411 72%);
+}
+
+.cf-entity {
+  position: absolute;
+  left: 28%;
+  top: 22%;
+  width: 44%;
+  height: 86%;
+  border-radius: 46% 46% 28% 28%;
+  background: radial-gradient(circle at 50% 30%, #23251f, #050505 72%);
+}
+
+.cf-eyes {
+  position: absolute;
+  left: 38%;
+  top: 37%;
+  width: 24%;
+  height: 7%;
+  background:
+    radial-gradient(circle at 20% 50%, #ffe36b 0 30%, transparent 36%),
+    radial-gradient(circle at 80% 50%, #ffe36b 0 30%, transparent 36%);
+}
+
+.cf-photo-cap {
+  display: block;
+  padding: 1cqw 0;
+  color: #3a3328;
+  font: 700 0.95cqw/1 var(--mono);
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+
+.cf-tag-text {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  background: #111;
+  color: var(--yellow);
+  font: 700 1.3cqw/1 var(--head);
+  letter-spacing: 0.16em;
+}
+
+.cf-note-text {
+  margin: auto;
+  color: #4b3a05;
+  font: italic 700 1.55cqw/1.1 var(--body);
+  text-align: center;
+  transform: rotate(-4deg);
+}
+
+/* The case folder */
+
+.cf-folder {
+  position: absolute;
+  left: 23%;
+  top: 19%;
+  z-index: 3;
+  width: 54cqw;
+  transform: rotate(-1.5deg);
+  animation: cf-folder-in var(--dur, 0.52s) var(--d, 0ms) cubic-bezier(0.18, 0.9, 0.3, 1.06) both;
+}
+
+@keyframes cf-folder-in {
+  from {
+    opacity: 0;
+    transform: translate(0, 62cqh) rotate(7deg) scale(1.05);
+  }
+  50% {
+    opacity: 1;
+  }
+  to {
+    transform: rotate(-1.5deg);
+  }
+}
+
+.cf-folder-tab {
+  display: inline-block;
+  margin-left: 2.4cqw;
+  padding: 0.8cqw 2.2cqw 0.6cqw;
+  border-radius: 0.8cqw 0.8cqw 0 0;
+  background: linear-gradient(#e4c47e, #d8b365);
+  color: #3b2b0c;
+  font: 700 1.15cqw/1 var(--mono);
+  letter-spacing: 0.24em;
+}
+
+.cf-folder-tab span {
+  padding-left: 0.8cqw;
+  border-left: 0.5cqw solid var(--accent, #ffd400);
+}
+
+.cf-folder-face {
+  display: grid;
+  grid-template-columns: 20cqw minmax(0, 1fr);
+  gap: 2.6cqw;
+  align-items: center;
+  min-height: 29cqw;
+  padding: 2.6cqw 3cqw 3.2cqw;
+  border-radius: 0.4cqw 0.8cqw 0.8cqw;
+  background: linear-gradient(165deg, #e8ca88, #d6af62 58%, #c99f4e);
+  box-shadow:
+    0 1.4cqw 3.6cqw rgba(0, 0, 0, 0.6),
+    inset 0 0.2cqw 0 rgba(255, 255, 255, 0.35);
+  color: #20180a;
+}
+
+.cf-snap {
+  position: relative;
+  padding: 0.7cqw;
+  background: #f6f2e8;
+  box-shadow: 0 0.5cqw 1.2cqw rgba(0, 0, 0, 0.35);
+  transform: rotate(-3deg);
+}
+
+.cf-snap .deck-cover {
+  border-radius: 0.2cqw;
+  box-shadow: none;
+}
+
+.cf-clip {
+  position: absolute;
+  top: -1.7cqw;
+  left: 2.4cqw;
+  width: 2cqw;
+  height: 5cqw;
+  border: 0.32cqw solid #b9bec6;
+  border-radius: 1.2cqw;
+  box-shadow: 0 0.2cqw 0.3cqw rgba(0, 0, 0, 0.35);
+}
+
+.cf-clip::after {
+  content: "";
+  position: absolute;
+  inset: 0.5cqw 0.25cqw 1.1cqw;
+  border: 0.28cqw solid #d3d7de;
+  border-bottom: 0;
+  border-radius: 1cqw 1cqw 0 0;
+}
+
+.cf-file-text p {
+  margin: 0;
+}
+
+.cf-file-org {
+  color: rgba(32, 24, 10, 0.72);
+  font: 700 1cqw/1.2 var(--mono);
+  letter-spacing: 0.2em;
+}
+
+.cf-file-kicker {
+  margin-top: 0.9cqw !important;
+  color: #7c1d12;
+  font: 700 1.25cqw/1 var(--mono);
+  letter-spacing: 0.32em;
+}
+
+.cf-title {
+  margin: 0.7cqw 0 0;
+  padding: 0;
+  border: 0;
+  color: #1a1206;
+  font: 700 var(--title, 4.6cqw) / 1.04 var(--head);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  transform-origin: 20% 60%;
+  animation: cf-title-pop 0.42s var(--t-pop, 0ms) ease-out both;
+}
+
+/* The redaction bar: a black highlight on each line of the title that peels off to the right. */
+.cf-title-ink {
+  padding: 0 0.12em;
+  background: linear-gradient(#0d0b08, #0d0b08) no-repeat right center / 100% 100%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  animation: cf-declass 0.46s var(--t-declass, 0ms) cubic-bezier(0.6, 0, 0.3, 1) both;
+}
+
+@keyframes cf-declass {
+  to {
+    background-size: 0% 100%;
+  }
+}
+
+@keyframes cf-title-pop {
+  40% {
+    transform: scale(1.07);
+  }
+}
+
+.cf-file-tag {
+  margin-top: 1cqw !important;
+  color: #3a2c10;
+  font: 400 1.35cqw/1.3 var(--body);
+}
+
+.cf-file-meta {
+  margin-top: 0.9cqw !important;
+  color: rgba(32, 24, 10, 0.75);
+  font: 700 1.05cqw/1.2 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cf-stamp {
+  position: absolute;
+  left: 7cqw;
+  bottom: 1.6cqw;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  padding: 0.6cqw 1.4cqw 0.7cqw;
+  border: 0.4cqw solid rgba(190, 28, 20, 0.88);
+  border-radius: 0.6cqw;
+  color: rgba(190, 28, 20, 0.9);
+  transform: rotate(-11deg);
+  animation: cf-stamp 0.3s var(--t-stamp, 0ms) cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.cf-stamp-main {
+  font: 700 2.5cqw/1 var(--head);
+  letter-spacing: 0.12em;
+}
+
+.cf-stamp-sub {
+  margin-top: 0.3cqw;
+  font: 700 0.85cqw/1 var(--mono);
+  letter-spacing: 0.26em;
+}
+
+@keyframes cf-stamp {
+  from {
+    opacity: 0;
+    transform: rotate(-11deg) scale(2.4);
+  }
+  45% {
+    opacity: 1;
+  }
+  to {
+    transform: rotate(-11deg) scale(1);
+  }
+}
+
+/* The POP: a dozen popcorn kernels and a starburst. */
+
+.cf-burst {
+  position: absolute;
+  left: 64%;
+  top: 48%;
+  z-index: 4;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.cf-corn {
+  position: absolute;
+  left: -1.45cqw;
+  top: -1.25cqw;
+  width: 2.9cqw;
+  height: 2.5cqw;
+  border-radius: 48% 52% 44% 56% / 55% 45% 55% 45%;
+  background:
+    radial-gradient(circle at 30% 30%, #fffef6 0 30%, transparent 32%),
+    radial-gradient(circle at 70% 36%, #fffbe9 0 28%, transparent 30%),
+    radial-gradient(circle at 52% 72%, #fff6d8 0 30%, transparent 32%),
+    radial-gradient(circle at 50% 50%, #f7e7b4, #e8c873);
+  box-shadow:
+    inset -0.2cqw -0.25cqw 0 rgba(196, 140, 40, 0.45),
+    0 0 0 0.12cqw rgba(110, 70, 15, 0.3);
+  animation: cf-corn 0.8s calc(var(--t-pop, 0ms) + var(--pd, 0ms)) cubic-bezier(0.15, 0.8, 0.35, 1) both;
+}
+
+.cf-corn::after {
+  content: "";
+  position: absolute;
+  right: 16%;
+  bottom: 12%;
+  width: 26%;
+  height: 22%;
+  border-radius: 50%;
+  background: #df982a;
+}
+
+@keyframes cf-corn {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.2);
+  }
+  12% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+    transform: translate(var(--px), var(--py)) scale(var(--s)) rotate(var(--spin));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--px) * 1.15), calc(var(--py) + 6cqw)) scale(calc(var(--s) * 0.9)) rotate(calc(var(--spin) * 1.4));
+  }
+}
+
+.cf-pop {
+  position: absolute;
+  left: 6cqw;
+  top: -17cqw;
+  display: grid;
+  place-items: center;
+  width: 11.5cqw;
+  height: 11.5cqw;
+  background: #111;
+  clip-path: polygon(50% 0%, 59% 22%, 79% 9%, 75% 32%, 98% 30%, 82% 48%, 100% 64%, 76% 67%, 84% 90%, 62% 79%, 50% 100%, 40% 79%, 17% 91%, 24% 68%, 0% 64%, 19% 48%, 3% 30%, 25% 32%, 21% 9%, 41% 22%);
+  transform: rotate(-12deg);
+  animation: cf-pop 0.34s var(--t-pop, 0ms) cubic-bezier(0.3, 1.8, 0.5, 1) both;
+}
+
+.cf-pop span {
+  display: grid;
+  place-items: center;
+  width: 84%;
+  height: 84%;
+  background: var(--yellow);
+  clip-path: inherit;
+  color: #120e02;
+  font: 700 3.1cqw/1 var(--head);
+  letter-spacing: 0.02em;
+}
+
+@keyframes cf-pop {
+  from {
+    opacity: 0;
+    transform: rotate(-12deg) scale(0);
+  }
+  to {
+    transform: rotate(-12deg) scale(1);
+  }
+}
+
+/* Reduced motion: the composed desk as a still frame (the script also shortens it). */
+.cf-launch.calm,
+.cf-launch.calm .cf-stage,
+.cf-launch.calm .cf-paper,
+.cf-launch.calm .cf-folder,
+.cf-launch.calm .cf-stamp,
+.cf-launch.calm .cf-title,
+.cf-launch.calm .cf-pop {
+  animation: none;
+}
+
+.cf-launch.calm .cf-title-ink {
+  animation: none;
+  background-size: 0% 100%;
+}
+
+.cf-launch.calm .cf-corn {
+  display: none;
+}
+
+.cf-launch.calm.leaving .cf-desk {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-launch,
+  .cf-stage,
+  .cf-paper,
+  .cf-folder,
+  .cf-stamp,
+  .cf-title,
+  .cf-pop {
+    animation: none;
+  }
+
+  .cf-title-ink {
+    animation: none;
+    background-size: 0% 100%;
+  }
+
+  .cf-corn {
+    display: none;
+  }
+}

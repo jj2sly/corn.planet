@@ -85,13 +85,20 @@ export const SOUND_TAGS = {
   segment_good: { label: "Good segment", base: "success" },
   segment_bad: { label: "Bad segment", base: "major_failure" },
   final_results: { label: "Final results", base: "game_end" },
+  // The host screen's case-file launch (every game) and Cornlashing's cob scoreboard
+  launch_shuffle: { label: "Launch: papers land" },
+  launch_stamp: { label: "Launch: stamp" },
+  launch_pop: { label: "Launch: title pops" },
+  cob_pop: { label: "Cob scoreboard: kernels pop" },
+  cob_sting: { label: "Cob scoreboard: top agent" },
 };
 
 const THUD = Object.keys(SOUND_TAGS).filter((t) => t.startsWith("thud_"));
 
 /** Games (registry ids) that use the sound system, and the tags each one plays. */
 export const SOUND_SCOPES = {
-  lobby: { name: "Steam My Deck menus", global: true, tags: ["device_boot", "ui_click", "achievement"] },
+  lobby: { name: "Steam My Deck menus", global: true, tags: ["device_boot", "ui_click", "achievement", "launch_shuffle", "launch_stamp", "launch_pop"] },
+  chaos: { tags: ["cob_pop", "cob_sting"] },
   mycob: { tags: ["game_start", "alert", "timer_warning", "response_in", "success", "major_failure", "discovery", "chaos_up", "life_lost", "vote_start", "vote_result", "contained", "terminated", "escaped", "everyone_dies", "game_end"] },
   steamdeck: { tags: ["game_start", "alert", "timer_warning", "success", "major_failure", "discovery", "life_lost", "vote_result", "contained", "escaped", "jump", "land", "plank_place", "hazard_arm", "tilt_creak", "ui_click", "deck_shake", "achievement", "static"] },
   thud: { tags: ["game_start", "alert", "success", "major_failure", "discovery", "contained", "everyone_dies", "vote_start", "achievement", "ui_click", ...THUD] },
@@ -123,6 +130,8 @@ const FAMILY_OVERRIDES = {
   escaped: "critical", everyone_dies: "critical", emergency_allocation: "critical",
   incident_failed: "critical", department_failure: "critical", broadcast_error: "critical",
   segment_bad: "critical", deck_shake: "critical",
+  launch_shuffle: "movement", launch_stamp: "action", launch_pop: "result",
+  cob_pop: "movement", cob_sting: "result",
 };
 
 /** Shared audio-direction policy for a cue. Games still choose the clip; this controls how it sits in the mix. */
