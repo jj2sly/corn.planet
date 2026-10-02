@@ -9572,6 +9572,10 @@ a.deck-tile {
   letter-spacing: 0.18em;
 }
 
+.host-body[data-host-mode="lobby"] .join-hint {
+  font-size: clamp(0.8rem, 1.1vw, 1.3rem);
+}
+
 /* Lobby home: the join plate on the screen says it all, so the header keeps only the brand, the
    desktop app's QR (if it added one), the link light and Close session. Other hub pages keep the
    header's join line. */
@@ -9683,6 +9687,10 @@ a.deck-tile {
 
 .deck-home.host .deck-hero .deck-kicker {
   color: var(--yellow);
+}
+
+.deck-home.host .deck-hero-title.long {
+  font-size: clamp(1.1rem, 2.9cqw, 2.6rem);
 }
 
 .deck-home.host[data-ready="true"] .deck-hero {
@@ -9928,6 +9936,20 @@ a.deck-tile {
 
   .deck-hub-host .deck-view {
     padding: clamp(10px, 1.6cqw, 22px);
+  }
+
+  /* A long title (two lines) and the buttons still leave the shelf on screen. */
+  .deck-home.host .deck-hero-title {
+    font-size: clamp(1.15rem, 3.3cqw, 3rem);
+  }
+
+  .deck-home.host .deck-hero .deck-btn {
+    padding-inline: 12px;
+  }
+
+  .deck-home.host .deck-hero .deck-btn.big {
+    min-height: 46px;
+    padding-inline: 16px;
   }
 }
 
@@ -11238,7 +11260,7 @@ a.deck-tile {
 
 .cob-gain {
   color: var(--ok);
-  font-size: 0.52em;
+  font-size: 0.62em;
   animation: cob-tag 0.35s var(--d, 0ms) cubic-bezier(0.2, 1.6, 0.4, 1) backwards;
 }
 
@@ -11310,4 +11332,106 @@ a.deck-tile {
   .cob-move {
     animation: none !important;
   }
+}
+
+/* ---- TV readability: the lobby device's own chrome ---- */
+/* The status bar carries join / leave notices and the menu bar is how the host gets around: on the
+   TV they scale with its height instead of staying at phone size. */
+.deck-host .cpi-hh-status {
+  height: clamp(24px, 3.1vh, 38px);
+  font-size: clamp(11px, 1.45vh, 17px);
+}
+
+.deck-host .cpi-hh-mark {
+  font-size: clamp(11px, 1.4vh, 16px);
+}
+
+.deck-host .deck-tab {
+  min-height: clamp(38px, 4.6vh, 54px);
+  font-size: clamp(11px, 1.4vh, 17px);
+}
+
+.deck-host .deck-tab-icon {
+  font-size: clamp(15px, 1.9vh, 22px);
+}
+
+.deck-host .cpi-hh-label {
+  font-size: clamp(10px, 1.15vh, 14px);
+}
+
+/* Game tiles are buttons, and buttons don't inherit the hub's (TV-scaled) type size by default. */
+.deck-hub-host .deck-tile {
+  font-size: inherit;
+}
+
+.deck-home.host .deck-strip .deck-tile-title {
+  font-size: 0.74em;
+}
+
+.deck-hub-host .deck-tile-sub {
+  font-size: 0.62em;
+}
+
+.deck-host .cpi-hh-key {
+  font-size: clamp(9px, 1.05vh, 13px);
+}
+
+/* Handheld games on the TV: their small status text grows with the screen's height (a 720p TV keeps
+   the sizes these layouts were built around). Host page only; phones are untouched. */
+.host-body .td-roster li {
+  font-size: clamp(0.9rem, 1.7vh, 1.3rem);
+}
+
+.host-body .td-roster-birds,
+.host-body .td-roster-pts {
+  font-size: clamp(0.8rem, 1.45vh, 1.1rem);
+}
+
+.host-body .td-roster-tag:not(:empty) {
+  font-size: clamp(0.65rem, 1.25vh, 0.95rem);
+}
+
+.host-body .sd-badge-note {
+  font-size: clamp(0.6rem, 1.25vh, 0.95rem);
+}
+
+/* Game options on the TV hub: the form's labels are rem-sized for phones; here they follow the hub. */
+.deck-hub-host .deck-options legend {
+  font-size: 0.66em;
+}
+
+.deck-hub-host .deck-options .choice {
+  font-size: 0.82em;
+}
+
+/* Entity Auction on the TV: the bays' plates and states, and bigger bays on the (roomy) briefing. */
+.host-body .bay {
+  font-size: clamp(0.7rem, 1.15vh, 0.95rem);
+}
+
+.host-body .ea-brief + .facility {
+  grid-template-columns: repeat(auto-fill, minmax(clamp(72px, 9.5vh, 140px), 1fr));
+}
+
+.host-body .ea-brief + .facility:has(> :nth-child(25)) {
+  grid-template-columns: repeat(auto-fill, minmax(clamp(72px, 7.5vh, 110px), 1fr));
+}
+
+/* My Cob Escaped's incident board: headings and stamps follow the board instead of staying 12px. */
+.host-body .mc-board {
+  font-size: clamp(0.85rem, 1.75vh, 1.3rem);
+}
+
+.host-body .mc-board h3 {
+  font-size: 0.8em;
+}
+
+.host-body .mc-board .stamp,
+.host-body .mc-sit-label {
+  font-size: max(0.72rem, 0.72em);
+}
+
+/* The small line over every game heading ("Round 2 of 3 · matchup 1 of 4") reads from the sofa. */
+.host-body .stage .eyebrow {
+  font-size: clamp(0.85rem, max(1.05vw, 1.9vh), 1.45rem);
 }

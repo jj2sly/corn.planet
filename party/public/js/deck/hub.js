@@ -248,7 +248,7 @@ export function buildHub(s, opts) {
         "div",
         { class: "deck-hero-body" },
         el("p", { class: "deck-kicker", text: "SELECTED GAME" }),
-        el("h2", { class: "deck-hero-title", id: "deck-hero-title", text: info.title }),
+        el("h2", { class: `deck-hero-title ${info.title.length > 22 ? "long" : ""}`.trim(), id: "deck-hero-title", text: info.title }),
         el("p", { class: "deck-hero-tag", text: info.tagline }),
         facts(info),
         launch.node,
