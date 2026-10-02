@@ -13,8 +13,8 @@ import { el } from "../common.js";
 import { playSfx } from "../games/mycob-sound.js";
 import { cover, reducedMotion } from "./ui.js";
 
-/** Milliseconds from the start: when each beat happens, per pace. */
-const PACES = {
+/** Milliseconds from the start: when each beat happens, per pace (exit + leave is the total). */
+export const LAUNCH_PACES = {
   full: { paper: 60, stagger: 85, fly: 480, folder: 620, folderFly: 520, stamp: 1180, declass: 1440, pop: 1980, exit: 2880, leave: 340 },
   quick: { paper: 30, stagger: 50, fly: 360, folder: 330, folderFly: 400, stamp: 760, declass: 940, pop: 1330, exit: 2020, leave: 300 },
   calm: { paper: 0, stagger: 0, fly: 0, folder: 0, folderFly: 0, stamp: 0, declass: 0, pop: 260, exit: 1250, leave: 260 },
@@ -92,7 +92,7 @@ export function playCaseFileLaunch(info) {
   const calm = reducedMotion();
   const pace = calm ? "calm" : launches > 0 ? "quick" : "full";
   launches += 1;
-  const t = PACES[pace];
+  const t = LAUNCH_PACES[pace];
 
   const papers = PAPERS.map((p, i) => {
     const node = el("div", { class: `cf-paper cf-${p.kind}` }, paper(p.kind));

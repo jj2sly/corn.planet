@@ -1,13 +1,14 @@
 // Host screen: creates or resumes a session, runs the lobby (Steam My Deck's hub, deck/hub.js),
 // launches and shows the game, and the results.
 
-import { $, announce, createMount, el, flavorLine, loadConfig, notice, plural, scoreboardEl, startCountdowns, store } from "./common.js";
+import { $, announce, createMount, el, flavorLine, loadConfig, notice, plural, startCountdowns, store } from "./common.js";
 import { connect } from "./connection.js";
 import { setSoundScope } from "./games/mycob-sound.js";
 import { buildHub } from "./deck/hub.js";
 import { gameInfo, PLATFORM_NAME, setLibrary } from "./deck/library.js";
 import { installQuickMenu, rememberPlayed, setCoverPainters, setSystem } from "./deck/ui.js";
 import { playCaseFileLaunch, stopCaseFileLaunch } from "./deck/casefile.js";
+import { buildDebrief } from "./deck/debrief.js";
 import * as chaos from "./games/chaos-host.js";
 import * as budgetcuts from "./games/budgetcuts-host.js";
 import * as channelcob from "./games/channelcob-host.js";
@@ -552,41 +553,13 @@ function buildLobby(s) {
   });
 }
 
+/** The final debrief: outcome and winner first, then the standings and the game's highlights (deck/debrief.js). */
 function buildResults(s) {
-  const results = s.results;
-  const note = el("p", { class: "notice" });
-  const node = el(
-    "div",
-    { class: "stack" },
-    el("p", { class: "eyebrow", text: `${gameInfo(results.gameId)?.title ?? results.gameName} · ${plural(results.rounds, "round")} · operation complete` }),
-    el("h1", { class: "flicker", text: "FINAL DEBRIEF" }),
-    scoreboardEl(results.standings.map((st) => ({ ...st, note: st.left ? "Left" : null }))),
-    results.highlights.length
-      ? el(
-          "div",
-          { class: "highlights" },
-          results.highlights.map((h) =>
-            el(
-              "div",
-              { class: "panel quiet" },
-              el("p", { class: "eyebrow", text: h.title }),
-              h.text ? el("p", { class: "quote", text: `“${h.text}”` }) : null,
-              h.playerName ? el("p", {}, el("strong", { text: h.playerName })) : null,
-              el("p", { class: "muted", text: h.detail }),
-            ),
-          ),
-        )
-      : null,
-    el(
-      "div",
-      { class: "row" },
-      el("button", { class: "btn", type: "button", text: "▶ Play again", onclick: () => act("room:start", {}, note) }),
-      el("button", { class: "btn ghost", type: "button", text: `⌂ Back to ${PLATFORM_NAME}`, onclick: () => act("room:lobby", {}, note) }),
-    ),
-    note,
-  );
-  return { node };
+  return buildDebrief(s, {
+    again: (note) => act("room:start", {}, note),
+    lobby: (note) => act("room:lobby", {}, note),
+    lobbyLabel: PLATFORM_NAME,
+  });
 }
-
 
 init();

@@ -9579,39 +9579,39 @@ a.deck-tile {
   display: none;
 }
 
-/* While a game runs: a slim strip. Code and link stay readable but quiet; Skip / End game stay one
-   click away without competing with the game. */
-.host-body[data-host-mode="game"] .host-bar {
+/* While a game runs (and on its debrief): a slim strip. Code and link stay readable but quiet; Skip /
+   End game stay one click away without competing with the game. */
+.host-body:is([data-host-mode="game"], [data-host-mode="results"]) .host-bar {
   padding: 5px clamp(12px, 2vw, 28px);
   border-bottom: 1px solid rgba(255, 212, 0, 0.32);
 }
 
-.host-body[data-host-mode="game"] .host-bar .brand {
+.host-body:is([data-host-mode="game"], [data-host-mode="results"]) .host-bar .brand {
   font-size: clamp(0.8rem, 0.95vw, 1.05rem);
   opacity: 0.72;
 }
 
-.host-body[data-host-mode="game"] .join-hint {
+.host-body:is([data-host-mode="game"], [data-host-mode="results"]) .join-hint {
   font-size: clamp(0.85rem, 1.05vw, 1.3rem);
   letter-spacing: 0.06em;
   color: #9ea5ae;
 }
 
-.host-body[data-host-mode="game"] .join-hint .join-url {
+.host-body:is([data-host-mode="game"], [data-host-mode="results"]) .join-hint .join-url {
   color: #d8c25a;
 }
 
-.host-body[data-host-mode="game"] .join-hint .code {
+.host-body:is([data-host-mode="game"], [data-host-mode="results"]) .join-hint .code {
   padding: 0.05em 0.45em;
   font-size: 1.12em;
 }
 
-.host-body[data-host-mode="game"] #cpiDesktopJoinQr {
+.host-body:is([data-host-mode="game"], [data-host-mode="results"]) #cpiDesktopJoinQr {
   width: 46px !important;
   height: 46px !important;
 }
 
-.host-body[data-host-mode="game"] .host-ctl {
+.host-body:is([data-host-mode="game"], [data-host-mode="results"]) .host-ctl {
   min-height: 32px;
   border-color: #34383e;
   background: transparent;
@@ -9619,8 +9619,8 @@ a.deck-tile {
   opacity: 0.75;
 }
 
-.host-body[data-host-mode="game"] .host-ctl:hover,
-.host-body[data-host-mode="game"] .host-ctl:focus-visible {
+.host-body:is([data-host-mode="game"], [data-host-mode="results"]) .host-ctl:hover,
+.host-body:is([data-host-mode="game"], [data-host-mode="results"]) .host-ctl:focus-visible {
   border-color: var(--yellow);
   background: transparent;
   color: var(--yellow);
@@ -10564,5 +10564,425 @@ a.deck-tile {
 
   .cf-corn {
     display: none;
+  }
+}
+
+/* ---- the final debrief (js/deck/debrief.js) ---- */
+/* Outcome and winner first, standings second, highlights third, each entering a beat after the one
+   before (--in, set by the script). The game's own colours (--accent) and cover dress it. */
+
+.debrief {
+  display: grid;
+  gap: clamp(12px, 2.2vh, 28px);
+}
+
+.debrief-outcome,
+.debrief-winner,
+.debrief-board > li,
+.debrief-note {
+  animation: debrief-in 0.45s var(--in, 0ms) cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@keyframes debrief-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.debrief-winner {
+  animation-name: debrief-win;
+}
+
+@keyframes debrief-win {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  60% {
+    opacity: 1;
+  }
+}
+
+.debrief-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding-bottom: clamp(8px, 1.4vh, 16px);
+  border-bottom: 3px solid var(--accent, var(--yellow));
+}
+
+.debrief-kicker {
+  margin: 0;
+  color: var(--accent, var(--yellow));
+  font: 700 clamp(0.8rem, 1.7vh, 1.3rem) / 1.25 var(--mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.stage .debrief-title {
+  margin: 0.08em 0 0;
+  font-size: clamp(2rem, 6.4vh, 4.8rem);
+  line-height: 1;
+}
+
+.debrief-head-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.debrief-actions {
+  display: grid;
+  justify-items: end;
+}
+
+.debrief-actions .row {
+  flex-wrap: nowrap;
+}
+
+.debrief-actions .notice {
+  margin: 6px 0 0;
+  text-align: right;
+}
+
+.debrief-actions .notice:empty {
+  display: none;
+}
+
+.debrief-cover {
+  flex: none;
+  width: clamp(110px, 12vw, 230px);
+  transform: rotate(2.5deg);
+}
+
+.debrief-cover .deck-cover {
+  aspect-ratio: 16 / 10;
+  box-shadow:
+    0 0 0 3px #f2ecdc,
+    0 10px 24px rgba(0, 0, 0, 0.6);
+}
+
+.debrief-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: clamp(14px, 2.4vw, 40px);
+  align-items: start;
+}
+
+.debrief-main.board-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.debrief-lead {
+  display: grid;
+  gap: clamp(10px, 1.8vh, 20px);
+}
+
+.debrief-outcome {
+  padding: clamp(12px, 2vh, 22px) clamp(14px, 1.6vw, 24px);
+  border: 2px solid var(--accent, var(--yellow));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent, #ffd400) 16%, #0b0b0b), #0b0b0b 70%);
+  font-size: clamp(1rem, 2.1vh, 1.6rem);
+}
+
+.debrief-outcome p {
+  margin: 0;
+}
+
+.debrief-outcome-title {
+  color: #fff;
+  font: 700 clamp(1.6rem, 4.6vh, 3.6rem) / 1.05 var(--head);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.debrief-outcome-text {
+  margin-top: 0.45em !important;
+  color: #ebe5d2;
+  line-height: 1.35;
+}
+
+.debrief-outcome-detail {
+  margin-top: 0.5em !important;
+  color: #b9bfc7;
+  font: 700 0.74em/1.35 var(--mono);
+  letter-spacing: 0.06em;
+}
+
+.debrief-winner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2vw, 32px);
+  padding: clamp(18px, 2.8vh, 32px) clamp(16px, 2vw, 32px) clamp(14px, 2.4vh, 28px);
+  overflow: hidden;
+  border: 2px solid var(--yellow);
+  background:
+    radial-gradient(80% 120% at 0% 50%, color-mix(in srgb, var(--accent, #ffd400) 18%, transparent), transparent 70%),
+    #0b0b0b;
+  box-shadow: 0 0 40px rgba(255, 212, 0, 0.12);
+}
+
+.debrief-winner::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 6px;
+  background: repeating-linear-gradient(-45deg, var(--yellow) 0 10px, #111 10px 20px);
+}
+
+.debrief-winner p {
+  margin: 0;
+}
+
+.debrief-winner-faces {
+  display: flex;
+  flex: none;
+}
+
+.debrief-face {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border: 2px solid rgba(255, 212, 0, 0.55);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #2c3139, #101216);
+}
+
+.debrief-winner.tied .debrief-face + .debrief-face {
+  margin-left: -16px;
+}
+
+.debrief-winner-body {
+  min-width: 0;
+}
+
+.debrief-winner-label {
+  color: var(--accent, var(--yellow));
+  font: 700 clamp(0.85rem, 1.9vh, 1.4rem) / 1 var(--mono);
+  letter-spacing: 0.3em;
+}
+
+.debrief-winner-name {
+  margin-top: 0.12em !important;
+  color: #fff;
+  font: 700 clamp(2.2rem, 8.4vh, 6.4rem) / 1 var(--head);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.debrief-winner.tied .debrief-winner-name {
+  font-size: clamp(1.6rem, 5vh, 3.8rem);
+}
+
+.debrief-winner-score {
+  margin-top: 0.3em !important;
+  color: #c9cfd6;
+  font: 700 clamp(0.9rem, 2vh, 1.5rem) / 1 var(--mono);
+  letter-spacing: 0.14em;
+}
+
+.debrief-winner-score strong {
+  color: var(--yellow);
+  font-size: 1.6em;
+  letter-spacing: 0.02em;
+}
+
+.debrief-stamp {
+  position: absolute;
+  top: clamp(16px, 2.4vh, 26px);
+  right: clamp(10px, 1.4vw, 22px);
+  padding: 0.25em 0.6em;
+  border: 2px solid var(--ok);
+  border-radius: 4px;
+  color: var(--ok);
+  font: 700 clamp(0.7rem, 1.4vh, 1.05rem) / 1 var(--mono);
+  letter-spacing: 0.2em;
+  transform: rotate(6deg);
+  animation: debrief-stamp 0.4s calc(var(--in, 0ms) + 380ms) cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+@keyframes debrief-stamp {
+  from {
+    opacity: 0;
+    transform: rotate(6deg) scale(1.9);
+  }
+}
+
+.debrief-board {
+  display: grid;
+  gap: clamp(4px, 0.8vh, 10px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.debrief-board li {
+  display: grid;
+  grid-template-columns: 2.8em auto minmax(0, 1fr) minmax(48px, 0.7fr) auto;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.28em 0.7em 0.28em 0.5em;
+  border: 1px solid #262626;
+  background: #0b0b0b;
+  font: 700 clamp(1rem, 2.75vh, 2.1rem) / 1.1 var(--head);
+  letter-spacing: 0.03em;
+}
+
+.debrief-board.many li {
+  padding-block: 0.16em;
+  font-size: clamp(0.95rem, 2.35vh, 1.8rem);
+}
+
+.debrief-board li.first {
+  border-color: var(--yellow);
+  background: linear-gradient(90deg, rgba(255, 212, 0, 0.13), #0b0b0b 65%);
+}
+
+.debrief-board li.left {
+  opacity: 0.6;
+}
+
+.debrief-rank {
+  color: #9aa1ab;
+  font-family: var(--mono);
+  font-size: 0.78em;
+}
+
+.debrief-board li.first .debrief-rank {
+  color: var(--yellow);
+}
+
+.debrief-row-face {
+  display: grid;
+  place-items: center;
+}
+
+.debrief-row-name {
+  color: #f2f2f2;
+  overflow-wrap: anywhere;
+}
+
+.debrief-row-name .stamp {
+  margin-left: 0.5em;
+  font-size: 0.5em;
+  vertical-align: middle;
+}
+
+.debrief-bar {
+  height: 0.45em;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #1c1c1c;
+}
+
+.debrief-bar span {
+  display: block;
+  width: var(--pct, 0%);
+  height: 100%;
+  background: var(--accent, var(--yellow));
+  transform-origin: left;
+  animation: debrief-bar 0.7s calc(var(--in, 0ms) + 140ms) ease-out both;
+}
+
+.debrief-board li.first .debrief-bar span {
+  background: var(--yellow);
+}
+
+@keyframes debrief-bar {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.debrief-row-score {
+  min-width: 3.4em;
+  color: var(--yellow);
+  font-family: var(--mono);
+  text-align: right;
+}
+
+.debrief-notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: clamp(8px, 1.4vw, 16px);
+}
+
+.debrief-note {
+  padding: clamp(10px, 1.6vh, 18px) clamp(12px, 1.2vw, 18px);
+  border: 1px solid #2c2c2c;
+  border-top: 3px solid var(--accent, var(--yellow));
+  background: #0b0b0b;
+  font-size: clamp(0.9rem, 2.15vh, 1.55rem);
+}
+
+.debrief-note p {
+  margin: 0;
+}
+
+.debrief-note-title {
+  color: var(--accent, var(--yellow));
+  font: 700 0.72em/1.25 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.debrief-note-quote {
+  margin-top: 0.4em !important;
+  font-size: 1.05em;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.debrief-note-who {
+  margin-top: 0.35em !important;
+  color: #fff;
+  font: 700 1em/1.2 var(--head);
+  letter-spacing: 0.04em;
+}
+
+.debrief-note-detail {
+  margin-top: 0.3em !important;
+  color: #aab0b8;
+  font-size: 0.85em;
+  line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+  .debrief-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .debrief-head {
+    flex-wrap: wrap;
+  }
+
+  .debrief-actions {
+    order: 3;
+    justify-items: start;
+  }
+
+  .debrief-cover {
+    width: 110px;
+  }
+}
+
+@media (max-height: 820px) {
+  .host-body[data-host-mode="results"] .host-foot {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .debrief-outcome,
+  .debrief-winner,
+  .debrief-board > li,
+  .debrief-note,
+  .debrief-stamp,
+  .debrief-bar span {
+    animation: none;
   }
 }
