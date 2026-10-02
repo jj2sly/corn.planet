@@ -3,6 +3,7 @@
 
 import { $, announce, createMount, el, flavorLine, loadConfig, notice, plural, startCountdowns, store } from "./common.js";
 import { connect } from "./connection.js";
+import { createAmbient } from "./host-ambient.js";
 import { setSoundScope } from "./games/mycob-sound.js";
 import { buildHub } from "./deck/hub.js";
 import { gameInfo, PLATFORM_NAME, setLibrary } from "./deck/library.js";
@@ -27,6 +28,8 @@ let requestedGameHandled = false;
 
 const stage = $("#stage");
 const mount = createMount(stage);
+// The quiet themed layer behind a running game (the lobby and results have their own look).
+const ambient = createAmbient(document.body);
 let config = null;
 let conn = null;
 let state = null;
@@ -194,6 +197,7 @@ function onEnded(info) {
   $("#hostControls").replaceChildren();
   barStatus = null;
   setHostMode("closed");
+  ambient.hide();
   stage.replaceChildren(
     el(
       "div",
@@ -271,6 +275,7 @@ function render() {
   $("#joinUrl").textContent = joinUrl();
   $("#barCode").textContent = state.code;
   renderBarControls();
+  ambient.show(state.status === "IN_GAME" ? state.config.gameId : null, state.game?.phase);
 
   if (state.status === "LOBBY") return mount(`lobby:${state.code}`, buildLobby, state);
   if (state.status === "FINAL_RESULTS") return mount(`results:${state.code}:${JSON.stringify(state.results?.standings)}`, buildResults, state);

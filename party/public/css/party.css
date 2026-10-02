@@ -11996,3 +11996,628 @@ a.deck-tile {
 .host-body .stage .eyebrow {
   font-size: clamp(0.85rem, max(1.05vw, 1.9vh), 1.45rem);
 }
+
+/* ---- Host ambient backgrounds (js/host-ambient.js) ---- */
+/* A quiet, game-specific layer far behind the game: ghosted CPI paperwork, terminal columns, traces,
+   indicator lights. Decorative only: behind everything (z-index -1, so the page background is the
+   html element's), no pointer events, low contrast, slow transform/opacity loops, no filters.
+   Reduced motion keeps the look and stops the movement. Phones never load any of this. */
+
+.host-body {
+  background: transparent;
+}
+
+.host-ambient {
+  --amb: 255, 212, 0;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  contain: strict;
+  pointer-events: none;
+  opacity: 0.8;
+  transition: opacity 1.4s ease;
+  animation: amb-in 2s ease-out backwards;
+}
+
+.host-ambient[data-mood="active"] {
+  opacity: 1;
+}
+
+.host-ambient[data-theme="bay"] {
+  --amb: 120, 210, 200;
+}
+
+.host-ambient[data-theme="ledger"] {
+  --amb: 143, 224, 96;
+}
+
+.host-ambient[data-theme="newsroom"] {
+  --amb: 150, 185, 255;
+}
+
+.host-ambient[data-theme="facility"] {
+  --amb: 255, 140, 110;
+}
+
+.host-ambient[data-theme="database"] {
+  --amb: 238, 226, 160;
+}
+
+.host-ambient[data-theme="device"] {
+  --amb: 215, 160, 255;
+}
+
+.host-ambient[data-theme="range"] {
+  --amb: 190, 198, 208;
+}
+
+@keyframes amb-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.amb-layer {
+  position: absolute;
+  inset: 0;
+}
+
+/* The centre stays quieter than the edges: a static dimming over every layer. */
+.amb-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 64% 58% at 50% 48%, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.36) 58%, transparent 100%);
+}
+
+/* ---- grid and light ---- */
+
+.amb-grid {
+  inset: -64px;
+  background-image: linear-gradient(rgba(var(--amb), 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--amb), 0.05) 1px, transparent 1px);
+  background-size: 64px 64px;
+  animation: amb-grid 70s linear infinite;
+}
+
+@keyframes amb-grid {
+  to {
+    transform: translate3d(64px, 64px, 0);
+  }
+}
+
+.amb-sweep-band {
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: 0;
+  width: 36%;
+  background: linear-gradient(100deg, transparent, rgba(var(--amb), 0.055) 50%, transparent);
+  transform: translateX(-110%) skewX(-18deg);
+  animation: amb-sweep var(--dur, 40s) linear infinite;
+  will-change: transform;
+}
+
+@keyframes amb-sweep {
+  to {
+    transform: translateX(310%) skewX(-18deg);
+  }
+}
+
+.amb-scan-bar {
+  position: absolute;
+  background: linear-gradient(180deg, transparent, rgba(var(--amb), 0.045) 70%, rgba(var(--amb), 0.11) 99%, transparent);
+  will-change: transform;
+}
+
+.amb-scan-y .amb-scan-bar {
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 12vh;
+  transform: translateY(-14vh);
+  animation: amb-scan-y var(--dur, 40s) linear infinite;
+}
+
+.amb-scan-x .amb-scan-bar {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 10vw;
+  background: linear-gradient(90deg, transparent, rgba(var(--amb), 0.045) 70%, rgba(var(--amb), 0.1) 99%, transparent);
+  transform: translateX(-12vw);
+  animation: amb-scan-x var(--dur, 40s) linear infinite;
+}
+
+@keyframes amb-scan-y {
+  to {
+    transform: translateY(105vh);
+  }
+}
+
+@keyframes amb-scan-x {
+  to {
+    transform: translateX(105vw);
+  }
+}
+
+/* ---- paper ---- */
+
+.amb-card {
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  overflow: hidden;
+  width: var(--w);
+  padding: 10px 12px 12px;
+  border: 1px solid rgba(var(--amb), 0.16);
+  background: rgba(var(--amb), 0.032);
+  color: rgba(var(--amb), 0.27);
+  font: 700 clamp(9px, 0.7vw, 12px) / 1 var(--mono);
+  letter-spacing: 0.12em;
+  transform: rotate(var(--rot));
+  animation: amb-drift var(--dur) ease-in-out var(--delay) infinite alternate;
+  will-change: transform;
+}
+
+.amb-card-title {
+  display: block;
+  white-space: nowrap;
+}
+
+.amb-line,
+.amb-redact {
+  display: block;
+  width: var(--w);
+  height: 5px;
+  margin-top: 7px;
+  background: rgba(var(--amb), 0.1);
+}
+
+/* Redaction: a solid bar sliding slowly along the line it covers. */
+.amb-redact {
+  height: 9px;
+  background: rgba(var(--amb), 0.26);
+  animation: amb-slide var(--dur) ease-in-out var(--delay) infinite alternate;
+}
+
+@keyframes amb-drift {
+  from {
+    transform: translate3d(0, 0, 0) rotate(var(--rot));
+  }
+  to {
+    transform: translate3d(var(--dx), var(--dy), 0) rotate(var(--rot2));
+  }
+}
+
+@keyframes amb-slide {
+  from {
+    transform: translateX(-30%);
+  }
+  to {
+    transform: translateX(80%);
+  }
+}
+
+/* ---- terminal text ---- */
+
+.amb-col {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--x);
+  overflow: hidden;
+  width: clamp(130px, 12vw, 230px);
+  -webkit-mask-image: linear-gradient(transparent, #000 16%, #000 84%, transparent);
+  mask-image: linear-gradient(transparent, #000 16%, #000 84%, transparent);
+}
+
+.amb-col-text {
+  margin: 0;
+  color: rgba(var(--amb), 0.25);
+  font: 400 clamp(9px, 0.78vw, 13px) / 1.9 var(--mono);
+  white-space: pre;
+  animation: amb-scroll var(--dur) linear var(--delay) infinite;
+  will-change: transform;
+}
+
+@keyframes amb-scroll {
+  to {
+    transform: translate3d(0, -50%, 0);
+  }
+}
+
+.amb-ticker-strip {
+  position: absolute;
+  top: var(--y);
+  left: 0;
+  width: max-content;
+  color: rgba(var(--amb), 0.17);
+  font: 400 clamp(10px, 0.85vw, 14px) / 1 var(--mono);
+  letter-spacing: 0.18em;
+  white-space: nowrap;
+  animation: amb-ticker var(--dur) linear infinite;
+  will-change: transform;
+}
+
+@keyframes amb-ticker {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* A stamp that fades up for a few seconds, now and then. Never bright, never near the middle. */
+.amb-stamp {
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  padding: 0.12em 0.5em;
+  border: 3px solid rgba(var(--amb), 0.55);
+  color: rgba(var(--amb), 0.55);
+  font: 700 clamp(26px, 3.6vw, 64px) / 1 var(--head);
+  letter-spacing: 0.14em;
+  opacity: 0;
+  transform: rotate(var(--rot));
+  animation: amb-stamp var(--dur) ease-in-out var(--delay) infinite;
+}
+
+@keyframes amb-stamp {
+  0%,
+  58% {
+    opacity: 0;
+  }
+  64%,
+  76% {
+    opacity: 0.1;
+  }
+  84%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---- traces, lights, meters ---- */
+
+.amb-wave-box {
+  position: absolute;
+  top: var(--top);
+  right: 0;
+  left: 0;
+  overflow: hidden;
+  height: 12vh;
+}
+
+.amb-wave-svg {
+  display: block;
+  width: 200%;
+  height: 100%;
+  animation: amb-ticker var(--dur) linear infinite;
+  will-change: transform;
+}
+
+.amb-wave-path {
+  stroke: rgba(var(--amb), 0.17);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.amb-light {
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(var(--amb), 0.6);
+  opacity: 0.06;
+  animation: amb-glow var(--dur) ease-in-out var(--delay) infinite;
+}
+
+.amb-light.hot {
+  background: rgba(255, 107, 94, 0.7);
+}
+
+@keyframes amb-glow {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.amb-signal-bars {
+  position: absolute;
+  bottom: 4%;
+  left: var(--x);
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 10vh;
+}
+
+.amb-signal-bar {
+  width: 5px;
+  height: 100%;
+  background: rgba(var(--amb), 0.17);
+  transform: scaleY(var(--hi));
+  transform-origin: bottom;
+  animation: amb-bar var(--dur) ease-in-out var(--delay) infinite alternate;
+}
+
+@keyframes amb-bar {
+  from {
+    transform: scaleY(var(--lo));
+  }
+  to {
+    transform: scaleY(var(--hi));
+  }
+}
+
+/* ---- bays, monitors ---- */
+
+.amb-plate-row {
+  position: absolute;
+  top: var(--y);
+  left: 0;
+  display: flex;
+  gap: 28px;
+  width: max-content;
+  animation: amb-ticker var(--dur) linear infinite;
+  will-change: transform;
+}
+
+.amb-plate-row.rev {
+  animation-direction: reverse;
+}
+
+.amb-plate {
+  flex: none;
+  width: calc(150px * var(--scale));
+  padding: 8px 10px;
+  border: 1px solid rgba(var(--amb), 0.12);
+  background: rgba(var(--amb), 0.02);
+  color: rgba(var(--amb), 0.2);
+  font: 700 calc(11px * var(--scale)) / 1 var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.amb-plate-bar {
+  display: block;
+  width: var(--w);
+  height: 4px;
+  margin-top: 10px;
+  background: rgba(var(--amb), 0.09);
+}
+
+.amb-monitor {
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  width: clamp(110px, 10vw, 200px);
+  aspect-ratio: 16 / 10;
+  border: 1px solid rgba(var(--amb), 0.14);
+  background: rgba(var(--amb), 0.025);
+  color: rgba(var(--amb), 0.22);
+  font: 700 10px / 1 var(--mono);
+  letter-spacing: 0.14em;
+  animation: amb-breathe var(--dur) ease-in-out var(--delay) infinite;
+}
+
+.amb-monitor b {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+}
+
+.amb-bars {
+  position: absolute;
+  inset: 8px 8px 22px;
+  background: repeating-linear-gradient(90deg, rgba(var(--amb), 0.17) 0 14%, transparent 14% 16.6%, rgba(255, 255, 255, 0.09) 16.6% 30%, transparent 30% 33.3%);
+}
+
+@keyframes amb-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ---- schematics ---- */
+
+.amb-rings-svg {
+  position: absolute;
+  top: calc(var(--y) - var(--size) / 2);
+  left: calc(var(--x) - var(--size) / 2);
+  width: var(--size);
+  height: var(--size);
+  overflow: visible;
+}
+
+.amb-ring,
+.amb-ring-tick,
+.amb-ring-pulse,
+.amb-plan-path {
+  stroke: rgba(var(--amb), 0.22);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.amb-ring.dashed {
+  stroke-dasharray: 4 7;
+}
+
+.amb-ring-spin {
+  animation: amb-spin var(--dur) linear infinite;
+}
+
+.amb-ring-pulse {
+  stroke: rgba(var(--amb), 0.5);
+  opacity: 0;
+  animation: amb-ring-pulse 18s ease-out infinite;
+}
+
+@keyframes amb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes amb-ring-pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.25);
+  }
+  5% {
+    opacity: 0.22;
+  }
+  32%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.amb-plan-svg {
+  position: absolute;
+  inset: -3%;
+  width: 106%;
+  height: 106%;
+  animation: amb-plan var(--dur) ease-in-out infinite alternate;
+}
+
+.amb-plan-path {
+  stroke: rgba(var(--amb), 0.16);
+}
+
+@keyframes amb-plan {
+  to {
+    transform: translate3d(-1.6%, -1.2%, 0);
+  }
+}
+
+/* ---- range ---- */
+
+.amb-reticle {
+  position: absolute;
+  width: clamp(40px, 5vw, 90px);
+  aspect-ratio: 1;
+  border: 0 solid rgba(var(--amb), 0.16);
+}
+
+.amb-reticle-tl {
+  top: 3%;
+  left: 2%;
+  border-width: 2px 0 0 2px;
+}
+
+.amb-reticle-tr {
+  top: 3%;
+  right: 2%;
+  border-width: 2px 2px 0 0;
+}
+
+.amb-reticle-bl {
+  bottom: 3%;
+  left: 2%;
+  border-width: 0 0 2px 2px;
+}
+
+.amb-reticle-br {
+  right: 2%;
+  bottom: 3%;
+  border-width: 0 2px 2px 0;
+}
+
+.amb-hills {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 16vh;
+}
+
+.amb-hills-path {
+  fill: rgba(var(--amb), 0.05);
+}
+
+/* ---- alert: a red edge glow, only while the game is in a danger phase ---- */
+
+.amb-alert-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 56%, rgba(255, 70, 50, 0.17) 100%);
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+
+.host-ambient[data-mood="alert"] .amb-alert-glow {
+  opacity: 1;
+  animation: amb-alert 8s ease-in-out infinite;
+}
+
+@keyframes amb-alert {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ---- reduced motion: the same look, standing still ---- */
+
+.host-ambient[data-motion="still"],
+.host-ambient[data-motion="still"] * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.host-ambient[data-motion="still"] .amb-stamp {
+  opacity: 0.07;
+}
+
+.host-ambient[data-motion="still"] .amb-light {
+  opacity: 0.2;
+}
+
+.host-ambient[data-motion="still"] .amb-sweep-band {
+  transform: translateX(110%) skewX(-18deg);
+}
+
+.host-ambient[data-motion="still"] .amb-scan-y .amb-scan-bar {
+  transform: translateY(38vh);
+}
+
+.host-ambient[data-motion="still"] .amb-scan-x .amb-scan-bar {
+  transform: translateX(58vw);
+}
+
+.host-ambient[data-motion="still"][data-mood="alert"] .amb-alert-glow {
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .host-ambient,
+  .host-ambient * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .amb-stamp {
+    opacity: 0.07;
+  }
+
+  .amb-light {
+    opacity: 0.2;
+  }
+
+  .amb-sweep-band {
+    transform: translateX(110%) skewX(-18deg);
+  }
+
+  .amb-scan-y .amb-scan-bar {
+    transform: translateY(38vh);
+  }
+
+  .amb-scan-x .amb-scan-bar {
+    transform: translateX(58vw);
+  }
+
+  .host-ambient[data-mood="alert"] .amb-alert-glow {
+    opacity: 0.8;
+  }
+}
