@@ -10986,3 +10986,328 @@ a.deck-tile {
     animation: none;
   }
 }
+
+/* ---- Cornlashing: the cob scoreboard (js/games/chaos-host.js) ---- */
+/* A corn cob lying across the TV, one lane of kernels per agent. Lanes light up, this round's kernels
+   pop in, the lanes slide into their new order, the top agent is crowned. The numbers stay readable
+   beside every lane. Finite animations only; with reduced motion it is drawn already settled. */
+
+.cob-standings {
+  display: grid;
+  gap: clamp(6px, 1.2vh, 14px);
+}
+
+.cob-standings .phase-head {
+  margin-bottom: 0;
+}
+
+.cob-next {
+  margin: 0;
+  font: 700 clamp(0.95rem, 2vh, 1.5rem) / 1.2 var(--mono);
+  letter-spacing: 0.08em;
+}
+
+.cob-board {
+  --label-w: clamp(200px, calc(23vw + (8 - var(--lanes, 4)) * 0.6vw), 440px);
+  --score-w: clamp(180px, 18vw, 340px);
+  /* A lane is --rows kernel rows tall (a small room gets thicker bands, so it's still a cob). */
+  --lane-h: clamp(30px, calc((60vh - 110px) / var(--lanes, 4)), calc(64px * var(--rows, 1)));
+  --row-h: calc(var(--lane-h) / var(--rows, 1));
+  --cap: calc(var(--row-h) * 0.9 + var(--lane-h) * var(--lanes, 4) * 0.04);
+  position: relative;
+  padding: calc(var(--row-h) * 0.55) 0;
+}
+
+.cob-body {
+  position: absolute;
+  inset: 0 calc(var(--score-w) + 12px) 0 calc(var(--label-w) + 12px);
+  border-radius: calc(var(--cap) * 0.8) calc(var(--cap) * 1.2) calc(var(--cap) * 1.2) calc(var(--cap) * 0.8) / 50%;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 24%, rgba(255, 236, 170, 0.08) 47%, transparent 64%, rgba(0, 0, 0, 0.65)),
+    radial-gradient(circle at 50% 42%, #4d3b14 0 33%, transparent 37%) 0 0 / calc(var(--row-h) * 0.62) calc(var(--row-h) * 0.62),
+    #241b09;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 2px rgba(255, 212, 0, 0.08);
+  animation: cob-in 0.3s ease-out backwards;
+}
+
+@keyframes cob-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0.94);
+  }
+}
+
+.cob-husk {
+  position: absolute;
+  z-index: 1;
+  top: -4%;
+  bottom: -4%;
+  left: calc(var(--label-w) + 12px - var(--cap) * 0.6);
+  width: calc(var(--cap) * 1.6);
+  height: 108%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cob-leaf {
+  fill: url(#cob-husk-shade);
+  stroke: rgba(30, 24, 6, 0.6);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.cob-leaf.inner {
+  fill: #a9a250;
+}
+
+/* The top agent's husk glows once they're crowned (a static glow, set once). */
+.cob-board.crowned .cob-husk {
+  filter: drop-shadow(0 0 10px rgba(255, 212, 0, 0.45));
+}
+
+.cob-lanes {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cob-lane {
+  display: grid;
+  grid-template-columns: var(--label-w) minmax(0, 1fr) var(--score-w);
+  align-items: center;
+  column-gap: calc(var(--cap) + 12px);
+  height: var(--lane-h);
+  animation: cob-lane-in 0.35s var(--act, 0ms) ease-out backwards;
+}
+
+@keyframes cob-lane-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+
+.cob-board.still .cob-lane,
+.cob-board.still .cob-body {
+  animation: none;
+}
+
+.cob-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  min-width: 0;
+  padding-right: calc(var(--cap) * 0.6);
+  font: 700 clamp(1rem, calc(var(--row-h) * 0.38 + var(--rows, 1) * 3px), 2.2rem) / 1.1 var(--head);
+  letter-spacing: 0.03em;
+}
+
+.cob-rank {
+  flex: none;
+  width: 2.1em;
+  color: #9aa1ab;
+  font-family: var(--mono);
+  font-size: 0.72em;
+}
+
+.cob-lane.crowned .cob-rank {
+  color: var(--yellow);
+}
+
+.cob-face {
+  display: grid;
+  flex: none;
+  place-items: center;
+}
+
+.cob-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #f4f4f4;
+  font-size: calc(1em * var(--fit, 1));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cob-lane.offline .cob-name {
+  opacity: 0.55;
+}
+
+.cob-move {
+  flex: none;
+  font: 700 0.6em/1 var(--mono);
+}
+
+.cob-move.up {
+  color: var(--ok);
+}
+
+.cob-move.down {
+  color: var(--danger);
+}
+
+.cob-move:not(:empty) {
+  animation: cob-tag 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.cob-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows, 1), minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: 3px;
+  height: 100%;
+  padding: 4px 0;
+  border-radius: 6px;
+}
+
+.cob-k {
+  position: relative;
+  border-radius: 42% 42% 32% 32% / 40% 40% 28% 28%;
+  background: linear-gradient(180deg, #3d2f10, #2a200a);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.cob-k.lit::after,
+.cob-k.pop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+/* Points from earlier rounds: already-golden kernels, lit as the lane activates. */
+.cob-k.lit::after {
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 240, 190, 0.85) 0 13%, transparent 30%),
+    linear-gradient(180deg, #dcad36, #ad7f18);
+  animation: cob-lit 0.25s var(--d, 0ms) ease-out backwards;
+}
+
+/* This round's points: brighter kernels that pop in one after another. */
+.cob-k.pop::after {
+  background:
+    radial-gradient(circle at 34% 26%, #fffbe6 0 15%, transparent 32%),
+    linear-gradient(180deg, #ffe066, #e6ad1f);
+  box-shadow: 0 0 6px rgba(255, 214, 70, 0.45);
+  animation: cob-pop 0.34s var(--d, 0ms) cubic-bezier(0.3, 1.8, 0.5, 1) backwards;
+}
+
+@keyframes cob-lit {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes cob-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.25);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.28);
+  }
+}
+
+.cob-board.still .cob-k::after {
+  animation: none;
+}
+
+.cob-lane.crowned .cob-row {
+  box-shadow:
+    0 0 0 2px rgba(255, 212, 0, 0.55),
+    0 0 22px rgba(255, 212, 0, 0.3);
+}
+
+.cob-score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.15em 0.4em;
+  min-width: 0;
+  color: var(--yellow);
+  font: 700 clamp(1rem, calc(var(--row-h) * 0.4 + 4px), 2.6rem) / 1 var(--mono);
+}
+
+.cob-gain {
+  color: var(--ok);
+  font-size: 0.52em;
+  animation: cob-tag 0.35s var(--d, 0ms) cubic-bezier(0.2, 1.6, 0.4, 1) backwards;
+}
+
+/* TOP COB: a hazard tag pinned to the end of the top agent's lane, sticking up off the cob. */
+.cob-tag {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 0;
+  padding: 0.3em 0.5em;
+  border: 2px solid #111;
+  background: repeating-linear-gradient(-45deg, var(--yellow) 0 6px, #ffe45c 6px 12px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+  color: #111;
+  font: 700 clamp(0.62rem, calc(var(--row-h) * 0.26), 1rem) / 1 var(--mono);
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  transform: translate(28%, -62%) rotate(7deg);
+}
+
+.cob-lane.crowned .cob-tag {
+  display: block;
+  animation: cob-tag-pin 0.4s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+/* Tied at the top: one tag, on the first of them. */
+.cob-lane.crowned ~ .cob-lane.crowned .cob-tag {
+  display: none;
+}
+
+@keyframes cob-tag-pin {
+  from {
+    opacity: 0;
+    transform: translate(28%, -62%) rotate(7deg) scale(1.9);
+  }
+}
+
+@keyframes cob-tag {
+  from {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+.cob-board.still .cob-tag,
+.cob-board.still .cob-gain,
+.cob-board.still .cob-move {
+  animation: none;
+}
+
+@media (max-width: 760px) {
+  .cob-board {
+    --label-w: 34vw;
+    --score-w: 22vw;
+  }
+
+  .cob-face {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cob-body,
+  .cob-lane,
+  .cob-k::after,
+  .cob-tag,
+  .cob-gain,
+  .cob-move {
+    animation: none !important;
+  }
+}
