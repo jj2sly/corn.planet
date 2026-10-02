@@ -9579,7 +9579,7 @@ a.deck-tile {
 /* Lobby home: the join plate on the screen says it all, so the header keeps only the brand, the
    desktop app's QR (if it added one), the link light and Close session. Other hub pages keep the
    header's join line. */
-.host-body:has(.deck-home.host) .join-hint > span {
+.host-body:has(.deck-home.host) .join-hint > span:not(#cpiDesktopJoinOverlay) {
   display: none;
 }
 
