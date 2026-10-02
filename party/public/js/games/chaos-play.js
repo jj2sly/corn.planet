@@ -86,7 +86,7 @@ function buildAnswerForm(s, assignment, index, total, tools) {
   const form = el(
     "form",
     {
-      class: "stack",
+      class: "stack chaos-answer-form",
       onsubmit: async (e) => {
         e.preventDefault();
         if (!textarea.value.trim()) {
