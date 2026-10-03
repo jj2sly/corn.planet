@@ -46,14 +46,14 @@ interface RoleDef {
 
 /** Assigned in this order, so small games always have an anchor, a reporter and CPI's mouthpiece. */
 export const ROLES: readonly RoleDef[] = [
-  { id: "anchor", name: "News Anchor", glyph: "🎙️", job: "Run the show. Introduce the story, question the others, hand off.", prompts: ["Recap the story for viewers just joining.", "Ask {next} what's going on.", "Press {spokes} on why the alarms are sounding.", "Read the ticker out loud like it's urgent.", "Thank everyone and pretend this is fine."] },
-  { id: "reporter", name: "Field Reporter", glyph: "📡", job: "You're at the scene. Describe what you see. Don't read your notes word for word.", prompts: ["Something just moved behind you.", "Describe the smell. Be specific.", "Interview someone nearby (point at a player).", "You've been here for hours. Show it.", "Tell the anchor they're not getting the full picture."] },
-  { id: "spokesperson", name: "CPI Spokesperson", glyph: "🏛️", job: "Keep the public calm. Protect the CPI. Never admit more than you must.", prompts: ["Deny responsibility.", "Blame the weather.", "Thank the public for its patience.", "Say 'routine' at least twice.", "Call the last report 'speculation'."] },
-  { id: "expert", name: "Expert Analyst", glyph: "🧠", job: "Explain the entity and the danger. Use big words.", prompts: ["Explain what happens if containment fails.", "Draw an invisible diagram in the air.", "Disagree with the last speaker, politely.", "Give a probability. Make it oddly precise.", "Explain it again, simpler, for the anchor."] },
-  { id: "eyewitness", name: "Eyewitness", glyph: "👀", job: "You saw it. Probably. Tell your story with total confidence.", prompts: ["Describe what you saw. Add one detail.", "Contradict the reporter.", "Mention your cousin, who also saw it.", "Get emotional about it.", "Change one detail of your story."] },
-  { id: "investigator", name: "Investigative Reporter", glyph: "🕵️", job: "You have leaks. Expose the truth before CPI shuts you down.", prompts: ["Hint that you know more.", "Ask the spokesperson about the leak.", "Reveal one leaked detail.", "Say 'sources tell me'.", "Accuse someone of a cover-up."] },
-  { id: "hazard", name: "Weather & Hazard Desk", glyph: "🌪️", job: "Track the hazards. Warn people, or reassure them.", prompts: ["Show us the hazard map (gesture at the TV).", "Give the five-minute forecast.", "Rate the danger from 1 to corn.", "Tell viewers what to bring indoors.", "Announce a brand-new hazard category."] },
-  { id: "production", name: "Camera & Production", glyph: "🎬", job: "Keep Channel Cob on air. Call cuts, cue people, fix problems.", prompts: ["Tell the anchor to wrap it up.", "Call 'cut to the field!'", "Announce a technical difficulty.", "Count someone in: '3, 2, 1…'", "Whisper-shout instructions at the anchor."] },
+  { id: "anchor", name: "News Anchor", glyph: "🎙️", job: "Run the show. Hand off to the others.", prompts: ["Recap the story for viewers just joining.", "Ask {next} what's going on.", "Press {spokes} on why the alarms are sounding.", "Read the ticker out loud like it's urgent.", "Thank everyone and pretend this is fine."] },
+  { id: "reporter", name: "Field Reporter", glyph: "📡", job: "Describe what you see at the scene.", prompts: ["Something just moved behind you.", "Describe the smell. Be specific.", "Interview someone nearby (point at a player).", "You've been here for hours. Show it.", "Tell the anchor they're not getting the full picture."] },
+  { id: "spokesperson", name: "CPI Spokesperson", glyph: "🏛️", job: "Calm the public. Protect the CPI.", prompts: ["Deny responsibility.", "Blame the weather.", "Thank the public for its patience.", "Say 'routine' at least twice.", "Call the last report 'speculation'."] },
+  { id: "expert", name: "Expert Analyst", glyph: "🧠", job: "Explain the danger. Use big words.", prompts: ["Explain what happens if containment fails.", "Draw an invisible diagram in the air.", "Disagree with the last speaker, politely.", "Give a probability. Make it oddly precise.", "Explain it again, simpler, for the anchor."] },
+  { id: "eyewitness", name: "Eyewitness", glyph: "👀", job: "Tell what you saw. Be confident.", prompts: ["Describe what you saw. Add one detail.", "Contradict the reporter.", "Mention your cousin, who also saw it.", "Get emotional about it.", "Change one detail of your story."] },
+  { id: "investigator", name: "Investigative Reporter", glyph: "🕵️", job: "Expose the truth. Hint at your leaks.", prompts: ["Hint that you know more.", "Ask the spokesperson about the leak.", "Reveal one leaked detail.", "Say 'sources tell me'.", "Accuse someone of a cover-up."] },
+  { id: "hazard", name: "Weather & Hazard Desk", glyph: "🌪️", job: "Warn people, or reassure them.", prompts: ["Show us the hazard map (gesture at the TV).", "Give the five-minute forecast.", "Rate the danger from 1 to corn.", "Tell viewers what to bring indoors.", "Announce a brand-new hazard category."] },
+  { id: "production", name: "Camera & Production", glyph: "🎬", job: "Keep it on air. Cue and cut.", prompts: ["Tell the anchor to wrap it up.", "Call 'cut to the field!'", "Announce a technical difficulty.", "Count someone in: '3, 2, 1…'", "Whisper-shout instructions at the anchor."] },
 ];
 const ROLE_BY_ID = new Map(ROLES.map((r) => [r.id, r]));
 
@@ -715,7 +715,7 @@ class ChannelCobGame implements GameInstance {
         // Cut straight to whoever has the news, for a full turn.
         this.ctx.clearTimer();
         this.breakingSpeaker = role;
-        this.promptFor.set(role, "BREAKING: tell everyone what you just learned.");
+        this.promptFor.set(role, "Tell everyone what you just learned.");
         this.schedule(this.turnMs(), () => this.nextTurn());
         break;
       }
@@ -785,24 +785,23 @@ class ChannelCobGame implements GameInstance {
   private brief(role: RoleId): string[] {
     const s = this.scenario;
     const f = s.facts;
-    const official = s.official ? ` (statement approved by ${s.official})` : "";
     switch (role) {
       case "anchor":
-        return [`Headline: ${s.headline}`, `Verified: ${s.entity} was reported at ${s.location}.`, `Running order: you, then ${this.speakers.slice(1, 4).map((r) => ROLE_BY_ID.get(r)!.name).join(", ")}.`];
+        return [`Story: ${s.headline}`, `Verified: ${s.entity} at ${s.location}.`, `Order: you, then ${this.speakers.slice(1, 4).map((r) => ROLE_BY_ID.get(r)!.name).join(", ")}.`];
       case "reporter":
-        return [`You're at ${s.location}.`, `You can see: ${s.observation}`, `It does NOT look contained.`];
+        return [`You're at ${s.location}.`, `You see: ${s.observation}`, "It does NOT look contained."];
       case "spokesperson":
-        return [`Official line: ${f.status.official}. Cause: ${f.cause.official}${official}.`, `Keep hidden: ${f.cause.truth}`];
+        return [`Say: "${f.status.official}"`, `Cause (official): ${f.cause.official}`, `Keep hidden: ${f.cause.truth}`];
       case "expert":
-        return [`${s.entity}: classification ${s.classification}, containment ${s.containment}.`, s.incident ? `Similar to the case on file: ${s.incident}.` : "No similar case on file. Improvise.", "If it's loose, things get much worse after dark."];
+        return [`${s.entity}: ${s.classification}, containment ${s.containment}.`, s.incident ? `Like the case on file: ${s.incident}.` : "No case on file. Improvise.", "If loose, it gets worse after dark."];
       case "eyewitness":
-        return [`You saw it near ${s.location}. You're sure ${f.status.rumor.toLowerCase()}.`, `You also heard: ${f.cause.rumor}`];
+        return [`You saw it near ${s.location}.`, `You're sure: ${f.status.rumor.toLowerCase()}`, `You heard: ${f.cause.rumor}`];
       case "investigator":
-        return [`Leaked memo: ${f.cause.truth}`, `Your source says: CPI's line ('${f.status.official}') is false.`];
+        return [`Leaked memo: ${f.cause.truth}`, `CPI's line ("${f.status.official}") is false.`];
       case "hazard":
-        return [`Hazard: ${s.hazard}`, `Watch ${s.location} and ${s.location2}.`];
+        return [s.hazard, `Watch ${s.location} and ${s.location2}.`];
       case "production":
-        return [`You can HAND OFF the mic at any time to keep things moving.`, `Make sure the anchor mentions ${s.location}.`];
+        return ["HAND OFF the mic any time.", `Get the anchor to mention ${s.location}.`];
     }
   }
 

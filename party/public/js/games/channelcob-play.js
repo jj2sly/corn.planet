@@ -1,33 +1,24 @@
-// Channel Cob on a phone: a glanceable role card. Who am I, what do I know, what do I do right now.
-// No typing — you say it out loud.
+// Channel Cob on a phone. Top: my role and whether I'm on air. Middle: ONE current task (a breaking
+// update or quick call replaces the on-air card rather than piling on). Lower: my private notes.
+// Bottom: the one action. No typing: you say it out loud.
 
 import { el, notice, timerEl } from "../common.js";
+import { currentTask, stateLabel } from "./channelcob-task.js";
 import { rememberTutorialSeen, renderPhoneTutorial } from "./party-tutorial.js";
 
-function whoAmI(s) {
+/** Role (small, always on top) with its one-line job, the state chip and the clock. */
+function roleBar(s) {
   const g = s.game;
   const y = g.you;
-  const status = y.onAir ? el("span", { class: "cc-live small", text: "● ON AIR" }) : y.upNext ? el("span", { class: "cc-tag", text: "UP NEXT" }) : null;
+  const state = stateLabel(g);
+  const chip = state === "ON AIR" ? el("span", { class: "cc-live small", text: "● ON AIR" }) : el("span", { class: `cc-tag ${state === "UP NEXT" ? "hot" : ""}`.trim(), text: state });
   return el(
     "div",
     { class: "cc-who" },
     el("span", { class: "cc-who-glyph", "aria-hidden": "true", text: y.glyph }),
-    el("div", {}, el("span", { class: "eyebrow", text: "Who am I" }), el("strong", { text: y.roleName })),
-    status,
+    el("div", {}, el("strong", { text: y.roleName }), el("span", { class: "cc-who-job", text: y.job })),
+    chip,
     el("span", { class: "cc-clock" }, timerEl(s.timer)),
-  );
-}
-
-function doNow(text, hot = false) {
-  return el("div", { class: `cc-do ${hot ? "hot" : ""}` }, el("span", { class: "eyebrow", text: "What to do right now" }), el("p", { text }));
-}
-
-function knowEl(y) {
-  return el(
-    "div",
-    { class: "cc-know" },
-    el("span", { class: "eyebrow", text: "What I know (private)" }),
-    el("ul", {}, [...y.brief, ...y.known.map((k) => `UPDATE: ${k}`)].map((line) => el("li", { text: line }))),
   );
 }
 
@@ -38,60 +29,57 @@ function send(tools, note, action, payload) {
   });
 }
 
+/** The strongest thing on screen: one card for the one thing to do now. */
+function taskCard(task, tools, note) {
+  if (task.kind === "intro") {
+    return el("div", { class: "cc-task intro" }, el("h2", { class: "cc-task-title", text: task.title }), el("p", { class: "cc-task-text", text: task.text }), task.note ? el("p", { class: "muted", text: task.note }) : null);
+  }
+  if (task.kind === "breaking") {
+    return el(
+      "div",
+      { class: "cc-task breaking" },
+      el("span", { class: "cc-breaking", text: task.tag }),
+      el("p", { class: "cc-task-text", text: task.text }),
+      el("p", { class: "cc-task-job" }, el("strong", { text: "YOUR JOB: " }), task.job),
+      el("button", { class: "btn big danger", type: "button", text: "GO LIVE WITH IT", onclick: () => send(tools, note, "golive", { id: task.id }) }),
+      task.more ? el("p", { class: "muted", text: `+${task.more} more waiting` }) : null,
+    );
+  }
+  if (task.kind === "decision") {
+    return el(
+      "div",
+      { class: "cc-task decision" },
+      el("h2", { class: "cc-task-title", text: task.title }),
+      el("p", { class: "cc-task-text", text: task.text }),
+      el("div", { class: `cc-choices ${task.options.length > 2 ? "col" : ""}`.trim() }, task.options.map((label, i) => el("button", { class: "btn big", type: "button", text: label, onclick: () => send(tools, note, "choose", { id: task.id, option: i }) }))),
+    );
+  }
+  return el("div", { class: `cc-task ${task.kind}` }, el("h2", { class: "cc-task-title", text: task.title }), el("p", { class: "cc-task-text", text: task.text }), task.note ? el("p", { class: "muted", text: task.note }) : null);
+}
+
+/** 1–3 short private bullets; anything learned earlier is tucked away. */
+function notesEl(y) {
+  return el(
+    "div",
+    { class: "cc-know" },
+    el("span", { class: "eyebrow", text: "You know" }),
+    el("ul", {}, y.brief.map((line) => el("li", { text: line }))),
+    y.known.length ? el("details", { class: "cc-earlier" }, el("summary", { text: `Earlier news (${y.known.length})` }), el("ul", {}, y.known.map((k) => el("li", { text: k })))) : null,
+  );
+}
+
 function buildBrief(s) {
-  const g = s.game;
-  const y = g.you;
-  const what = g.phase === "INTRO" ? (g.segment > 1 ? "New segment — you have a new role." : "Breaking news! You're on the Channel Cob team.") : `${y.job}`;
-  return { node: el("div", { class: "stack cc-phone" }, whoAmI(s), doNow(g.phase === "INTRO" ? what : `Read your notes. ${y.job} Don't show your phone.`), knowEl(y)) };
+  const y = s.game.you;
+  return { node: el("div", { class: "stack cc-phone" }, roleBar(s), taskCard(currentTask(s.game)), notesEl(y)) };
 }
 
 function buildLive(s, tools) {
   const g = s.game;
   const y = g.you;
   const note = el("p", { class: "notice", role: "status" });
-  const instruction = y.onAir ? (y.prompt ? `You're ON AIR. ${y.prompt}` : "You're ON AIR. Talk!") : y.upNext ? `You're up next. ${y.prompt ?? "Get ready."}` : `Listen. React if you're asked. ${g.speaker ? `On air: ${g.speaker.roleName}.` : ""}`;
-
-  const breaking = y.breaking.map((b) =>
-    el(
-      "div",
-      { class: "cc-breakcard" },
-      el("span", { class: "cc-breaking", text: "BREAKING · ONLY YOU KNOW" }),
-      el("p", { text: b.text }),
-      el("button", { class: "btn big danger", type: "button", text: "GO LIVE WITH IT", onclick: () => send(tools, note, "golive", { id: b.id }) }),
-    ),
-  );
-
-  const d = y.decision;
-  const decision = d
-    ? el(
-        "div",
-        { class: "cc-decision" },
-        el("span", { class: "eyebrow", text: "Quick call — tap now" }),
-        el("p", { text: d.question }),
-        el(
-          "div",
-          { class: "cc-choices" },
-          d.options.map((label, i) =>
-            el("button", { class: `btn ${d.chosen === i ? "chosen" : d.chosen === null ? "" : "ghost"}`, type: "button", disabled: d.chosen !== null, text: label, onclick: () => send(tools, note, "choose", { id: d.id, option: i }) }),
-          ),
-        ),
-        d.chosen !== null ? el("p", { class: "muted", text: "Now act it out on air." }) : null,
-      )
-    : null;
-
-  return {
-    node: el(
-      "div",
-      { class: "stack cc-phone" },
-      whoAmI(s),
-      doNow(instruction, y.onAir),
-      breaking,
-      decision,
-      knowEl(y),
-      y.canHandOff ? el("button", { class: "btn ghost", type: "button", text: y.onAir ? "DONE — HAND OFF ▸" : "CUT TO NEXT SPEAKER ▸", onclick: () => send(tools, note, "handoff") }) : null,
-      note,
-    ),
-  };
+  const task = currentTask(g);
+  const handoff = y.canHandOff ? el("button", { class: `btn ${task.kind === "live" ? "" : "ghost"}`.trim(), type: "button", text: y.onAir ? "DONE — HAND OFF ▸" : "CUT TO NEXT SPEAKER ▸", onclick: () => send(tools, note, "handoff") }) : null;
+  return { node: el("div", { class: "stack cc-phone" }, roleBar(s), taskCard(task, tools, note), notesEl(y), handoff, note) };
 }
 
 function buildPoll(s, tools) {
@@ -105,21 +93,15 @@ function buildPoll(s, tools) {
       { class: "cc-chips" },
       others.map((r) => el("button", { class: `btn small ${chosen === r.playerId ? "chosen" : "ghost"}`, type: "button", text: r.name, onclick: () => send(tools, note, action, { playerId: r.playerId }) })),
     );
+  // The fact check is the job; the two votes appear once it's answered.
+  const votes = y.answer && others.length ? [el("span", { class: "eyebrow", text: "🏆 MVP" }), chips("mvp", y.mvp), el("span", { class: "eyebrow", text: "🌀 Lost the story" }), chips("lost", y.lost)] : [];
   return {
     node: el(
       "div",
       { class: "stack cc-phone" },
-      el("div", { class: "cc-who" }, el("strong", { text: "OFF AIR · FACT CHECK" }), el("span", { class: "cc-clock" }, timerEl(s.timer))),
-      el("p", { class: "phone-prompt", text: g.poll.question }),
-      el(
-        "div",
-        { class: "cc-choices col" },
-        g.poll.options.map((o) => el("button", { class: `btn ${y.answer === o.id ? "chosen" : "ghost"}`, type: "button", text: o.text, onclick: () => send(tools, note, "answer", { id: o.id }) })),
-      ),
-      others.length ? el("span", { class: "eyebrow", text: "🏆 MVP of the segment" }) : null,
-      others.length ? chips("mvp", y.mvp) : null,
-      others.length ? el("span", { class: "eyebrow", text: "🌀 Who lost the story?" }) : null,
-      others.length ? chips("lost", y.lost) : null,
+      el("div", { class: "cc-who" }, el("strong", { text: "OFF AIR" }), el("span", { class: "cc-tag", text: "FACT CHECK" }), el("span", { class: "cc-clock" }, timerEl(s.timer))),
+      el("div", { class: "cc-task decision" }, el("h2", { class: "cc-task-title", text: g.poll.question }), el("div", { class: "cc-choices col" }, g.poll.options.map((o) => el("button", { class: `btn big ${y.answer === o.id ? "chosen" : y.answer ? "ghost" : ""}`.trim(), type: "button", text: o.text, onclick: () => send(tools, note, "answer", { id: o.id }) })))),
+      ...votes,
       note,
     ),
   };
@@ -131,11 +113,9 @@ function buildRecap(s) {
     node: el(
       "div",
       { class: "stack cc-phone" },
-      el("div", { class: "cc-who" }, el("strong", { text: "SEGMENT RECAP" }), el("span", { class: "cc-clock" }, timerEl(s.timer))),
-      el("p", { class: "cc-stars", text: "★".repeat(r.stars) + "☆".repeat(5 - r.stars) }),
-      el("p", {}, "The truth: ", el("strong", { text: r.truth })),
-      el("p", { class: "muted", text: `Accuracy ${r.accuracy}% · Panic ${r.panicLabel} · CPI ${r.repLabel}` }),
-      doNow(s.game.segment < s.game.totalSegments ? "Next segment: roles rotate. Watch your phone." : "Final results next."),
+      el("div", { class: "cc-who" }, el("strong", { text: "RECAP" }), el("span", { class: "cc-clock" }, timerEl(s.timer))),
+      el("div", { class: "cc-task" }, el("p", { class: "cc-stars", text: "★".repeat(r.stars) + "☆".repeat(5 - r.stars) }), el("p", { class: "cc-task-text" }, "The truth: ", el("strong", { text: r.truth })), el("p", { class: "muted", text: `Accuracy ${r.accuracy}%` })),
+      el("p", { class: "muted", text: s.game.segment < s.game.totalSegments ? "Next: new roles." : "Final results next." }),
     ),
   };
 }
@@ -148,9 +128,8 @@ function buildFinale(s) {
       "div",
       { class: "stack cc-phone" },
       el("div", { class: "cc-who" }, el("strong", { text: "THAT'S A WRAP" })),
-      el("p", { class: "cc-stars", text: "★".repeat(f.stars) + "☆".repeat(5 - f.stars) }),
-      el("p", { text: `Channel Cob rating: ${f.rating}` }),
-      mine.length ? el("div", { class: "cc-know" }, el("span", { class: "eyebrow", text: "Your awards" }), el("ul", {}, mine.map((a) => el("li", { text: a.title })))) : el("p", { class: "muted", text: "No awards for you tonight. There's always the late show." }),
+      el("div", { class: "cc-task" }, el("p", { class: "cc-stars", text: "★".repeat(f.stars) + "☆".repeat(5 - f.stars) }), el("p", { class: "cc-task-text", text: `Rating: ${f.rating}` })),
+      mine.length ? el("div", { class: "cc-know" }, el("span", { class: "eyebrow", text: "Your awards" }), el("ul", {}, mine.map((a) => el("li", { text: a.title })))) : el("p", { class: "muted", text: "No awards tonight." }),
     ),
   };
 }

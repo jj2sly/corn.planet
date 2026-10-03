@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
-import { COB_POINTS, COB_TIMING } from "../server/games/channelcob.ts";
+import { currentTask, segmentStep, stateLabel } from "../public/js/games/channelcob-task.js";
+import type { CobGameView } from "../public/js/games/channelcob-task.js";
+import { COB_POINTS, COB_TIMING, ROLES } from "../server/games/channelcob.ts";
+import { CHANNEL_COB_TUTORIAL } from "../server/games/tutorial.ts";
 import type { Room } from "../server/rooms.ts";
 import { makeRooms, roomWithPlayers, seededRandom, stubCanon } from "./helpers.ts";
 
@@ -206,7 +210,7 @@ describe("Channel Cob", () => {
     const { room, ids } = start(4, seededRandom(3), {});
     const host = view(room) as View & { tutorial: { total: number; step: { ask: string } } };
     assert.equal(host.phase, "TUTORIAL");
-    assert.equal(host.tutorial.total, 7);
+    assert.equal(host.tutorial.total, 4);
     assert.equal(host.tutorial.step.ask, "WHO AM I?");
     const phone = view(room, ids[0]) as View & { tutorial: { step: { ask: string }; ready: boolean } };
     assert.equal(phone.tutorial.step.ask, "WHO AM I?");
@@ -226,5 +230,112 @@ describe("Channel Cob", () => {
     room.startGame();
     assert.ok(view(room).entity.length > 0);
     assert.ok(COB_TIMING.turnsPerSegment > 0);
+  });
+
+  it("shows each phone one task: who is on air, who is next, who just got a quick call", () => {
+    const { room, ids } = start(4);
+    toLive(room);
+    // The phone's view of the game, exactly as the server sends it.
+    const phone = (id: string) => view(room, id) as unknown as CobGameView;
+    const onAir = ids.filter((id) => stateLabel(phone(id)) === "ON AIR");
+    assert.equal(onAir.length, 1, "exactly one agent is ON AIR");
+    assert.equal(view(room, onAir[0]!).you!.role, view(room).speaker!.role, "and it is the role the TV shows");
+    for (const id of ids) {
+      const game = phone(id);
+      const task = currentTask(game);
+      assert.ok(["live", "next", "listen", "breaking", "decision"].includes(task.kind));
+      if (stateLabel(game) === "ON AIR" && !game.you.breaking.length && !game.you.decision) assert.equal(task.kind, "live");
+      assert.ok(task.text.length > 0);
+    }
+  });
+
+  it("breaking news replaces the on-air card instead of stacking, and going live hands the task back", () => {
+    const { room, ids } = start(4);
+    toLive(room);
+    let holder: string | null = null;
+    for (let i = 0; i < 6 && !holder; i++) {
+      holder = ids.find((id) => view(room, id).you!.breaking.length > 0) ?? null;
+      if (!holder) skip(room);
+    }
+    assert.ok(holder);
+    const game = () => view(room, holder!) as unknown as CobGameView;
+    const secret = view(room, holder!).you!.breaking[0]!.text;
+    // A pending quick call comes first; settle it so the update is the task.
+    const d = view(room, holder!).you!.decision;
+    if (d && d.chosen === null) room.gameInput(holder!, "choose", { id: d.id, option: 0 });
+    const task = currentTask(game());
+    assert.equal(task.kind, "breaking");
+    assert.equal(task.text, secret);
+    assert.equal(task.tag, "BREAKING NEWS");
+    assert.match(task.job!, /^Go live/);
+    // Everyone else is still on their own task, never the secret.
+    for (const id of ids.filter((x) => x !== holder)) assert.notEqual(currentTask(view(room, id) as unknown as CobGameView).text, secret);
+    room.gameInput(holder!, "golive", { id: task.id });
+    const after = currentTask(game());
+    assert.equal(after.kind, "live", "now it is your turn on air");
+    assert.equal(after.text, "Tell everyone what you just learned.");
+  });
+
+  it("an unanswered quick call is the task until it is made", () => {
+    const { room, ids } = start(8);
+    toLive(room);
+    let who: string | null = null;
+    for (let i = 0; i < 6 && !who; i++) {
+      who = ids.find((id) => view(room, id).you!.decision) ?? null;
+      if (!who) skip(room);
+    }
+    assert.ok(who);
+    const task = currentTask(view(room, who!) as unknown as CobGameView);
+    assert.equal(task.kind, "decision");
+    assert.equal(task.options!.length, view(room, who!).you!.decision!.options.length);
+    room.gameInput(who!, "choose", { id: task.id, option: 0 });
+    assert.notEqual(currentTask(view(room, who!) as unknown as CobGameView).kind, "decision");
+  });
+
+  it("prep and intro lead with the role", () => {
+    const { room, ids } = start(3);
+    assert.equal(view(room).phase, "INTRO");
+    const y = view(room, ids[0]!).you!;
+    const intro = currentTask(view(room, ids[0]!) as unknown as CobGameView);
+    assert.equal(intro.kind, "intro");
+    assert.match(intro.title!, /^YOU ARE THE /);
+    assert.equal(intro.title, `YOU ARE THE ${(ROLES.find((r) => r.id === y.role)!.name).toUpperCase()}`);
+    skip(room);
+    assert.equal(currentTask(view(room, ids[0]!) as unknown as CobGameView).kind, "prep");
+    assert.equal(segmentStep("PREP"), 0);
+    assert.equal(segmentStep("LIVE"), 1);
+    assert.equal(segmentStep("POLL"), 2);
+    assert.equal(segmentStep("RECAP"), 3);
+  });
+
+  it("keeps what a player reads short: jobs, notes, prompts, the tutorial", () => {
+    for (const role of ROLES) {
+      assert.ok(role.job.length <= 40, `${role.id}: ${role.job}`);
+      for (const prompt of role.prompts) assert.ok(prompt.length <= 60, prompt);
+    }
+    const { room, ids } = start(8);
+    toLive(room);
+    for (const id of ids) {
+      const brief = view(room, id).you!.brief;
+      assert.ok(brief.length >= 1 && brief.length <= 3, `${view(room, id).you!.role}: ${brief.length} notes`);
+    }
+    assert.ok(CHANNEL_COB_TUTORIAL.length <= 4);
+    for (const step of CHANNEL_COB_TUTORIAL) for (const line of step.lines) assert.ok(line.length <= 60, line);
+  });
+
+  it("the simplified phone sends only the same server actions", () => {
+    const phone = readFileSync(new URL("../public/js/games/channelcob-play.js", import.meta.url), "utf8");
+    // Literal sends, plus the MVP / lost-the-story chips that pass their action in.
+    const sent = new Set([...phone.matchAll(/send\(tools, note, "([a-z]+)"/g), ...phone.matchAll(/chips\("([a-z]+)"/g)].map((m) => m[1]!));
+    assert.deepEqual([...sent].sort(), ["answer", "choose", "golive", "handoff", "lost", "mvp"]);
+  });
+
+  it("a phone that reloads mid-segment gets the same task back", () => {
+    const { room, ids } = start(4);
+    toLive(room);
+    const before = ids.map((id) => currentTask(view(room, id) as unknown as CobGameView));
+    // Views are pure functions of game state, so a reconnecting phone sees what it saw before.
+    const again = ids.map((id) => currentTask(view(room, id) as unknown as CobGameView));
+    assert.deepEqual(again, before);
   });
 });

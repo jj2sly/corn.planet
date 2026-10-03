@@ -52,13 +52,10 @@ export class GroupTutorial {
 }
 
 export const CHANNEL_COB_TUTORIAL: readonly TutorialStep[] = [
-  { ask: "WHO AM I?", glyph: "🎙️", lines: ["Everyone gets a broadcast role: Anchor, Field Reporter, CPI Spokesperson…", "Your role is at the top of your phone. Roles rotate every segment."] },
-  { ask: "WHAT DO I KNOW?", glyph: "🤫", lines: ["Your phone has private notes. Nobody has the same ones.", "Don't show your phone. The notes disagree on purpose."] },
-  { ask: "WHO TALKS NOW?", glyph: "📺", lines: ["The big screen shows who is ON AIR and who is UP NEXT."] },
-  { ask: "WHAT DO I DO ON AIR?", glyph: "🗣️", lines: ["Talk out loud. Improvise. No typing.", "Your phone gives a nudge. Tap HAND OFF when you're done."] },
-  { ask: "BREAKING NEWS?", glyph: "⚡", lines: ["New info can arrive on your phone only.", "Tap GO LIVE to break it first — or it hits the ticker without you."] },
-  { ask: "QUICK CALLS", glyph: "👆", lines: ["Sometimes your phone asks: DENY? CONFIRM? WARN? DOWNPLAY?", "Tap fast. Your call changes what happens next."] },
-  { ask: "THE GOAL", glyph: "🏆", lines: ["Keep the broadcast together while chaos hits.", "After each segment: a one-tap fact check and an MVP vote."] },
+  { ask: "WHO AM I?", glyph: "🎙️", lines: ["Everyone gets a news role.", "Read your private notes. Don't show them."] },
+  { ask: "WHEN DO I TALK?", glyph: "🗣️", lines: ["The TV shows who is ON AIR.", "When it's you, talk out loud."] },
+  { ask: "BREAKING NEWS?", glyph: "⚡", lines: ["Only your phone sees your update.", "Tap GO LIVE to break it first."] },
+  { ask: "WHAT'S THE GOAL?", glyph: "🏆", lines: ["Keep the story straight.", "After each segment: a fact check and an MVP vote."] },
 ];
 
 export const BUDGET_CUTS_TUTORIAL: readonly TutorialStep[] = [

@@ -8989,7 +8989,9 @@ a.deck-tile {
 .cc-live.small { font-size: 0.8rem; padding: 0 6px; }
 .cc-tag { border: 1px solid var(--cc-gold); color: var(--cc-gold); font-family: var(--mono); font-size: 0.8rem; padding: 1px 6px; text-transform: uppercase; }
 .cc-banner { display: flex; align-items: stretch; font-family: var(--head); text-transform: uppercase; }
+.cc-banner.breaking .cc-headline { background: #fff; }
 .cc-breaking { background: var(--cc-red); color: #fff; padding: 6px 14px; font-family: var(--head); letter-spacing: 0.06em; display: inline-block; }
+.cc-topstory { background: var(--cc-navy); color: var(--cc-gold); padding: 6px 14px; font-family: var(--head); letter-spacing: 0.06em; display: inline-block; }
 .cc-breaking.big { font-size: 2.4rem; padding: 8px 28px; transform: skewX(-8deg); }
 .cc-headline { flex: 1; background: #f3f3f3; color: #0a0a0a; padding: 6px 14px; font-size: 1.6rem; }
 .cc-sting { text-align: center; padding: 24px 12px; background: radial-gradient(circle at center, #2a0a0a, transparent 70%); }
@@ -8997,9 +8999,16 @@ a.deck-tile {
 .cc-sting.small { padding: 8px; }
 .cc-sub { font-size: 1.3rem; color: var(--muted); margin: 4px 0; }
 .cc-center { text-align: center; }
-.cc-guide { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 10px 14px; border-left: 4px solid var(--cc-gold); background: var(--panel); }
-.cc-guide p { margin: 0; font-size: 1.15rem; }
-.cc-guide strong { color: var(--cc-gold); }
+/* One line: what to do now (big), a little context (small). */
+.cc-guide { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; margin: 0; }
+.cc-guide strong { font-family: var(--head); font-size: clamp(1.3rem, 2.2vw, 2.2rem); letter-spacing: 0.04em; color: var(--cc-gold); }
+.cc-guide .muted { font-size: 1.1rem; }
+
+/* PREP → LIVE → FACT CHECK → RECAP, the current step lit. */
+.cc-steps { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.cc-steps li { padding: 2px 8px; border: 1px solid var(--line); color: var(--muted); }
+.cc-steps li.done { color: var(--text); }
+.cc-steps li.on { border-color: var(--cc-gold); background: var(--cc-gold); color: #000; font-weight: 700; }
 
 .cc-roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
 .cc-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border: 1px solid var(--line); background: var(--panel); text-align: center; position: relative; }
@@ -9010,15 +9019,14 @@ a.deck-tile {
 
 .cc-stage { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: start; }
 .cc-onair { position: relative; min-height: 340px; display: flex; flex-direction: column; justify-content: flex-end; padding: 16px; background: repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 4px), linear-gradient(160deg, #18233f, #06080f); border: 1px solid var(--line); }
-.cc-onair.breaking { border: 3px solid var(--cc-red); }
 .cc-onair-glyph { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); font-size: 7rem; }
 .cc-lower-third { display: flex; flex-direction: column; background: linear-gradient(90deg, var(--cc-red) 0 10px, #f3f3f3 10px); color: #0a0a0a; padding: 8px 14px 8px 22px; max-width: 90%; }
-.cc-lt-role { font-family: var(--mono); font-size: 0.9rem; color: var(--cc-red); text-transform: uppercase; font-weight: 700; }
-.cc-lt-name { font-family: var(--head); font-size: 2.2rem; line-height: 1.1; text-transform: uppercase; }
-.cc-lt-loc { font-size: 0.95rem; }
+.cc-lt-loc { font-family: var(--mono); font-size: 0.9rem; color: var(--cc-red); text-transform: uppercase; font-weight: 700; letter-spacing: 0.04em; }
+.cc-lt-name { font-family: var(--head); font-size: clamp(2.4rem, 4.4vw, 4.4rem); line-height: 1.05; text-transform: uppercase; }
+.cc-lt-role { font-family: var(--head); font-size: clamp(1.2rem, 2vw, 2rem); text-transform: uppercase; letter-spacing: 0.06em; }
 .cc-turn { margin: 8px 0 0; color: var(--muted); }
 .cc-side { display: flex; flex-direction: column; gap: 10px; }
-.cc-incoming { background: var(--cc-red); color: #fff; padding: 8px 12px; font-family: var(--head); font-size: 1.2rem; animation: cc-blink 0.9s steps(2) infinite; }
+.cc-incoming { background: var(--cc-red); color: #fff; padding: 8px 12px; font-family: var(--head); font-size: 1.2rem; }
 .cc-incoming.soft { background: var(--panel-2); color: var(--cc-gold); animation: none; }
 .cc-meters { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
 .cc-meter { display: flex; flex-direction: column; gap: 4px; padding: 8px; background: var(--panel); border: 1px solid var(--line); }
@@ -9048,7 +9056,7 @@ a.deck-tile {
 @keyframes cc-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes cc-blink { 50% { opacity: 0.55; } }
 @media (prefers-reduced-motion: reduce) { .cc-ticker-text, .cc-live, .cc-incoming { animation: none; } .cc-ticker-text { padding-left: 0; } }
-@media (max-width: 900px) { .cc-stage, .cc-finale, .cc-guide { grid-template-columns: 1fr; } .cc-sting h1 { font-size: 2rem; } .cc-onair { min-height: 240px; } }
+@media (max-width: 900px) { .cc-stage, .cc-finale { grid-template-columns: 1fr; } .cc-sting h1 { font-size: 2rem; } .cc-onair { min-height: 240px; } }
 
 /* Phone */
 .cc-phone { --cc-red: #e2231a; --cc-gold: #ffd400; }
@@ -9056,19 +9064,25 @@ a.deck-tile {
 .cc-who > div { display: flex; flex-direction: column; line-height: 1.15; }
 .cc-who strong { font-family: var(--head); font-size: 1.3rem; text-transform: uppercase; }
 .cc-who-glyph { font-size: 2rem; }
-.cc-do { padding: 8px 12px; border-left: 4px solid var(--cc-gold); background: var(--panel); }
-.cc-do p { margin: 2px 0 0; font-size: 1.15rem; font-weight: 700; }
-.cc-do.hot { border-left-color: var(--cc-red); background: #1d0707; }
+/* The current task: the strongest thing on the phone. A breaking update or quick call takes its place. */
+.cc-task { display: grid; gap: 8px; padding: 16px 14px; border: 1px solid var(--line); border-left: 6px solid var(--cc-gold); background: var(--panel); }
+.cc-task.live { border-left-color: var(--cc-red); background: #1d0707; }
+.cc-task.breaking { border: 2px solid var(--cc-red); background: #1d0707; }
+.cc-task-title { margin: 0; font-family: var(--head); font-size: clamp(1.6rem, 7vw, 2.2rem); line-height: 1.1; letter-spacing: 0.03em; color: var(--text); }
+.cc-task.live .cc-task-title, .cc-task.intro .cc-task-title { color: var(--cc-gold); }
+.cc-task-text { margin: 0; font-size: 1.2rem; font-weight: 700; }
+.cc-task-job { margin: 0; font-size: 1.05rem; }
+.cc-task .cc-breaking { justify-self: start; }
+.cc-who-job { font-size: 0.82rem; color: var(--muted); text-transform: none; }
+.cc-tag.hot { background: var(--cc-gold); color: #000; }
 .cc-know { padding: 8px 12px; border: 1px solid var(--line); background: var(--panel); }
 .cc-know ul { margin: 4px 0 0; padding-left: 18px; }
-.cc-know li { margin: 2px 0; }
-.cc-breakcard { padding: 10px; border: 2px solid var(--cc-red); background: #1d0707; display: flex; flex-direction: column; gap: 6px; }
-.cc-breakcard p { margin: 0; font-size: 1.1rem; font-weight: 700; }
-.cc-decision { padding: 10px; border: 2px solid var(--cc-gold); background: #161204; }
-.cc-decision p { margin: 4px 0 8px; }
-.cc-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 6px; }
+.cc-know li { margin: 3px 0; }
+.cc-earlier { margin-top: 6px; color: var(--muted); font-size: 0.92rem; }
+.cc-earlier summary { cursor: pointer; font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase; }
+.cc-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
 .cc-choices.col { grid-template-columns: 1fr; }
-.cc-choices .btn { min-height: 52px; }
+.cc-choices .btn { min-height: 56px; }
 .cc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* ------------------------------------------------------------------ group tutorial (Budget Cuts, Channel Cob) */

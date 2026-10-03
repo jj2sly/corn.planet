@@ -1,27 +1,36 @@
-// Channel Cob on the big screen: a live news broadcast. The screen always says who is on air and
-// who is up next; everything private stays on the phones.
+// Channel Cob on the big screen: a live news broadcast. The screen always says who is on air (name
+// and role), who is up next and what the story is; everything private stays on the phones.
 
 import { el, rank, scoreboardEl, timerEl } from "../common.js";
+import { SEGMENT_STEPS, segmentStep } from "./channelcob-task.js";
 import { playNewCues } from "./mycob-sound.js";
 import { renderHostTutorial } from "./party-tutorial.js";
 
 const stars = (n) => "★".repeat(n) + "☆".repeat(5 - n);
 
-function chrome(g, timer, { live = false, label = "" } = {}) {
+/** Where we are in the segment: PREP → LIVE → FACT CHECK → RECAP, the current one lit. */
+function steps(g) {
+  const at = segmentStep(g.phase);
+  return el("ol", { class: "cc-steps", "aria-label": "Segment steps" }, SEGMENT_STEPS.map((name, i) => el("li", { class: i === at ? "on" : i < at ? "done" : "", "aria-current": i === at ? "step" : null, text: name })));
+}
+
+function chrome(g, timer, { live = false } = {}) {
   const slot = el("div", { class: "cc-clock" }, timerEl(timer));
   const node = el(
     "div",
     { class: "cc-top" },
     el("div", { class: "cc-logo" }, el("span", { class: "cc-logo-mark", text: "📺" }), el("span", {}, "CHANNEL ", el("strong", { text: "COB" }))),
-    live ? el("span", { class: "cc-live", text: "● LIVE" }) : el("span", { class: "cc-tag", text: label }),
-    el("span", { class: "muted", text: `Segment ${g.segment} of ${g.totalSegments}` }),
+    live ? el("span", { class: "cc-live", text: "● LIVE" }) : null,
+    steps(g),
+    el("span", { class: "muted", text: `Segment ${g.segment}/${g.totalSegments}` }),
     slot,
   );
   return { node, setTimer: (t) => slot.replaceChildren(timerEl(t)) };
 }
 
-function banner(g) {
-  return el("div", { class: "cc-banner" }, el("span", { class: "cc-breaking", text: "BREAKING NEWS" }), el("span", { class: "cc-headline", text: g.headline }));
+/** The headline strip. It turns red BREAKING, with the new ticker line, only while someone is breaking news. */
+function banner(g, { breaking = false } = {}) {
+  return el("div", { class: `cc-banner ${breaking ? "breaking" : ""}`.trim() }, el("span", { class: breaking ? "cc-breaking" : "cc-topstory", text: breaking ? "BREAKING NEWS" : "TOP STORY" }), el("span", { class: "cc-headline", text: breaking ? (g.ticker[0] ?? g.headline).replace(/^BREAKING:\s*/, "") : g.headline }));
 }
 
 function ticker(g) {
@@ -55,22 +64,23 @@ function rosterEl(g, { speaker = null, next = null } = {}) {
   );
 }
 
-function guide(what, todo) {
-  return el("div", { class: "cc-guide" }, el("p", {}, el("span", { class: "eyebrow", text: "What's happening " }), what), el("p", {}, el("span", { class: "eyebrow", text: "What to do " }), el("strong", { text: todo })));
+/** One line: what to do now (big), a little context (small). */
+function guide(todo, context) {
+  return el("p", { class: "cc-guide" }, el("strong", { text: todo }), context ? el("span", { class: "muted", text: context }) : null);
 }
 
 // ------------------------------------------------------------------ phases
 
 function buildIntro(s) {
   const g = s.game;
-  const c = chrome(g, s.timer, { label: "INTERRUPTING YOUR PROGRAMME" });
+  const c = chrome(g, s.timer);
   return {
     node: el(
       "div",
       { class: "cc cc-intro" },
       c.node,
       el("div", { class: "cc-sting" }, el("span", { class: "cc-breaking big", text: g.segment === 1 ? "BREAKING NEWS" : g.segment === g.totalSegments ? "FINAL BROADCAST" : "DEVELOPING STORY" }), el("h1", { text: g.headline }), el("p", { class: "cc-sub", text: `📍 ${g.location}` })),
-      el("p", { class: "eyebrow cc-center", text: g.segment > 1 ? "Roles have rotated. Your new desk:" : "Tonight's news team" }),
+      el("p", { class: "eyebrow cc-center", text: g.segment > 1 ? "New roles this segment" : "Tonight's news team" }),
       rosterEl(g),
       ticker(g),
     ),
@@ -80,16 +90,15 @@ function buildIntro(s) {
 
 function buildPrep(s) {
   const g = s.game;
-  const c = chrome(g, s.timer, { label: "GOING LIVE IN" });
+  const c = chrome(g, s.timer);
   return {
     node: el(
       "div",
       { class: "cc" },
       c.node,
       banner(g),
-      guide("The news team is getting briefed. Everyone knows something different.", "Read your phone: WHO you are, WHAT you know, WHAT to do. Don't show anyone."),
+      guide("READ YOUR PHONE", "Don't show anyone. Going live soon."),
       rosterEl(g),
-      meters(g),
       ticker(g),
     ),
     update: (n) => c.setTimer(n.timer),
@@ -100,36 +109,32 @@ function buildLive(s) {
   const g = s.game;
   const c = chrome(g, s.timer, { live: true });
   const sp = g.speaker;
+  const breaking = !!sp?.breaking;
+  // One status line for what's waiting off-screen: breaking news first, else a quick call.
+  const waiting = g.incoming.length ? `⚡ News coming for the ${g.incoming.join(" & ")}…` : g.decisionLive && !g.decisionLive.done ? `⏳ ${g.decisionLive.roleName} has a call to make` : null;
   return {
     node: el(
       "div",
       { class: "cc" },
       c.node,
-      banner(g),
+      banner(g, { breaking }),
       el(
         "div",
         { class: "cc-stage" },
         el(
           "div",
-          { class: `cc-onair ${sp?.breaking ? "breaking" : ""}` },
+          { class: "cc-onair" },
           el("span", { class: "cc-onair-glyph", "aria-hidden": "true", text: sp?.glyph ?? "🎙️" }),
           el(
             "div",
             { class: "cc-lower-third" },
-            el("span", { class: "cc-lt-role", text: sp?.breaking ? `BREAKING · ${sp.roleName}` : (sp?.roleName ?? "") }),
+            el("span", { class: "cc-lt-loc", text: `LIVE FROM ${g.location.toUpperCase()}` }),
             el("strong", { class: "cc-lt-name", text: sp?.name ?? "" }),
-            el("span", { class: "cc-lt-loc", text: `📍 ${g.location}` }),
+            el("span", { class: "cc-lt-role", text: sp?.roleName ?? "" }),
           ),
-          el("p", { class: "cc-turn", text: `Turn ${g.turn} of ${g.totalTurns}${g.next ? ` · Up next: ${g.next.roleName} (${g.next.name})` : " · Last word"}` }),
+          el("p", { class: "cc-turn", text: g.next ? `Up next: ${g.next.roleName} · ${g.next.name}` : "Last word" }),
         ),
-        el(
-          "div",
-          { class: "cc-side" },
-          g.incoming.length ? el("div", { class: "cc-incoming" }, `⚡ Incoming to the ${g.incoming.join(" & ")}…`) : null,
-          g.decisionLive && !g.decisionLive.done ? el("div", { class: "cc-incoming soft" }, `⏳ The ${g.decisionLive.roleName} has a call to make`) : null,
-          meters(g),
-          rosterEl(g, { speaker: sp?.role, next: g.next?.role }),
-        ),
+        el("div", { class: "cc-side" }, waiting ? el("div", { class: `cc-incoming ${g.incoming.length ? "" : "soft"}`.trim() }, waiting) : null, meters(g), rosterEl(g, { speaker: sp?.role, next: g.next?.role })),
       ),
       ticker(g),
     ),
@@ -139,13 +144,13 @@ function buildLive(s) {
 
 function buildPoll(s) {
   const g = s.game;
-  const c = chrome(g, s.timer, { label: "OFF AIR · FACT CHECK" });
+  const c = chrome(g, s.timer);
   return {
     node: el(
       "div",
       { class: "cc" },
       c.node,
-      guide("We're off air. Time to see if anyone actually got the story.", `On your phone: answer the fact check, then vote MVP and who lost the story. ${g.poll.answered}/${g.poll.players} answered.`),
+      guide("FACT CHECK ON YOUR PHONE", `${g.poll.answered}/${g.poll.players} answered`),
       el("div", { class: "cc-poll" }, el("h2", { text: g.poll.question }), el("ol", {}, g.poll.options.map((o) => el("li", { text: o.text })))),
       ticker(g),
     ),
@@ -160,7 +165,7 @@ function stat(label, value, word) {
 function buildRecap(s) {
   const g = s.game;
   const r = g.recap;
-  const c = chrome(g, s.timer, { label: "SEGMENT RECAP" });
+  const c = chrome(g, s.timer);
   return {
     node: el(
       "div",
@@ -172,9 +177,7 @@ function buildRecap(s) {
         { class: "cc-stats" },
         stat("Accuracy", `${r.accuracy}%`),
         stat("Coherence", `${r.coherence}%`, r.coherenceLabel),
-        stat("Breaking-news reactions", `${r.reactions}%`),
-        stat("Public panic", r.panicLabel),
-        stat("CPI reputation", r.repLabel),
+        stat("Breaking news", `${r.reactions}%`),
       ),
       el("div", { class: "cc-highlights" }, r.mvp ? el("p", {}, "🏆 Segment MVP: ", el("strong", { text: r.mvp })) : null, r.lost ? el("p", {}, "🌀 Lost the story: ", el("strong", { text: r.lost })) : null, r.highlights.map((h) => el("p", { class: "cc-moment", text: `“${h}”` }))),
       ticker(g),
@@ -186,14 +189,14 @@ function buildRecap(s) {
 function buildFinale(s) {
   const g = s.game;
   const f = g.finale;
-  const c = chrome(g, s.timer, { label: "THAT'S ALL FOR TONIGHT" });
+  const c = chrome(g, s.timer);
   return {
     node: el(
       "div",
       { class: "cc" },
       c.node,
       el("div", { class: "cc-sting small" }, el("span", { class: "cc-stars", text: stars(f.stars) }), el("h1", { text: `CHANNEL COB RATING: ${f.rating}` })),
-      el("div", { class: "cc-stats" }, stat("Accuracy", `${f.accuracy}%`), stat("CPI reputation", f.repLabel), stat("Public panic", `${f.panic}%`), stat("Chaos caused", String(f.chaos))),
+      el("div", { class: "cc-stats" }, stat("Accuracy", `${f.accuracy}%`), stat("CPI reputation", f.repLabel), stat("Public panic", `${f.panic}%`)),
       el(
         "div",
         { class: "cc-finale" },
