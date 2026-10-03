@@ -62,12 +62,8 @@ export const CHANNEL_COB_TUTORIAL: readonly TutorialStep[] = [
 ];
 
 export const BUDGET_CUTS_TUTORIAL: readonly TutorialStep[] = [
-  { ask: "WHAT DOES MY DEPARTMENT NEED?", glyph: "🗂️", lines: ["You run one CPI department.", "Your phone shows its request and what it's good and bad at."] },
-  { ask: "HOW MUCH MONEY IS THERE?", glyph: "🌽", lines: ["The group shares one pool of kernels.", "It's never enough for everyone's request."] },
-  { ask: "HOW MUCH SHOULD I FIGHT FOR?", glyph: "📊", lines: ["Funding is a tier: Underfunded → Adequate → Well Funded.", "Near your request is Adequate. Much more is wasted."] },
-  { ask: "HOW DO WE DECIDE?", glyph: "🗣️", lines: ["Argue it out loud. Make deals.", "Phone: build a plan or back one, then LOCK IN."] },
-  { ask: "WHEN DO WE VOTE?", glyph: "🗳️", lines: ["When everyone locks in (or time's up): APPROVE or REJECT the top plan.", "Fail twice and Emergency Allocation decides for you."] },
-  { ask: "WHAT IF WE UNDERFUND SOMETHING?", glyph: "🚨", lines: ["Incidents test the departments they need.", "Underfunded = worse odds, blame and damage that sticks."] },
-  { ask: "WHAT'S MY SECRET?", glyph: "🤫", lines: ["You have a hidden priority. Only you can see it.", "Hit it for big points."] },
-  { ask: "WHY NOT JUST BE SELFISH?", glyph: "🏛️", lines: ["If CPI Stability hits zero, the CPI collapses.", "Everyone loses the group bonus and secrets score half."] },
+  { ask: "WHAT DO WE WANT?", glyph: "🗂️", lines: ["Each department wants funding.", "There are never enough kernels."] },
+  { ask: "HOW DO WE SPLIT IT?", glyph: "🗣️", lines: ["Argue out loud. Back a plan on your phone.", "Everyone LOCKS IN, then you vote."] },
+  { ask: "WHAT IF WE UNDERFUND?", glyph: "🚨", lines: ["Incidents hit. Underfunded departments fail and get blamed.", "Stability at zero: the CPI collapses."] },
+  { ask: "WHAT'S MY SECRET?", glyph: "🤫", lines: ["Your phone has a hidden goal.", "Hit it for big points."] },
 ];

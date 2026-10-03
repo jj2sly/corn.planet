@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
+import { readFileSync } from "node:fs";
 import { PartyError } from "../server/errors.ts";
+import { okZone, planTotals, TIER_SHORT, tierOf } from "../public/js/games/budgetcuts-funding.js";
 import { BUDGET_TIMING, MAX_VOTES, START_STABILITY, tierFor } from "../server/games/budgetcuts.ts";
+import { BUDGET_CUTS_TUTORIAL } from "../server/games/tutorial.ts";
 import type { Room } from "../server/rooms.ts";
 import { makeRooms, roomWithPlayers, seededRandom, stubCanon } from "./helpers.ts";
 
@@ -249,8 +252,8 @@ describe("Budget Cuts", () => {
     const { room, ids } = start(3, seededRandom(7), {});
     const v = view(room) as View & { tutorial: { index: number; total: number; step: { ask: string } } };
     assert.equal(v.phase, "TUTORIAL");
-    assert.equal(v.tutorial.total, 8);
-    assert.match(JSON.stringify((room.viewFor({ kind: "host" }).game as { tutorial: unknown }).tutorial), /WHEN DO WE VOTE\?/);
+    assert.equal(v.tutorial.total, 4, "a short tutorial");
+    assert.match(JSON.stringify((room.viewFor({ kind: "host" }).game as { tutorial: unknown }).tutorial), /HOW DO WE SPLIT IT\?/);
     skip(room);
     assert.equal((view(room) as unknown as { tutorial: { index: number } }).tutorial.index, 1, "host pages on");
     for (const id of ids) room.gameInput(id, "tutorialReady", {});
@@ -263,7 +266,7 @@ describe("Budget Cuts", () => {
     a.room.hostGameAction("skipTutorial", {});
     assert.equal(view(a.room).phase, "BRIEFING");
     const b = start(2, seededRandom(7), {});
-    for (let i = 0; i < 8; i++) mock.timers.tick(7_000);
+    for (let i = 0; i < 4; i++) mock.timers.tick(7_000);
     assert.equal(view(b.room).phase, "BRIEFING");
   });
 
@@ -285,5 +288,73 @@ describe("Budget Cuts", () => {
     assert.ok(v2.depts.reduce((s, d) => s + d.request, 0) > v1.depts.reduce((s, d) => s + d.request, 0));
     assert.ok(share2 < share1);
     assert.equal(BUDGET_TIMING.incidentMs > 0, true);
+  });
+
+  it("keeps what a player reads short: goals, tips, the tutorial", () => {
+    const { room, ids } = start(8, seededRandom(11));
+    toNegotiate(room);
+    for (const id of ids) {
+      const you = view(room, id).you!;
+      assert.ok(you.objective.length <= 60, `goal: ${you.objective}`);
+      assert.ok(you.intel.length <= 4);
+      for (const line of you.intel) assert.ok(line.length <= 50, `tip: ${line}`);
+    }
+    assert.ok(BUDGET_CUTS_TUTORIAL.length <= 4, "3–4 steps");
+    for (const step of BUDGET_CUTS_TUTORIAL) {
+      assert.ok(step.lines.length <= 2);
+      for (const line of step.lines) assert.ok(line.length <= 70, line);
+    }
+  });
+
+  it("the phone's funding helper matches the server's tiers, and its OK zone is exactly Adequate", () => {
+    for (let request = 5; request <= 400; request += 5) {
+      for (let alloc = 0; alloc <= request * 2; alloc += 5) assert.equal(tierOf(alloc, request), tierFor(alloc, request), `${alloc}/${request}`);
+      const [lo, hi] = okZone(request);
+      assert.equal(tierFor(lo, request), 2, `lo ${lo}/${request}`);
+      assert.equal(tierFor(hi, request), 2, `hi ${hi}/${request}`);
+      assert.notEqual(tierFor(lo - 5, request), 2, "just under the zone is not OK");
+      assert.notEqual(tierFor(hi + 5, request), 2, "just over the zone is not OK");
+    }
+    assert.equal(TIER_SHORT.length, 5);
+  });
+
+  it("plan totals say how much is left, and when a plan no longer fits", () => {
+    assert.deepEqual(planTotals({ a: 100, b: 250 }, 400), { total: 350, left: 50, fits: true });
+    assert.deepEqual(planTotals({ a: 100, b: 350 }, 400), { total: 450, left: -50, fits: false });
+    assert.deepEqual(planTotals({}, 400), { total: 0, left: 400, fits: true });
+    // And the server agrees about what fits: the exact pool is accepted, one over is not.
+    const { room, ids } = start(3);
+    toNegotiate(room);
+    const v = view(room);
+    const [first, ...rest] = v.depts;
+    const exact = { [first!.id]: v.pool, ...Object.fromEntries(rest.map((d) => [d.id, 0])) };
+    assert.equal(planTotals(exact, v.pool).fits, true);
+    room.gameInput(ids[0]!, "propose", { alloc: exact });
+    const over = { ...exact, [first!.id]: v.pool + 5 };
+    assert.equal(planTotals(over, v.pool).fits, false);
+    assert.throws(() => room.gameInput(ids[0]!, "propose", { alloc: over }), (e: unknown) => e instanceof PartyError && e.code === "INVALID_INPUT");
+  });
+
+  it("the simplified phone still sends only the server's own actions, and they still run the game", () => {
+    const phone = readFileSync(new URL("../public/js/games/budgetcuts-play.js", import.meta.url), "utf8");
+    const sent = new Set([...phone.matchAll(/send\(\s*(?:"([a-zA-Z]+)"|you\.locked \? "([a-zA-Z]+)" : "([a-zA-Z]+)")/g)].flatMap((m) => m.slice(1).filter(Boolean)));
+    for (const m of phone.matchAll(/action: "([a-zA-Z]+)"/g)) sent.add(m[1]!);
+    assert.deepEqual([...sent].sort(), ["back", "deal", "lock", "propose", "unlock", "vote"], "same actions as before");
+    // Drive each of them through the real game.
+    const { room, ids } = start(3);
+    toNegotiate(room);
+    const v = view(room);
+    const plan = Object.fromEntries(v.depts.map((d, i) => [d.id, i === 0 ? v.pool : 0]));
+    room.gameInput(ids[0]!, "propose", { alloc: plan });
+    for (const id of ids) room.gameInput(id, "back", { proposalId: ids[0] });
+    const other = v.depts.find((d) => d.id !== v.depts[0]!.id)!;
+    room.gameInput(ids[0]!, "deal", { dept: view(room, ids[1]!).you!.dept.id });
+    room.gameInput(ids[0]!, "lock", {});
+    room.gameInput(ids[0]!, "unlock", {});
+    assert.ok(other);
+    for (const id of ids) room.gameInput(id, "lock", {});
+    assert.equal(view(room).phase, "VOTE");
+    voteAll(room, ids, true);
+    assert.equal(view(room).lastVote?.passed, true);
   });
 });

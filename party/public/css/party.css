@@ -8836,9 +8836,10 @@ a.deck-tile {
 .bc-stability.low .bc-meter-fill { background: var(--danger); }
 .bc-stability strong { font-family: var(--head); font-size: 1.6rem; }
 
-.bc-guide { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0 16px; padding: 12px 16px; border: 1px dashed var(--bc-ink); background: var(--bc-paper); }
-.bc-guide p { margin: 4px 0 0; font-size: 1.15rem; }
-.bc-guide > div + div p { font-weight: 700; color: var(--yellow); }
+/* One line per phase: what to do now, and a little context. */
+.bc-guide { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; margin: 8px 0 18px; padding: 0; }
+.bc-guide strong { font-family: var(--head); font-size: clamp(1.3rem, 2.2vw, 2.2rem); letter-spacing: 0.04em; color: var(--yellow); }
+.bc-guide .muted { font-size: 1.1rem; }
 
 .bc-main { display: grid; grid-template-columns: minmax(280px, 1fr) 2fr; gap: 16px; align-items: start; }
 .bc-side { display: flex; flex-direction: column; gap: 12px; }
@@ -8847,10 +8848,14 @@ a.deck-tile {
 .bc-pool { text-align: center; padding: 16px; border: 2px solid var(--bc-ink); background: radial-gradient(circle, #2a2410, var(--panel)); }
 .bc-pool-n { display: block; font-family: var(--head); font-size: 4rem; line-height: 1; color: var(--yellow); }
 .bc-pool-n::after { content: " 🌽"; font-size: 2rem; }
+.bc-pool .bc-budget-bar { margin: 10px 0 8px; }
+.bc-pool-facts { display: flex; justify-content: space-between; gap: 12px; font-size: 1.1rem; }
+.bc-pool-facts .bad { color: var(--danger); }
+.bc-pool-facts .good { color: var(--ok); }
+.bc-recap { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 .bc-surprise p { margin: 6px 0 0; }
 .bc-props li.lead { color: var(--yellow); }
 .bc-props .stamp { margin-left: 8px; }
-.bc-vote-big { font-family: var(--head); font-size: 2.6rem; text-align: center; color: var(--yellow); padding: 24px; border: 2px solid var(--yellow); }
 
 .bc-depts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .bc-dept { position: relative; padding: 12px; border: 1px solid var(--line); background: linear-gradient(180deg, var(--bc-paper), var(--panel)); border-top: 4px solid var(--ok); }
@@ -8907,18 +8912,52 @@ a.deck-tile {
 
 /* Phone */
 .bc-phone { --bc-paper: #16140c; --bc-ink: #e8c547; }
-.bc-phone-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; justify-content: space-between; }
-.bc-phone-top strong { font-family: var(--head); font-size: 1.2rem; text-transform: uppercase; }
-.bc-todo { padding: 8px 12px; border: 1px dashed var(--bc-ink); background: var(--bc-paper); }
+/* The phone: who I am and what I want on top, one obvious action at the bottom. */
+.bc-me { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-left: 4px solid var(--yellow); background: var(--panel); }
+.bc-me-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bc-me-name { font-family: var(--head); font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.1; min-width: 0; overflow-wrap: anywhere; }
+.bc-me-sub { margin: 0; color: var(--muted); font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.bc-want { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin-top: 6px; }
+.bc-want-n { font-family: var(--head); font-size: 2.6rem; line-height: 1; color: var(--yellow); }
+.bc-want-l { color: var(--muted); font-size: 0.9rem; }
+.bc-want-get { margin-left: auto; font-family: var(--mono); font-size: 0.95rem; }
+.bc-want-get .bc-tier { margin-top: 0; }
+.bc-goal { margin: 6px 0 0; padding: 6px 10px; border: 1px dashed var(--danger); background: #160909; font-size: 1rem; }
+.bc-goal-state { display: inline-block; margin-left: 8px; font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; color: var(--muted); }
+.bc-goal-state.ok { color: var(--ok); }
+.bc-nudge { margin: 0; color: var(--muted); font-size: 1rem; }
+.bc-nudge.strong { color: var(--yellow); font-weight: 700; }
+.bc-todo { padding: 4px 2px; }
 .bc-todo p { margin: 2px 0; }
-.bc-todo strong { color: var(--yellow); }
-.bc-file, .bc-secret, .bc-intel { padding: 10px 12px; border: 1px solid var(--line); background: var(--panel); }
+.bc-todo-big { font-family: var(--head); font-size: 1.5rem; letter-spacing: 0.04em; color: var(--yellow); }
+.bc-file, .bc-secret { padding: 10px 12px; border: 1px solid var(--line); background: var(--panel); }
 .bc-file p, .bc-secret p { margin: 4px 0; }
 .bc-secret { border-color: var(--danger); background: #160909; }
-.bc-intel ul { margin: 4px 0 0; padding-left: 18px; }
+.bc-tips { margin: 4px 0 0; padding-left: 18px; font-size: 0.98rem; }
+.bc-more { color: var(--muted); font-size: 0.92rem; }
+.bc-more summary { cursor: pointer; padding: 6px 0; font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.bc-more p { margin: 4px 0; }
+/* POOL / PLAN / LEFT: a bar that turns red the moment a plan asks for more than there is. */
+.bc-budget { display: grid; gap: 6px; }
+.bc-budget-nums { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; font-family: var(--mono); font-size: 0.9rem; }
+.bc-budget-left { color: var(--ok); }
+.bc-budget.over .bc-budget-left { color: var(--danger); }
+.bc-budget-bar { display: block; height: 12px; border: 1px solid var(--line); background: var(--panel-2); }
+.bc-budget-fill { display: block; height: 100%; width: var(--pct); background: var(--ok); transition: width 0.4s ease; }
+.bc-budget.over .bc-budget-fill { background: var(--danger); }
+.bc-plan { display: grid; gap: 2px; text-align: left; }
+.bc-plan-label { font-family: var(--head); font-size: 1.15rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.bc-plan-get { font-size: 1.05rem; }
+.bc-plan-get .bc-tier { margin-top: 0; }
+.bc-plan-meta { color: var(--muted); font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase; }
+.bc-plan.chosen { outline: 3px solid var(--yellow); }
 .bc-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .bc-editor { display: flex; flex-direction: column; gap: 4px; }
-.bc-row { display: grid; grid-template-columns: 1fr auto 3.2em auto; align-items: center; gap: 6px; }
+.bc-row { display: grid; grid-template-columns: 1fr auto minmax(4.2em, auto) auto; align-items: center; gap: 6px; }
+.bc-row-name { display: flex; flex-direction: column; }
+.bc-row-ask { color: var(--muted); font-size: 0.78rem; }
+.bc-row-mid { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.bc-row-mid .bc-tier { margin-top: 0; font-size: 0.65rem; padding: 0 4px; }
 .bc-deal-list .bc-row { grid-template-columns: 1fr auto; padding: 4px 0; }
 .bc-row.mine .bc-row-name { color: var(--yellow); }
 .bc-row-name { font-size: 0.95rem; line-height: 1.2; }
@@ -8931,7 +8970,7 @@ a.deck-tile {
 .bc-vote-buttons .btn.chosen { outline: 3px solid var(--yellow); }
 
 @media (max-width: 900px) {
-  .bc-main, .bc-guide { grid-template-columns: 1fr; }
+  .bc-main { grid-template-columns: 1fr; }
   .bc-pool-n { font-size: 3rem; }
 }
 .bc-lock { position: sticky; bottom: 8px; z-index: 2; box-shadow: 0 -8px 16px #000; }
@@ -9297,12 +9336,12 @@ a.deck-tile {
     bottom: max(8px, calc(env(safe-area-inset-bottom) + 6px));
   }
 
-  .bc-phone-top {
-    row-gap: 2px;
+  .bc-me-name {
+    font-size: 1.3rem;
   }
 
-  .bc-phone-top .timer {
-    margin-left: auto;
+  .bc-want-n {
+    font-size: 2.2rem;
   }
 
   /* Channel Cob: let role/status/timer wrap cleanly instead of crushing the role name. */
@@ -9412,8 +9451,14 @@ a.deck-tile {
   }
 
   .bc-row {
-    grid-template-columns: minmax(0, 1fr) 44px 2.7em 44px;
+    grid-template-columns: minmax(0, 1fr) 40px 4.6em 40px;
     gap: 4px;
+    overflow-wrap: anywhere;
+  }
+
+  .bc-row-mid .bc-tier {
+    font-size: 0.6rem;
+    letter-spacing: -0.02em;
   }
 
   .phone .bid-grid {

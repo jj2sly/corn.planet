@@ -132,8 +132,8 @@ const SURPRISES = [
 ];
 
 const FORCED_RULES = [
-  { id: "equal", name: "Emergency Rule 7-C: Equal Shares", text: "The Acting Interim Comptroller has divided the pool evenly. Nobody is happy. That is the point." },
-  { id: "proportional", name: "Emergency Rule 12: Proportional Pain", text: "Every department gets the same percentage of its request. The Comptroller has gone home." },
+  { id: "equal", name: "Emergency Rule 7-C: Equal Shares", text: "Pool split evenly. Nobody is happy." },
+  { id: "proportional", name: "Emergency Rule 12: Proportional Pain", text: "Everyone gets the same % of their ask." },
 ] as const;
 
 // ------------------------------------------------------------------ state
@@ -360,14 +360,14 @@ class BudgetCutsGame implements GameInstance {
       const target = ["starve", "patron", "scapegoat"].includes(kind) && others.length ? this.pick(others).def.id : null;
       const t = target ? this.name(target).toUpperCase() : "";
       const text: Record<ObjectiveKind, string> = {
-        share: `Receive at least ${sharePct}% of all kernels handed out this year.`,
-        starve: `Keep ${t} below Adequate funding in at least 2 cycles.`,
-        patron: `Get ${t} Well Funded (or better) in at least 2 cycles.`,
-        scapegoat: `Make sure ${t} gets blamed for at least one failure.`,
-        untouchable: "Never get blamed for a failure.",
-        lean: "Never receive more than you asked for, and finish Operational or Strained.",
-        survivor: "Finish the year Operational.",
-        hero: "Help resolve at least 2 incidents (be Adequate or better when one is handled).",
+        share: `Get ${sharePct}%+ of all kernels this game.`,
+        starve: `Keep ${t} underfunded in 2 cycles.`,
+        patron: `Get ${t} Well Funded in 2 cycles.`,
+        scapegoat: `Get ${t} blamed once.`,
+        untouchable: "Never get blamed.",
+        lean: "Never get more than you ask. End Strained or better.",
+        survivor: "End the year Operational.",
+        hero: "Help beat 2 incidents (be Adequate+).",
       };
       d.objective = { kind, target, text: text[kind] };
     });
@@ -520,12 +520,12 @@ class BudgetCutsGame implements GameInstance {
       const lines: string[] = [];
       const testedList = [...tested];
       const sure = testedList.length ? this.pick(testedList) : null;
-      if (sure && (this.rand() < 0.6 || !untested.length)) lines.push(`Your sources say ${this.name(sure).toUpperCase()} will definitely be tested this cycle.`);
-      else if (untested.length) lines.push(`Your sources say ${this.pick(untested).def.name.toUpperCase()} will NOT be needed this cycle.`);
-      if (tested.has(d.def.id)) lines.push("Rumour in the hallway: your department is on this cycle's risk list.");
+      if (sure && (this.rand() < 0.6 || !untested.length)) lines.push(`${this.name(sure).toUpperCase()} WILL be tested.`);
+      else if (untested.length) lines.push(`${this.pick(untested).def.name.toUpperCase()} will NOT be tested.`);
+      if (tested.has(d.def.id)) lines.push("You are on the risk list.");
       const watchers = this.depts.filter((o) => o !== d && o.objective.target === d.def.id);
-      if (watchers.length) lines.push(`Leverage: ${watchers.map((w) => w.def.name.toUpperCase()).join(" and ")} has a private interest in your department.`);
-      if (d.health >= 2) lines.push("Your department is in bad shape. Your request includes an emergency top-up.");
+      if (watchers.length) lines.push(`${watchers.map((w) => w.def.name.toUpperCase()).join(" + ")} has a secret stake in you.`);
+      if (d.health >= 2) lines.push("Failing: your ask includes an emergency top-up.");
       d.intel = lines;
     }
   }
