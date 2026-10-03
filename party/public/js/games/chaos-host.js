@@ -46,10 +46,10 @@ function buildIntro(s) {
   const timerSlot = el("div", {}, timerEl(s.timer));
   const node = el(
     "div",
-    { class: "intro" },
+    { class: `intro ${g.breach ? "final" : ""}`.trim() },
     el("p", { class: "eyebrow", text: roundLabel(g) }),
     el("div", { class: "round flicker", text: g.breach ? "TOTAL BREACH" : `ROUND ${g.round}` }),
-    el("p", { class: "flavor", text: g.breach ? "Everyone gets the same prompt. Everyone votes." : "Check your phone. Answer your prompts. Be funny." }),
+    el("p", { class: "flavor", text: g.breach ? "One prompt. Everyone answers. Everyone votes." : "Phones out. Be funny." }),
     timerSlot,
   );
   return { node, update: (next) => timerSlot.replaceChildren(timerEl(next.timer)) };
@@ -97,7 +97,7 @@ function answerCards(items, extra) {
 
 function buildVoting(s, tools) {
   const g = s.game;
-  const head = header({ eyebrow: matchupLabel(g), title: g.roomJudges ? "ROOM: PICK THE FUNNIER ONE" : "VOTE ON YOUR PHONE", timer: s.timer });
+  const head = header({ eyebrow: matchupLabel(g), title: g.roomJudges ? "ROOM: PICK ONE" : "VOTE ON YOUR PHONE", timer: s.timer });
   const meter = el("p", { class: "vote-meter", role: "status" });
   const buttons = [];
   const cards = answerCards(g.reports, (r, i) => {
@@ -118,12 +118,12 @@ function buildVoting(s, tools) {
     }
     return parts;
   });
-  const node = el("div", {}, head.node, promptCard(g.prompt), cards, meter);
+  const node = el("div", { class: `lash-stage ${g.breach ? "final" : ""}`.trim() }, head.node, promptCard(g.prompt), cards, meter);
   return {
     node,
     update(next) {
       head.setTimer(next.timer);
-      if (next.game.roomJudges) meter.textContent = "Two agents: the room decides. Argue, then tap a winner.";
+      if (next.game.roomJudges) meter.textContent = "Room decides: tap a winner.";
       else meter.replaceChildren("Votes in: ", el("strong", { text: `${next.game.votesCast} / ${next.game.votesNeeded}` }));
     },
   };
@@ -169,7 +169,12 @@ function buildVerdict(s) {
       ),
     ];
   });
-  return { node: el("div", {}, head.node, promptCard(g.prompt), cards), update: (next) => head.setTimer(next.timer) };
+  // Comedy first, scoring after: votes close, the bars fill, the winner takes the hit, then the authors
+  // and points come in (all CSS delays, finite). One sting on the winner, via the moderated list.
+  const tie = verdict.winningReportIds.length > 1;
+  const node = el("div", { class: `lash-stage reveal ${tie ? "tie" : ""} ${verdict.defaulted ? "default" : ""} ${g.breach ? "final" : ""}`.replace(/\s+/g, " ").trim() }, head.node, promptCard(g.prompt), cards);
+  if (verdict.totalVotes > 0 && !reducedMotion()) setTimeout(() => node.isConnected && playSfx("cob_sting", { volume: 0.5 }), 1500);
+  return { node, update: (next) => head.setTimer(next.timer) };
 }
 
 // ------------------------------------------------------------------ the cob scoreboard

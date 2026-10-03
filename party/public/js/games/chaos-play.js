@@ -42,7 +42,7 @@ function timerRow(timer, label) {
 
 function buildIntro(s) {
   const g = s.game;
-  const t = timerRow(s.timer, g.breach ? "Final round" : `Round ${g.round} of ${g.totalRounds}`);
+  const t = timerRow(s.timer, g.breach ? "Final round" : `Round ${g.round}/${g.totalRounds}`);
   const node = el(
     "div",
     { class: "stack" },
@@ -50,14 +50,14 @@ function buildIntro(s) {
     statusCard(
       g.breach ? "☢" : "🌽",
       g.breach ? "TOTAL BREACH" : `ROUND ${g.round}`,
-      g.breach ? "Everyone answers the same prompt. Everyone votes." : "You'll get prompts here. Write the funniest answer you can.",
+      g.breach ? "Same prompt for everyone." : "Get ready to write.",
     ),
   );
   return { node, update: (next) => t.set(next.timer) };
 }
 
 function buildAnswerForm(s, assignment, index, total, tools) {
-  const t = timerRow(s.timer, total > 1 ? `Prompt ${index + 1} of ${total}` : "Your prompt");
+  const t = timerRow(s.timer, total > 1 ? `WRITE · ${index + 1}/${total}` : "WRITE");
   const note = el("p", { class: "notice" });
   const saved = drafts()[assignment.incidentId];
   const textarea = el("textarea", {
@@ -70,7 +70,7 @@ function buildAnswerForm(s, assignment, index, total, tools) {
   });
   textarea.value = saved ?? assignment.answer ?? "";
   const counter = el("p", { class: "counter", id: "answerCount", "aria-live": "polite" });
-  const submit = el("button", { class: "btn big", type: "submit", text: assignment.answer ? "Update answer" : "Send answer" });
+  const submit = el("button", { class: "btn big", type: "submit", text: assignment.answer ? "UPDATE" : "SEND" });
 
   const updateCounter = () => {
     const length = textarea.value.length;
@@ -106,7 +106,7 @@ function buildAnswerForm(s, assignment, index, total, tools) {
       },
     },
     el("p", { class: "phone-prompt", id: "prompt", text: assignment.prompt }),
-    el("label", { for: "answer", text: "Your answer" }),
+    el("label", { class: "sr-only", for: "answer", text: "Your answer" }),
     textarea,
     counter,
     submit,
@@ -126,13 +126,13 @@ function buildAnswerForm(s, assignment, index, total, tools) {
 }
 
 function buildFiled(s, tools) {
-  const t = timerRow(s.timer, "All answers in");
+  const t = timerRow(s.timer, "WAIT");
   const list = el("ul", { class: "list" });
   const node = el(
     "div",
     { class: "stack" },
     t.node,
-    statusCard("✓", "ANSWERS SENT", "Waiting for the others. You can still edit."),
+    statusCard("✓", "SENT", "Others are still writing."),
     list,
     tools.leaveButton(),
   );
@@ -166,7 +166,7 @@ function renderAnswering(mount, s, tools) {
 
 function buildVoting(s, tools) {
   const g = s.game;
-  const t = timerRow(s.timer, g.breach ? "Vote · Total Breach" : `Vote · matchup ${g.incidentNumber} of ${g.incidentCount}`);
+  const t = timerRow(s.timer, g.breach ? "PICK · Total Breach" : `PICK · ${g.incidentNumber}/${g.incidentCount}`);
 
   if (!g.canVote) {
     const mine = !!g.ownReportId;
@@ -176,8 +176,8 @@ function buildVoting(s, tools) {
         { class: "stack" },
         t.node,
         g.roomJudges
-          ? statusCard("📺", "ROOM VOTE", mine ? "Your answer is up. Make your case — the winner is picked on the big screen." : "The winner is picked on the big screen.")
-          : statusCard("📄", "YOUR ANSWER IS UP", "Everyone else is voting. Look innocent."),
+          ? statusCard("📺", "ROOM VOTE", mine ? "Your answer is up. Make your case." : "Watch the TV.")
+          : statusCard("📄", "YOURS IS UP", "Look innocent."),
         el("p", { class: "phone-prompt", text: g.prompt }),
       ),
       update: (next) => t.set(next.timer),
@@ -215,7 +215,7 @@ function buildVoting(s, tools) {
     { class: "stack" },
     t.node,
     el("p", { class: "phone-prompt", text: g.prompt }),
-    el("p", { class: "label", id: "voteLabel", text: "Tap the funnier answer." }),
+    el("p", { class: "sr-only", id: "voteLabel", text: "Tap the funnier answer." }),
     el("div", { class: "vote-options", role: "group", "aria-labelledby": "voteLabel" }, buttons),
     locked,
     note,
@@ -233,7 +233,7 @@ function buildVoting(s, tools) {
         b.classList.toggle("chosen", chosen);
         b.setAttribute("aria-pressed", String(chosen));
       }
-      locked.textContent = "Vote in. Watch the big screen.";
+      locked.textContent = "Vote in. Watch the TV.";
     },
   };
 }
