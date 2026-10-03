@@ -68,7 +68,7 @@ function buildBriefing(s) {
     statusCard(
       "🔒",
       "SEALED BAYS AHEAD",
-      `You have ${kernels(g.you.kernels)}. Win ${g.rules.entitiesPerPlayer} of ${g.lot.total} sealed bays.`,
+      `${kernels(g.you.kernels)} to spend. Win ${g.rules.entitiesPerPlayer}.`,
     ),
   );
   return { node, update: (next) => t.set(next.timer) };
@@ -99,14 +99,19 @@ function buildLot(s, tools) {
     { class: "stack" },
     quick,
     el(
-      "form",
-      { class: "row ea-bid-form", onsubmit: (e) => (e.preventDefault(), place(Number(amount.value))) },
-      el("div", { class: "field grow" }, el("label", { for: "bidAmount", text: "Custom bid" }), amount),
-      el("button", { class: "btn", type: "submit", text: "Bid" }),
+      "details",
+      { class: "ea-custom" },
+      el("summary", { text: "Custom bid" }),
+      el(
+        "form",
+        { class: "row ea-bid-form", onsubmit: (e) => (e.preventDefault(), place(Number(amount.value))) },
+        el("div", { class: "field grow" }, el("label", { class: "sr-only", for: "bidAmount", text: "Custom bid" }), amount),
+        el("button", { class: "btn", type: "submit", text: "Bid" }),
+      ),
     ),
   );
 
-  const node = el("div", { class: "stack" }, t.node, door.node, el("section", { class: "panel quiet" }, info), status, controls, note, link);
+  const node = el("div", { class: "stack" }, t.node, door.node, el("section", { class: "ea-now" }, info), status, controls, note, link);
 
   let quickKey = null;
   let wasHighest = false;
@@ -132,11 +137,11 @@ function buildLot(s, tools) {
           ["Your Kernels", kernels(me.kernels)],
         ]);
         status.textContent = me.isHighest
-          ? "You're winning. Hold your nerve."
+          ? "You're winning."
           : me.slotsLeft === 0
-            ? "Your collection is full. Watch the doors."
+            ? "Full. Watch the doors."
             : me.kernels < a.minimumBid
-              ? "Not enough Kernels to beat the current bid."
+              ? "Can't afford the next bid."
               : "";
         if (wasHighest && !me.isHighest && navigator.userActivation?.hasBeenActive) navigator.vibrate?.(80);
         wasHighest = me.isHighest;
@@ -174,7 +179,7 @@ function buildLot(s, tools) {
           ["Won by", mine ? "YOU" : (a.ownerName ?? "Unclaimed"), "big"],
           ["Paid", a.byLottery ? "No bids · issued free" : kernels(a.winningBid ?? 0)],
         ]);
-        status.textContent = mine ? "It's yours. Whatever it is." : "";
+        status.textContent = mine ? "Yours." : "";
       } else {
         const e = a.entity;
         rows(info, [
@@ -182,7 +187,7 @@ function buildLot(s, tools) {
           ["Worth", `${kernels(e.baseValue)} · ${e.classification}`, `class-${e.classification}`],
           ["Owner", mine ? "YOU" : (a.ownerName ?? "Unclaimed")],
         ]);
-        status.textContent = mine ? "Its hidden buff or debuff shows in the Action Round." : "";
+        status.textContent = mine ? "Buff or debuff shows later." : "";
         if (!link.firstChild) {
           link.append(el("a", { class: "reference-id", href: e.url, target: "_blank", rel: "noopener noreferrer" }, `${e.ref} — inspect the record →`));
         }
@@ -197,7 +202,7 @@ function buildAction(s) {
   const title = g.phase === "EVENT" ? g.event.name : g.phase === "AUDIT" ? "MODIFIERS REVEALED" : "ACTION ROUND";
   const label = g.phase === "EVENT" ? `Event ${g.event.number} of ${g.event.total}` : "Action Round";
   const body =
-    g.phase === "EVENT" ? g.event.description : g.phase === "AUDIT" ? "Every buff and debuff still hidden takes effect now." : "Events are coming. Watch the big screen.";
+    g.phase === "EVENT" ? g.event.description : g.phase === "AUDIT" ? "Hidden buffs and debuffs hit now." : "Watch the TV.";
   const outcomes = (g.phase === "EVENT" ? g.event.outcomes : g.phase === "AUDIT" ? g.audit : []).filter((o) => o.playerName === null || o.playerName === me.name);
   const t = timerRow(s.timer, label);
   const totals = el("dl", { class: "ea-readout compact" });

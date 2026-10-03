@@ -98,13 +98,13 @@ function buildBriefing(s) {
     el(
       "div",
       { class: "panel ea-brief" },
-      el("p", { class: "ea-brief-lead", text: `${g.lot.total} sealed bays. ${kernels(g.rules.startingKernels)} per agent. Everyone leaves with ${g.rules.entitiesPerPlayer}.` }),
+      el("p", { class: "ea-brief-lead", text: `${g.lot.total} bays · ${kernels(g.rules.startingKernels)} each · win ${g.rules.entitiesPerPlayer}` }),
       el(
         "ol",
         { class: "steps" },
-        el("li", { text: "Bid on sealed bays. Nobody knows what's inside." }),
-        el("li", { text: "Each entity hides a buff or debuff until the Action Round." }),
-        el("li", { text: "Most net worth wins: Kernels + entity values." }),
+        el("li", { text: "Bid on sealed bays." }),
+        el("li", { text: "Each entity hides a buff or debuff." }),
+        el("li", { text: "Most net worth wins." }),
       ),
     ),
     facilityEl(g.bays).node,
@@ -154,7 +154,7 @@ function buildLot(s) {
   const agents = el("div");
   const node = el(
     "div",
-    { class: "ea" },
+    { class: "ea ea-show" },
     head.node,
     el("div", { class: "ea-lot" }, door.node, el("div", { class: "panel stack ea-panel" }, info, log, extra)),
     facility.node,
@@ -175,7 +175,8 @@ function buildLot(s) {
       log.replaceChildren(
         ...(ng.phase === "BIDDING" ? a.recentBids.map((b, i) => el("li", { class: i === 0 ? "top" : "" }, el("span", { text: b.name }), el("span", { class: "mono", text: kernels(b.amount) }))) : []),
       );
-      extra.textContent = ng.phase === "BIDDING" ? `Bid on your phone. Next bid: ${kernels(a.minimumBid)}+` : ng.phase === "REVEALED" ? a.entity.summary : "";
+      extra.textContent = ng.phase === "BIDDING" ? `Next bid ${kernels(a.minimumBid)}+` : ng.phase === "REVEALED" ? a.entity.summary : "";
+      node.dataset.phase = ng.phase;
       agents.replaceChildren(agentsStrip(ng));
     },
   };
@@ -189,14 +190,14 @@ function actionText(g) {
     return {
       eyebrow: "Action Round · final containment audit",
       title: "MODIFIERS REVEALED",
-      body: "Every buff and debuff still hidden takes effect now.",
+      body: "Hidden buffs and debuffs hit now.",
       outcomes: g.audit,
     };
   }
   return {
     eyebrow: "Action Round",
     title: "ACTION ROUND",
-    body: g.rules.eventCount > 0 ? `${g.rules.eventCount} events are coming. Each one hits every agent at once.` : "Hidden modifiers are live.",
+    body: g.rules.eventCount > 0 ? `${g.rules.eventCount} events. Each hits everyone.` : "Hidden modifiers are live.",
     outcomes: null,
   };
 }
