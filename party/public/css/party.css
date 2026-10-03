@@ -12950,3 +12950,92 @@ body:has(.ea-show[data-phase="BIDDING"]) .host-ambient {
   min-height: 72px;
   font-size: 1.3rem;
 }
+
+/* ---- Entity Auction: bidding drama, SOLD, and the final reveal ---- */
+
+/* A new top bid: the bid and the leader pop, once, fast. */
+.ea-show .ea-readout dd.bump {
+  animation: ea-bump 0.35s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+@keyframes ea-bump {
+  from {
+    transform: scale(1.18);
+    color: #fff;
+  }
+}
+
+.ea-show .ea-readout dd.lead {
+  color: var(--text);
+}
+
+/* SOLD: the title slams in, then the buyer and the price. */
+.ea-show[data-phase="OPENING"] .phase-head h1 {
+  color: var(--ok);
+  font-size: clamp(2.6rem, min(8vw, 12vh), 8rem);
+  animation: ea-hit 0.45s cubic-bezier(0.2, 1.5, 0.4, 1) 0.5s backwards;
+}
+
+.ea-show[data-phase="OPENING"] .ea-readout {
+  animation: ea-arrive 0.4s ease-out 1s backwards;
+}
+
+/* The last five seconds: a steady red frame that breathes, and a bigger count on the door. */
+.ea-show.tense .ea-panel {
+  border-color: var(--danger);
+  animation: ea-breathe 1s ease-in-out infinite;
+}
+
+.ea-show.tense .bay-countdown.low[data-deadline] {
+  font-size: 7em;
+  animation: ea-breathe-text 1s ease-in-out infinite;
+}
+
+@keyframes ea-breathe {
+  50% {
+    box-shadow: 0 0 28px rgba(255, 107, 94, 0.45);
+  }
+}
+
+@keyframes ea-breathe-text {
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+/* The books close: totals arrive from last place up, the winner at the end. */
+.ea-tally tr.ea-stagger {
+  animation: ea-arrive 0.45s ease-out backwards;
+}
+
+.ea-tally tr.first {
+  background: rgba(255, 212, 0, 0.08);
+}
+
+.ea-tally tr.first .ea-worth {
+  font-size: 1.8em;
+}
+
+/* Phone: leading or outbid, big. */
+.ea-status.lead,
+.ea-status.out {
+  font-family: var(--head);
+  font-size: 1.6rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.ea-status.out {
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ea-show .ea-readout dd.bump,
+  .ea-show[data-phase="OPENING"] .phase-head h1,
+  .ea-show[data-phase="OPENING"] .ea-readout,
+  .ea-show.tense .ea-panel,
+  .ea-show.tense .bay-countdown,
+  .ea-tally tr.ea-stagger {
+    animation: none !important;
+  }
+}

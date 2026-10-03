@@ -115,7 +115,7 @@ function buildBriefing(s) {
 
 const LOT_TITLES = {
   BIDDING: (a) => `${bayLabel(a.bayId)} · BID NOW`,
-  OPENING: () => "BIDDING CLOSED",
+  OPENING: (a) => (a.byLottery ? "NO BIDS · ISSUED FREE" : "SOLD"),
   REVEALED: () => "ENTITY REVEALED",
 };
 
@@ -125,14 +125,14 @@ function lotRows(g) {
   const price = a.byLottery ? "No bids · issued free" : kernels(a.winningBid ?? 0);
   if (g.phase === "BIDDING") {
     return [
-      ["Current bid", a.currentBid === null ? "NO BIDS" : kernels(a.currentBid), "big"],
-      ["Leader", a.highestBidder ?? "—", "big"],
+      ["Current bid", a.currentBid === null ? "NO BIDS" : kernels(a.currentBid), "big bid"],
+      ["Leading", a.highestBidder ?? "—", "big lead"],
     ];
   }
   if (g.phase === "OPENING") {
     return [
-      ["Won by", acquired, "big"],
-      ["Paid", price],
+      ["Sold to", acquired, "big"],
+      ["For", price, "big"],
     ];
   }
   const e = a.entity;
@@ -152,6 +152,7 @@ function buildLot(s) {
   const extra = el("p", { class: "ea-summary" });
   const facility = facilityEl(g.bays);
   const agents = el("div");
+  let lastBid = null;
   const node = el(
     "div",
     { class: "ea ea-show" },
@@ -172,6 +173,18 @@ function buildLot(s) {
       facility.update(ng.bays);
       head.set(`Containment auction · bay ${ng.lot.number} of ${ng.lot.total}`, LOT_TITLES[ng.phase](a), next.timer);
       readoutRows(info, lotRows(ng));
+      // A new top bid pulses the bid and the leader (short, one element, not the screen).
+      if (ng.phase === "BIDDING" && a.currentBid !== null && a.currentBid !== lastBid) {
+        if (lastBid !== null) for (const dd of info.querySelectorAll("dd.bid, dd.lead")) {
+          dd.classList.remove("bump");
+          void dd.offsetWidth;
+          dd.classList.add("bump");
+        }
+        lastBid = a.currentBid;
+      }
+      // The last five seconds of bidding: a tenser frame (a slow pulse, never a strobe).
+      const left = next.timer?.remainingMs;
+      node.classList.toggle("tense", ng.phase === "BIDDING" && Number.isFinite(left) && left <= 5000);
       log.replaceChildren(
         ...(ng.phase === "BIDDING" ? a.recentBids.map((b, i) => el("li", { class: i === 0 ? "top" : "" }, el("span", { text: b.name }), el("span", { class: "mono", text: kernels(b.amount) }))) : []),
       );
@@ -254,6 +267,12 @@ function buildTally(s) {
       el("td", { class: "mono", text: kernels(a.entityValue) }),
       el("td", { class: "mono ea-worth", text: kernels(a.netWorth) }),
     );
+  });
+  // Totals land one agent at a time from last place up, so the winner is revealed at the end.
+  rows.forEach((tr, i) => {
+    const order = rows.length - 1 - i;
+    tr.classList.add("ea-stagger");
+    tr.style.animationDelay = `${Math.min(order * 0.7, 6)}s`;
   });
   const node = el(
     "div",

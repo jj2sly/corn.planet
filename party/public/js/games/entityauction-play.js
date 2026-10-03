@@ -42,7 +42,7 @@ function collectionList(me) {
       el(
         "li",
         { class: h.active ? "" : "lost" },
-        el("span", { class: "grow" }, el("strong", { class: "mono", text: h.ref }), " ", h.bayNumber === null ? `${h.title} (copy)` : h.title, " ", modifierBadge(h.modifier)),
+        el("span", { class: "grow" }, el("strong", { class: "mono", text: h.ref }), " ", h.bayNumber === null ? `${h.title} (copy)` : h.title, " ", modifierBadge(h.modifier), h.winningBid ? el("span", { class: "muted mono", text: ` paid ${kernels(h.winningBid)}` }) : null),
         el("strong", { class: "mono", text: h.active ? kernels(h.value) : "LOST" }),
       ),
     ),
@@ -115,6 +115,7 @@ function buildLot(s, tools) {
 
   let quickKey = null;
   let wasHighest = false;
+  let outbid = false;
 
   return {
     node,
@@ -133,12 +134,17 @@ function buildLot(s, tools) {
       if (bidding) {
         rows(info, [
           ["Current bid", a.currentBid === null ? "NO BIDS" : kernels(a.currentBid), "big"],
-          ["Leader", a.highestBidder ? (me.isHighest ? "YOU" : a.highestBidder) : "—"],
+          ["Leading", a.highestBidder ? (me.isHighest ? "YOU" : a.highestBidder) : "—"],
           ["Your Kernels", kernels(me.kernels)],
         ]);
+        if (me.isHighest) outbid = false;
+        else if (wasHighest) outbid = true;
+        status.className = `notice ea-status ${me.isHighest ? "ok lead" : outbid ? "bad out" : ""}`.trim();
         status.textContent = me.isHighest
-          ? "You're winning."
-          : me.slotsLeft === 0
+          ? "YOU'RE LEADING"
+          : outbid && me.slotsLeft !== 0 && me.kernels >= a.minimumBid
+            ? "OUTBID"
+            : me.slotsLeft === 0
             ? "Full. Watch the doors."
             : me.kernels < a.minimumBid
               ? "Can't afford the next bid."

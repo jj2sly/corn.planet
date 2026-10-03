@@ -33,3 +33,30 @@ describe("Entity Auction presentation", () => {
     for (const line of [...phone.matchAll(/"([A-Z][^"]{3,60}\.)"/g)].map((m) => m[1]!)) assert.ok(line.length <= 40, line);
   });
 });
+
+describe("Entity Auction drama", () => {
+  const host = read("js/games/entityauction-host.js");
+  const phone = read("js/games/entityauction-play.js");
+  const css = read("css/party.css");
+
+  it("pulses a new top bid, tenses the last five seconds and says SOLD", () => {
+    assert.match(host, /classList\.add\("bump"\)/);
+    assert.match(host, /left <= 5000/);
+    assert.match(host, /"SOLD"/);
+    assert.match(host, /Sold to/);
+    assert.match(css, /\.ea-show\.tense \.ea-panel \{[^}]*animation: ea-breathe 1s ease-in-out infinite/);
+    assert.doesNotMatch(css.slice(css.indexOf("bidding drama")), /steps\(|strobe/);
+  });
+
+  it("the phone says YOU'RE LEADING or OUTBID, and collections show the price paid", () => {
+    assert.match(phone, /YOU'RE LEADING/);
+    assert.match(phone, /"OUTBID"/);
+    assert.match(phone, /paid \$\{kernels\(h\.winningBid\)\}/);
+  });
+
+  it("the final tally reveals from last place up, winner last, with reduced motion off-switch", () => {
+    assert.match(host, /rows\.length - 1 - i/);
+    assert.match(css, /\.ea-tally tr\.ea-stagger \{\s*animation: ea-arrive/);
+    assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.ea-show \.ea-readout dd\.bump/);
+  });
+});
