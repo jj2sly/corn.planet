@@ -513,7 +513,7 @@ function buildScreen(s, tools) {
     const out = [];
     const k = g.kernels.balance;
     const open = g.phase === "BUILD";
-    out.push(el("p", { class: "td-page-lead" }, el("strong", { text: `🌽 ${k} team kernels` }), open ? " · one pile, shared by everyone. Pick something, then place it in your zone." : " · one pile, shared by everyone. You can spend them in the next Build Phase."));
+    out.push(el("p", { class: "td-page-lead" }, el("strong", { text: `🌽 ${k} team kernels` }), open ? " · pick one, place it in your zone." : " · spend them next Build Phase."));
     const hurt = g.build.structures.filter((q) => q.maxHp && q.hp < q.maxHp * 0.5);
     if (hurt.length) out.push(el("p", { class: "td-alert", text: `⚠ Needs protection: ${hurt.map((q) => `${def(q.type)?.name ?? q.type} ${Math.round((q.hp / q.maxHp) * 100)}%`).join(", ")}` }));
     out.push(
@@ -537,8 +537,8 @@ function buildScreen(s, tools) {
     const w = g.weather;
     const wind = g.world.wind ?? 0;
     if (w) out.push(el("p", { class: "td-sky-now" }, el("span", { class: "td-sky-icon", text: WEATHER_ICON[w.type] ?? "☁️" }), el("span", {}, el("strong", { text: w.label.toUpperCase() }), ` · ${w.severity}${w.secondary ? ` + ${w.secondary}` : ""}${wind ? ` · wind ${wind > 0 ? "→" : "←"} ${Math.abs(Math.round(wind / 10))}` : ""}`)));
-    else if (!g.forecast) out.push(el("p", { class: "td-page-lead", text: "No weather right now, and no Weather Machine to say what's coming. Build one in BUILD (it's cheap)." }));
-    else out.push(el("p", { class: "td-page-lead", text: g.phase === "BUILD" ? "Weather hits when the shooting starts. Here's what the machine sees coming:" : "No weather right now." }));
+    else if (!g.forecast) out.push(el("p", { class: "td-page-lead", text: "No weather. Build a Weather Machine to see ahead." }));
+    else out.push(el("p", { class: "td-page-lead", text: g.phase === "BUILD" ? "Weather hits when shooting starts:" : "No weather right now." }));
     if (g.forecast) {
       forecast.update(g);
       out.push(forecast.node);
@@ -547,7 +547,7 @@ function buildScreen(s, tools) {
     if (g.phase === "BUILD") {
       if (f?.status === "BROKEN") out.push(btn(`Repair Weather Machine · ${f.repair} 🌽`, () => request("repair_weather")));
       else if (f?.next) out.push(btn(`Upgrade to ${f.next.name} · ${f.next.price} 🌽`, () => request("upgrade_weather"), "ghost"));
-      else if (!f) out.push(el("p", { class: "muted", text: "Build a Weather Machine (BUILD tab) to see what's coming." }));
+      else if (!f) out.push(el("p", { class: "muted", text: "Build a Weather Machine to see ahead." }));
     }
     return out;
   }
@@ -749,18 +749,18 @@ function buildScreen(s, tools) {
       case "SELECT":
         return p?.ready ? ["Ready ✓ · waiting for the team", "go"] : ["① Pick a bird  ② Tap READY", "go"];
       case "BUILD":
-        return [`BUILD PHASE · spend the team's 🌽 on walls & nests, then SKIP to start shooting`, ""];
+        return ["BUILD · spend 🌽, then SKIP to attack", ""];
       case "ACTION": {
         const shooter = g.roster.find((q) => q.id === a?.shooterId);
         if (a?.stage === "NEED_BIRD") return a.shooterId === me ? ["You're out of birds · a teammate can give you one", "bad"] : [`${shooter?.name} has no birds · give one!`, "bad"];
-        if (st === "AIM") return ["YOUR TURN · drag back & let go · hit the 🐷 piggies and their fort", "go"];
+        if (st === "AIM") return ["YOUR TURN · drag back, let go", "go"];
         if (st === "FLIGHT") return ["IN FLIGHT", "go"];
-        return [`LAUNCH PHASE · ${shooter?.name ?? "?"}'s turn · one bird each`, ""];
+        return [`LAUNCH · ${shooter?.name ?? "?"}'s turn · watch the TV`, ""];
       }
       case "PROCESS":
-        return ["PIGGIES' TURN · they strike back · just watch", "bad"];
+        return ["ENEMY TURN · watch the TV", "bad"];
       case "COW":
-        return ["RED COW GROWS · at 100% the team loses · purge ☣ faster", "bad"];
+        return ["RED COW GROWS · stop it before 100%", "bad"];
       case "OVER":
         return g.over?.result === "victory" ? ["TEAM VICTORY · corruption purged", "go"] : ["TEAM DEFEAT · the Red Cow was finished", "bad"];
     }
@@ -803,7 +803,7 @@ function buildScreen(s, tools) {
         const b = birdType(a.flying?.bird);
         const ab = b?.ability;
         const verb = { pop: "POP", boost: "AFTERBURNER", split: "SPLIT", ricochet: "RICOCHET", slam: "SLAM", magnet: "MAGNET", bunker: "BUNKER" }[ab?.kind];
-        if (ab?.trigger === "tap") out.push(say(a.uses ? `TAP (or A): ${verb} · ${a.uses} left` : `${verb}: done`, a.uses ? "go" : ""));
+        if (ab?.trigger === "tap") out.push(say(a.uses ? `ABILITY READY · TAP: ${verb}` : `ABILITY USED`, a.uses ? "go" : ""));
         else if (ab?.trigger === "hold") out.push(say(`HOLD ◀ ▶: GLIDE · ${a.fuel.toFixed(1)}s`, "go"));
         else out.push(say(`${b?.name}: ${b?.usage.toLowerCase()}`));
       } else {

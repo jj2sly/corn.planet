@@ -64,12 +64,12 @@ export const BIRDS_MAX_HELD = 9;
  * Add a kind here and in thud-rules.js / the renderer, and it's buildable.
  */
 export const BUILDINGS = {
-  nest: { name: "Bird Nest", cost: 45, hp: 120, w: 76, h: 44, max: 4, material: "nest", blurb: "Hatches a bird every 1.5 turns. Two agents at one nest: an extra bird." },
-  wall: { name: "Husk Wall", cost: 12, hp: 90, w: 22, h: 130, max: 12, material: "wood", blurb: "Cheap and tall. Stops cob bombs." },
-  barricade: { name: "Stone Barricade", cost: 25, hp: 230, w: 56, h: 96, max: 8, material: "stone", blurb: "Heavy. Shrugs off bombs and weather." },
-  shield: { name: "Kernel Shield", cost: 35, hp: 80, w: 40, h: 50, max: 2, material: "metal", blurb: "A dome that soaks damage for everything under it. Recharges every turn." },
-  clone: { name: "Clone Tank", cost: 30, hp: 70, w: 44, h: 72, max: 3, material: "glass", blurb: "One use: copies the bird you have selected." },
-  weather: { name: "Weather Machine", cost: 20, hp: 90, w: 48, h: 96, max: 1, material: "metal", blurb: "Predicts the weather. Upgrade it to see further." },
+  nest: { name: "Bird Nest", cost: 45, hp: 120, w: 76, h: 44, max: 4, material: "nest", blurb: "Makes birds." },
+  wall: { name: "Husk Wall", cost: 12, hp: 90, w: 22, h: 130, max: 12, material: "wood", blurb: "Cheap, tall cover." },
+  barricade: { name: "Stone Barricade", cost: 25, hp: 230, w: 56, h: 96, max: 8, material: "stone", blurb: "Tough cover." },
+  shield: { name: "Kernel Shield", cost: 35, hp: 80, w: 40, h: 50, max: 2, material: "metal", blurb: "Soaks damage. Recharges." },
+  clone: { name: "Clone Tank", cost: 30, hp: 70, w: 44, h: 72, max: 3, material: "glass", blurb: "Copies your bird. One use." },
+  weather: { name: "Weather Machine", cost: 20, hp: 90, w: 48, h: 96, max: 1, material: "metal", blurb: "Forecasts the weather." },
 } as const;
 
 export type BuildingKind = keyof typeof BUILDINGS;

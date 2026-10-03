@@ -91,24 +91,23 @@ describe("Angry Thud's Revenge: smoothing between physics snapshots", () => {
 });
 
 describe("Angry Thud's Revenge: the first-time tutorial", () => {
-  it("teaches the essentials in six short cards, from the game's own numbers", () => {
+  it("teaches the essentials in five short cards, from the game's own numbers", () => {
     const cards = tutorialCards({ buildMs: TIMING.buildMs, bird: "popcorn" });
     assert.deepEqual(
       cards.map((c) => c.id),
-      ["build", "aim", "ability", "goal", "weather", "team"],
+      ["build", "pick", "aim", "ability", "goal"],
     );
     const all = cards.flatMap((c) => c.lines).join(" ");
     assert.match(all, new RegExp(`${TIMING.buildMs / 1000} seconds`), "the build phase's real length");
     assert.match(all, /vote/i);
-    assert.match(all, /one bird per turn/i);
-    assert.match(all, /Corruption Meter/);
+    assert.match(all, /one bird/i);
+    assert.match(all, /Corruption/);
     assert.match(all, /0%/);
     assert.match(all, /Red Cow/);
-    assert.match(all, /Weather Machine/);
-    assert.match(all, /donate/i);
+    assert.match(all, /KERNELS/);
     for (const c of cards) {
-      assert.ok(c.lines.length <= 3, `${c.id}: three lines at most`);
-      for (const line of c.lines) assert.ok(line.length <= 130, `${c.id}: short lines ("${line}")`);
+      assert.ok(c.lines.length <= 2, `${c.id}: two lines at most`);
+      for (const line of c.lines) assert.ok(line.length <= 80, `${c.id}: short lines ("${line}")`);
     }
     // A different build length shows up as itself.
     assert.match(tutorialCards({ buildMs: 90_000 })[0]!.lines.join(" "), /90 seconds/);
@@ -124,7 +123,7 @@ describe("Angry Thud's Revenge: the first-time tutorial", () => {
       if (bird.ability.trigger === "hold") assert.match(how, /hold/i);
       if (bird.ability.trigger === "launch") assert.match(how, /nothing to press/i);
     }
-    assert.match(tutorialCards({ bird: null }).find((c) => c.id === "ability")!.lines.join(" "), /Pick a bird/);
+    assert.match(tutorialCards({ bird: null }).find((c) => c.id === "ability")!.lines.join(" "), /Each bird has an ability/);
   });
 });
 

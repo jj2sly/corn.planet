@@ -18,9 +18,20 @@ export const PHASE_TITLE = {
   LAUNCH: "LAUNCHING",
   BUILD: "BUILD PHASE",
   ACTION: "LAUNCH PHASE",
-  PROCESS: "PIGGIES' TURN",
+  PROCESS: "ENEMY TURN",
   COW: "THE RED COW GROWS",
   OVER: "OPERATION OVER",
+};
+
+/** One line under each phase title: what it is and what to do. */
+export const PHASE_HINT = {
+  SELECT: "Pick a bird, then ready up.",
+  LAUNCH: "Loading the level.",
+  BUILD: "Prepare the team.",
+  ACTION: "Pick a bird and attack.",
+  PROCESS: "Watch the field.",
+  COW: "Purge corruption faster.",
+  OVER: "Operation report.",
 };
 
 /** A countdown that's aimed once per state (common.js ticks [data-deadline]). */
@@ -152,7 +163,7 @@ export function levelCard(g) {
 export function meters({ compact = false } = {}) {
   const corrFill = el("span", { class: "td-meter-fill" });
   const corrValue = el("span", { class: "td-meter-value" });
-  const corrNote = el("span", { class: "td-meter-note", text: compact ? "" : "0% = TEAM WINS · pop piggies, wreck forts" });
+  const corrNote = el("span", { class: "td-meter-note", text: compact ? "" : "Get to 0% to win" });
   const corr = el("div", { class: "td-meter corruption", role: "meter", "aria-label": "Corruption", "aria-valuemin": "0", "aria-valuemax": "100" }, el("span", { class: "td-meter-label", text: "CORRUPTION" }), el("span", { class: "td-meter-bar" }, corrFill), corrValue, corrNote);
   const cowFill = el("span", { class: "td-meter-fill" });
   const cowValue = el("span", { class: "td-meter-value" });
@@ -185,7 +196,7 @@ export function meters({ compact = false } = {}) {
       cowValue.textContent = `${p}%`;
       cow.setAttribute("aria-valuenow", String(p));
       cow.classList.toggle("danger", p >= 60);
-      cowNote.textContent = compact ? "" : `100% = TEAM LOSES · +${Math.round(g.cow.step * 100)}% in ${g.cow.nextIn} turn${g.cow.nextIn === 1 ? "" : "s"}`;
+      cowNote.textContent = compact ? "" : `Stop it before 100% · +${Math.round(g.cow.step * 100)}% in ${g.cow.nextIn} turn${g.cow.nextIn === 1 ? "" : "s"}`;
       const k = g.kernels.balance;
       kernels.textContent = compact ? `🌽 ${k}` : `🌽 ${k} TEAM`;
       kernels.title = `Shared kernels: ${k} (earned ${g.kernels.earned}, spent ${g.kernels.spent})`;

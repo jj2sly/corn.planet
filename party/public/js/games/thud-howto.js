@@ -21,43 +21,10 @@ export function tutorialCards({ buildMs = 120_000, bird = null } = {}) {
   const seconds = Math.round(buildMs / 1000);
   const b = birdType(bird);
   return [
-    {
-      id: "build",
-      title: "BUILD",
-      lines: [
-        "The team shares one pile of kernels 🌽. Spend them together.",
-        "Build nests (more birds), walls and shields, clone tanks and a weather machine.",
-        `The build phase lasts ${seconds} seconds. Done early? Everyone votes to skip.`,
-      ],
-    },
-    {
-      id: "aim",
-      title: "AIM & LAUNCH",
-      lines: ["Drag back on the screen to aim (or ◀ ▶ angle, ▲ ▼ power).", "Let go to launch (or press A / Space).", "Each agent launches one bird per turn."],
-    },
-    {
-      id: "ability",
-      title: "BIRD ABILITIES",
-      lines: [
-        "Every bird has its own special ability.",
-        b ? `${b.icon} ${b.name}, ${b.title}: ${b.blurb}` : "Pick a bird to see what it does.",
-        abilityHow(b),
-      ],
-    },
-    {
-      id: "goal",
-      title: "THE TEAM'S GOAL",
-      lines: ["Pop Corn Piggies and wreck their fort.", "That lowers the Corruption Meter. Get it to 0%…", "…before the piggies finish building the Red Cow. You win or lose as a team."],
-    },
-    {
-      id: "weather",
-      title: "WEATHER",
-      lines: ["Wind, rain, fog and lightning can knock your shots off course.", "A Weather Machine forecasts what's coming. Upgrade it to see further."],
-    },
-    {
-      id: "team",
-      title: "TEAMWORK",
-      lines: ["Kernels are shared: agree what to build.", "Nests hatch new birds. Two agents at one nest can breed an extra one.", "Out of birds? A teammate can donate one of theirs."],
-    },
+    { id: "build", title: "BUILD", lines: ["Spend TEAM KERNELS 🌽 to build.", `Build phase: ${seconds} seconds. Done? Vote skip.`] },
+    { id: "pick", title: "PICK A BIRD", lines: ["Pick a bird on your turn.", "One bird per agent per turn."] },
+    { id: "aim", title: "AIM & LAUNCH", lines: ["Drag back to aim (or ◀ ▶ ▲ ▼).", "Let go to launch (or A / Space)."] },
+    { id: "ability", title: "USE THE ABILITY", lines: [b ? `${b.icon} ${b.name}: ${b.blurb}` : "Each bird has an ability.", abilityHow(b)] },
+    { id: "goal", title: "THE GOAL", lines: ["Destroy the piggies: Corruption to 0%.", "Do it before the Red Cow finishes."] },
   ];
 }

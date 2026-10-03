@@ -8,7 +8,7 @@ import { animateBirds } from "../cpi/bird.js";
 import { createHandheld, systemCard } from "../cpi/handheld.js";
 import { playNewCues, playSfx, preloadSounds, soundControl } from "./mycob-sound.js";
 import { birdType } from "./thud-birds.js";
-import { birdBadge, cowBand, forecastPanel, gameTitle, launchSteps, liveTimer, meters, overReport, PHASE_TITLE, processBanner } from "./thud-ui.js";
+import { birdBadge, cowBand, forecastPanel, gameTitle, launchSteps, liveTimer, meters, overReport, PHASE_HINT, PHASE_TITLE, processBanner } from "./thud-ui.js";
 import { createThudView } from "./thud-world.js";
 
 /** Steam My Deck's cover art for this game. */
@@ -57,7 +57,7 @@ function selectCard(g) {
   const node = systemCard({
     eyebrow: "ON YOUR PHONES",
     title: "CHOOSE YOUR BIRD",
-    text: "Each bird plays differently. Skins are just for looks. Ready up when you're happy.",
+    text: "Pick a bird. Ready up.",
     kind: "level",
     children: [
       el(
@@ -80,14 +80,14 @@ function actionBand(g) {
   const a = g.action;
   const p = g.roster.find((q) => q.id === a?.shooterId);
   if (!a || !p) return null;
-  if (a.stage === "NEED_BIRD") return el("div", { class: "td-band danger" }, el("span", { class: "td-band-tag", text: "NEEDS A BIRD" }), el("span", { text: `${p.name} is out of birds. Anyone: DONATE one from your phone.` }));
+  if (a.stage === "NEED_BIRD") return el("div", { class: "td-band danger" }, el("span", { class: "td-band-tag", text: "NEEDS A BIRD" }), el("span", { text: `${p.name} has no birds. Donate one!` }));
   const type = a.flying?.bird ?? p.birds[p.selected] ?? p.bird;
   const b = birdType(type);
   const turn = `SHOT ${a.index + 1}/${a.queue.length}`;
   const nextUp = g.roster.find((q) => q.id === a.queue[a.index + 1]);
-  const then = nextUp ? ` · next: ${nextUp.name}` : " · last shot, then the piggies' turn";
-  if (a.stage === "FLIGHT") return el("div", { class: "td-band" }, el("span", { class: "td-band-tag", text: `${turn} · IN FLIGHT` }), el("span", { text: `${p.name}'s ${b?.name ?? "bird"} · ${b?.usage ?? ""}${then}` }));
-  if (a.stage === "AIM") return el("div", { class: "td-band" }, el("span", { class: "td-band-tag", text: `${turn} · ${p.name.toUpperCase()}'S TURN` }), el("span", { text: `Aiming on their phone · ${b?.icon ?? ""} ${b?.name ?? "Bird"}${then}` }));
+  const then = nextUp ? ` · next: ${nextUp.name}` : " · last shot";
+  if (a.stage === "FLIGHT") return el("div", { class: "td-band" }, el("span", { class: "td-band-tag", text: `${turn} · IN FLIGHT` }), el("span", { text: `${p.name}'s ${b?.name ?? "bird"}${then}` }));
+  if (a.stage === "AIM") return el("div", { class: "td-band" }, el("span", { class: "td-band-tag", text: `${turn} · ${p.name.toUpperCase()}'S TURN` }), el("span", { text: `${b?.icon ?? ""} ${b?.name ?? "Bird"}${then}` }));
   return null;
 }
 
@@ -96,7 +96,7 @@ function buildBand(g) {
     "div",
     { class: "td-band" },
     el("span", { class: "td-band-tag", text: `TURN ${g.turn} · BUILD PHASE` }),
-    el("span", { text: `Spend the team's ${g.kernels.balance} 🌽 on your phones: walls protect, nests hatch birds. Done? Vote skip (${g.build.votes}/${g.build.needed}) → Launch Phase.` }),
+    el("span", { text: `Spend ${g.kernels.balance} 🌽 on your phones. Done? Skip ${g.build.votes}/${g.build.needed}.` }),
   );
 }
 
@@ -208,7 +208,7 @@ function buildScreen(s) {
       }
       if (g.phase !== phase && !paused) enter(g, next.timer?.remainingMs);
       else if (!paused) band(g);
-      eyebrow.textContent = `${g.level.name} · ${g.turn ? `Turn ${g.turn}` : "Getting ready"}${g.phase === "ACTION" && g.weather ? ` · ${g.weather.label}` : ""}`;
+      eyebrow.textContent = `${PHASE_HINT[g.phase] ?? ""} · ${g.turn ? `Turn ${g.turn}` : g.level.name}${g.phase === "ACTION" && g.weather ? ` · ${g.weather.label}` : ""}`;
       view.update(g);
       const ids = g.roster.map((p) => `${p.id}:${p.bird}:${p.skin}`).join(",");
       if (team.ids !== ids) {

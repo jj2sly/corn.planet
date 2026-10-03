@@ -223,7 +223,7 @@ function scene(ctx, id, t, { look, friend }) {
     drawPig(ctx, "basic", { x: 320, y: GROUND - 14, r: 13, t, state: "smug" });
     return;
   }
-  if (id === "ability") {
+  if (id === "ability" || id === "pick") {
     const pulse = (t * 1.2) % 1;
     const x = 180;
     const y = 66 + Math.sin(t * 2) * 6;
